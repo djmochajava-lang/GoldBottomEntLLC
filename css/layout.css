@@ -151,7 +151,7 @@
   gap: 5px;
 }
 
-.mobile-menu-toggle .bar {
+.mobile-menu-toggle .hamburger-bar {
   display: block;
   width: 22px;
   height: 2px;
@@ -161,15 +161,15 @@
   transform-origin: center;
 }
 
-.mobile-menu-toggle.active .bar:nth-child(1) {
+.mobile-menu-toggle.active .hamburger-bar:nth-child(1) {
   transform: translateY(7px) rotate(45deg);
 }
 
-.mobile-menu-toggle.active .bar:nth-child(2) {
+.mobile-menu-toggle.active .hamburger-bar:nth-child(2) {
   opacity: 0;
 }
 
-.mobile-menu-toggle.active .bar:nth-child(3) {
+.mobile-menu-toggle.active .hamburger-bar:nth-child(3) {
   transform: translateY(-7px) rotate(-45deg);
 }
 
@@ -755,6 +755,11 @@
 
 .sidebar-collapsed ~ .dashboard-topbar {
   left: var(--sidebar-collapsed);
+}
+
+/* Hidden on desktop — shown by responsive.css on mobile */
+.sidebar-mobile-toggle {
+  display: none;
 }
 
 .topbar-left {
