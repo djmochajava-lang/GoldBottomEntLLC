@@ -289,6 +289,13 @@
   50%      { opacity: 0.65; }
 }
 
+/* --- Watermark slow diagonal drift --- */
+@keyframes watermarkDrift {
+  0%   { transform: translate(0, 0); }
+  50%  { transform: translate(-200px, -150px); }
+  100% { transform: translate(0, 0); }
+}
+
 /* --- Dashboard gradient shift --- */
 @keyframes dashGradientShift {
   0%   { background-position: 0% 0%; }
@@ -592,8 +599,15 @@
   .bg-orbs .orb,
   .hero-section::after,
   .hero-corporate::after,
-  .hero-corporate .hero-orb {
+  .hero-corporate .hero-orb,
+  .bg-watermark {
     animation: none !important;
+  }
+
+  .bg-orbs .orb,
+  .hero-section::after,
+  .hero-corporate::after,
+  .hero-corporate .hero-orb {
     opacity: 0 !important;
   }
 }

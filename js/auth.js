@@ -1,7 +1,8 @@
 /* ============================================
    auth.js — Gold Bottom Ent. LLC Firebase Auth
    Federated Sign-In (Google, Apple, Microsoft)
-   Version: 1.0.0-prototype
+   Firestore-based registration & approval
+   Version: 1.1.0-prototype
    ============================================ */
 
 const Auth = {
@@ -12,6 +13,9 @@ const Auth = {
 
   /** @type {Object|null} Firebase auth instance */
   _auth: null,
+
+  /** @type {Object|null} Firestore instance */
+  _db: null,
 
   /** @type {Object} Auth providers (Google, Apple, Microsoft) */
   _providers: {},
@@ -28,12 +32,18 @@ const Auth = {
   /** @type {boolean} Whether a sign-in is currently in progress */
   _signingIn: false,
 
+  /** @type {boolean} Whether the current user is approved for dashboard */
+  _authorized: false,
+
+  /** @type {string|null} Registration status: null, 'pending', 'approved', 'denied' */
+  _registrationStatus: null,
+
   /* ------------------------------------------
      Initialization
      ------------------------------------------ */
 
   /**
-   * Initialize Firebase Auth with federated providers
+   * Initialize Firebase Auth + Firestore with federated providers
    */
   init: function() {
     if (this.initialized) return;
@@ -79,6 +89,14 @@ const Auth = {
 
       this._auth = firebase.auth();
 
+      // Initialize Firestore
+      if (typeof firebase.firestore === 'function') {
+        this._db = firebase.firestore();
+        console.log('[Auth] Firestore connected');
+      } else {
+        console.warn('[Auth] Firestore SDK not loaded — registration disabled');
+      }
+
       // Set up federated providers
       // Google
       var google = new firebase.auth.GoogleAuthProvider();
@@ -107,21 +125,52 @@ const Auth = {
     // Listen for auth state changes
     this._auth.onAuthStateChanged(function(user) {
       Auth._user = user;
-      Auth._updateUI(user);
-      Auth._notifyListeners(user);
 
       if (user) {
-        console.log('[Auth] Signed in:', user.email, '(' + (user.displayName || 'no name') + ')');
+        // Check Firestore registration + approval status
+        Auth._checkRegistration(user).then(function(status) {
+          Auth._registrationStatus = status;
+          Auth._authorized = (status === 'approved');
+          Auth._updateUI(user);
+          Auth._notifyListeners(user);
 
-        // If there was a pending route, navigate to it
-        if (Auth._pendingRoute) {
-          var route = Auth._pendingRoute;
-          Auth._pendingRoute = null;
-          if (typeof Router !== 'undefined') {
-            Router.navigateTo(route, true);
+          if (status === 'approved') {
+            console.log('[Auth] Signed in (approved):', user.displayName || user.email);
+            // Close login modal and welcome user
+            if (typeof Modal !== 'undefined' && Modal.isOpen) Modal.close();
+            if (typeof Toast !== 'undefined') {
+              Toast.success('Welcome, ' + Auth.getUserDisplayName());
+            }
+            // Navigate to pending route if any
+            if (Auth._pendingRoute) {
+              var route = Auth._pendingRoute;
+              Auth._pendingRoute = null;
+              if (typeof Router !== 'undefined') {
+                Router.navigateTo(route, true);
+              }
+            }
+          } else if (status === 'pending') {
+            console.log('[Auth] Signed in (pending approval):', user.email);
+            // Show pending screen — don't sign them out, keep session alive
+            Auth._showPendingApproval(user);
+          } else if (status === 'denied') {
+            console.warn('[Auth] Access denied:', user.email);
+            Auth._auth.signOut();
+            Auth._showLoginError('Your access request has been denied.');
           }
-        }
+        }).catch(function(err) {
+          console.error('[Auth] Registration check failed:', err);
+          // Fail open for Firestore errors — allow access so site isn't broken
+          Auth._authorized = true;
+          Auth._registrationStatus = 'approved';
+          Auth._updateUI(user);
+          Auth._notifyListeners(user);
+        });
       } else {
+        Auth._authorized = false;
+        Auth._registrationStatus = null;
+        Auth._updateUI(user);
+        Auth._notifyListeners(user);
         console.log('[Auth] Signed out');
 
         // If currently on a dashboard route, redirect to home
@@ -134,7 +183,99 @@ const Auth = {
     });
 
     this.initialized = true;
-    console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft)');
+    console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft + Firestore)');
+  },
+
+  /* ------------------------------------------
+     Firestore Registration & Approval
+     ------------------------------------------ */
+
+  /**
+   * Check or create a user's registration in Firestore.
+   * Returns the approval status: 'approved', 'pending', or 'denied'.
+   *
+   * Firestore collection: 'users'
+   * Document ID: user.uid
+   * Fields:
+   *   - displayName (string) — plain text name from Google
+   *   - emailHash (string) — SHA-256 hash of email (privacy)
+   *   - photoURL (string) — profile photo URL
+   *   - provider (string) — sign-in provider
+   *   - status (string) — 'pending' | 'approved' | 'denied'
+   *   - registeredAt (timestamp) — when they first signed in
+   *   - lastLoginAt (timestamp) — updated each sign-in
+   *
+   * @param {Object} user - Firebase user object
+   * @returns {Promise<string>} 'approved', 'pending', or 'denied'
+   */
+  _checkRegistration: function(user) {
+    if (!this._db) {
+      // No Firestore — fall back to open access
+      console.warn('[Auth] No Firestore — allowing access');
+      return Promise.resolve('approved');
+    }
+
+    var userRef = this._db.collection('users').doc(user.uid);
+
+    return this._hashEmail(user.email).then(function(emailHash) {
+      return userRef.get().then(function(doc) {
+        if (doc.exists) {
+          // Existing user — update last login and return their status
+          var data = doc.data();
+          userRef.update({
+            lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+            displayName: user.displayName || data.displayName,
+            photoURL: user.photoURL || data.photoURL || ''
+          }).catch(function(e) {
+            console.warn('[Auth] Failed to update last login:', e);
+          });
+          return data.status || 'pending';
+        } else {
+          // New user — create registration with 'pending' status
+          return userRef.set({
+            displayName: user.displayName || user.email.split('@')[0],
+            emailHash: emailHash,
+            photoURL: user.photoURL || '',
+            provider: user.providerData && user.providerData[0]
+              ? user.providerData[0].providerId
+              : 'unknown',
+            status: 'pending',
+            registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            console.log('[Auth] New registration created for:', user.displayName || user.email);
+            return 'pending';
+          });
+        }
+      });
+    });
+  },
+
+  /**
+   * Hash an email address using SHA-256 (lowercase, trimmed).
+   * Used internally for privacy — emails are never stored in plain text.
+   * @param {string} email
+   * @returns {Promise<string>} hex-encoded SHA-256 hash
+   * @private
+   */
+  _hashEmail: function(email) {
+    var normalized = (email || '').trim().toLowerCase();
+    var encoder = new TextEncoder();
+    var data = encoder.encode(normalized);
+    return crypto.subtle.digest('SHA-256', data).then(function(buffer) {
+      var hashArray = Array.from(new Uint8Array(buffer));
+      return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  },
+
+  /**
+   * Public helper: hash an email for debugging/admin use.
+   * Usage in console: Auth.hashEmail('someone@gmail.com').then(h => console.log(h))
+   * @param {string} email
+   * @returns {Promise<string>}
+   */
+  hashEmail: function(email) {
+    return this._hashEmail(email);
   },
 
   /* ------------------------------------------
@@ -142,11 +283,19 @@ const Auth = {
      ------------------------------------------ */
 
   /**
-   * Check if a user is currently authenticated
+   * Check if a user is currently authenticated AND approved
    * @returns {boolean}
    */
   isAuthenticated: function() {
-    return !!this._user;
+    return !!this._user && this._authorized;
+  },
+
+  /**
+   * Get the current user's registration status
+   * @returns {string|null} 'approved', 'pending', 'denied', or null
+   */
+  getRegistrationStatus: function() {
+    return this._registrationStatus;
   },
 
   /**
@@ -247,8 +396,14 @@ const Auth = {
       return true;
     }
 
-    // If authenticated, allow
+    // If authenticated and approved, allow
     if (this.isAuthenticated()) return true;
+
+    // If signed in but pending — show pending screen
+    if (this._user && this._registrationStatus === 'pending') {
+      this._showPendingApproval(this._user);
+      return false;
+    }
 
     // Not authenticated — block and show login
     this._pendingRoute = pageName;
@@ -307,7 +462,7 @@ const Auth = {
         '<div style="margin-bottom:24px;">' +
           '<i class="fa-solid fa-shield-halved" style="font-size:36px;color:#d4a017;margin-bottom:12px;display:block;"></i>' +
           '<p style="margin:0;color:rgba(255,255,255,0.6);font-size:14px;line-height:1.5;">' +
-            'Sign in with your authorized<br>account to access the dashboard.' +
+            'Sign in to request<br>dashboard access.' +
           '</p>' +
         '</div>' +
         // Provider buttons container
@@ -337,7 +492,7 @@ const Auth = {
         '</div>' +
         // Note
         '<p style="margin:20px 0 0;color:rgba(255,255,255,0.3);font-size:11px;">' +
-          'Only pre-approved accounts can access the dashboard.' +
+          'New accounts require admin approval.' +
         '</p>' +
       '</div>';
 
@@ -356,7 +511,6 @@ const Auth = {
       var buttons = document.querySelectorAll('.auth-provider-btn');
       buttons.forEach(function(btn) {
         // Hover effects
-        var origBg = btn.style.background;
         btn.addEventListener('mouseenter', function() {
           this.style.opacity = '0.85';
           this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
@@ -372,6 +526,72 @@ const Auth = {
           Auth._handleProviderSignIn(provider, this);
         });
       });
+    }, 100);
+  },
+
+  /**
+   * Show the "Pending Approval" screen after a new user registers
+   * @param {Object} user - Firebase user object
+   * @private
+   */
+  _showPendingApproval: function(user) {
+    if (typeof Modal === 'undefined') return;
+
+    var displayName = user.displayName || user.email.split('@')[0];
+    var photoHTML = user.photoURL
+      ? '<img src="' + user.photoURL + '" alt="' + displayName + '" ' +
+        'style="width:64px;height:64px;border-radius:50%;object-fit:cover;margin-bottom:16px;border:2px solid #d4a017;" />'
+      : '<i class="fa-solid fa-user-clock" style="font-size:48px;color:#d4a017;margin-bottom:16px;display:block;"></i>';
+
+    var contentHTML =
+      '<div style="text-align:center;padding:16px 0;">' +
+        photoHTML +
+        '<h3 style="margin:0 0 8px;color:#e6edf3;font-size:18px;">Welcome, ' + displayName + '</h3>' +
+        '<div style="display:inline-block;padding:4px 16px;border-radius:20px;' +
+          'background:rgba(210,153,34,0.15);color:#d29922;font-size:13px;font-weight:600;' +
+          'margin-bottom:20px;">' +
+          '<i class="fa-solid fa-clock" style="margin-right:6px;"></i>Pending Approval' +
+        '</div>' +
+        '<p style="margin:0 0 16px;color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6;">' +
+          'Your access request has been submitted.<br>' +
+          'An administrator will review and approve your account.' +
+        '</p>' +
+        '<div style="padding:12px;border-radius:8px;background:rgba(255,255,255,0.04);' +
+          'border:1px solid rgba(255,255,255,0.08);margin-bottom:16px;">' +
+          '<p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;">' +
+            'You\'ll get immediate access once approved.<br>Just sign in again after approval.' +
+          '</p>' +
+        '</div>' +
+        '<button id="auth-pending-signout" type="button" style="' +
+          'padding:8px 24px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);' +
+          'background:transparent;color:rgba(255,255,255,0.6);cursor:pointer;font-size:13px;' +
+          'transition:all 0.2s;">' +
+          'Sign Out' +
+        '</button>' +
+      '</div>';
+
+    Modal.open({
+      title: 'Access Requested',
+      content: contentHTML,
+      size: 'sm',
+      showFooter: false,
+      onCancel: function() {
+        Auth._pendingRoute = null;
+      }
+    });
+
+    // Bind sign-out button
+    setTimeout(function() {
+      var btn = document.getElementById('auth-pending-signout');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          Auth.logout().then(function() {
+            Modal.close();
+            if (typeof Toast !== 'undefined') Toast.success('Signed out');
+            if (typeof Router !== 'undefined') Router.navigateTo('home');
+          });
+        });
+      }
     }, 100);
   },
 
@@ -403,11 +623,8 @@ const Auth = {
     Auth.loginWithProvider(providerName)
       .then(function() {
         Auth._signingIn = false;
-        Modal.close();
-        if (typeof Toast !== 'undefined') {
-          Toast.success('Welcome, ' + Auth.getUserDisplayName());
-        }
-        // onAuthStateChanged handles pending route navigation
+        // Don't close modal yet — onAuthStateChanged will handle it
+        // based on registration status (approved → close, pending → swap to pending screen)
       })
       .catch(function(error) {
         Auth._signingIn = false;
@@ -494,7 +711,7 @@ const Auth = {
     // Show/hide logout button in sidebar
     var logoutBtn = document.getElementById('sidebar-logout-btn');
     if (logoutBtn) {
-      logoutBtn.style.display = user ? '' : 'none';
+      logoutBtn.style.display = (user && Auth._authorized) ? '' : 'none';
     }
 
     // Update topbar user email tooltip
