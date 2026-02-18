@@ -37,13 +37,17 @@ const Router = {
   currentLayout: null,
   defaultPage: 'home',
 
+  initialized: false,
+
   /**
    * Initialize router
    */
   init() {
+    if (this.initialized) return;
     this.setupNavigation();
     this.handleInitialRoute();
     this.handleBrowserNavigation();
+    this.initialized = true;
     console.log('✅ Router initialized (dual-layout)');
   },
 
