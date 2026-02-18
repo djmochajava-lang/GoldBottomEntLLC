@@ -1,0 +1,388 @@
+<!-- dashboard/finances.html — Financial Management -->
+<div class="dashboard-page" id="dash-finances">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--spacing-sm);">
+      <div><h1>Finances</h1><p class="text-muted">Revenue, expenses, commissions, invoicing, and tax tracking.</p></div>
+    </div>
+  </div>
+
+  <!-- Financial Summary -->
+  <div class="metrics-grid" id="finance-summary"></div>
+
+  <!-- Finance Tabs -->
+  <div class="tabs finance-tabs" style="margin-top:var(--spacing-lg);">
+    <button class="tab active" data-tab="revenue">Revenue</button>
+    <button class="tab" data-tab="expenses">Expenses</button>
+    <button class="tab" data-tab="invoices">Invoices</button>
+    <button class="tab" data-tab="commissions">Commissions</button>
+    <button class="tab" data-tab="taxes">Taxes</button>
+  </div>
+
+  <!-- Revenue Tab -->
+  <div class="tab-panel active" id="tab-revenue">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--spacing-md);border-bottom:1px solid var(--color-border);">
+        <h3 style="margin:0;"><i class="fa-solid fa-arrow-trend-up text-gold"></i> Revenue Log</h3>
+        <button class="btn btn-primary btn-sm" id="add-revenue-btn"><i class="fa-solid fa-plus"></i> Log Revenue</button>
+      </div>
+      <div id="revenue-table-container"></div>
+    </div>
+  </div>
+
+  <!-- Expenses Tab -->
+  <div class="tab-panel" id="tab-expenses" style="display:none;">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--spacing-md);border-bottom:1px solid var(--color-border);">
+        <h3 style="margin:0;"><i class="fa-solid fa-arrow-trend-down" style="color:var(--color-danger);"></i> Expense Log</h3>
+        <button class="btn btn-primary btn-sm" id="add-expense-btn"><i class="fa-solid fa-plus"></i> Log Expense</button>
+      </div>
+      <div id="expense-table-container"></div>
+    </div>
+  </div>
+
+  <!-- Invoices Tab -->
+  <div class="tab-panel" id="tab-invoices" style="display:none;">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--spacing-md);border-bottom:1px solid var(--color-border);">
+        <h3 style="margin:0;"><i class="fa-solid fa-file-invoice-dollar text-gold"></i> Invoices</h3>
+        <button class="btn btn-primary btn-sm" id="add-invoice-btn"><i class="fa-solid fa-plus"></i> Create Invoice</button>
+      </div>
+      <div id="invoice-table-container"></div>
+    </div>
+  </div>
+
+  <!-- Commissions Tab -->
+  <div class="tab-panel" id="tab-commissions" style="display:none;">
+    <div class="grid grid-2">
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-calculator text-gold"></i> Commission Calculator</h3>
+        <p class="text-muted">Calculate your management commission on artist revenue.</p>
+        <div class="form-group" style="margin-top:var(--spacing-md);">
+          <label class="form-label">Gross Revenue ($)</label>
+          <input type="number" class="form-input" id="comm-gross" placeholder="10000" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Commission Rate (%)</label>
+          <input type="number" class="form-input" id="comm-rate" value="15" min="0" max="100" step="0.5" />
+        </div>
+        <button class="btn btn-primary" id="calc-commission-btn"><i class="fa-solid fa-calculator"></i> Calculate</button>
+        <div id="comm-result" style="margin-top:var(--spacing-md);display:none;">
+          <div style="display:flex;gap:var(--spacing-md);flex-wrap:wrap;">
+            <div style="flex:1;min-width:150px;padding:var(--spacing-md);border-radius:var(--radius-md);background:rgba(184,134,11,0.12);border:1px solid rgba(184,134,11,0.22);">
+              <div class="text-muted" style="font-size:.8rem;">Company Commission</div>
+              <div style="font-size:1.5rem;font-weight:700;color:var(--color-gold);" id="comm-company">$0</div>
+            </div>
+            <div style="flex:1;min-width:150px;padding:var(--spacing-md);border-radius:var(--radius-md);background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.2);">
+              <div class="text-muted" style="font-size:.8rem;">Artist Payout</div>
+              <div style="font-size:1.5rem;font-weight:700;color:var(--color-success);" id="comm-artist">$0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-percent text-gold"></i> Common Commission Rates</h3>
+        <p class="text-muted">Industry-standard management commission rates.</p>
+        <table class="data-table" style="margin-top:var(--spacing-sm);">
+          <thead><tr><th>Service</th><th>Typical Rate</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Service">Artist Management</td><td data-label="Rate">15 – 20%</td></tr>
+            <tr><td data-label="Service">Booking Agent</td><td data-label="Rate">10 – 15%</td></tr>
+            <tr><td data-label="Service">Music Publishing</td><td data-label="Rate">15 – 25%</td></tr>
+            <tr><td data-label="Service">Distribution</td><td data-label="Rate">10 – 30%</td></tr>
+            <tr><td data-label="Service">Licensing / Sync</td><td data-label="Rate">Negotiated per deal</td></tr>
+            <tr><td data-label="Service">Tech/Dev Services</td><td data-label="Rate">Project-based fee</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Taxes Tab -->
+  <div class="tab-panel" id="tab-taxes" style="display:none;">
+    <!-- Quarterly Reminders -->
+    <div class="grid grid-4" style="margin-bottom:var(--spacing-lg);">
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:var(--color-gold);">Q1</div>
+        <div class="text-muted">Due: April 15</div>
+        <div style="font-size:.8rem;color:var(--color-text-secondary);">Jan – Mar income</div>
+      </div>
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:var(--color-gold);">Q2</div>
+        <div class="text-muted">Due: June 15</div>
+        <div style="font-size:.8rem;color:var(--color-text-secondary);">Apr – May income</div>
+      </div>
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:var(--color-gold);">Q3</div>
+        <div class="text-muted">Due: Sept 15</div>
+        <div style="font-size:.8rem;color:var(--color-text-secondary);">Jun – Aug income</div>
+      </div>
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:var(--color-gold);">Q4</div>
+        <div class="text-muted">Due: Jan 15</div>
+        <div style="font-size:.8rem;color:var(--color-text-secondary);">Sep – Dec income</div>
+      </div>
+    </div>
+
+    <!-- 1099 Tracker -->
+    <div class="card" style="margin-bottom:var(--spacing-lg);">
+      <div style="padding:var(--spacing-md);border-bottom:1px solid var(--color-border);">
+        <h3 style="margin:0;"><i class="fa-solid fa-file-invoice text-gold"></i> 1099-NEC Tracker</h3>
+        <p class="text-muted" style="margin:4px 0 0;">Track contractor payments. Issue 1099-NEC for payments ≥ $600/year.</p>
+      </div>
+      <div id="tax-1099-container">
+        <table class="data-table">
+          <thead><tr><th>Contractor</th><th>Total Paid YTD</th><th>1099 Required</th><th>Status</th></tr></thead>
+          <tbody id="tax-1099-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tax Document Checklist -->
+    <div class="glass-card" style="margin-bottom:var(--spacing-lg);">
+      <h3><i class="fa-solid fa-clipboard-check text-gold"></i> Tax Document Checklist</h3>
+      <p class="text-muted">Documents needed for annual business tax filing.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--spacing-sm);margin-top:var(--spacing-md);">
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Profit & Loss Statement (P&L)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Balance Sheet</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Bank Statements (all 12 months)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Credit Card Statements</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> 1099-NEC Forms (issued to contractors)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> 1099-MISC / 1099-K (received)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> W-9 Forms (from contractors)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Quarterly Estimated Tax Payments (Form 1040-ES)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Receipts for Business Expenses</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Vehicle Mileage Log (if applicable)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> Home Office Expenses (if applicable)</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--radius-sm);cursor:pointer;"><input type="checkbox" /> EIN Confirmation Letter (CP 575)</label>
+      </div>
+    </div>
+
+    <!-- Tax Resources -->
+    <div class="grid grid-2">
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-landmark text-gold"></i> Tax Resources</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--spacing-sm);">
+          <a href="https://www.irs.gov/businesses/small-businesses-self-employed" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> IRS Small Business</a>
+          <a href="https://www.irs.gov/payments" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">IRS Payments</a>
+          <a href="https://www.irs.gov/forms-pubs/about-form-1040-es" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Form 1040-ES</a>
+        </div>
+      </div>
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-user-tie text-gold"></i> Professional Help</h3>
+        <p class="text-muted">Your CPA / Accountant:</p>
+        <p style="font-size:1.1rem;font-weight:600;color:var(--color-text);">[YOUR ACCOUNTANT / CPA]</p>
+        <p class="text-muted" style="font-size:.85rem;">[ACCOUNTANT CONTACT INFO]</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Banking & Payments Section -->
+  <div style="margin-top:var(--spacing-xl);">
+    <h2><i class="fa-solid fa-building-columns text-gold"></i> Banking & Payments</h2>
+    <p class="text-muted">Connect your financial accounts for streamlined tracking.</p>
+    <div class="grid grid-3" style="margin-top:var(--spacing-md);">
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-building-columns"></i> Business Bank</h3>
+        <p class="text-muted">Your primary business checking account.</p>
+        <p style="font-weight:600;">[BANK NAME]</p>
+        <p class="text-muted" style="font-size:.8rem;">Connect via your accounting software for automatic transaction import.</p>
+      </div>
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-calculator"></i> QuickBooks Online</h3>
+        <p class="text-muted">Full accounting, invoicing, and expense tracking.</p>
+        <span class="status-pill status-expired" style="font-size:.7rem;">Not Connected</span>
+        <button class="btn btn-secondary btn-sm" style="margin-top:var(--spacing-sm);display:block;">Connect QuickBooks</button>
+      </div>
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-wave-square"></i> Wave (Free)</h3>
+        <p class="text-muted">Free accounting & invoicing alternative.</p>
+        <a href="https://www.waveapps.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--spacing-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Wave</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  var srcLabels={streaming:'Streaming',live:'Live/Gigs',merch:'Merch',licensing:'Licensing',services:'Services',other:'Other'};
+  var srcBadges={streaming:'badge-info',live:'badge-gold',merch:'badge-success',licensing:'badge-warning',services:'badge-primary',other:'badge-ghost'};
+  var catLabels={travel:'Travel',equipment:'Equipment',marketing:'Marketing',legal:'Legal',software:'Software',studio:'Studio',other:'Other'};
+  var catBadges={travel:'badge-info',equipment:'badge-gold',marketing:'badge-success',legal:'badge-warning',software:'badge-primary',studio:'badge-ghost',other:'badge-ghost'};
+  var invStatus={'draft':'status-draft','sent':'status-pending','paid':'status-active','overdue':'status-expired'};
+
+  function fmt(v){return typeof Utils!=='undefined'?Utils.formatCurrency(v):'$'+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2});}
+  function fmtDate(d){return typeof Utils!=='undefined'?Utils.formatDate(d):(d||'—');}
+
+  // Summary
+  function renderSummary(){
+    var rev=DataStore.getFinancesRevenue();var exp=DataStore.getFinancesExpenses();var inv=DataStore.getInvoices();
+    var totalRev=rev.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+    var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+    var net=totalRev-totalExp;
+    var outstanding=inv.filter(function(i){return i.status==='sent'||i.status==='overdue';}).reduce(function(s,i){return s+(parseFloat(i.amount)||0);},0);
+    var cards=[
+      {label:'Total Revenue',value:fmt(totalRev),icon:'fa-arrow-trend-up',color:'#3fb950'},
+      {label:'Total Expenses',value:fmt(totalExp),icon:'fa-arrow-trend-down',color:'#f85149'},
+      {label:'Net Income',value:fmt(net),icon:'fa-chart-line',color:'#d4a017'},
+      {label:'Outstanding Invoices',value:fmt(outstanding),icon:'fa-file-invoice-dollar',color:'#d29922'}
+    ];
+    var html='';
+    cards.forEach(function(c){
+      var rgb=hexToRgb(c.color);
+      html+='<div class="metric-card glass-card"><div class="metric-icon" style="background:rgba('+rgb+',0.15);color:'+c.color+';"><i class="fa-solid '+c.icon+'"></i></div><div class="metric-info"><span class="metric-value">'+c.value+'</span><span class="metric-label">'+c.label+'</span></div></div>';
+    });
+    document.getElementById('finance-summary').innerHTML=html;
+  }
+  function hexToRgb(h){return parseInt(h.slice(1,3),16)+','+parseInt(h.slice(3,5),16)+','+parseInt(h.slice(5,7),16);}
+
+  // Revenue
+  function renderRevenue(){
+    var c=document.getElementById('revenue-table-container');var data=DataStore.getFinancesRevenue();
+    if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-dollar-sign"></i></div><h3 class="empty-state-title">No revenue logged</h3><p class="empty-state-text">Log your first revenue entry.</p></div>';return;}
+    var html='<table class="data-table"><thead><tr><th>Date</th><th>Description</th><th>Source</th><th>Artist</th><th>Amount</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(function(r){
+      html+='<tr><td data-label="Date">'+fmtDate(r.date)+'</td><td data-label="Description">'+r.description+'</td>'+
+        '<td data-label="Source"><span class="badge '+(srcBadges[r.source]||'badge-ghost')+'">'+(srcLabels[r.source]||r.source)+'</span></td>'+
+        '<td data-label="Artist">'+(r.artist||'—')+'</td><td data-label="Amount" style="font-weight:600;color:var(--color-success);">'+fmt(r.amount)+'</td>'+
+        '<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editRevenue(\''+r.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteRevenue(\''+r.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+    });
+    html+='</tbody></table>';c.innerHTML=html;
+  }
+
+  // Expenses
+  function renderExpenses(){
+    var c=document.getElementById('expense-table-container');var data=DataStore.getFinancesExpenses();
+    if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-receipt"></i></div><h3 class="empty-state-title">No expenses logged</h3><p class="empty-state-text">Log your first expense.</p></div>';return;}
+    var html='<table class="data-table"><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Vendor</th><th>Amount</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(function(e){
+      html+='<tr><td data-label="Date">'+fmtDate(e.date)+'</td><td data-label="Description">'+e.description+'</td>'+
+        '<td data-label="Category"><span class="badge '+(catBadges[e.category]||'badge-ghost')+'">'+(catLabels[e.category]||e.category)+'</span></td>'+
+        '<td data-label="Vendor">'+(e.vendor||'—')+'</td><td data-label="Amount" style="font-weight:600;color:var(--color-danger);">'+fmt(e.amount)+'</td>'+
+        '<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editExpense(\''+e.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteExpense(\''+e.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+    });
+    html+='</tbody></table>';c.innerHTML=html;
+  }
+
+  // Invoices
+  function renderInvoices(){
+    var c=document.getElementById('invoice-table-container');var data=DataStore.getInvoices();
+    if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-file-invoice"></i></div><h3 class="empty-state-title">No invoices yet</h3><p class="empty-state-text">Create your first invoice.</p></div>';return;}
+    var html='<table class="data-table"><thead><tr><th>Invoice #</th><th>Client</th><th>Description</th><th>Amount</th><th>Status</th><th>Due Date</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(function(inv){
+      html+='<tr><td data-label="Invoice #"><strong>'+(inv.invoiceNumber||'—')+'</strong></td><td data-label="Client">'+(inv.client||'—')+'</td>'+
+        '<td data-label="Description">'+(inv.description||'—')+'</td><td data-label="Amount" style="font-weight:600;">'+fmt(inv.amount)+'</td>'+
+        '<td data-label="Status"><span class="status-pill '+(invStatus[inv.status]||'status-draft')+'">'+(inv.status||'draft')+'</span></td>'+
+        '<td data-label="Due">'+fmtDate(inv.dueDate)+'</td>'+
+        '<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editInvoice(\''+inv.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteInvoice(\''+inv.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+    });
+    html+='</tbody></table>';c.innerHTML=html;
+  }
+
+  // 1099 Tracker
+  function render1099(){
+    var expenses=DataStore.getFinancesExpenses();
+    var contractors={};
+    expenses.forEach(function(e){
+      if(e.vendor&&e.vendor!=='—'){
+        if(!contractors[e.vendor])contractors[e.vendor]=0;
+        contractors[e.vendor]+=parseFloat(e.amount)||0;
+      }
+    });
+    var body=document.getElementById('tax-1099-body');
+    if(!body)return;
+    var html='';var names=Object.keys(contractors).sort();
+    if(!names.length){
+      html='<tr><td colspan="4" style="text-align:center;padding:var(--spacing-lg);color:var(--color-text-muted);">No contractor payments logged yet.</td></tr>';
+    } else {
+      names.forEach(function(name){
+        var amt=contractors[name];var over=amt>=600;
+        html+='<tr><td data-label="Contractor">'+name+'</td><td data-label="Paid YTD">'+fmt(amt)+'</td>'+
+          '<td data-label="1099 Required"><span class="status-pill '+(over?'status-expired':'status-active')+'">'+(over?'Yes — Required':'No')+'</span></td>'+
+          '<td data-label="Status"><span class="status-pill status-draft">Pending</span></td></tr>';
+      });
+    }
+    body.innerHTML=html;
+  }
+
+  // Tab switching
+  document.querySelectorAll('.finance-tabs .tab').forEach(function(tab){
+    tab.addEventListener('click',function(){
+      document.querySelectorAll('.finance-tabs .tab').forEach(function(t){t.classList.remove('active');});
+      tab.classList.add('active');
+      var target=tab.getAttribute('data-tab');
+      document.querySelectorAll('#dash-finances .tab-panel').forEach(function(p){p.style.display='none';p.classList.remove('active');});
+      var panel=document.getElementById('tab-'+target);
+      if(panel){panel.style.display='';panel.classList.add('active');}
+    });
+  });
+
+  // Revenue CRUD
+  document.getElementById('add-revenue-btn').addEventListener('click',function(){
+    Modal.open({title:'Log Revenue',size:'lg',saveText:'Save',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Date *</label><input type="date" class="form-input" name="date" value="'+new Date().toISOString().split('T')[0]+'" required /></div><div class="form-group"><label class="form-label">Source *</label><select class="form-select" name="source" required><option value="">Select...</option><option value="streaming">Streaming</option><option value="live">Live / Gigs</option><option value="merch">Merch</option><option value="licensing">Licensing</option><option value="services">Services</option><option value="other">Other</option></select></div></div><div class="form-group"><label class="form-label">Description *</label><input type="text" class="form-input" name="description" required /></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Artist</label><input type="text" class="form-input" name="artist" /></div><div class="form-group"><label class="form-label">Amount ($) *</label><input type="number" class="form-input" name="amount" min="0" step="0.01" required /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2"></textarea></div></form>',
+      onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});if(!d.description||!d.amount){Toast.error('Description and amount required');return;}d.amount=parseFloat(d.amount);DataStore.addRevenue(d);Modal.close();Toast.success('Revenue logged: '+fmt(d.amount));renderAll();}
+    });
+  });
+
+  window.editRevenue=function(id){
+    var r=DataStore.getRevenueById?DataStore.getRevenueById(id):null;
+    if(!r){var all=DataStore.getFinancesRevenue();r=all.find(function(x){return x.id===id;});}
+    if(!r)return;
+    Modal.open({title:'Edit Revenue',size:'lg',saveText:'Save',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" name="date" value="'+(r.date||'')+'" /></div><div class="form-group"><label class="form-label">Source</label><select class="form-select" name="source"><option value="streaming"'+(r.source==='streaming'?' selected':'')+'>Streaming</option><option value="live"'+(r.source==='live'?' selected':'')+'>Live / Gigs</option><option value="merch"'+(r.source==='merch'?' selected':'')+'>Merch</option><option value="licensing"'+(r.source==='licensing'?' selected':'')+'>Licensing</option><option value="services"'+(r.source==='services'?' selected':'')+'>Services</option><option value="other"'+(r.source==='other'?' selected':'')+'>Other</option></select></div></div><div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" name="description" value="'+(r.description||'')+'" /></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Artist</label><input type="text" class="form-input" name="artist" value="'+(r.artist||'')+'" /></div><div class="form-group"><label class="form-label">Amount ($)</label><input type="number" class="form-input" name="amount" value="'+(r.amount||'')+'" min="0" step="0.01" /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2">'+(r.notes||'')+'</textarea></div></form>',
+      onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});d.amount=parseFloat(d.amount)||0;DataStore.updateRevenue(id,d);Modal.close();Toast.success('Revenue updated');renderAll();}
+    });
+  };
+  window.deleteRevenue=function(id){Modal.confirm('Delete this revenue entry?',function(){DataStore.deleteRevenue(id);Toast.success('Revenue deleted');renderAll();});};
+
+  // Expense CRUD
+  document.getElementById('add-expense-btn').addEventListener('click',function(){
+    Modal.open({title:'Log Expense',size:'lg',saveText:'Save',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Date *</label><input type="date" class="form-input" name="date" value="'+new Date().toISOString().split('T')[0]+'" required /></div><div class="form-group"><label class="form-label">Category *</label><select class="form-select" name="category" required><option value="">Select...</option><option value="travel">Travel</option><option value="equipment">Equipment</option><option value="marketing">Marketing</option><option value="legal">Legal</option><option value="software">Software</option><option value="studio">Studio</option><option value="other">Other</option></select></div></div><div class="form-group"><label class="form-label">Description *</label><input type="text" class="form-input" name="description" required /></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Vendor</label><input type="text" class="form-input" name="vendor" /></div><div class="form-group"><label class="form-label">Amount ($) *</label><input type="number" class="form-input" name="amount" min="0" step="0.01" required /></div></div><div class="form-group"><label class="form-label">Receipt #</label><input type="text" class="form-input" name="receipt" /></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2"></textarea></div></form>',
+      onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});if(!d.description||!d.amount){Toast.error('Description and amount required');return;}d.amount=parseFloat(d.amount);DataStore.addExpense(d);Modal.close();Toast.success('Expense logged: '+fmt(d.amount));renderAll();}
+    });
+  });
+
+  window.editExpense=function(id){
+    var e;var all=DataStore.getFinancesExpenses();e=all.find(function(x){return x.id===id;});if(!e)return;
+    Modal.open({title:'Edit Expense',size:'lg',saveText:'Save',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" name="date" value="'+(e.date||'')+'" /></div><div class="form-group"><label class="form-label">Category</label><select class="form-select" name="category"><option value="travel"'+(e.category==='travel'?' selected':'')+'>Travel</option><option value="equipment"'+(e.category==='equipment'?' selected':'')+'>Equipment</option><option value="marketing"'+(e.category==='marketing'?' selected':'')+'>Marketing</option><option value="legal"'+(e.category==='legal'?' selected':'')+'>Legal</option><option value="software"'+(e.category==='software'?' selected':'')+'>Software</option><option value="studio"'+(e.category==='studio'?' selected':'')+'>Studio</option><option value="other"'+(e.category==='other'?' selected':'')+'>Other</option></select></div></div><div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" name="description" value="'+(e.description||'')+'" /></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Vendor</label><input type="text" class="form-input" name="vendor" value="'+(e.vendor||'')+'" /></div><div class="form-group"><label class="form-label">Amount ($)</label><input type="number" class="form-input" name="amount" value="'+(e.amount||'')+'" min="0" step="0.01" /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2">'+(e.notes||'')+'</textarea></div></form>',
+      onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});d.amount=parseFloat(d.amount)||0;DataStore.updateExpense(id,d);Modal.close();Toast.success('Expense updated');renderAll();}
+    });
+  };
+  window.deleteExpense=function(id){Modal.confirm('Delete this expense?',function(){DataStore.deleteExpense(id);Toast.success('Expense deleted');renderAll();});};
+
+  // Invoice CRUD
+  document.getElementById('add-invoice-btn').addEventListener('click',function(){
+    var num='INV-'+Date.now().toString().slice(-6);
+    Modal.open({title:'Create Invoice',size:'lg',saveText:'Create',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Invoice #</label><input type="text" class="form-input" name="invoiceNumber" value="'+num+'" /></div><div class="form-group"><label class="form-label">Client *</label><input type="text" class="form-input" name="client" required /></div></div><div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" name="description" /></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Amount ($) *</label><input type="number" class="form-input" name="amount" min="0" step="0.01" required /></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Issue Date</label><input type="date" class="form-input" name="issueDate" value="'+new Date().toISOString().split('T')[0]+'" /></div><div class="form-group"><label class="form-label">Due Date</label><input type="date" class="form-input" name="dueDate" /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2"></textarea></div></form>',
+      onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});if(!d.client||!d.amount){Toast.error('Client and amount required');return;}d.amount=parseFloat(d.amount);DataStore.addInvoice(d);Modal.close();Toast.success('Invoice created: '+d.invoiceNumber);renderAll();}
+    });
+  });
+
+  window.editInvoice=function(id){
+    var inv;var all=DataStore.getInvoices();inv=all.find(function(x){return x.id===id;});if(!inv)return;
+    Modal.open({title:'Edit Invoice',size:'lg',saveText:'Save',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Invoice #</label><input type="text" class="form-input" name="invoiceNumber" value="'+(inv.invoiceNumber||'')+'" /></div><div class="form-group"><label class="form-label">Client</label><input type="text" class="form-input" name="client" value="'+(inv.client||'')+'" /></div></div><div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" name="description" value="'+(inv.description||'')+'" /></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Amount ($)</label><input type="number" class="form-input" name="amount" value="'+(inv.amount||'')+'" min="0" step="0.01" /></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="draft"'+(inv.status==='draft'?' selected':'')+'>Draft</option><option value="sent"'+(inv.status==='sent'?' selected':'')+'>Sent</option><option value="paid"'+(inv.status==='paid'?' selected':'')+'>Paid</option><option value="overdue"'+(inv.status==='overdue'?' selected':'')+'>Overdue</option></select></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Issue Date</label><input type="date" class="form-input" name="issueDate" value="'+(inv.issueDate||'')+'" /></div><div class="form-group"><label class="form-label">Due Date</label><input type="date" class="form-input" name="dueDate" value="'+(inv.dueDate||'')+'" /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2">'+(inv.notes||'')+'</textarea></div></form>',
+      onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});d.amount=parseFloat(d.amount)||0;DataStore.updateInvoice(id,d);Modal.close();Toast.success('Invoice updated');renderAll();}
+    });
+  };
+  window.deleteInvoice=function(id){Modal.confirm('Delete this invoice?',function(){DataStore.deleteInvoice(id);Toast.success('Invoice deleted');renderAll();});};
+
+  // Commission calculator
+  document.getElementById('calc-commission-btn').addEventListener('click',function(){
+    var gross=parseFloat(document.getElementById('comm-gross').value)||0;
+    var rate=parseFloat(document.getElementById('comm-rate').value)||15;
+    var commission=gross*(rate/100);var payout=gross-commission;
+    document.getElementById('comm-company').textContent=fmt(commission);
+    document.getElementById('comm-artist').textContent=fmt(payout);
+    document.getElementById('comm-result').style.display='block';
+  });
+
+  function renderAll(){renderSummary();renderRevenue();renderExpenses();renderInvoices();render1099();}
+  renderAll();
+})();
+</script>

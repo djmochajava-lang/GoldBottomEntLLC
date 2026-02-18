@@ -1,0 +1,85 @@
+<!-- pages/shop.html — Public Merch Shop -->
+
+<section class="page-section" id="page-shop">
+  <div class="container">
+    <h1 class="page-title">Shop</h1>
+    <p class="page-subtitle">Official merchandise from Gold Bottom Ent and our artists.</p>
+
+    <!-- Shopify Embed Placeholder -->
+    <div class="glass-card shopify-placeholder">
+      <div class="shopify-placeholder-icon">
+        <i class="fa-solid fa-bag-shopping"></i>
+      </div>
+      <h2>Merch Store Coming Soon</h2>
+      <p class="text-muted">
+        Our online store is being set up. Official apparel, music, vinyl, and exclusive
+        merchandise will be available here soon.
+      </p>
+      <p class="text-muted" style="font-size: 0.85rem;">
+        <!-- TODO: Replace this entire section with your Shopify Buy Button embed code -->
+        <!-- Shopify Buy Button script goes here once your store is configured -->
+        <!-- See: https://help.shopify.com/en/manual/online-sales-channels/buy-button -->
+      </p>
+      <div class="divider" style="max-width: 200px; margin: var(--spacing-md) auto;"></div>
+      <h3>Get Notified When We Launch</h3>
+      <form class="shop-notify-form" data-form="shop-notify" onsubmit="return false;">
+        <div class="shop-notify-row">
+          <input type="email" class="form-input" placeholder="Enter your email" required />
+          <button type="submit" class="btn btn-primary" onclick="if(typeof Toast!=='undefined')Toast.success('Thanks! We\'ll notify you when the shop launches.');this.closest('form').reset();">
+            <i class="fa-solid fa-bell"></i> Notify Me
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Product Preview Grid -->
+    <h2 class="section-heading" style="margin-top: var(--spacing-2xl);">Preview</h2>
+    <div class="grid grid-3" id="shop-preview-grid">
+      <!-- Rendered by script -->
+    </div>
+
+    <!-- Integration Info -->
+    <div class="glass-card" style="margin-top: var(--spacing-2xl); text-align: center;">
+      <h3><i class="fa-solid fa-plug"></i> Ecommerce Integrations</h3>
+      <p class="text-muted">Our shop will be powered by industry-leading platforms:</p>
+      <div class="integration-badges">
+        <span class="badge badge-green"><i class="fa-brands fa-shopify"></i> Shopify</span>
+        <span class="badge badge-blue"><i class="fa-solid fa-print"></i> Printful</span>
+        <span class="badge badge-gold"><i class="fa-brands fa-stripe-s"></i> Stripe</span>
+        <span class="badge badge-blue"><i class="fa-brands fa-paypal"></i> PayPal</span>
+        <span class="badge badge-gray"><i class="fa-solid fa-cash-register"></i> Square POS</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var grid = document.getElementById('shop-preview-grid');
+  if (!grid || typeof DataStore === 'undefined') return;
+
+  var products = DataStore.getMerchProducts();
+
+  if (products.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-shirt"></i></div><h3 class="empty-state-title">Products coming soon</h3></div>';
+    return;
+  }
+
+  grid.innerHTML = products.map(function(p) {
+    var statusBadge = p.status === 'active'
+      ? '<span class="badge badge-green">Available</span>'
+      : '<span class="badge badge-gray">Coming Soon</span>';
+
+    return '<div class="glass-card product-preview-card">' +
+      '<div class="product-preview-img"><i class="fa-solid ' +
+        (p.category === 'apparel' ? 'fa-shirt' : p.category === 'music' ? 'fa-record-vinyl' : 'fa-box') +
+      '"></i></div>' +
+      '<h4>' + p.name + '</h4>' +
+      statusBadge +
+      '<p class="product-preview-price">$' + parseFloat(p.price).toFixed(2) + '</p>' +
+      '<p class="text-muted" style="font-size:0.85rem;">' + (p.description || '') + '</p>' +
+      '<button class="btn btn-secondary btn-sm" disabled><i class="fa-solid fa-cart-plus"></i> Add to Cart</button>' +
+    '</div>';
+  }).join('');
+})();
+</script>

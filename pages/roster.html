@@ -1,0 +1,101 @@
+<!-- pages/roster.html — Public Talent Roster -->
+
+<section class="page-section" id="page-roster">
+  <div class="container">
+    <h1 class="page-title">Our Roster</h1>
+    <p class="page-subtitle">Meet the talented artists, creatives, and developers represented by Gold Bottom Ent.</p>
+
+    <!-- Filter Tabs -->
+    <div class="tabs roster-filters">
+      <button class="tab active" data-filter="all">All</button>
+      <button class="tab" data-filter="artist">Artists</button>
+      <button class="tab" data-filter="creative">Creatives</button>
+      <button class="tab" data-filter="developer">Developers</button>
+    </div>
+
+    <!-- Roster Grid (populated by script below) -->
+    <div class="grid grid-3 roster-grid" id="roster-grid">
+      <!-- Cards rendered by script -->
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center" style="margin-top: var(--spacing-2xl);">
+      <div class="glass-card cta-card">
+        <h2>Want to Join Our Roster?</h2>
+        <p class="text-muted">
+          We're always looking for exceptional talent &mdash; musicians, creatives, and developers.
+          Send us your info and let's talk.
+        </p>
+        <a href="#contact" class="btn btn-primary btn-lg">
+          <i class="fa-solid fa-paper-plane"></i> Submit Your Info
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var grid = document.getElementById('roster-grid');
+  if (!grid || typeof DataStore === 'undefined') return;
+
+  var roster = DataStore.getRoster();
+
+  var categoryIcons = {
+    artist: 'fa-microphone-lines',
+    creative: 'fa-palette',
+    developer: 'fa-laptop-code'
+  };
+
+  var categoryLabels = {
+    artist: 'Artist',
+    creative: 'Creative',
+    developer: 'Developer'
+  };
+
+  var statusColors = {
+    active: 'badge-green',
+    prospect: 'badge-blue',
+    inactive: 'badge-gray'
+  };
+
+  function renderCards(filter) {
+    var filtered = filter === 'all' ? roster : roster.filter(function(t) { return t.category === filter; });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-users"></i></div><h3 class="empty-state-title">No talent in this category yet</h3><p class="empty-state-text">Check back soon or <a href="#contact">submit talent</a>.</p></div>';
+      return;
+    }
+
+    grid.innerHTML = filtered.map(function(t) {
+      var icon = categoryIcons[t.category] || 'fa-user';
+      var catLabel = categoryLabels[t.category] || t.category;
+      var statusClass = statusColors[t.status] || 'badge-gray';
+      var genres = t.genre ? t.genre.split('/').map(function(g) {
+        return '<span class="badge badge-gold">' + g.trim() + '</span>';
+      }).join(' ') : '';
+
+      return '<div class="glass-card talent-card" data-category="' + t.category + '">' +
+        '<div class="talent-card-avatar"><i class="fa-solid ' + icon + '"></i></div>' +
+        '<h3 class="talent-card-name">' + (t.name || '[Name]') + '</h3>' +
+        '<span class="badge ' + statusClass + '" style="margin-bottom: 8px;">' + catLabel + '</span>' +
+        '<div class="talent-card-badges">' + genres + '</div>' +
+        '<p class="talent-card-bio">' + (t.bio ? (t.bio.length > 120 ? t.bio.substring(0, 120) + '...' : t.bio) : '[Bio coming soon]') + '</p>' +
+        (t.website ? '<a href="' + t.website + '" class="btn btn-ghost btn-sm" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Visit</a>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  // Initial render
+  renderCards('all');
+
+  // Filter tabs
+  document.querySelectorAll('.roster-filters .tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.roster-filters .tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      renderCards(tab.getAttribute('data-filter'));
+    });
+  });
+})();
+</script>

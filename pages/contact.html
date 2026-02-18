@@ -1,0 +1,168 @@
+<!-- pages/contact.html — Contact Page -->
+
+<section class="page-section" id="page-contact">
+  <div class="container">
+    <h1 class="page-title">Contact Us</h1>
+    <p class="page-subtitle">Let's talk about your project, your talent, or your next big idea.</p>
+
+    <div class="grid grid-2 contact-grid">
+      <!-- Contact Form -->
+      <div class="glass-card">
+        <h2>Send Us a Message</h2>
+        <form data-form="contact" id="contact-form">
+          <div class="form-group">
+            <label class="form-label" for="inquiry-type">Inquiry Type</label>
+            <select class="form-select" id="inquiry-type" name="inquiryType" required>
+              <option value="">Select inquiry type...</option>
+              <option value="booking">Booking Request (Entertainment)</option>
+              <option value="talent-submission">Talent Submission</option>
+              <option value="tech-project">Tech Project (Enterprise)</option>
+              <option value="partnership">Partnership Inquiry</option>
+              <option value="general">General Inquiry</option>
+            </select>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="contact-name">Full Name *</label>
+              <input type="text" class="form-input" id="contact-name" name="name" required placeholder="Your name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="contact-email">Email *</label>
+              <input type="email" class="form-input" id="contact-email" name="email" required placeholder="you@example.com" />
+            </div>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="contact-phone">Phone</label>
+              <input type="tel" class="form-input" id="contact-phone" name="phone" placeholder="(555) 123-4567" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="contact-company">Company / Organization</label>
+              <input type="text" class="form-input" id="contact-company" name="company" placeholder="Your company or venue" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="contact-subject">Subject *</label>
+            <input type="text" class="form-input" id="contact-subject" name="subject" required placeholder="What's this about?" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="contact-message">Message *</label>
+            <textarea class="form-textarea" id="contact-message" name="message" rows="6" required placeholder="Tell us about your project, event, or how we can help..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="contact-budget">Budget Range (if applicable)</label>
+            <select class="form-select" id="contact-budget" name="budget">
+              <option value="">Select budget range...</option>
+              <option value="under-1k">Under $1,000</option>
+              <option value="1k-5k">$1,000 – $5,000</option>
+              <option value="5k-10k">$5,000 – $10,000</option>
+              <option value="10k-25k">$10,000 – $25,000</option>
+              <option value="25k-plus">$25,000+</option>
+              <option value="discuss">Let's Discuss</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg btn-block">
+            <i class="fa-solid fa-paper-plane"></i> Send Message
+          </button>
+        </form>
+      </div>
+
+      <!-- Contact Info Sidebar -->
+      <div>
+        <div class="glass-card contact-info-card">
+          <h3><i class="fa-solid fa-gem text-gold"></i> Gold Bottom Ent. LLC</h3>
+          <div class="contact-info-list">
+            <div class="contact-info-item">
+              <i class="fa-solid fa-envelope text-gold"></i>
+              <div>
+                <span class="text-muted">Email</span>
+                <a href="mailto:[YOUR BUSINESS EMAIL]">[YOUR BUSINESS EMAIL]</a>
+                <!-- TODO: Replace with your actual business email -->
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fa-solid fa-phone text-gold"></i>
+              <div>
+                <span class="text-muted">Phone</span>
+                <a href="tel:+1">[YOUR BUSINESS PHONE]</a>
+                <!-- TODO: Replace with your actual business phone -->
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fa-solid fa-location-dot text-gold"></i>
+              <div>
+                <span class="text-muted">Location</span>
+                <p>Washington, DC Metropolitan Area</p>
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fa-solid fa-clock text-gold"></i>
+              <div>
+                <span class="text-muted">Business Hours</span>
+                <p>Mon – Fri: 10:00 AM – 6:00 PM EST</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Social Links -->
+        <div class="glass-card contact-social-card">
+          <h3>Connect With Us</h3>
+          <div class="social-links">
+            <!-- TODO: Replace # with your actual social media URLs -->
+            <a href="#" class="social-link" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#" class="social-link" title="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="#" class="social-link" title="Twitter/X"><i class="fa-brands fa-x-twitter"></i></a>
+            <a href="#" class="social-link" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+            <a href="#" class="social-link" title="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+            <a href="#" class="social-link" title="GitHub"><i class="fa-brands fa-github"></i></a>
+          </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="glass-card">
+          <h3>Quick Links</h3>
+          <ul class="quick-links">
+            <li><a href="#services"><i class="fa-solid fa-arrow-right"></i> View Our Services</a></li>
+            <li><a href="#roster"><i class="fa-solid fa-arrow-right"></i> See Our Roster</a></li>
+            <li><a href="#legal"><i class="fa-solid fa-arrow-right"></i> Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var form = document.getElementById('contact-form');
+  if (!form) return;
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Basic validation
+    var name = form.querySelector('[name="name"]').value.trim();
+    var email = form.querySelector('[name="email"]').value.trim();
+    var message = form.querySelector('[name="message"]').value.trim();
+
+    if (!name || !email || !message) {
+      if (typeof Toast !== 'undefined') Toast.error('Please fill in all required fields.');
+      return;
+    }
+
+    // In a real app, this would POST to an API
+    // For now, just show success
+    if (typeof Toast !== 'undefined') {
+      Toast.success('Message sent! We\'ll get back to you within 24-48 hours.');
+    }
+    form.reset();
+  });
+})();
+</script>

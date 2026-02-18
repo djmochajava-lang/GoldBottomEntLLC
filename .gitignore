@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+bower_components/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+credentials.json
+secrets.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+*.min.js
+*.min.css
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Desktop.ini

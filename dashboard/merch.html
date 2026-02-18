@@ -1,0 +1,381 @@
+<!-- dashboard/merch.html — Merchandise & Ecommerce -->
+<div class="dashboard-page" id="dash-merch">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>Merch & Ecommerce</h1><p class="text-muted">Product catalog, sales tracking, and storefront integrations.</p></div>
+      <button class="btn btn-primary" id="add-product-btn"><i class="fa-solid fa-plus"></i> Add Product</button>
+    </div>
+  </div>
+
+  <!-- Summary Row -->
+  <div class="grid grid-4" style="margin-top:var(--space-lg);" id="merch-summary">
+    <div class="glass-card">
+      <div style="display:flex;align-items:center;gap:var(--space-sm);">
+        <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-gold-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-box-open" style="color:var(--color-gold);"></i></div>
+        <div>
+          <div id="merch-stat-products" style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">0</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Total Products</div>
+        </div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div style="display:flex;align-items:center;gap:var(--space-sm);">
+        <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-success-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-dollar-sign" style="color:var(--color-success);"></i></div>
+        <div>
+          <div id="merch-stat-sales" style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">$0.00</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Total Sales</div>
+        </div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div style="display:flex;align-items:center;gap:var(--space-sm);">
+        <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-info-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-tags" style="color:var(--color-info);"></i></div>
+        <div>
+          <div id="merch-stat-active" style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">0</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Active Listings</div>
+        </div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div style="display:flex;align-items:center;gap:var(--space-sm);">
+        <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-warning-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-clock" style="color:var(--color-warning);"></i></div>
+        <div>
+          <div id="merch-stat-pending" style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">0</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">Pending Orders</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Catalog -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="font-size:var(--text-xl);font-weight:var(--fw-semibold);color:var(--color-text);margin-bottom:var(--space-md);"><i class="fa-solid fa-store text-gold" style="margin-right:var(--space-xs);"></i> Product Catalog</h2>
+    <div id="merch-products-grid" class="grid grid-auto"></div>
+  </div>
+
+  <!-- Ecommerce Integrations -->
+  <div style="margin-top:var(--space-2xl);">
+    <h2 style="font-size:var(--text-xl);font-weight:var(--fw-semibold);color:var(--color-text);margin-bottom:var(--space-md);"><i class="fa-solid fa-plug text-gold" style="margin-right:var(--space-xs);"></i> Ecommerce Integrations</h2>
+    <div class="grid grid-3" id="merch-integrations">
+
+      <!-- Shopify -->
+      <div class="glass-card">
+        <div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">
+          <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(150,191,54,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-brands fa-shopify" style="font-size:var(--text-lg);color:#96bf39;"></i>
+          </div>
+          <div>
+            <strong style="color:var(--color-text);">Shopify</strong>
+            <span class="status-pill status-draft" style="margin-left:var(--space-xs);" id="int-shopify-status">Not Connected</span>
+          </div>
+        </div>
+        <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Connect your Shopify store for full ecommerce.</p>
+        <div class="form-group"><label class="form-label">API Key</label><input type="text" class="form-input" id="int-shopify-key" placeholder="shpat_xxxxxxxxxxxxx" /></div>
+        <button class="btn btn-secondary btn-sm" id="int-shopify-btn"><i class="fa-solid fa-link"></i> Connect</button>
+      </div>
+
+      <!-- Printful -->
+      <div class="glass-card">
+        <div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">
+          <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(255,87,34,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-shirt" style="font-size:var(--text-lg);color:#ff5722;"></i>
+          </div>
+          <div>
+            <strong style="color:var(--color-text);">Printful</strong>
+            <span class="status-pill status-draft" style="margin-left:var(--space-xs);" id="int-printful-status">Not Connected</span>
+          </div>
+        </div>
+        <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Print-on-demand fulfillment. No inventory needed.</p>
+        <div class="form-group"><label class="form-label">API Key</label><input type="text" class="form-input" id="int-printful-key" placeholder="Printful API key" /></div>
+        <button class="btn btn-secondary btn-sm" id="int-printful-btn"><i class="fa-solid fa-link"></i> Connect</button>
+      </div>
+
+      <!-- Square POS -->
+      <div class="glass-card">
+        <div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">
+          <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(0,113,220,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-square" style="font-size:var(--text-lg);color:#0071dc;"></i>
+          </div>
+          <div>
+            <strong style="color:var(--color-text);">Square POS</strong>
+            <span class="status-pill status-draft" style="margin-left:var(--space-xs);" id="int-square-status">Not Connected</span>
+          </div>
+        </div>
+        <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Accept payments at live events.</p>
+        <div class="form-group"><label class="form-label">Access Token</label><input type="text" class="form-input" id="int-square-key" placeholder="Square access token" /></div>
+        <button class="btn btn-secondary btn-sm" id="int-square-btn"><i class="fa-solid fa-link"></i> Connect</button>
+      </div>
+
+      <!-- Stripe -->
+      <div class="glass-card">
+        <div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">
+          <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(99,91,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-brands fa-stripe-s" style="font-size:var(--text-lg);color:#635bff;"></i>
+          </div>
+          <div>
+            <strong style="color:var(--color-text);">Stripe</strong>
+            <span class="status-pill status-draft" style="margin-left:var(--space-xs);" id="int-stripe-status">Not Connected</span>
+          </div>
+        </div>
+        <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Online payment processing.</p>
+        <div class="form-group"><label class="form-label">API Key</label><input type="text" class="form-input" id="int-stripe-key" placeholder="sk_live_xxxxxxxxxxxxx" /></div>
+        <button class="btn btn-secondary btn-sm" id="int-stripe-btn"><i class="fa-solid fa-link"></i> Connect</button>
+      </div>
+
+      <!-- PayPal Business -->
+      <div class="glass-card">
+        <div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">
+          <div style="width:40px;height:40px;border-radius:var(--radius-md);background:rgba(0,112,186,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-brands fa-paypal" style="font-size:var(--text-lg);color:#0070ba;"></i>
+          </div>
+          <div>
+            <strong style="color:var(--color-text);">PayPal Business</strong>
+            <span class="status-pill status-draft" style="margin-left:var(--space-xs);" id="int-paypal-status">Not Connected</span>
+          </div>
+        </div>
+        <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Alternative payment processing.</p>
+        <div class="form-group"><label class="form-label">Client ID</label><input type="text" class="form-input" id="int-paypal-key" placeholder="PayPal client ID" /></div>
+        <button class="btn btn-secondary btn-sm" id="int-paypal-btn"><i class="fa-solid fa-link"></i> Connect</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  var CATEGORY_ICONS={apparel:'fa-shirt',music:'fa-compact-disc',accessories:'fa-gem',prints:'fa-image',digital:'fa-file-arrow-down',other:'fa-box'};
+  var CATEGORY_COLORS={apparel:'#d4a017',music:'#bc8cff',accessories:'#58a6ff',prints:'#3fb950',digital:'#f0883e',other:'#8b949e'};
+  var STATUS_CLASSES={active:'status-active',draft:'status-draft','sold-out':'status-expired','coming-soon':'status-pending'};
+
+  // --- Render Summary ---
+  function renderSummary(){
+    var products=DataStore.getMerchProducts();
+    var orders=DataStore.getMerchOrders();
+    var totalSales=orders.reduce(function(sum,o){return sum+(parseFloat(o.total)||0);},0);
+    var activeCount=products.filter(function(p){return p.status==='active';}).length;
+    var pendingOrders=orders.filter(function(o){return o.status==='pending';}).length;
+
+    document.getElementById('merch-stat-products').textContent=products.length;
+    document.getElementById('merch-stat-sales').textContent=(typeof Utils!=='undefined')?Utils.formatCurrency(totalSales):'$'+totalSales.toFixed(2);
+    document.getElementById('merch-stat-active').textContent=activeCount;
+    document.getElementById('merch-stat-pending').textContent=pendingOrders;
+  }
+
+  // --- Render Products ---
+  function renderProducts(){
+    var container=document.getElementById('merch-products-grid');
+    if(!container)return;
+    var products=DataStore.getMerchProducts();
+
+    if(!products.length){
+      container.innerHTML='<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon"><i class="fa-solid fa-bag-shopping"></i></div><h3 class="empty-state-title">No products yet</h3><p class="empty-state-text">Add your first product to start building your catalog.</p></div>';
+      return;
+    }
+
+    var html='';
+    products.forEach(function(p){
+      var icon=CATEGORY_ICONS[p.category]||'fa-box';
+      var bgColor=CATEGORY_COLORS[p.category]||'#8b949e';
+      var statusClass=STATUS_CLASSES[p.status]||'status-draft';
+      var statusLabel=(p.status||'draft').replace('-',' ');
+      var priceDisplay=(typeof Utils!=='undefined')?Utils.formatCurrency(p.price||0):'$'+(p.price||0).toFixed(2);
+      var stockText=p.printOnDemand?'Print on Demand':(typeof p.inventory!=='undefined'?p.inventory+' in stock':'N/A');
+
+      html+='<div class="glass-card" style="display:flex;flex-direction:column;">';
+      // Image placeholder
+      html+='<div style="width:100%;height:140px;border-radius:var(--radius-md);background:rgba('+hexToRgb(bgColor)+',0.15);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-md);">';
+      html+='<i class="fa-solid '+icon+'" style="font-size:var(--text-4xl);color:'+bgColor+';opacity:0.7;"></i>';
+      html+='</div>';
+      // Product info
+      html+='<div style="flex:1;">';
+      html+='<h4 style="font-size:var(--text-base);font-weight:var(--fw-semibold);color:var(--color-text);margin-bottom:var(--space-xs);">'+p.name+'</h4>';
+      html+='<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm);flex-wrap:wrap;">';
+      html+='<span class="badge badge-gold">'+(p.category||'other')+'</span>';
+      html+='<span class="status-pill '+statusClass+'">'+statusLabel+'</span>';
+      html+='</div>';
+      html+='<div style="font-size:var(--text-lg);font-weight:var(--fw-bold);color:var(--color-gold);margin-bottom:var(--space-xs);">'+priceDisplay+'</div>';
+      html+='<div style="font-size:var(--text-xs);color:var(--color-text-muted);">'+stockText+'</div>';
+      html+='</div>';
+      // Actions
+      html+='<div style="display:flex;gap:var(--space-sm);margin-top:var(--space-md);padding-top:var(--space-sm);border-top:1px solid var(--color-border);">';
+      html+='<button class="btn btn-ghost btn-sm" onclick="merchEditProduct(\''+p.id+'\')"><i class="fa-solid fa-pen"></i> Edit</button>';
+      html+='<button class="btn btn-ghost btn-sm text-danger" onclick="merchDeleteProduct(\''+p.id+'\')"><i class="fa-solid fa-trash"></i> Delete</button>';
+      html+='</div>';
+      html+='</div>';
+    });
+    container.innerHTML=html;
+  }
+
+  // Hex to RGB helper for translucent backgrounds
+  function hexToRgb(hex){
+    hex=hex.replace('#','');
+    if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r=parseInt(hex.substring(0,2),16);
+    var g=parseInt(hex.substring(2,4),16);
+    var b=parseInt(hex.substring(4,6),16);
+    return r+','+g+','+b;
+  }
+
+  // --- Add Product ---
+  document.getElementById('add-product-btn').addEventListener('click',function(){
+    if(typeof Modal==='undefined')return;
+    Modal.open({title:'Add Product',size:'lg',
+      content:'<form id="modal-form">'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Product Name *</label><input type="text" class="form-input" name="name" required placeholder="e.g. GBE Logo T-Shirt" /></div>'+
+          '<div class="form-group"><label class="form-label">Category *</label><select class="form-select" name="category" required><option value="">Select...</option><option value="apparel">Apparel</option><option value="music">Music</option><option value="accessories">Accessories</option><option value="prints">Prints</option><option value="digital">Digital</option><option value="other">Other</option></select></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Price ($) *</label><input type="number" class="form-input" name="price" required min="0" step="0.01" placeholder="29.99" /></div>'+
+          '<div class="form-group"><label class="form-label">Compare-at Price ($)</label><input type="number" class="form-input" name="comparePrice" min="0" step="0.01" placeholder="39.99" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group" id="stock-group"><label class="form-label">Stock Quantity</label><input type="number" class="form-input" name="inventory" min="0" value="0" /></div>'+
+          '<div class="form-group"><label class="form-label">SKU</label><input type="text" class="form-input" name="sku" placeholder="GBE-TSHIRT-001" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="active">Active</option><option value="draft">Draft</option><option value="sold-out">Sold Out</option><option value="coming-soon">Coming Soon</option></select></div>'+
+          '<div class="form-group" style="display:flex;align-items:flex-end;"><label class="form-checkbox"><input type="checkbox" name="printOnDemand" value="true" id="pod-checkbox" /> Print-on-Demand (no inventory needed)</label></div>'+
+        '</div>'+
+        '<div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" name="description" rows="3" placeholder="Product details, sizing info, materials..."></textarea></div>'+
+      '</form>',
+      saveText:'Add Product',onSave:function(){
+        var f=document.getElementById('modal-form');var d={};
+        new FormData(f).forEach(function(v,k){d[k]=v;});
+        if(!d.name){Toast.error('Product name is required');return;}
+        if(!d.price){Toast.error('Price is required');return;}
+        d.price=parseFloat(d.price)||0;
+        d.comparePrice=parseFloat(d.comparePrice)||0;
+        d.inventory=parseInt(d.inventory)||0;
+        d.printOnDemand=!!d.printOnDemand;
+        d.shopifyId='';d.image='';
+        DataStore.addMerchProduct(d);Modal.close();Toast.success('Product added: '+d.name);
+        renderProducts();renderSummary();
+      }
+    });
+    // Toggle stock field based on print-on-demand checkbox
+    setTimeout(function(){
+      var cb=document.getElementById('pod-checkbox');
+      var sg=document.getElementById('stock-group');
+      if(cb&&sg){cb.addEventListener('change',function(){sg.style.opacity=cb.checked?'0.4':'1';sg.querySelector('input').disabled=cb.checked;});}
+    },100);
+  });
+
+  // --- Edit Product ---
+  window.merchEditProduct=function(id){
+    var products=DataStore.getMerchProducts();
+    var p=products.find(function(x){return x.id===id;});
+    if(!p||typeof Modal==='undefined')return;
+
+    var catOpts=['apparel','music','accessories','prints','digital','other'];
+    var catHtml='';catOpts.forEach(function(c){catHtml+='<option value="'+c+'"'+(p.category===c?' selected':'')+'>'+c.charAt(0).toUpperCase()+c.slice(1)+'</option>';});
+    var statusOpts=[{v:'active',l:'Active'},{v:'draft',l:'Draft'},{v:'sold-out',l:'Sold Out'},{v:'coming-soon',l:'Coming Soon'}];
+    var statusHtml='';statusOpts.forEach(function(s){statusHtml+='<option value="'+s.v+'"'+(p.status===s.v?' selected':'')+'>'+s.l+'</option>';});
+
+    Modal.open({title:'Edit: '+p.name,size:'lg',
+      content:'<form id="modal-form">'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Product Name</label><input type="text" class="form-input" name="name" value="'+((p.name||'').replace(/"/g,'&quot;'))+'" /></div>'+
+          '<div class="form-group"><label class="form-label">Category</label><select class="form-select" name="category">'+catHtml+'</select></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Price ($)</label><input type="number" class="form-input" name="price" min="0" step="0.01" value="'+(p.price||0)+'" /></div>'+
+          '<div class="form-group"><label class="form-label">Compare-at Price ($)</label><input type="number" class="form-input" name="comparePrice" min="0" step="0.01" value="'+(p.comparePrice||0)+'" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group" id="stock-group"><label class="form-label">Stock Quantity</label><input type="number" class="form-input" name="inventory" min="0" value="'+(p.inventory||0)+'" '+(p.printOnDemand?'disabled':'')+' /></div>'+
+          '<div class="form-group"><label class="form-label">SKU</label><input type="text" class="form-input" name="sku" value="'+((p.sku||'').replace(/"/g,'&quot;'))+'" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status">'+statusHtml+'</select></div>'+
+          '<div class="form-group" style="display:flex;align-items:flex-end;"><label class="form-checkbox"><input type="checkbox" name="printOnDemand" value="true" id="pod-checkbox" '+(p.printOnDemand?'checked':'')+' /> Print-on-Demand</label></div>'+
+        '</div>'+
+        '<div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" name="description" rows="3">'+((p.description||'').replace(/</g,'&lt;'))+'</textarea></div>'+
+      '</form>',
+      saveText:'Save',onSave:function(){
+        var f=document.getElementById('modal-form');var d={};
+        new FormData(f).forEach(function(v,k){d[k]=v;});
+        d.price=parseFloat(d.price)||0;
+        d.comparePrice=parseFloat(d.comparePrice)||0;
+        d.inventory=parseInt(d.inventory)||0;
+        d.printOnDemand=!!d.printOnDemand;
+        DataStore.updateMerchProduct(id,d);Modal.close();Toast.success('Product updated');
+        renderProducts();renderSummary();
+      }
+    });
+    setTimeout(function(){
+      var cb=document.getElementById('pod-checkbox');
+      var sg=document.getElementById('stock-group');
+      if(cb&&sg){
+        if(cb.checked){sg.style.opacity='0.4';}
+        cb.addEventListener('change',function(){sg.style.opacity=cb.checked?'0.4':'1';sg.querySelector('input').disabled=cb.checked;});
+      }
+    },100);
+  };
+
+  // --- Delete Product ---
+  window.merchDeleteProduct=function(id){
+    var products=DataStore.getMerchProducts();
+    var p=products.find(function(x){return x.id===id;});
+    if(!p)return;
+    Modal.confirm('Delete product "'+p.name+'"?',function(){
+      DataStore.deleteMerchProduct(id);Toast.success('Product deleted');
+      renderProducts();renderSummary();
+    });
+  };
+
+  // --- Integration Connect/Disconnect Handlers ---
+  var integrations=['shopify','printful','square','stripe','paypal'];
+  integrations.forEach(function(svc){
+    var btn=document.getElementById('int-'+svc+'-btn');
+    var keyInput=document.getElementById('int-'+svc+'-key');
+    var statusEl=document.getElementById('int-'+svc+'-status');
+    if(!btn||!keyInput||!statusEl)return;
+
+    // Load saved state
+    var saved=(typeof DataStore.getIntegrations==='function')?DataStore.getIntegrations():{};
+    if(saved[svc]&&saved[svc].connected){
+      statusEl.className='status-pill status-active';
+      statusEl.textContent='Connected';
+      keyInput.value=saved[svc].key||'';
+      keyInput.disabled=true;
+      btn.innerHTML='<i class="fa-solid fa-link-slash"></i> Disconnect';
+      btn.className='btn btn-danger btn-sm';
+    }
+
+    btn.addEventListener('click',function(){
+      var currentState=(typeof DataStore.getIntegrations==='function')?DataStore.getIntegrations():{};
+      var isConnected=currentState[svc]&&currentState[svc].connected;
+
+      if(isConnected){
+        // Disconnect
+        DataStore.updateIntegration(svc,{connected:false,key:''});
+        statusEl.className='status-pill status-draft';
+        statusEl.textContent='Not Connected';
+        keyInput.value='';keyInput.disabled=false;
+        btn.innerHTML='<i class="fa-solid fa-link"></i> Connect';
+        btn.className='btn btn-secondary btn-sm';
+        Toast.success(svc.charAt(0).toUpperCase()+svc.slice(1)+' disconnected');
+      } else {
+        // Connect
+        var key=keyInput.value.trim();
+        if(!key){Toast.error('Please enter an API key / credential');return;}
+        DataStore.updateIntegration(svc,{connected:true,key:key});
+        statusEl.className='status-pill status-active';
+        statusEl.textContent='Connected';
+        keyInput.disabled=true;
+        btn.innerHTML='<i class="fa-solid fa-link-slash"></i> Disconnect';
+        btn.className='btn btn-danger btn-sm';
+        Toast.success(svc.charAt(0).toUpperCase()+svc.slice(1)+' connected');
+      }
+    });
+  });
+
+  // --- Initial render ---
+  renderSummary();
+  renderProducts();
+})();
+</script>

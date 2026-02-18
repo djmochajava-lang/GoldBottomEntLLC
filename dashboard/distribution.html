@@ -1,0 +1,1133 @@
+<!-- dashboard/distribution.html — Music Distribution -->
+<div class="dashboard-page" id="dash-distribution">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>Distribution</h1><p class="text-muted">DIY self-distribution — track releases, upload to platforms, and manage royalty income.</p></div>
+      <button class="btn btn-primary" id="add-release-btn"><i class="fa-solid fa-plus"></i> Add Release</button>
+    </div>
+  </div>
+
+  <!-- Quick Actions Toolbar -->
+  <div class="card" style="margin-bottom:var(--space-lg);padding:var(--space-md);">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:var(--space-sm);">
+      <a href="https://www.usisrc.org" target="_blank" rel="noopener" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
+        <i class="fa-solid fa-barcode" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">Register ISRC</span>
+      </a>
+      <a href="https://www.gs1us.org" target="_blank" rel="noopener" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
+        <i class="fa-solid fa-qrcode" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">Purchase UPC</span>
+      </a>
+      <a href="https://www.copyright.gov/registration" target="_blank" rel="noopener" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
+        <i class="fa-solid fa-copyright" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">Register Copyright</span>
+      </a>
+      <a href="https://www.bmi.com" target="_blank" rel="noopener" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
+        <i class="fa-solid fa-music" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">Register PRO</span>
+      </a>
+      <a href="https://www.soundexchange.com" target="_blank" rel="noopener" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
+        <i class="fa-solid fa-record-vinyl" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">SoundExchange</span>
+      </a>
+      <a href="#" onclick="document.getElementById('add-release-btn').click();return false;" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
+        <i class="fa-solid fa-compact-disc" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
+        <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">New Release</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-4" id="dist-summary" style="margin-bottom:var(--space-lg);"></div>
+
+  <!-- ========== Distribution Roadmap — Per-Release Tracker ========== -->
+  <div style="margin-bottom:var(--space-lg);" id="roadmap-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-md);">
+      <div>
+        <h2 style="margin-bottom:var(--space-xs);"><i class="fa-solid fa-road text-gold"></i> Distribution Roadmap</h2>
+        <p class="text-muted" style="font-size:0.9rem;">Track your release from songwriting to cash — click each step as you complete it.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--space-sm);">
+        <label class="form-label" style="margin:0;white-space:nowrap;font-size:var(--text-sm);">Release:</label>
+        <select class="form-select" id="roadmap-release-select" style="min-width:200px;"></select>
+      </div>
+    </div>
+
+    <!-- Progress summary bar -->
+    <div class="glass-card" id="roadmap-progress-bar" style="margin-bottom:var(--space-lg);padding:var(--space-md) var(--space-lg);display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-sm);">
+        <span style="font-size:var(--text-sm);font-weight:600;color:var(--color-text);" id="roadmap-progress-title"></span>
+        <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-gold);" id="roadmap-progress-pct"></span>
+      </div>
+      <div class="progress-bar" style="height:8px;">
+        <div class="progress-bar-fill" id="roadmap-progress-fill" style="width:0%;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:var(--space-xs);">
+        <span class="text-muted" style="font-size:var(--text-xs);" id="roadmap-progress-count"></span>
+        <span class="text-muted" style="font-size:var(--text-xs);" id="roadmap-progress-next"></span>
+      </div>
+    </div>
+
+    <!-- Empty state when no releases exist -->
+    <div id="roadmap-empty" class="glass-card" style="text-align:center;padding:var(--space-2xl);display:none;">
+      <div style="font-size:2.5rem;color:var(--color-text-muted);margin-bottom:var(--space-md);"><i class="fa-solid fa-route"></i></div>
+      <h3 style="color:var(--color-text);margin-bottom:var(--space-xs);">No releases to track</h3>
+      <p class="text-muted" style="font-size:0.9rem;">Add a release above, then come back here to track its path from songwriting to cash.</p>
+    </div>
+
+    <!-- The winding road -->
+    <div class="roadmap" id="roadmap-road" style="display:none;">
+
+      <!-- ===== START MARKER ===== -->
+      <div class="roadmap-marker">
+        <div class="roadmap-marker-icon start"><i class="fa-solid fa-pen-nib"></i></div>
+        <div class="roadmap-marker-label">Start</div>
+        <div class="roadmap-marker-sublabel">Song begins here</div>
+      </div>
+
+      <!-- ── PHASE: Creation ── -->
+      <div class="roadmap-phase"><span class="roadmap-phase-label"><i class="fa-solid fa-wand-magic-sparkles"></i> &nbsp;Phase 1 — Creation</span></div>
+
+      <!-- Stop 1 -->
+      <div class="roadmap-stop" data-step="0">
+        <div class="roadmap-dot"><i class="fa-solid fa-pen-fancy"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 1</span>
+          <h4><i class="fa-solid fa-pen-fancy"></i> Songwriting & Composition</h4>
+          <p>Write lyrics, melody, chords, arrangement. Create split sheets for all co-writers.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-file-signature"></i> Create a <strong>split sheet</strong> — document each writer's ownership % before recording.</div>
+        </div>
+      </div>
+
+      <!-- Stop 2 -->
+      <div class="roadmap-stop" data-step="1">
+        <div class="roadmap-dot"><i class="fa-solid fa-microphone"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 2</span>
+          <h4><i class="fa-solid fa-microphone"></i> Recording & Production</h4>
+          <p>Record vocals, instruments, and production. Document all performers, producers, and engineers.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-users"></i> Log every <strong>contributor</strong> — needed for metadata and credits later.</div>
+        </div>
+      </div>
+
+      <!-- Stop 3 -->
+      <div class="roadmap-stop" data-step="2">
+        <div class="roadmap-dot"><i class="fa-solid fa-sliders"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 3</span>
+          <h4><i class="fa-solid fa-sliders"></i> Mixing & Mastering</h4>
+          <p>Mix for balance, master to delivery specs. Final output: WAV 16-bit/44.1kHz min (24-bit preferred).</p>
+          <div class="roadmap-details"><i class="fa-solid fa-compact-disc"></i> Final master must be <strong>WAV or FLAC</strong> — no MP3s for distribution.</div>
+        </div>
+      </div>
+
+      <!-- ── PHASE: Registration ── -->
+      <div class="roadmap-phase"><span class="roadmap-phase-label"><i class="fa-solid fa-stamp"></i> &nbsp;Phase 2 — Registration</span></div>
+
+      <!-- Stop 4 -->
+      <div class="roadmap-stop" data-step="3">
+        <div class="roadmap-dot"><i class="fa-solid fa-copyright"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 4</span>
+          <h4><i class="fa-solid fa-copyright"></i> Register Copyright</h4>
+          <p>Register sound recording (SR) and composition (PA) with the U.S. Copyright Office.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-gavel"></i> Required to <strong>sue for infringement</strong> and claim statutory damages.</div>
+          <a href="https://www.copyright.gov/registration" target="_blank" rel="noopener" class="roadmap-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> copyright.gov</a>
+        </div>
+      </div>
+
+      <!-- Stop 5 -->
+      <div class="roadmap-stop" data-step="4">
+        <div class="roadmap-dot"><i class="fa-solid fa-barcode"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 5</span>
+          <h4><i class="fa-solid fa-barcode"></i> Obtain ISRC Code</h4>
+          <p>Assign an ISRC to each track — unique 12-character ID that follows the recording forever.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-fingerprint"></i> One ISRC per track — never reused. Format: <code>CC-XXX-YY-NNNNN</code>. ~$95 one-time fee.</div>
+          <a href="https://www.usisrc.org" target="_blank" rel="noopener" class="roadmap-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> usisrc.org</a>
+        </div>
+      </div>
+
+      <!-- Stop 6 -->
+      <div class="roadmap-stop" data-step="5">
+        <div class="roadmap-dot"><i class="fa-solid fa-qrcode"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 6</span>
+          <h4><i class="fa-solid fa-qrcode"></i> Purchase UPC Barcode</h4>
+          <p>Get a UPC for the release (single, EP, album). Required by every platform for retail ID.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-store"></i> One UPC per release — ~$30 from GS1 US. Bulk packs available for frequent releases.</div>
+          <a href="https://www.gs1us.org" target="_blank" rel="noopener" class="roadmap-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> GS1 US</a>
+        </div>
+      </div>
+
+      <!-- Stop 7 -->
+      <div class="roadmap-stop" data-step="6">
+        <div class="roadmap-dot"><i class="fa-solid fa-music"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 7</span>
+          <h4><i class="fa-solid fa-music"></i> Register with PRO</h4>
+          <p>Register the composition with BMI, ASCAP, or SESAC to collect performance royalties.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-radio"></i> PROs collect when your song plays on <strong>radio, TV, live venues, and public spaces</strong>.</div>
+          <a href="https://www.bmi.com" target="_blank" rel="noopener" class="roadmap-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> BMI / ASCAP / SESAC</a>
+        </div>
+      </div>
+
+      <!-- Stop 8 -->
+      <div class="roadmap-stop" data-step="7">
+        <div class="roadmap-dot"><i class="fa-solid fa-record-vinyl"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 8</span>
+          <h4><i class="fa-solid fa-record-vinyl"></i> Register with SoundExchange</h4>
+          <p>Register as artist and rights owner for digital performance royalties (Pandora, SiriusXM, etc.).</p>
+          <div class="roadmap-details"><i class="fa-solid fa-satellite-dish"></i> Collects royalties for <strong>non-interactive digital streams</strong> — separate from your PRO.</div>
+          <a href="https://www.soundexchange.com" target="_blank" rel="noopener" class="roadmap-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> SoundExchange</a>
+        </div>
+      </div>
+
+      <!-- ── PHASE: Distribution ── -->
+      <div class="roadmap-phase"><span class="roadmap-phase-label"><i class="fa-solid fa-rocket"></i> &nbsp;Phase 3 — Distribution</span></div>
+
+      <!-- Stop 9 -->
+      <div class="roadmap-stop" data-step="8">
+        <div class="roadmap-dot"><i class="fa-solid fa-photo-film"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 9</span>
+          <h4><i class="fa-solid fa-photo-film"></i> Prepare Release Assets</h4>
+          <p>Finalize cover art (3000×3000px), metadata, timed lyrics (LRC), credits, and release date.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-image"></i> Cover: <strong>3000×3000px JPEG/PNG, RGB</strong>. Include all songwriter and producer credits in metadata.</div>
+        </div>
+      </div>
+
+      <!-- Stop 10 -->
+      <div class="roadmap-stop" data-step="9">
+        <div class="roadmap-dot"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 10</span>
+          <h4><i class="fa-solid fa-cloud-arrow-up"></i> Upload to Platforms</h4>
+          <p>Upload directly to Spotify, Apple Music, Amazon, YouTube, Tidal, Deezer, SoundCloud, Bandcamp, Audiomack.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-globe"></i> DIY — <strong>no middleman</strong>. Upload to each artist portal individually. 100% revenue is yours.</div>
+        </div>
+      </div>
+
+      <!-- Stop 11 -->
+      <div class="roadmap-stop" data-step="10">
+        <div class="roadmap-dot"><i class="fa-solid fa-bullhorn"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 11</span>
+          <h4><i class="fa-solid fa-bullhorn"></i> Pre-Save & Marketing</h4>
+          <p>Create smart links, set up pre-save campaigns, pitch to playlists, launch social promo.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-share-nodes"></i> Submit to <strong>Spotify editorial playlists</strong> at least 7 days before release.</div>
+        </div>
+      </div>
+
+      <!-- Stop 12 -->
+      <div class="roadmap-stop" data-step="11">
+        <div class="roadmap-dot"><i class="fa-solid fa-champagne-glasses"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 12</span>
+          <h4><i class="fa-solid fa-champagne-glasses"></i> Release Day</h4>
+          <p>Song goes live across all platforms. Verify listings, share links, engage fans.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-calendar-check"></i> Confirm <strong>live on every platform</strong>. Share smart links across all social channels.</div>
+        </div>
+      </div>
+
+      <!-- ── PHASE: Revenue ── -->
+      <div class="roadmap-phase"><span class="roadmap-phase-label"><i class="fa-solid fa-coins"></i> &nbsp;Phase 4 — Revenue</span></div>
+
+      <!-- Stop 13 -->
+      <div class="roadmap-stop" data-step="12">
+        <div class="roadmap-dot"><i class="fa-solid fa-chart-line"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 13</span>
+          <h4><i class="fa-solid fa-chart-line"></i> Track Streams & Sales</h4>
+          <p>Monitor performance on Spotify for Artists, Apple Music for Artists, YouTube Studio, etc.</p>
+          <div class="roadmap-details"><i class="fa-solid fa-magnifying-glass-chart"></i> Track <strong>streams, listeners, playlist adds, Shazams</strong>, and sales data.</div>
+        </div>
+      </div>
+
+      <!-- Stop 14 -->
+      <div class="roadmap-stop" data-step="13">
+        <div class="roadmap-dot"><i class="fa-solid fa-sack-dollar"></i></div>
+        <div class="roadmap-card">
+          <span class="roadmap-card-step">Step 14</span>
+          <h4><i class="fa-solid fa-sack-dollar"></i> Collect Royalties & Revenue</h4>
+          <p>Revenue from streaming payouts, PRO performance royalties, SoundExchange, and direct sales.</p>
+          <div class="roadmap-details">
+            <i class="fa-solid fa-check text-gold"></i> Streaming — Spotify, Apple, Amazon, etc.<br>
+            <i class="fa-solid fa-check text-gold"></i> Performance — BMI / ASCAP / SESAC<br>
+            <i class="fa-solid fa-check text-gold"></i> Digital — SoundExchange<br>
+            <i class="fa-solid fa-check text-gold"></i> Sales — Bandcamp, merch, sync licensing
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== FINISH MARKER ===== -->
+      <div class="roadmap-marker">
+        <div class="roadmap-marker-icon finish"><i class="fa-solid fa-crown"></i></div>
+        <div class="roadmap-marker-label">Cash Collected</div>
+        <div class="roadmap-marker-sublabel">Revenue in your account</div>
+      </div>
+
+    </div><!-- /.roadmap -->
+
+    <!-- Project Expenses & Tasks -->
+    <div class="project-tracking" id="project-tracking" style="display:none;">
+
+      <!-- Expenses Panel -->
+      <div class="project-tracking-panel">
+        <div class="project-tracking-panel-header">
+          <h3><i class="fa-solid fa-receipt text-gold"></i> Project Expenses</h3>
+          <span class="text-muted" style="font-size:var(--text-xs);" id="expense-count"></span>
+        </div>
+        <div class="project-tracking-panel-body" id="expense-list"></div>
+        <div class="project-add-row">
+          <input type="text" class="form-input" id="expense-name-input" placeholder="Expense name..." />
+          <input type="number" class="form-input" id="expense-amount-input" placeholder="$0.00" min="0" step="0.01" style="max-width:100px;" />
+          <button class="btn btn-primary btn-sm" id="add-expense-btn"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="project-expense-total">
+          <span class="total-label">Total Spent</span>
+          <span class="total-value" id="expense-total">$0.00</span>
+        </div>
+      </div>
+
+      <!-- Tasks Panel -->
+      <div class="project-tracking-panel">
+        <div class="project-tracking-panel-header">
+          <h3><i class="fa-solid fa-list-check text-gold"></i> Project Tasks</h3>
+          <span class="text-muted" style="font-size:var(--text-xs);" id="task-count"></span>
+        </div>
+        <div class="project-tracking-panel-body" id="task-list"></div>
+        <div class="project-add-row">
+          <input type="text" class="form-input" id="task-name-input" placeholder="Add a task..." />
+          <button class="btn btn-primary btn-sm" id="add-task-btn"><i class="fa-solid fa-plus"></i></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Release Tracker Table -->
+  <div class="card" id="dist-table-container"></div>
+
+  <!-- Streaming Analytics Dashboards -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-chart-line text-gold"></i> Streaming Analytics Dashboards</h2>
+    <p class="text-muted" style="margin-bottom:var(--space-md);font-size:0.9rem;">Monitor your performance across all platforms. With DIY distribution, you check each platform directly for detailed analytics.</p>
+    <div class="grid grid-3" style="gap:var(--space-md);">
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#1DB954;margin-bottom:var(--space-xs);"><i class="fa-brands fa-spotify"></i></div>
+        <h3>Spotify for Artists</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Streaming data, playlist placements, audience insights, and revenue.</p>
+        <a href="https://artists.spotify.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-chart-bar"></i> Analytics</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#fc3c44;margin-bottom:var(--space-xs);"><i class="fa-brands fa-apple"></i></div>
+        <h3>Apple Music for Artists</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Track plays, listeners, Shazam data, and purchase revenue.</p>
+        <a href="https://artists.apple.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-chart-bar"></i> Analytics</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#FF0000;margin-bottom:var(--space-xs);"><i class="fa-brands fa-youtube"></i></div>
+        <h3>YouTube Studio</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Video views, watch time, revenue, and subscriber growth.</p>
+        <a href="https://studio.youtube.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-chart-bar"></i> Analytics</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#25d1da;margin-bottom:var(--space-xs);"><i class="fa-brands fa-amazon"></i></div>
+        <h3>Amazon Music</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Streaming analytics and Alexa request data.</p>
+        <a href="https://artists.amazonmusic.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-chart-bar"></i> Analytics</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#ff5500;margin-bottom:var(--space-xs);"><i class="fa-brands fa-soundcloud"></i></div>
+        <h3>SoundCloud</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Play counts, engagement, and listener demographics.</p>
+        <a href="https://soundcloud.com/stats" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-chart-bar"></i> Analytics</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#e0245e;margin-bottom:var(--space-xs);"><i class="fa-solid fa-heart"></i></div>
+        <h3>Bandcamp</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Sales data, fan emails, and direct-to-fan revenue.</p>
+        <a href="https://bandcamp.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-chart-bar"></i> Analytics</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DIY Distribution Guide -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-hand-fist text-gold"></i> DIY Distribution — Self-Release Pipeline</h2>
+    <div class="glass-card" style="margin-bottom:var(--space-md);">
+      <p class="text-muted" style="font-size:0.9rem;">
+        Gold Bottom Ent operates a <strong>DIY self-distribution model</strong>. We upload directly to each platform, own 100% of our master recordings,
+        and retain full control over pricing, release timing, and metadata. No middleman distributors — we handle it all in-house.
+      </p>
+    </div>
+
+    <div class="grid grid-2" style="gap:var(--space-md);">
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-list-check text-gold"></i> DIY Release Checklist</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Steps to self-distribute a new release:</p>
+        <ol style="padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;margin-top:var(--space-xs);">
+          <li>Obtain your <strong>ISRC code</strong> for each track from <a href="https://www.usisrc.org" target="_blank" rel="noopener" style="color:var(--color-gold);">usisrc.org</a></li>
+          <li>Obtain your <strong>UPC barcode</strong> for the release from <a href="https://www.gs1us.org" target="_blank" rel="noopener" style="color:var(--color-gold);">GS1 US</a></li>
+          <li>Prepare assets: WAV/FLAC audio, cover art (3000x3000px), metadata</li>
+          <li>Upload directly to each platform (Spotify, Apple, Amazon, etc.)</li>
+          <li>Register the work with your <strong>PRO</strong> (BMI/ASCAP/SESAC) for performance royalties</li>
+          <li>Register with <strong>SoundExchange</strong> for digital performance royalties</li>
+          <li>Register with the <strong>U.S. Copyright Office</strong> at <a href="https://www.copyright.gov" target="_blank" rel="noopener" style="color:var(--color-gold);">copyright.gov</a></li>
+          <li>Log the release in this tracker and update IP & Rights page</li>
+        </ol>
+      </div>
+
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-file-audio text-gold"></i> Audio & Artwork Specs</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Platform requirements for direct uploads:</p>
+        <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;margin-top:var(--space-xs);">
+          <li><strong>Audio:</strong> WAV, 16-bit / 44.1kHz minimum (24-bit preferred)</li>
+          <li><strong>Cover art:</strong> 3000x3000px, JPEG or PNG, RGB, no blurry images</li>
+          <li><strong>Metadata:</strong> Title, artist, album, genre, ISRC, UPC, copyright info</li>
+          <li><strong>Lyrics:</strong> Timed lyrics (LRC format) for Spotify, Apple Music</li>
+          <li><strong>Credits:</strong> Writers, producers, performers, engineers</li>
+          <li><strong>Pre-save links:</strong> Set up before release date for marketing</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform Direct Upload Portals -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-upload text-gold"></i> Platform Direct Upload Portals</h2>
+    <div class="grid grid-3" style="gap:var(--space-md);">
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#1DB954;margin-bottom:var(--space-xs);"><i class="fa-brands fa-spotify"></i></div>
+        <h3>Spotify for Artists</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Upload music, manage profile, claim artist page, submit to playlists.</p>
+        <a href="https://artists.spotify.com" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#fc3c44;margin-bottom:var(--space-xs);"><i class="fa-brands fa-apple"></i></div>
+        <h3>Apple Music for Artists</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Upload via Apple Music Connect / iTunes Connect for direct distribution.</p>
+        <a href="https://artists.apple.com" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#25d1da;margin-bottom:var(--space-xs);"><i class="fa-brands fa-amazon"></i></div>
+        <h3>Amazon Music for Artists</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Upload and manage releases on Amazon Music directly.</p>
+        <a href="https://artists.amazonmusic.com" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#FF0000;margin-bottom:var(--space-xs);"><i class="fa-brands fa-youtube"></i></div>
+        <h3>YouTube Music</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Upload music videos and audio to YouTube / YouTube Music.</p>
+        <a href="https://studio.youtube.com" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#ff5500;margin-bottom:var(--space-xs);"><i class="fa-brands fa-soundcloud"></i></div>
+        <h3>SoundCloud</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Upload tracks, build following, share with fans directly.</p>
+        <a href="https://soundcloud.com/upload" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#1d8954;margin-bottom:var(--space-xs);"><i class="fa-solid fa-music"></i></div>
+        <h3>Tidal</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Upload hi-fi quality audio for Tidal's premium listener base.</p>
+        <a href="https://artists.tidal.com" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#a238ff;margin-bottom:var(--space-xs);"><i class="fa-solid fa-music"></i></div>
+        <h3>Deezer</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Upload and distribute music on Deezer's global platform.</p>
+        <a href="https://www.deezer.com/upload" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#e0245e;margin-bottom:var(--space-xs);"><i class="fa-solid fa-heart"></i></div>
+        <h3>Bandcamp</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Sell music directly to fans. Keep the majority of revenue. Full control.</p>
+        <a href="https://bandcamp.com" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#00d4aa;margin-bottom:var(--space-xs);"><i class="fa-solid fa-store"></i></div>
+        <h3>Audiomack</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Free uploads, monetization program, growing platform for R&B/Soul.</p>
+        <a href="https://audiomack.com/upload" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-upload"></i> Upload Portal</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Pre-Save & Smart Link Tools -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-link text-gold"></i> Pre-Save & Smart Link Tools</h2>
+    <p class="text-muted" style="margin-bottom:var(--space-md);font-size:0.9rem;">Create unified "listen everywhere" links, pre-save campaigns, and fan-first landing pages for every release.</p>
+    <div class="grid grid-4" style="gap:var(--space-md);">
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#ff6b35;margin-bottom:var(--space-xs);"><i class="fa-solid fa-fire"></i></div>
+        <h3>Linkfire</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Smart links, pre-save pages, bio links, and release landing pages with analytics.</p>
+        <a href="https://www.linkfire.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Visit</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#7c3aed;margin-bottom:var(--space-xs);"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <h3>Feature.fm</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Pre-save campaigns, smart links, fan insights, and automated marketing tools.</p>
+        <a href="https://www.feature.fm" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Visit</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#3b82f6;margin-bottom:var(--space-xs);"><i class="fa-solid fa-bullhorn"></i></div>
+        <h3>ToneDen</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Smart links, automated social ads, fan unlock pages, and audience building.</p>
+        <a href="https://www.toneden.io" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Visit</a>
+      </div>
+
+      <div class="glass-card" style="text-align:center;">
+        <div style="font-size:2rem;color:#43e660;margin-bottom:var(--space-xs);"><i class="fa-solid fa-tree"></i></div>
+        <h3>Linktree</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Bio link page for social media — centralize all your music links, socials, and merch.</p>
+        <a href="https://linktr.ee" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Visit</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ISRC & UPC Registration (DIY — Self-Registration Required) -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-id-card text-gold"></i> ISRC & UPC — You Must Register These Yourself</h2>
+    <div class="glass-card" style="margin-bottom:var(--space-md);">
+      <p class="text-muted" style="font-size:0.9rem;">
+        Since we self-distribute, <strong>no distributor is assigning codes for us</strong>. You need to register for ISRC and UPC codes directly.
+        These are required by every platform to identify your tracks and releases for royalty tracking.
+      </p>
+    </div>
+    <div class="grid grid-2" style="gap:var(--space-md);">
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-barcode text-gold"></i> ISRC — International Standard Recording Code</h3>
+        <p class="text-muted" style="font-size:0.9rem;">A unique 12-character code assigned to <strong>each individual track</strong> (sound recording). Required for digital distribution and royalty tracking.</p>
+        <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;margin-top:var(--space-xs);">
+          <li>One ISRC per track — never reused, even across compilations</li>
+          <li>Format: <code>CC-XXX-YY-NNNNN</code> (Country-Registrant-Year-Designation)</li>
+          <li><strong>Register directly</strong> — you are your own registrant as a DIY label</li>
+          <li>Used by Spotify, Apple Music, etc. to track plays and royalties</li>
+          <li>Fee: ~$95 one-time to become an ISRC registrant (then assign unlimited codes)</li>
+        </ul>
+        <a href="https://www.usisrc.org" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Register at usisrc.org</a>
+      </div>
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-qrcode text-gold"></i> UPC / EAN — Universal Product Code</h3>
+        <p class="text-muted" style="font-size:0.9rem;">A unique 12-digit barcode assigned to <strong>each release</strong> (single, EP, or album). Required for retail and digital storefront listings.</p>
+        <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;margin-top:var(--space-xs);">
+          <li>One UPC per release — a single and its deluxe version need separate UPCs</li>
+          <li>Format: 12-digit number (e.g., <code>0123456789012</code>)</li>
+          <li><strong>Purchase directly from GS1 US</strong> — the official barcode authority</li>
+          <li>Needed for Spotify, Apple Music, Amazon, and physical retail</li>
+          <li>A single UPC costs ~$30; bulk packs available for labels releasing often</li>
+        </ul>
+        <a href="https://www.gs1us.org" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Purchase at GS1 US</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Royalty & Revenue Tracking -->
+  <div class="glass-card" style="margin-top:var(--space-lg);">
+    <h3><i class="fa-solid fa-circle-info text-gold"></i> Royalty & Revenue Tracking</h3>
+    <p class="text-muted" style="font-size:0.9rem;">
+      With DIY distribution, royalty income comes from <strong>each platform individually</strong>. Check each platform's artist dashboard
+      for detailed breakdowns (Spotify for Artists, Apple Music for Artists, YouTube Studio, etc.).
+      Log all income here and it will feed into the Finances page automatically.
+    </p>
+    <div class="grid grid-3" style="margin-top:var(--space-sm);gap:var(--space-sm);">
+      <div style="font-size:0.85rem;color:var(--color-text-secondary);"><i class="fa-solid fa-check text-gold"></i> <strong>Streaming royalties</strong> — per-stream payouts from each platform</div>
+      <div style="font-size:0.85rem;color:var(--color-text-secondary);"><i class="fa-solid fa-check text-gold"></i> <strong>Performance royalties</strong> — collected via your PRO (BMI/ASCAP/SESAC)</div>
+      <div style="font-size:0.85rem;color:var(--color-text-secondary);"><i class="fa-solid fa-check text-gold"></i> <strong>Digital performance</strong> — collected via SoundExchange</div>
+    </div>
+  </div>
+
+  <!-- Royalty Rate Reference -->
+  <div class="glass-card" style="margin-top:var(--space-lg);">
+    <h3><i class="fa-solid fa-calculator text-gold"></i> Per-Stream Royalty Rate Reference</h3>
+    <p class="text-muted" style="font-size:0.85rem;margin-bottom:var(--space-sm);">Estimated per-stream payout rates by platform. Use these to project revenue from your releases.</p>
+    <table class="data-table" style="font-size:0.85rem;">
+      <thead>
+        <tr><th>Platform</th><th>Est. Per-Stream Rate</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><i class="fa-brands fa-spotify" style="color:#1DB954;"></i> Spotify</td><td>$0.003 – $0.005</td><td>Varies by listener country & subscription type</td></tr>
+        <tr><td><i class="fa-brands fa-apple" style="color:#fc3c44;"></i> Apple Music</td><td>$0.007 – $0.01</td><td>Higher per-stream; smaller user base than Spotify</td></tr>
+        <tr><td><i class="fa-brands fa-amazon" style="color:#25d1da;"></i> Amazon Music</td><td>$0.004 – $0.007</td><td>Includes Prime Music & Unlimited tiers</td></tr>
+        <tr><td><i class="fa-brands fa-youtube" style="color:#FF0000;"></i> YouTube Music</td><td>$0.002 – $0.005</td><td>Ad-supported tier pays less; Premium pays more</td></tr>
+        <tr><td><i class="fa-solid fa-music" style="color:#1d8954;"></i> Tidal</td><td>$0.008 – $0.013</td><td>Highest per-stream; smaller but premium audience</td></tr>
+        <tr><td><i class="fa-solid fa-music" style="color:#a238ff;"></i> Deezer</td><td>$0.004 – $0.007</td><td>Strong in Europe, Latin America, Africa</td></tr>
+        <tr><td><i class="fa-brands fa-soundcloud" style="color:#ff5500;"></i> SoundCloud</td><td>$0.002 – $0.004</td><td>Fan-powered royalties model; varies widely</td></tr>
+        <tr><td><i class="fa-solid fa-heart" style="color:#e0245e;"></i> Bandcamp</td><td>80–85% of sale</td><td>Direct sales model — you set the price, fans pay</td></tr>
+        <tr><td><i class="fa-solid fa-store" style="color:#00d4aa;"></i> Audiomack</td><td>$0.001 – $0.003</td><td>Growing platform; strong in hip-hop, R&B, Afrobeats</td></tr>
+      </tbody>
+    </table>
+    <p class="text-muted" style="font-size:0.75rem;margin-top:var(--space-sm);font-style:italic;">
+      <i class="fa-solid fa-triangle-exclamation"></i> Rates fluctuate based on region, subscription type, and platform payouts. These are 2025/2026 estimates. Always check each platform's artist dashboard for current payouts.
+    </p>
+  </div>
+
+  <!-- Marketing & Promo Tools -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bullseye text-gold"></i> Marketing & Promo Tools</h2>
+    <div class="grid grid-2" style="gap:var(--space-md);">
+
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-headphones text-gold"></i> Playlist Submission</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Get your music on curated playlists — the #1 discovery channel on streaming platforms.</p>
+        <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;margin-top:var(--space-xs);">
+          <li><strong>Spotify Editorial Pitch</strong> — Submit unreleased tracks directly through Spotify for Artists (free, built-in)</li>
+          <li><strong>SubmitHub</strong> — Pitch to indie playlist curators, blogs, and influencers</li>
+          <li><strong>PlaylistPush</strong> — Paid playlist placement campaigns with analytics</li>
+          <li><strong>Daily Playlists</strong> — Curated playlist submission platform for emerging artists</li>
+        </ul>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--space-sm);">
+          <a href="https://artists.spotify.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Spotify Pitch</a>
+          <a href="https://www.submithub.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">SubmitHub</a>
+          <a href="https://playlistpush.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">PlaylistPush</a>
+          <a href="https://dailyplaylists.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Daily Playlists</a>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <h3><i class="fa-solid fa-newspaper text-gold"></i> Press & Marketing</h3>
+        <p class="text-muted" style="font-size:0.85rem;">Build your brand, reach media outlets, and promote releases to a wider audience.</p>
+        <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;margin-top:var(--space-xs);">
+          <li><strong>Electronic Press Kit (EPK)</strong> — Bio, photos, music links, press quotes, tech rider</li>
+          <li><strong>Social Media Strategy</strong> — Pre-release teasers, release day posts, behind-the-scenes content</li>
+          <li><strong>Press Release</strong> — Write & distribute to blogs, magazines, and music outlets</li>
+          <li><strong>Music Blogs & Review Sites</strong> — Pitch to tastemakers for features and reviews</li>
+        </ul>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--space-sm);">
+          <a href="https://www.musosoup.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">MusoSoup</a>
+          <a href="https://groover.co" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Groover</a>
+          <a href="https://www.canva.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Canva (Graphics)</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DIY vs Distributor Comparison -->
+  <div class="glass-card" style="margin-top:var(--space-lg);">
+    <h3><i class="fa-solid fa-scale-balanced text-gold"></i> Why DIY Self-Distribution?</h3>
+    <div class="grid grid-2" style="margin-top:var(--space-sm);gap:var(--space-md);">
+      <div>
+        <h4 style="color:var(--color-gold);margin-bottom:var(--space-xs);">DIY Self-Distribution (Our Model)</h4>
+        <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;">
+          <li><strong>100% revenue</strong> — no distributor cut or yearly fees</li>
+          <li><strong>Full control</strong> — pricing, release timing, takedowns</li>
+          <li><strong>Own your masters</strong> — no distributor lock-in or licensing traps</li>
+          <li><strong>Direct relationships</strong> — with platforms and playlist curators</li>
+          <li><strong>Scalable</strong> — same process whether you release 1 or 100 tracks</li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Traditional Distributors (DistroKid, TuneCore, etc.)</h4>
+        <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);font-size:0.85rem;">
+          <li>Yearly fees or per-release costs eat into profit</li>
+          <li>They assign ISRC/UPC — but you can do this yourself</li>
+          <li>Convenience at the cost of control and revenue share</li>
+          <li>Some have lock-in terms that limit takedown rights</li>
+          <li>May be useful for artists who want a hands-off approach</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  var TOTAL_STEPS=14;
+  var STEP_LABELS=['Songwriting','Recording','Mixing & Mastering','Copyright','ISRC','UPC','PRO Registration','SoundExchange','Prepare Assets','Upload to Platforms','Pre-Save & Marketing','Release Day','Track Streams','Collect Royalties'];
+  var typeLabels={single:'Single',ep:'EP',album:'Album',compilation:'Compilation'};
+  var typeColors={single:'badge-gold',ep:'badge-blue',album:'badge-gold',compilation:'badge-gray'};
+  var statusColors={draft:'status-draft',pending:'status-pending',distributed:'status-active',released:'status-active','taken-down':'status-expired'};
+
+  var selectedReleaseId=null;
+
+  /* =============================================
+     Summary + Table (existing)
+     ============================================= */
+
+  function renderSummary(){
+    var data=DataStore.getReleases();
+    var total=data.length;
+    var distributed=data.filter(function(r){return r.status==='distributed'||r.status==='released';}).length;
+    var pending=data.filter(function(r){return r.status==='pending';}).length;
+    var royalties=data.reduce(function(sum,r){return sum+(parseFloat(r.royaltyIncome)||0);},0);
+
+    var c=document.getElementById('dist-summary');
+    c.innerHTML=
+      '<div class="glass-card stat-card"><div class="stat-value">'+total+'</div><div class="stat-label">Total Releases</div></div>'+
+      '<div class="glass-card stat-card"><div class="stat-value">'+distributed+'</div><div class="stat-label">Distributed</div></div>'+
+      '<div class="glass-card stat-card"><div class="stat-value">'+pending+'</div><div class="stat-label">Pending</div></div>'+
+      '<div class="glass-card stat-card"><div class="stat-value">'+Utils.formatCurrency(royalties)+'</div><div class="stat-label">Total Royalties</div></div>';
+  }
+
+  function renderTable(){
+    var c=document.getElementById('dist-table-container');
+    var data=DataStore.getReleases();
+    if(!data.length){
+      c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-compact-disc"></i></div><h3 class="empty-state-title">No releases yet</h3><p class="empty-state-text">Add your first release to start tracking distribution.</p></div>';
+      return;
+    }
+    var html='<table class="data-table"><thead><tr><th>Title</th><th>Artist</th><th>Type</th><th>ISRC</th><th>UPC</th><th>Method</th><th>Release Date</th><th>Status</th><th>Royalties</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(function(r){
+      var typeBadge='<span class="badge '+(typeColors[r.type]||'badge-gray')+'">'+(typeLabels[r.type]||r.type||'—')+'</span>';
+      var statusText=(r.status||'draft').replace('-',' ');
+      var statusPill='<span class="status-pill '+(statusColors[r.status]||'status-draft')+'">'+statusText+'</span>';
+      var royalty=Utils.formatCurrency(r.royaltyIncome||0);
+      var releaseDate=r.releaseDate?Utils.formatDate(r.releaseDate):'—';
+      var isrcDisplay=r.isrc?Utils.escapeHtml(r.isrc):'<span class="text-muted">—</span>';
+      var upcDisplay=r.upc?Utils.escapeHtml(r.upc):'<span class="text-muted">—</span>';
+
+      html+='<tr>'+
+        '<td data-label="Title"><strong>'+Utils.escapeHtml(r.title||'')+'</strong></td>'+
+        '<td data-label="Artist">'+Utils.escapeHtml(r.artist||'—')+'</td>'+
+        '<td data-label="Type">'+typeBadge+'</td>'+
+        '<td data-label="ISRC"><code style="font-size:0.8rem;">'+isrcDisplay+'</code></td>'+
+        '<td data-label="UPC"><code style="font-size:0.8rem;">'+upcDisplay+'</code></td>'+
+        '<td data-label="Method">'+Utils.escapeHtml(r.distributor||'DIY')+'</td>'+
+        '<td data-label="Release Date">'+releaseDate+'</td>'+
+        '<td data-label="Status">'+statusPill+'</td>'+
+        '<td data-label="Royalties">'+royalty+'</td>'+
+        '<td data-label="Actions"><div class="data-table-actions">'+
+          '<button class="btn btn-ghost btn-sm" onclick="editRelease(\''+r.id+'\')"><i class="fa-solid fa-pen"></i></button>'+
+          '<button class="btn btn-ghost btn-sm text-danger" onclick="deleteRelease(\''+r.id+'\')"><i class="fa-solid fa-trash"></i></button>'+
+        '</div></td></tr>';
+    });
+    html+='</tbody></table>';
+    c.innerHTML=html;
+  }
+
+  /* =============================================
+     Roadmap — Per-Release Tracker
+     ============================================= */
+
+  function getRelease(id){
+    return DataStore.getReleases().find(function(r){return r.id===id;});
+  }
+
+  function ensureRoadmapFields(r){
+    if(!r.roadmapSteps||r.roadmapSteps.length!==TOTAL_STEPS){
+      r.roadmapSteps=[];
+      for(var i=0;i<TOTAL_STEPS;i++)r.roadmapSteps.push(false);
+    }
+    if(!r.projectExpenses)r.projectExpenses=[];
+    if(!r.projectTasks)r.projectTasks=[];
+    return r;
+  }
+
+  function renderReleaseSelector(){
+    var sel=document.getElementById('roadmap-release-select');
+    var data=DataStore.getReleases();
+    var html='<option value="">— Select a release —</option>';
+    data.forEach(function(r){
+      var selected=(r.id===selectedReleaseId)?' selected':'';
+      html+='<option value="'+r.id+'"'+selected+'>'+Utils.escapeHtml(r.title)+' — '+Utils.escapeHtml(r.artist)+'</option>';
+    });
+    sel.innerHTML=html;
+  }
+
+  function renderRoadmap(){
+    var road=document.getElementById('roadmap-road');
+    var empty=document.getElementById('roadmap-empty');
+    var bar=document.getElementById('roadmap-progress-bar');
+    var tracking=document.getElementById('project-tracking');
+
+    if(!selectedReleaseId){
+      var hasReleases=DataStore.getReleases().length>0;
+      road.style.display='none';
+      bar.style.display='none';
+      tracking.style.display='none';
+      empty.style.display=hasReleases?'none':'block';
+      return;
+    }
+
+    var r=getRelease(selectedReleaseId);
+    if(!r){selectedReleaseId=null;renderRoadmap();return;}
+    r=ensureRoadmapFields(r);
+
+    // Show road + progress + tracking
+    road.style.display='';
+    bar.style.display='';
+    tracking.style.display='';
+    empty.style.display='none';
+
+    var steps=r.roadmapSteps;
+    var completed=steps.filter(function(s){return s;}).length;
+    var pct=Math.round((completed/TOTAL_STEPS)*100);
+    var firstIncomplete=-1;
+    for(var i=0;i<TOTAL_STEPS;i++){if(!steps[i]){firstIncomplete=i;break;}}
+
+    // Progress bar
+    document.getElementById('roadmap-progress-title').textContent=r.title+' — '+r.artist;
+    document.getElementById('roadmap-progress-pct').textContent=pct+'%';
+    document.getElementById('roadmap-progress-fill').style.width=pct+'%';
+    document.getElementById('roadmap-progress-count').textContent=completed+' of '+TOTAL_STEPS+' steps completed';
+    document.getElementById('roadmap-progress-next').textContent=
+      firstIncomplete>=0?'Next: '+STEP_LABELS[firstIncomplete]:'All steps complete!';
+
+    // Apply classes to stops
+    var stops=road.querySelectorAll('.roadmap-stop[data-step]');
+    stops.forEach(function(stop){
+      var idx=parseInt(stop.getAttribute('data-step'),10);
+      stop.classList.remove('completed','active');
+      var stepLabel=stop.querySelector('.roadmap-card-step');
+      // Remove old check icon if present
+      var oldCheck=stepLabel.querySelector('.step-check');
+      if(oldCheck)oldCheck.remove();
+
+      if(steps[idx]){
+        stop.classList.add('completed');
+        var chk=document.createElement('i');
+        chk.className='fa-solid fa-circle-check step-check';
+        stepLabel.appendChild(chk);
+      }else if(idx===firstIncomplete){
+        stop.classList.add('active');
+      }
+    });
+
+    // Render expenses & tasks
+    renderExpenses(r);
+    renderTasks(r);
+  }
+
+  /* =============================================
+     Roadmap Dot Click — Toggle Step
+     ============================================= */
+
+  function handleDotClick(e){
+    var dot=e.target.closest('.roadmap-dot');
+    if(!dot)return;
+    var stop=dot.closest('.roadmap-stop[data-step]');
+    if(!stop||!selectedReleaseId)return;
+    var idx=parseInt(stop.getAttribute('data-step'),10);
+    var r=getRelease(selectedReleaseId);
+    if(!r)return;
+    r=ensureRoadmapFields(r);
+    r.roadmapSteps[idx]=!r.roadmapSteps[idx];
+    DataStore.updateRelease(selectedReleaseId,{roadmapSteps:r.roadmapSteps});
+    renderRoadmap();
+  }
+
+  document.getElementById('roadmap-road').addEventListener('click',handleDotClick);
+
+  /* =============================================
+     Project Expenses
+     ============================================= */
+
+  function renderExpenses(r){
+    var list=document.getElementById('expense-list');
+    var totalEl=document.getElementById('expense-total');
+    var countEl=document.getElementById('expense-count');
+    var expenses=r.projectExpenses||[];
+    var total=0;
+
+    if(!expenses.length){
+      list.innerHTML='<p class="text-muted" style="font-size:var(--text-sm);text-align:center;padding:var(--space-md) 0;">No expenses yet — add one below.</p>';
+    }else{
+      var html='';
+      expenses.forEach(function(exp,i){
+        total+=parseFloat(exp.amount)||0;
+        html+='<div class="project-expense-row">'+
+          '<span class="expense-name">'+Utils.escapeHtml(exp.name)+'</span>'+
+          '<span class="expense-amount">'+Utils.formatCurrency(exp.amount)+'</span>'+
+          '<span class="expense-delete" data-expense-idx="'+i+'" title="Remove"><i class="fa-solid fa-xmark"></i></span>'+
+        '</div>';
+      });
+      list.innerHTML=html;
+    }
+    totalEl.textContent=Utils.formatCurrency(total);
+    countEl.textContent=expenses.length+' expense'+(expenses.length!==1?'s':'');
+  }
+
+  document.getElementById('add-expense-btn').addEventListener('click',function(){
+    if(!selectedReleaseId)return;
+    var nameInput=document.getElementById('expense-name-input');
+    var amountInput=document.getElementById('expense-amount-input');
+    var name=nameInput.value.trim();
+    var amount=parseFloat(amountInput.value)||0;
+    if(!name){Toast.error('Enter an expense name');return;}
+    if(amount<=0){Toast.error('Enter a valid amount');return;}
+
+    var r=getRelease(selectedReleaseId);
+    if(!r)return;
+    r=ensureRoadmapFields(r);
+    r.projectExpenses.push({name:name,amount:amount});
+    DataStore.updateRelease(selectedReleaseId,{projectExpenses:r.projectExpenses});
+    nameInput.value='';
+    amountInput.value='';
+    renderExpenses(r);
+  });
+
+  document.getElementById('expense-list').addEventListener('click',function(e){
+    var del=e.target.closest('[data-expense-idx]');
+    if(!del||!selectedReleaseId)return;
+    var idx=parseInt(del.getAttribute('data-expense-idx'),10);
+    var r=getRelease(selectedReleaseId);
+    if(!r)return;
+    r=ensureRoadmapFields(r);
+    r.projectExpenses.splice(idx,1);
+    DataStore.updateRelease(selectedReleaseId,{projectExpenses:r.projectExpenses});
+    renderExpenses(r);
+  });
+
+  /* =============================================
+     Project Tasks
+     ============================================= */
+
+  function renderTasks(r){
+    var list=document.getElementById('task-list');
+    var countEl=document.getElementById('task-count');
+    var tasks=r.projectTasks||[];
+    var doneCount=tasks.filter(function(t){return t.done;}).length;
+
+    if(!tasks.length){
+      list.innerHTML='<p class="text-muted" style="font-size:var(--text-sm);text-align:center;padding:var(--space-md) 0;">No tasks yet — add one below.</p>';
+    }else{
+      var html='';
+      tasks.forEach(function(task,i){
+        var doneClass=task.done?' done':'';
+        var checked=task.done?' checked':'';
+        html+='<div class="project-task-row'+doneClass+'">'+
+          '<input type="checkbox"'+checked+' data-task-idx="'+i+'" />'+
+          '<span class="task-label" data-task-idx="'+i+'">'+Utils.escapeHtml(task.name)+'</span>'+
+          '<span class="task-delete" data-task-del="'+i+'" title="Remove"><i class="fa-solid fa-xmark"></i></span>'+
+        '</div>';
+      });
+      list.innerHTML=html;
+    }
+    countEl.textContent=doneCount+'/'+tasks.length+' done';
+  }
+
+  document.getElementById('add-task-btn').addEventListener('click',function(){
+    if(!selectedReleaseId)return;
+    var input=document.getElementById('task-name-input');
+    var name=input.value.trim();
+    if(!name){Toast.error('Enter a task name');return;}
+
+    var r=getRelease(selectedReleaseId);
+    if(!r)return;
+    r=ensureRoadmapFields(r);
+    r.projectTasks.push({name:name,done:false});
+    DataStore.updateRelease(selectedReleaseId,{projectTasks:r.projectTasks});
+    input.value='';
+    renderTasks(r);
+  });
+
+  // Enter key to add
+  document.getElementById('task-name-input').addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();document.getElementById('add-task-btn').click();}
+  });
+  document.getElementById('expense-name-input').addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();document.getElementById('add-expense-btn').click();}
+  });
+
+  document.getElementById('task-list').addEventListener('click',function(e){
+    if(!selectedReleaseId)return;
+    var r=getRelease(selectedReleaseId);
+    if(!r)return;
+    r=ensureRoadmapFields(r);
+
+    // Toggle checkbox
+    var cb=e.target.closest('[data-task-idx]');
+    if(cb){
+      var idx=parseInt(cb.getAttribute('data-task-idx'),10);
+      r.projectTasks[idx].done=!r.projectTasks[idx].done;
+      DataStore.updateRelease(selectedReleaseId,{projectTasks:r.projectTasks});
+      renderTasks(r);
+      return;
+    }
+    // Delete
+    var del=e.target.closest('[data-task-del]');
+    if(del){
+      var di=parseInt(del.getAttribute('data-task-del'),10);
+      r.projectTasks.splice(di,1);
+      DataStore.updateRelease(selectedReleaseId,{projectTasks:r.projectTasks});
+      renderTasks(r);
+    }
+  });
+
+  /* =============================================
+     Release Selector
+     ============================================= */
+
+  document.getElementById('roadmap-release-select').addEventListener('change',function(){
+    selectedReleaseId=this.value||null;
+    renderRoadmap();
+  });
+
+  /* =============================================
+     Add / Edit / Delete Release (existing modals)
+     ============================================= */
+
+  function buildPlatformCheckboxes(selected){
+    var platforms=['Spotify','Apple Music','Amazon Music','YouTube Music','Tidal','Deezer','SoundCloud','Bandcamp','Audiomack'];
+    selected=selected||[];
+    var html='<div style="display:flex;flex-wrap:wrap;gap:12px;">';
+    platforms.forEach(function(p){
+      var checked=(selected.indexOf(p)!==-1)?' checked':'';
+      html+='<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.9rem;">'+
+        '<input type="checkbox" name="platforms" value="'+p+'"'+checked+' /> '+p+'</label>';
+    });
+    html+='</div>';
+    return html;
+  }
+
+  function getCheckedPlatforms(){
+    var boxes=document.querySelectorAll('#modal-form input[name="platforms"]:checked');
+    var arr=[];
+    boxes.forEach(function(cb){arr.push(cb.value);});
+    return arr;
+  }
+
+  function renderAll(){renderSummary();renderTable();renderReleaseSelector();renderRoadmap();}
+
+  document.getElementById('add-release-btn').addEventListener('click',function(){
+    if(typeof Modal==='undefined')return;
+    Modal.open({title:'Add Release',size:'lg',
+      content:'<form id="modal-form">'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Title *</label><input type="text" class="form-input" name="title" required placeholder="e.g. No One Can Love You More" /></div>'+
+          '<div class="form-group"><label class="form-label">Artist *</label><input type="text" class="form-input" name="artist" required placeholder="e.g. L.A. Young" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Type</label><select class="form-select" name="type"><option value="single">Single</option><option value="ep">EP</option><option value="album">Album</option><option value="compilation">Compilation</option></select></div>'+
+          '<div class="form-group"><label class="form-label">Distribution Method</label><select class="form-select" name="distributor"><option value="Self-Distributed">Self-Distributed (DIY)</option><option value="Direct Upload">Direct Upload to Platform</option><option value="Label Services">Label Services</option><option value="Other">Other</option></select></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Release Date</label><input type="date" class="form-input" name="releaseDate" /></div>'+
+          '<div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="draft">Draft</option><option value="pending">Pending</option><option value="distributed">Distributed</option><option value="taken-down">Taken Down</option></select></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">ISRC <span class="text-muted" style="font-weight:400;">(per track)</span></label><input type="text" class="form-input" name="isrc" placeholder="e.g. USRC17607839" /></div>'+
+          '<div class="form-group"><label class="form-label">UPC / EAN <span class="text-muted" style="font-weight:400;">(per release)</span></label><input type="text" class="form-input" name="upc" placeholder="e.g. 0123456789012" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Royalty Income ($)</label><input type="number" class="form-input" name="royaltyIncome" value="0" min="0" step="0.01" /></div>'+
+          '<div class="form-group"><label class="form-label">Spotify URL</label><input type="url" class="form-input" name="spotifyUrl" placeholder="https://open.spotify.com/track/..." /></div>'+
+        '</div>'+
+        '<div class="form-group"><label class="form-label">Platforms</label>'+buildPlatformCheckboxes([])+'</div>'+
+        '<div class="form-group"><label class="form-label">Platform Upload Status</label><textarea class="form-textarea" name="platformStatus" rows="3" placeholder="Track per-platform status, e.g.:&#10;Spotify: Live ✓&#10;Apple Music: Processing...&#10;YouTube: Not yet uploaded"></textarea></div>'+
+        '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2" placeholder="Optional notes about this release..."></textarea></div>'+
+      '</form>',
+      saveText:'Add Release',onSave:function(){
+        var f=document.getElementById('modal-form');
+        var d={};
+        new FormData(f).forEach(function(v,k){if(k!=='platforms')d[k]=v;});
+        if(!d.title){Toast.error('Title is required');return;}
+        if(!d.artist){Toast.error('Artist is required');return;}
+        d.royaltyIncome=parseFloat(d.royaltyIncome)||0;
+        d.platforms=getCheckedPlatforms();
+        d.roadmapSteps=[];
+        for(var i=0;i<TOTAL_STEPS;i++)d.roadmapSteps.push(false);
+        d.projectExpenses=[];
+        d.projectTasks=[];
+        var newRelease=DataStore.addRelease(d);
+        Modal.close();
+        Toast.success('Release added: '+d.title);
+        selectedReleaseId=newRelease.id;
+        renderAll();
+      }
+    });
+  });
+
+  window.editRelease=function(id){
+    var data=DataStore.getReleases();
+    var r=data.find(function(x){return x.id===id;});
+    if(!r||typeof Modal==='undefined')return;
+
+    Modal.open({title:'Edit: '+r.title,size:'lg',
+      content:'<form id="modal-form">'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Title</label><input type="text" class="form-input" name="title" value="'+Utils.escapeHtml(r.title||'')+'" /></div>'+
+          '<div class="form-group"><label class="form-label">Artist</label><input type="text" class="form-input" name="artist" value="'+Utils.escapeHtml(r.artist||'')+'" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Type</label><select class="form-select" name="type">'+
+            '<option value="single"'+(r.type==='single'?' selected':'')+'>Single</option>'+
+            '<option value="ep"'+(r.type==='ep'?' selected':'')+'>EP</option>'+
+            '<option value="album"'+(r.type==='album'?' selected':'')+'>Album</option>'+
+            '<option value="compilation"'+(r.type==='compilation'?' selected':'')+'>Compilation</option>'+
+          '</select></div>'+
+          '<div class="form-group"><label class="form-label">Distribution Method</label><select class="form-select" name="distributor">'+
+            '<option value="Self-Distributed"'+(r.distributor==='Self-Distributed'?' selected':'')+'>Self-Distributed (DIY)</option>'+
+            '<option value="Direct Upload"'+(r.distributor==='Direct Upload'?' selected':'')+'>Direct Upload to Platform</option>'+
+            '<option value="Label Services"'+(r.distributor==='Label Services'?' selected':'')+'>Label Services</option>'+
+            '<option value="Other"'+(!r.distributor||r.distributor==='Other'?' selected':'')+'>Other</option>'+
+          '</select></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Release Date</label><input type="date" class="form-input" name="releaseDate" value="'+(r.releaseDate||'')+'" /></div>'+
+          '<div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status">'+
+            '<option value="draft"'+(r.status==='draft'?' selected':'')+'>Draft</option>'+
+            '<option value="pending"'+(r.status==='pending'?' selected':'')+'>Pending</option>'+
+            '<option value="distributed"'+((r.status==='distributed'||r.status==='released')?' selected':'')+'>Distributed</option>'+
+            '<option value="taken-down"'+(r.status==='taken-down'?' selected':'')+'>Taken Down</option>'+
+          '</select></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">ISRC <span class="text-muted" style="font-weight:400;">(per track)</span></label><input type="text" class="form-input" name="isrc" value="'+Utils.escapeHtml(r.isrc||'')+'" /></div>'+
+          '<div class="form-group"><label class="form-label">UPC / EAN <span class="text-muted" style="font-weight:400;">(per release)</span></label><input type="text" class="form-input" name="upc" value="'+Utils.escapeHtml(r.upc||'')+'" /></div>'+
+        '</div>'+
+        '<div class="grid grid-2">'+
+          '<div class="form-group"><label class="form-label">Royalty Income ($)</label><input type="number" class="form-input" name="royaltyIncome" value="'+(r.royaltyIncome||0)+'" min="0" step="0.01" /></div>'+
+          '<div class="form-group"><label class="form-label">Spotify URL</label><input type="url" class="form-input" name="spotifyUrl" value="'+Utils.escapeHtml(r.spotifyUrl||'')+'" /></div>'+
+        '</div>'+
+        '<div class="form-group"><label class="form-label">Platforms</label>'+buildPlatformCheckboxes(r.platforms||[])+'</div>'+
+        '<div class="form-group"><label class="form-label">Platform Upload Status</label><textarea class="form-textarea" name="platformStatus" rows="3">'+Utils.escapeHtml(r.platformStatus||'')+'</textarea></div>'+
+        '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2">'+Utils.escapeHtml(r.notes||'')+'</textarea></div>'+
+      '</form>',
+      saveText:'Save',onSave:function(){
+        var f=document.getElementById('modal-form');
+        var d={};
+        new FormData(f).forEach(function(v,k){if(k!=='platforms')d[k]=v;});
+        d.royaltyIncome=parseFloat(d.royaltyIncome)||0;
+        d.platforms=getCheckedPlatforms();
+        DataStore.updateRelease(id,d);
+        Modal.close();
+        Toast.success('Release updated');
+        renderAll();
+      }
+    });
+  };
+
+  window.deleteRelease=function(id){
+    var data=DataStore.getReleases();
+    var r=data.find(function(x){return x.id===id;});
+    if(!r)return;
+    Modal.confirm('Delete release "'+r.title+'"?',function(){
+      DataStore.deleteRelease(id);
+      if(selectedReleaseId===id)selectedReleaseId=null;
+      Toast.success('Release deleted');
+      renderAll();
+    });
+  };
+
+  renderAll();
+})();
+</script>

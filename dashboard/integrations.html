@@ -1,0 +1,228 @@
+<!-- dashboard/integrations.html — Third-Party Integrations Hub -->
+<div class="dashboard-page" id="dash-integrations">
+  <div class="dashboard-page-header">
+    <div><h1>Integrations</h1><p class="text-muted">Connect third-party services to power your business operations.</p></div>
+    <div id="integrations-summary" style="margin-top:var(--space-sm);padding:var(--space-sm) var(--space-md);background:var(--color-bg-tertiary);border-radius:var(--radius-md);display:inline-flex;align-items:center;gap:var(--space-sm);">
+      <i class="fa-solid fa-plug text-gold"></i>
+      <span id="connected-count"><strong>0</strong> of <strong>20</strong> services connected</span>
+    </div>
+  </div>
+
+  <div id="integrations-container"></div>
+
+  <style>
+    .integration-section { margin-bottom: var(--space-xl); }
+    .integration-section h2 {
+      font-size: var(--text-lg); font-weight: var(--fw-semibold);
+      color: var(--color-text); margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm); border-bottom: 1px solid var(--color-border);
+    }
+    .integration-section h2 i { color: var(--color-gold); margin-right: var(--space-sm); }
+    .integrations-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-md);
+    }
+    .integration-card {
+      display: flex; flex-direction: column; gap: var(--space-sm);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .integration-header {
+      display: flex; align-items: flex-start; gap: var(--space-md);
+    }
+    .integration-icon {
+      width: 44px; height: 44px; border-radius: var(--radius-md);
+      background: var(--color-bg-tertiary); display: flex;
+      align-items: center; justify-content: center; font-size: 20px;
+      color: var(--color-gold); flex-shrink: 0;
+      border: 1px solid var(--color-border);
+    }
+    .integration-header h3 {
+      font-size: var(--text-sm); font-weight: var(--fw-semibold);
+      color: var(--color-text); margin: 0 0 4px 0;
+    }
+    .integration-config {
+      padding: var(--space-sm); background: var(--color-bg-tertiary);
+      border-radius: var(--radius-sm); margin-top: var(--space-xs);
+    }
+    .integration-config .form-group { margin-bottom: var(--space-sm); }
+    .integration-config .form-group:last-child { margin-bottom: 0; }
+    .integration-actions {
+      display: flex; gap: var(--space-sm); margin-top: auto;
+      padding-top: var(--space-sm); border-top: 1px solid rgba(255,255,255,0.05);
+    }
+  </style>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  /* ---- Integration definitions ---- */
+  var integrations = [
+    // Booking & Events
+    {id:'eventbrite',    category:'Booking & Events',       catIcon:'fa-calendar-alt', name:'Eventbrite',        icon:'fa-solid fa-calendar-check', desc:'Event creation, ticket sales, attendee management',                fields:[{key:'apiKey',label:'API Key',placeholder:'Enter your Eventbrite API key...'}]},
+    {id:'bandsintown',   category:'Booking & Events',       catIcon:'fa-calendar-alt', name:'Bandsintown',       icon:'fa-solid fa-music',          desc:'Artist tour pages and fan notifications',                          fields:[{key:'artistId',label:'Artist ID',placeholder:'Enter your Bandsintown Artist ID...'}]},
+    {id:'googleCalendar',category:'Booking & Events',       catIcon:'fa-calendar-alt', name:'Google Calendar',   icon:'fa-solid fa-calendar',       desc:'Shared team calendar synchronization',                             fields:[{key:'calendarId',label:'Calendar ID',placeholder:'Enter your Google Calendar ID...'}]},
+
+    // Ecommerce & Payments
+    {id:'shopify',       category:'Ecommerce & Payments',   catIcon:'fa-cart-shopping',name:'Shopify',           icon:'fa-solid fa-shop',           desc:'Full merch storefront and ecommerce',                              fields:[{key:'storeUrl',label:'Store URL',placeholder:'your-store.myshopify.com'},{key:'storefrontToken',label:'Storefront Token',placeholder:'Enter your Storefront Access Token...'}]},
+    {id:'printful',      category:'Ecommerce & Payments',   catIcon:'fa-cart-shopping',name:'Printful',          icon:'fa-solid fa-shirt',          desc:'Print-on-demand fulfillment \u2014 no inventory needed',           fields:[{key:'apiKey',label:'API Key',placeholder:'Enter your Printful API key...'}]},
+    {id:'stripe',        category:'Ecommerce & Payments',   catIcon:'fa-cart-shopping',name:'Stripe',            icon:'fa-solid fa-credit-card',    desc:'Online payment processing',                                        fields:[{key:'apiKey',label:'API Key',placeholder:'Enter your Stripe publishable key...'}]},
+    {id:'paypal',        category:'Ecommerce & Payments',   catIcon:'fa-cart-shopping',name:'PayPal Business',   icon:'fa-brands fa-paypal',        desc:'Alternative payment processing',                                   fields:[{key:'clientId',label:'Client ID',placeholder:'Enter your PayPal Client ID...'}]},
+    {id:'square',        category:'Ecommerce & Payments',   catIcon:'fa-cart-shopping',name:'Square',            icon:'fa-solid fa-cash-register',  desc:'In-person merch sales at shows',                                   fields:[{key:'appId',label:'Application ID',placeholder:'Enter your Square Application ID...'}]},
+
+    // Accounting & Finance
+    {id:'quickbooks',    category:'Accounting & Finance',   catIcon:'fa-landmark',     name:'QuickBooks Online', icon:'fa-solid fa-calculator',     desc:'Full accounting, invoicing, expense tracking',                     fields:[{key:'clientId',label:'Client ID (OAuth)',placeholder:'Enter your QuickBooks Client ID...'}]},
+    {id:'wave',          category:'Accounting & Finance',   catIcon:'fa-landmark',     name:'Wave',              icon:'fa-solid fa-wave-square',    desc:'Free accounting and invoicing',                                    fields:[], link:'https://www.waveapps.com'},
+    {id:'gusto',         category:'Accounting & Finance',   catIcon:'fa-landmark',     name:'Gusto',             icon:'fa-solid fa-people-group',   desc:'Payroll processing for W-2 employees',                             fields:[], link:'https://gusto.com'},
+
+    // Music Industry
+    {id:'distrokid',     category:'Music Industry',         catIcon:'fa-headphones',   name:'DistroKid',         icon:'fa-solid fa-compact-disc',   desc:'Digital music distribution to all major platforms',                 fields:[], link:'https://distrokid.com'},
+    {id:'spotifyArtists',category:'Music Industry',         catIcon:'fa-headphones',   name:'Spotify for Artists',icon:'fa-brands fa-spotify',      desc:'Streaming analytics and audience insights',                        fields:[{key:'uri',label:'Artist URI',placeholder:'spotify:artist:XXXXXX'}]},
+    {id:'youtubeStudio', category:'Music Industry',         catIcon:'fa-headphones',   name:'YouTube Studio',    icon:'fa-brands fa-youtube',       desc:'Video analytics and monetization',                                 fields:[], link:'https://studio.youtube.com'},
+    {id:'soundexchange', category:'Music Industry',         catIcon:'fa-headphones',   name:'SoundExchange',     icon:'fa-solid fa-tower-broadcast',desc:'Digital performance royalties',                                    fields:[{key:'accountId',label:'Account ID',placeholder:'Enter your SoundExchange Account ID...'}]},
+    {id:'pro',           category:'Music Industry',         catIcon:'fa-headphones',   name:'BMI/ASCAP/SESAC',   icon:'fa-solid fa-music',          desc:'Performance rights organization',                                  fields:[{key:'memberId',label:'Member ID',placeholder:'Enter your PRO Member ID...'}]},
+
+    // Contracts & Legal
+    {id:'docusign',      category:'Contracts & Legal',      catIcon:'fa-gavel',        name:'DocuSign',          icon:'fa-solid fa-file-signature',  desc:'Electronic signatures on contracts',                               fields:[{key:'apiKey',label:'API Key',placeholder:'Enter your DocuSign API key...'}]},
+    {id:'hellosign',     category:'Contracts & Legal',      catIcon:'fa-gavel',        name:'HelloSign',         icon:'fa-solid fa-pen-nib',         desc:'E-signature alternative',                                         fields:[{key:'apiKey',label:'API Key',placeholder:'Enter your HelloSign API key...'}]},
+    {id:'pandadoc',      category:'Contracts & Legal',      catIcon:'fa-gavel',        name:'PandaDoc',          icon:'fa-solid fa-file-contract',   desc:'Contract templates and e-signatures',                              fields:[{key:'apiKey',label:'API Key',placeholder:'Enter your PandaDoc API key...'}]},
+
+    // Travel
+    {id:'googleMaps',    category:'Travel',                 catIcon:'fa-route',        name:'Google Maps',       icon:'fa-solid fa-map-location-dot',desc:'Venue mapping and route planning',                                 fields:[{key:'apiKey',label:'API Key',placeholder:'Enter your Google Maps API key...'}]}
+  ];
+
+  var saved = DataStore.getIntegrations();
+
+  /* ---- Render ---- */
+  function render(){
+    saved = DataStore.getIntegrations();
+    var container = document.getElementById('integrations-container');
+    if(!container)return;
+
+    // Group by category
+    var categories = [];
+    var catMap = {};
+    integrations.forEach(function(svc){
+      if(!catMap[svc.category]){
+        catMap[svc.category] = {name:svc.category, icon:svc.catIcon, items:[]};
+        categories.push(catMap[svc.category]);
+      }
+      catMap[svc.category].items.push(svc);
+    });
+
+    var html = '';
+    categories.forEach(function(cat){
+      html += '<div class="integration-section">';
+      html += '<h2><i class="fa-solid ' + cat.icon + '"></i>' + cat.name + '</h2>';
+      html += '<div class="integrations-grid">';
+      cat.items.forEach(function(svc){
+        var svcData = saved[svc.id] || {};
+        var connected = !!svcData.connected;
+        var statusClass = connected ? 'status-active' : 'status-draft';
+        var statusLabel = connected ? 'Connected' : 'Not Connected';
+        var connectLabel = connected ? 'Disconnect' : 'Connect';
+        var connectClass = connected ? 'btn-danger' : 'btn-primary';
+
+        html += '<div class="integration-card glass-card" data-service="' + svc.id + '">';
+        html += '  <div class="integration-header">';
+        html += '    <div class="integration-icon"><i class="' + svc.icon + '"></i></div>';
+        html += '    <div>';
+        html += '      <h3>' + svc.name + '</h3>';
+        html += '      <span class="status-pill ' + statusClass + '">' + statusLabel + '</span>';
+        html += '    </div>';
+        html += '  </div>';
+        html += '  <p class="text-muted" style="font-size:var(--text-xs);margin:0;">' + svc.desc + '</p>';
+
+        // Config section (hidden by default)
+        if(svc.fields && svc.fields.length){
+          html += '  <div class="integration-config" id="config-' + svc.id + '" style="display:none;">';
+          svc.fields.forEach(function(f){
+            var val = svcData[f.key] || '';
+            html += '    <div class="form-group">';
+            html += '      <label class="form-label">' + f.label + '</label>';
+            html += '      <input type="text" class="form-input" data-service="' + svc.id + '" data-field="' + f.key + '" placeholder="' + f.placeholder + '" value="' + Utils.escapeHtml(val) + '" />';
+            html += '    </div>';
+          });
+          html += '  </div>';
+        }
+
+        // Dashboard link for link-only integrations
+        if(svc.link){
+          html += '  <div class="integration-config" id="config-' + svc.id + '" style="display:none;">';
+          html += '    <a href="' + svc.link + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Dashboard</a>';
+          html += '  </div>';
+        }
+
+        html += '  <div class="integration-actions">';
+        html += '    <button class="btn ' + connectClass + ' btn-sm" onclick="toggleConnect(\'' + svc.id + '\')">' + connectLabel + '</button>';
+        if(svc.fields && svc.fields.length || svc.link){
+          html += '    <button class="btn btn-ghost btn-sm" onclick="toggleConfig(\'' + svc.id + '\')">';
+          html += '      <i class="fa-solid fa-gear"></i> Configure';
+          html += '    </button>';
+        }
+        html += '  </div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+
+    container.innerHTML = html;
+    updateCount();
+  }
+
+  /* ---- Update connected count ---- */
+  function updateCount(){
+    saved = DataStore.getIntegrations();
+    var total = integrations.length;
+    var connected = 0;
+    integrations.forEach(function(svc){
+      if(saved[svc.id] && saved[svc.id].connected) connected++;
+    });
+    var el = document.getElementById('connected-count');
+    if(el) el.innerHTML = '<strong>' + connected + '</strong> of <strong>' + total + '</strong> services connected';
+  }
+
+  /* ---- Toggle config panel ---- */
+  window.toggleConfig = function(serviceId){
+    var panel = document.getElementById('config-' + serviceId);
+    if(!panel) return;
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  };
+
+  /* ---- Toggle connection status ---- */
+  window.toggleConnect = function(serviceId){
+    saved = DataStore.getIntegrations();
+    var svcData = saved[serviceId] || {};
+    var isConnected = !!svcData.connected;
+
+    if(!isConnected){
+      // Gather field values from inputs
+      var card = document.querySelector('.integration-card[data-service="' + serviceId + '"]');
+      var update = {connected: true};
+      if(card){
+        var inputs = card.querySelectorAll('input[data-field]');
+        inputs.forEach(function(inp){
+          update[inp.getAttribute('data-field')] = inp.value;
+        });
+      }
+      DataStore.updateIntegration(serviceId, update);
+      Toast.success(getServiceName(serviceId) + ' connected');
+    } else {
+      DataStore.updateIntegration(serviceId, {connected: false});
+      Toast.success(getServiceName(serviceId) + ' disconnected');
+    }
+    render();
+  };
+
+  /* ---- Get service display name ---- */
+  function getServiceName(id){
+    for(var i=0;i<integrations.length;i++){
+      if(integrations[i].id===id) return integrations[i].name;
+    }
+    return id;
+  }
+
+  render();
+})();
+</script>

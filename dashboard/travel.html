@@ -1,0 +1,87 @@
+<!-- dashboard/travel.html — Travel & Logistics -->
+<div class="dashboard-page" id="dash-travel">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--spacing-sm);">
+      <div><h1>Travel & Logistics</h1><p class="text-muted">Tour itineraries, travel expenses, and logistics planning.</p></div>
+      <button class="btn btn-primary" id="add-trip-btn"><i class="fa-solid fa-plus"></i> Add Trip</button>
+    </div>
+  </div>
+
+  <!-- Trips Table -->
+  <div class="card" id="travel-table-container"></div>
+
+  <!-- Per Diem Calculator -->
+  <div class="glass-card" style="margin-top:var(--spacing-lg);max-width:500px;">
+    <h3><i class="fa-solid fa-calculator text-gold"></i> Per Diem Calculator</h3>
+    <div class="grid grid-2" style="margin-top:var(--spacing-sm);">
+      <div class="form-group"><label class="form-label">Daily Rate ($)</label><input type="number" class="form-input" id="pd-rate" value="75" min="0" /></div>
+      <div class="form-group"><label class="form-label">Number of Days</label><input type="number" class="form-input" id="pd-days" value="3" min="1" /></div>
+    </div>
+    <div class="form-group"><label class="form-label">Number of People</label><input type="number" class="form-input" id="pd-people" value="1" min="1" style="max-width:200px;" /></div>
+    <div style="margin-top:var(--spacing-sm);padding:var(--spacing-sm);background:var(--color-bg-surface);border-radius:var(--radius-sm);">
+      <strong>Total Per Diem: <span class="text-gold" id="pd-total">$225.00</span></strong>
+    </div>
+  </div>
+
+  <!-- Quick Links -->
+  <div class="glass-card" style="margin-top:var(--spacing-lg);">
+    <h3><i class="fa-solid fa-link text-gold"></i> Travel Resources</h3>
+    <div class="grid grid-3" style="margin-top:var(--spacing-sm);">
+      <a href="https://www.google.com/travel/flights" target="_blank" rel="noopener" class="quick-action-btn glass-card"><i class="fa-solid fa-plane"></i><span>Google Flights</span></a>
+      <a href="https://www.hotels.com" target="_blank" rel="noopener" class="quick-action-btn glass-card"><i class="fa-solid fa-hotel"></i><span>Hotels.com</span></a>
+      <a href="https://maps.google.com" target="_blank" rel="noopener" class="quick-action-btn glass-card"><i class="fa-solid fa-map"></i><span>Google Maps</span></a>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  function renderTable(){
+    var c=document.getElementById('travel-table-container');
+    var data=DataStore.getTravel();
+    if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-plane"></i></div><h3 class="empty-state-title">No trips yet</h3><p class="empty-state-text">Add your first trip to start planning.</p></div>';return;}
+    var html='<table class="data-table"><thead><tr><th>Trip</th><th>Date</th><th>City</th><th>Venue</th><th>Hotel</th><th>Budget</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(function(t){
+      html+='<tr><td data-label="Trip"><strong>'+t.name+'</strong></td><td data-label="Date">'+t.date+'</td><td data-label="City">'+t.city+'</td><td data-label="Venue">'+(t.venue||'—')+'</td><td data-label="Hotel">'+(t.hotel||'TBD')+'</td><td data-label="Budget">$'+(t.totalBudget||0)+'</td><td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editTrip(\''+t.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteTrip(\''+t.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+    });
+    html+='</tbody></table>';c.innerHTML=html;
+  }
+
+  document.getElementById('add-trip-btn').addEventListener('click',function(){
+    if(typeof Modal==='undefined')return;
+    Modal.open({title:'Add Trip',size:'lg',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Trip Name *</label><input type="text" class="form-input" name="name" required placeholder="e.g. Blues Alley Show" /></div><div class="form-group"><label class="form-label">City *</label><input type="text" class="form-input" name="city" required placeholder="Washington, DC" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Departure Date</label><input type="date" class="form-input" name="date" /></div><div class="form-group"><label class="form-label">Return Date</label><input type="date" class="form-input" name="returnDate" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Venue</label><input type="text" class="form-input" name="venue" placeholder="Venue name" /></div><div class="form-group"><label class="form-label">Hotel</label><input type="text" class="form-input" name="hotel" placeholder="Hotel name" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Flight</label><input type="text" class="form-input" name="flight" placeholder="Flight details or N/A" /></div><div class="form-group"><label class="form-label">Total Budget ($)</label><input type="number" class="form-input" name="totalBudget" value="500" min="0" /></div></div><div class="form-group"><label class="form-label">Per Diem ($/day)</label><input type="number" class="form-input" name="perDiem" value="75" min="0" style="max-width:200px;" /></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2"></textarea></div></form>',
+      saveText:'Add Trip',onSave:function(){
+        var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});
+        if(!d.name){Toast.error('Trip name required');return;}
+        d.totalBudget=parseFloat(d.totalBudget)||0;d.perDiem=parseFloat(d.perDiem)||75;d.checklist=[];d.expenses=[];
+        DataStore.addTrip(d);Modal.close();Toast.success('Trip added: '+d.name);renderTable();
+      }
+    });
+  });
+
+  window.editTrip=function(id){var t=DataStore.getTrip(id);if(!t||typeof Modal==='undefined')return;
+    Modal.open({title:'Edit: '+t.name,size:'lg',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Trip Name</label><input type="text" class="form-input" name="name" value="'+(t.name||'')+'" /></div><div class="form-group"><label class="form-label">City</label><input type="text" class="form-input" name="city" value="'+(t.city||'')+'" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Departure</label><input type="date" class="form-input" name="date" value="'+(t.date||'')+'" /></div><div class="form-group"><label class="form-label">Return</label><input type="date" class="form-input" name="returnDate" value="'+(t.returnDate||'')+'" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Venue</label><input type="text" class="form-input" name="venue" value="'+(t.venue||'')+'" /></div><div class="form-group"><label class="form-label">Hotel</label><input type="text" class="form-input" name="hotel" value="'+(t.hotel||'')+'" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Flight</label><input type="text" class="form-input" name="flight" value="'+(t.flight||'')+'" /></div><div class="form-group"><label class="form-label">Budget ($)</label><input type="number" class="form-input" name="totalBudget" value="'+(t.totalBudget||0)+'" /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2">'+(t.notes||'')+'</textarea></div></form>',
+      saveText:'Save',onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});d.totalBudget=parseFloat(d.totalBudget)||0;DataStore.updateTrip(id,d);Modal.close();Toast.success('Trip updated');renderTable();}
+    });
+  };
+
+  window.deleteTrip=function(id){var t=DataStore.getTrip(id);if(!t)return;Modal.confirm('Delete trip "'+t.name+'"?',function(){DataStore.deleteTrip(id);Toast.success('Trip deleted');renderTable();});};
+
+  // Per diem calculator
+  ['pd-rate','pd-days','pd-people'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.addEventListener('input',calcPerDiem);
+  });
+  function calcPerDiem(){
+    var r=parseFloat(document.getElementById('pd-rate').value)||0;
+    var d=parseInt(document.getElementById('pd-days').value)||0;
+    var p=parseInt(document.getElementById('pd-people').value)||1;
+    document.getElementById('pd-total').textContent='$'+(r*d*p).toFixed(2);
+  }
+
+  renderTable();
+})();
+</script>

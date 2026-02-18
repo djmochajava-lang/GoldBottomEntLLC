@@ -1,0 +1,164 @@
+<!-- dashboard/home.html — Dashboard Overview -->
+<div class="dashboard-page" id="dash-home">
+  <div class="dashboard-page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="text-muted">Welcome back. Here's your business overview.</p>
+    </div>
+  </div>
+
+  <!-- Metrics Grid -->
+  <div class="metrics-grid" id="metrics-container" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-lg);margin-top:var(--space-lg);"></div>
+
+  <!-- Two-Column Grid: Activity + Quick Actions -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">
+
+    <!-- Recent Activity -->
+    <div class="card" id="activity-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
+
+    <!-- Quick Actions -->
+    <div class="card" id="quick-actions-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">
+      <h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt text-gold"></i> Quick Actions</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm);">
+        <a href="#dashboard-roster" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);transition:color 150ms ease,border-color 150ms ease,background 150ms ease;text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-user-plus" style="font-size:var(--text-lg);color:var(--color-gold);"></i><span>Add Talent</span></a>
+        <a href="#dashboard-contracts" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);transition:color 150ms ease,border-color 150ms ease,background 150ms ease;text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-file-signature" style="font-size:var(--text-lg);color:var(--color-info);"></i><span>New Contract</span></a>
+        <a href="#dashboard-finances" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);transition:color 150ms ease,border-color 150ms ease,background 150ms ease;text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-dollar-sign" style="font-size:var(--text-lg);color:var(--color-success);"></i><span>Log Revenue</span></a>
+        <a href="#dashboard-calendar" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);transition:color 150ms ease,border-color 150ms ease,background 150ms ease;text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-calendar-plus" style="font-size:var(--text-lg);color:var(--color-warning);"></i><span>Add Event</span></a>
+        <a href="#dashboard-booking" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);transition:color 150ms ease,border-color 150ms ease,background 150ms ease;text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-ticket" style="font-size:var(--text-lg);color:var(--color-gold);"></i><span>New Booking</span></a>
+        <a href="#dashboard-ip" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);transition:color 150ms ease,border-color 150ms ease,background 150ms ease;text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-copyright" style="font-size:var(--text-lg);color:var(--color-info);"></i><span>Register IP</span></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming Events -->
+  <div class="card" id="upcoming-events-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  /* ---- Metric Cards ---- */
+  function renderMetrics(){
+    var c=document.getElementById('metrics-container');
+    if(!c)return;
+    var m=DataStore.getMetrics();
+
+    var cards=[
+      {label:'Roster',         value:m.totalRoster,                             icon:'fa-users',              color:'#d4a017'},
+      {label:'Active Contracts',value:m.activeContracts,                        icon:'fa-file-signature',     color:'#58a6ff'},
+      {label:'Revenue YTD',    value:Utils.formatCurrency(m.revenueYTD),        icon:'fa-chart-line',         color:'#3fb950'},
+      {label:'Upcoming Events',value:m.upcomingEvents,                          icon:'fa-calendar-days',      color:'#d29922'},
+      {label:'Merch Sales',    value:Utils.formatCurrency(m.merchSales),        icon:'fa-bag-shopping',       color:'#d4a017'},
+      {label:'Outstanding Invoices',value:Utils.formatCurrency(m.outstandingInvoices),icon:'fa-file-invoice-dollar',color:'#f85149'}
+    ];
+
+    var html='';
+    cards.forEach(function(card){
+      html+='<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);">'+
+        '<div class="metric-icon" style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(card.color)+',0.15);color:'+card.color+';">'+
+          '<i class="fa-solid '+card.icon+'"></i>'+
+        '</div>'+
+        '<div class="metric-info" style="display:flex;flex-direction:column;">'+
+          '<span class="metric-value" style="font-family:var(--font-heading);font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);line-height:1.2;">'+card.value+'</span>'+
+          '<span class="metric-label" style="font-size:var(--text-sm);color:var(--color-text-secondary);">'+card.label+'</span>'+
+        '</div>'+
+      '</div>';
+    });
+    c.innerHTML=html;
+  }
+
+  /* ---- Recent Activity ---- */
+  function renderActivity(){
+    var c=document.getElementById('activity-container');
+    if(!c)return;
+    var activities=DataStore.getActivity(10);
+
+    var html='<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-clock-rotate-left text-gold"></i> Recent Activity</h3>';
+
+    if(!activities.length){
+      html+='<p class="text-muted" style="font-size:var(--text-sm);">No recent activity.</p>';
+      c.innerHTML=html;
+      return;
+    }
+
+    var actionIcons={create:'fa-circle-plus',update:'fa-pen-to-square','delete':'fa-circle-minus'};
+    var actionColors={create:'#3fb950',update:'#58a6ff','delete':'#f85149'};
+    var actionVerbs={create:'Added',update:'Updated','delete':'Deleted'};
+
+    html+='<div style="display:flex;flex-direction:column;gap:2px;">';
+    activities.forEach(function(a){
+      var icon=actionIcons[a.action]||'fa-circle-info';
+      var color=actionColors[a.action]||'#8b949e';
+      var verb=actionVerbs[a.action]||a.action;
+      var name=Utils.escapeHtml(a.entityName||'Unknown');
+      var type=Utils.escapeHtml(a.entityType||'item');
+      var ago=(typeof Utils!=='undefined'&&Utils.timeAgo)?Utils.timeAgo(a.timestamp):'';
+
+      html+='<div class="activity-item" style="display:flex;align-items:flex-start;gap:var(--space-sm);padding:var(--space-sm) 0;border-bottom:1px solid var(--color-border);">'+
+        '<div style="width:28px;height:28px;border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:var(--text-sm);color:'+color+';background:rgba('+hexToRGB(color)+',0.15);margin-top:2px;">'+
+          '<i class="fa-solid '+icon+'"></i>'+
+        '</div>'+
+        '<div style="flex:1;min-width:0;">'+
+          '<span style="font-size:var(--text-sm);color:var(--color-text);">'+verb+' <strong>'+name+'</strong> <span class="text-muted">'+type+'</span></span>'+
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">'+ago+'</div>'+
+        '</div>'+
+      '</div>';
+    });
+    html+='</div>';
+    c.innerHTML=html;
+  }
+
+  /* ---- Upcoming Events ---- */
+  function renderUpcomingEvents(){
+    var c=document.getElementById('upcoming-events-container');
+    if(!c)return;
+    var events=DataStore.getUpcomingEvents(5);
+
+    var html='<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days text-gold"></i> Upcoming Events</h3>';
+
+    if(!events.length){
+      html+='<p class="text-muted" style="font-size:var(--text-sm);">No upcoming events scheduled.</p>';
+      c.innerHTML=html;
+      return;
+    }
+
+    html+='<table class="data-table" style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:2px solid var(--color-border);"><th style="padding:var(--space-sm);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);font-weight:var(--fw-semibold);">Event</th><th style="padding:var(--space-sm);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);font-weight:var(--fw-semibold);">Date</th><th style="padding:var(--space-sm);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);font-weight:var(--fw-semibold);">Type</th><th style="padding:var(--space-sm);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);font-weight:var(--fw-semibold);">Venue</th></tr></thead><tbody>';
+
+    var typeColors={gig:'#d4a017',studio:'#58a6ff',deadline:'#f85149',meeting:'#3fb950'};
+    events.forEach(function(evt){
+      var tColor=typeColors[evt.type]||'#8b949e';
+      html+='<tr style="border-bottom:1px solid var(--color-border);">'+
+        '<td style="padding:var(--space-sm);font-size:var(--text-sm);"><strong>'+Utils.escapeHtml(evt.title)+'</strong></td>'+
+        '<td style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+Utils.formatDate(evt.date)+'</td>'+
+        '<td style="padding:var(--space-sm);"><span style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--fw-semibold);background:rgba('+hexToRGB(tColor)+',0.15);color:'+tColor+';text-transform:capitalize;">'+Utils.escapeHtml(evt.type||'event')+'</span></td>'+
+        '<td style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+(evt.venue?Utils.escapeHtml(evt.venue):'—')+'</td>'+
+      '</tr>';
+    });
+    html+='</tbody></table>';
+    c.innerHTML=html;
+  }
+
+  /* ---- Hex to RGB helper ---- */
+  function hexToRGB(hex){
+    hex=hex.replace('#','');
+    if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r=parseInt(hex.substring(0,2),16);
+    var g=parseInt(hex.substring(2,4),16);
+    var b=parseInt(hex.substring(4,6),16);
+    return r+','+g+','+b;
+  }
+
+  /* ---- Render all sections ---- */
+  function renderAll(){
+    renderMetrics();
+    renderActivity();
+    renderUpcomingEvents();
+  }
+
+  renderAll();
+
+  /* Refresh on data changes */
+  document.addEventListener('gbe:data-updated',renderAll);
+})();
+</script>

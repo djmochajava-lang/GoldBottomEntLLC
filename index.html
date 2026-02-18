@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gold Bottom Ent. LLC — Talent Management, Creative Services & Enterprise Solutions" />
+  <title>Gold Bottom Ent. LLC</title>
+
+  <!-- Google Fonts: Montserrat (headings) + Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Stylesheets (load order matters) -->
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/sections.css" />
+  <link rel="stylesheet" href="css/pages.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body data-layout="public">
+
+  <!-- Animated Background Orbs — fixed overlay, sits behind all content -->
+  <div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+  </div>
+
+  <!-- ============================================================
+       PUBLIC LAYOUT — Visitors see this
+       ============================================================ -->
+  <div id="public-layout" class="layout-wrapper">
+
+    <!-- Public Header / Navbar -->
+    <header class="public-header">
+      <div class="public-header-inner">
+        <!-- Logo -->
+        <a href="#home" class="logo-link">
+          <span class="logo-icon"><i class="fa-solid fa-gem"></i></span>
+          <span class="logo-text">
+            <strong>Gold Bottom</strong> <span class="logo-ent">Ent.</span> LLC
+          </span>
+        </a>
+
+        <!-- Desktop Nav -->
+        <nav class="public-nav" role="navigation" aria-label="Main navigation">
+          <a href="#home" class="nav-link active" data-page="home">Home</a>
+          <a href="#roster" class="nav-link" data-page="roster">Roster</a>
+          <a href="#services" class="nav-link" data-page="services">Services</a>
+          <a href="#shop" class="nav-link" data-page="shop">Shop</a>
+          <a href="#about" class="nav-link" data-page="about">About</a>
+          <a href="#contact" class="nav-link" data-page="contact">Contact</a>
+        </nav>
+
+        <!-- Dashboard CTA + Mobile Toggle -->
+        <div class="header-actions">
+          <a href="#dashboard-home" class="btn btn-primary btn-sm dashboard-btn">
+            <i class="fa-solid fa-gauge-high"></i> Dashboard
+          </a>
+          <button class="mobile-menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Nav Overlay -->
+      <div class="mobile-nav-overlay" id="mobile-nav-overlay">
+        <nav class="mobile-nav" role="navigation" aria-label="Mobile navigation">
+          <a href="#home" class="mobile-nav-link" data-page="home"><i class="fa-solid fa-house"></i> Home</a>
+          <a href="#roster" class="mobile-nav-link" data-page="roster"><i class="fa-solid fa-users"></i> Roster</a>
+          <a href="#services" class="mobile-nav-link" data-page="services"><i class="fa-solid fa-briefcase"></i> Services</a>
+          <a href="#shop" class="mobile-nav-link" data-page="shop"><i class="fa-solid fa-bag-shopping"></i> Shop</a>
+          <a href="#about" class="mobile-nav-link" data-page="about"><i class="fa-solid fa-info-circle"></i> About</a>
+          <a href="#contact" class="mobile-nav-link" data-page="contact"><i class="fa-solid fa-envelope"></i> Contact</a>
+          <a href="#legal" class="mobile-nav-link" data-page="legal"><i class="fa-solid fa-scale-balanced"></i> Legal</a>
+          <div class="mobile-nav-divider"></div>
+          <a href="#dashboard-home" class="mobile-nav-link mobile-nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Public Content Container -->
+    <main id="public-content" class="public-main" role="main">
+      <!-- Pages loaded dynamically here by PageLoader -->
+    </main>
+
+    <!-- Public Footer -->
+    <footer class="public-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <span class="footer-logo"><i class="fa-solid fa-gem"></i> Gold Bottom Ent. LLC</span>
+          <p class="footer-tagline">Entertainment &bull; Enterprise &bull; Excellence</p>
+        </div>
+        <div class="footer-links">
+          <a href="#about">About</a>
+          <a href="#contact">Contact</a>
+          <a href="#legal">Legal</a>
+        </div>
+        <div class="footer-copy">
+          <p>&copy; 2026 Gold Bottom Ent LLC. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+
+  </div><!-- /#public-layout -->
+
+  <!-- ============================================================
+       DASHBOARD LAYOUT — Management portal
+       ============================================================ -->
+  <div id="dashboard-layout" class="layout-wrapper" style="display: none;">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="dashboard-sidebar" role="navigation" aria-label="Dashboard navigation">
+      <!-- Sidebar Header -->
+      <div class="sidebar-header">
+        <a href="#dashboard-home" class="sidebar-logo">
+          <span class="sidebar-logo-icon"><i class="fa-solid fa-gem"></i></span>
+          <span class="sidebar-logo-text">GBE</span>
+        </a>
+        <button class="sidebar-collapse-btn" aria-label="Collapse sidebar">
+          <i class="fa-solid fa-angles-left"></i>
+        </button>
+      </div>
+
+      <!-- Sidebar Navigation -->
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-group">
+          <span class="sidebar-nav-label">Overview</span>
+          <a href="#dashboard-home" class="sidebar-nav-item active" data-page="dashboard-home">
+            <i class="fa-solid fa-gauge-high"></i>
+            <span class="sidebar-nav-text">Dashboard</span>
+          </a>
+        </div>
+
+        <div class="sidebar-nav-group">
+          <span class="sidebar-nav-label">Management</span>
+          <a href="#dashboard-roster" class="sidebar-nav-item" data-page="dashboard-roster">
+            <i class="fa-solid fa-users"></i>
+            <span class="sidebar-nav-text">Roster</span>
+          </a>
+          <a href="#dashboard-contracts" class="sidebar-nav-item" data-page="dashboard-contracts">
+            <i class="fa-solid fa-file-signature"></i>
+            <span class="sidebar-nav-text">Contracts</span>
+          </a>
+          <a href="#dashboard-booking" class="sidebar-nav-item" data-page="dashboard-booking">
+            <i class="fa-solid fa-ticket"></i>
+            <span class="sidebar-nav-text">Booking</span>
+          </a>
+          <a href="#dashboard-calendar" class="sidebar-nav-item" data-page="dashboard-calendar">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span class="sidebar-nav-text">Calendar</span>
+          </a>
+        </div>
+
+        <div class="sidebar-nav-group">
+          <span class="sidebar-nav-label">Revenue</span>
+          <a href="#dashboard-finances" class="sidebar-nav-item" data-page="dashboard-finances">
+            <i class="fa-solid fa-chart-line"></i>
+            <span class="sidebar-nav-text">Finances</span>
+          </a>
+          <a href="#dashboard-merch" class="sidebar-nav-item" data-page="dashboard-merch">
+            <i class="fa-solid fa-bag-shopping"></i>
+            <span class="sidebar-nav-text">Merch</span>
+          </a>
+        </div>
+
+        <div class="sidebar-nav-group">
+          <span class="sidebar-nav-label">Creative</span>
+          <a href="#dashboard-ip" class="sidebar-nav-item" data-page="dashboard-ip">
+            <i class="fa-solid fa-copyright"></i>
+            <span class="sidebar-nav-text">IP &amp; Rights</span>
+          </a>
+          <a href="#dashboard-distribution" class="sidebar-nav-item" data-page="dashboard-distribution">
+            <i class="fa-solid fa-tower-broadcast"></i>
+            <span class="sidebar-nav-text">Distribution</span>
+          </a>
+        </div>
+
+        <div class="sidebar-nav-group">
+          <span class="sidebar-nav-label">Operations</span>
+          <a href="#dashboard-travel" class="sidebar-nav-item" data-page="dashboard-travel">
+            <i class="fa-solid fa-plane"></i>
+            <span class="sidebar-nav-text">Travel</span>
+          </a>
+          <a href="#dashboard-documents" class="sidebar-nav-item" data-page="dashboard-documents">
+            <i class="fa-solid fa-folder-open"></i>
+            <span class="sidebar-nav-text">Documents</span>
+          </a>
+          <a href="#dashboard-integrations" class="sidebar-nav-item" data-page="dashboard-integrations">
+            <i class="fa-solid fa-plug"></i>
+            <span class="sidebar-nav-text">Integrations</span>
+          </a>
+          <a href="#dashboard-settings" class="sidebar-nav-item" data-page="dashboard-settings">
+            <i class="fa-solid fa-gear"></i>
+            <span class="sidebar-nav-text">Settings</span>
+          </a>
+        </div>
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <a href="#home" class="sidebar-nav-item sidebar-back-link">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span class="sidebar-nav-text">View Site</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Dashboard Main Area -->
+    <div class="dashboard-main-wrapper">
+      <!-- Top Bar -->
+      <header class="dashboard-topbar">
+        <button class="sidebar-mobile-toggle" aria-label="Toggle sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="topbar-breadcrumb" id="topbar-breadcrumb">
+          <span class="breadcrumb-label">Dashboard</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="topbar-btn" title="Notifications">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notification-badge">3</span>
+          </button>
+          <div class="topbar-user">
+            <span class="user-avatar"><i class="fa-solid fa-user"></i></span>
+            <span class="user-name">DJ Moka</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Dashboard Content Container -->
+      <main id="dashboard-content" class="dashboard-main" role="main">
+        <!-- Dashboard pages loaded dynamically here by PageLoader -->
+      </main>
+    </div>
+
+  </div><!-- /#dashboard-layout -->
+
+  <!-- ============================================================
+       GLOBAL OVERLAYS
+       ============================================================ -->
+
+  <!-- Modal Overlay -->
+  <div id="modal-overlay" class="modal-overlay"></div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ============================================================
+       SCRIPTS — Loaded in dependency order
+       ============================================================ -->
+
+  <!-- Foundation -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/mobile-detect.js"></script>
+
+  <!-- UI Utilities -->
+  <script src="js/toast.js"></script>
+  <script src="js/modal.js"></script>
+
+  <!-- Core SPA -->
+  <script src="js/page-loader.js"></script>
+  <script src="js/router.js"></script>
+
+  <!-- Navigation -->
+  <script src="js/navigation.js"></script>
+  <script src="js/sidebar.js"></script>
+
+  <!-- Data Layer -->
+  <script src="js/data-store.js"></script>
+
+  <!-- Features -->
+  <script src="js/forms.js"></script>
+  <script src="js/table-manager.js"></script>
+  <script src="js/dashboard-widgets.js"></script>
+  <script src="js/calendar.js"></script>
+
+  <!-- App Controller (must be last) -->
+  <script src="js/main.js"></script>
+
+</body>
+</html>

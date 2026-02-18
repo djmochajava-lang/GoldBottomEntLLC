@@ -1,0 +1,79 @@
+<!-- dashboard/ip-rights.html — IP & Rights Management -->
+<div class="dashboard-page" id="dash-ip">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>IP & Rights Management</h1><p class="text-muted">Track intellectual property, copyrights, ownership splits, and registrations.</p></div>
+      <button class="btn btn-primary" id="add-ip-btn"><i class="fa-solid fa-plus"></i> Register IP</button>
+    </div>
+  </div>
+
+  <!-- IP Table -->
+  <div class="card" id="ip-table-container"></div>
+
+  <!-- Educational Resources -->
+  <div class="grid grid-2" style="margin-top:var(--space-lg);">
+    <div class="glass-card">
+      <h3><i class="fa-solid fa-graduation-cap text-gold"></i> Copyright Registration</h3>
+      <p class="text-muted">Register your works with the U.S. Copyright Office for maximum legal protection.</p>
+      <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);">
+        <li>Songs and compositions</li>
+        <li>Sound recordings (masters)</li>
+        <li>Artwork and visual designs</li>
+        <li>Software and code</li>
+      </ul>
+      <a href="https://www.copyright.gov" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> copyright.gov</a>
+    </div>
+    <div class="glass-card">
+      <h3><i class="fa-solid fa-music text-gold"></i> Performance Rights (PROs)</h3>
+      <p class="text-muted">Register with a PRO to collect royalties when your music is performed publicly.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--space-sm);">
+        <a href="https://www.bmi.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">BMI</a>
+        <a href="https://www.ascap.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">ASCAP</a>
+        <a href="https://www.sesac.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">SESAC</a>
+        <a href="https://www.soundexchange.com" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">SoundExchange</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+  var typeLabels={song:'Song',recording:'Recording',publishing:'Publishing',master:'Master',software:'Software'};
+  var regColors={'registered':'status-active','pending':'status-pending','not-registered':'status-expired'};
+
+  function renderTable(){
+    var c=document.getElementById('ip-table-container');var data=DataStore.getIPRights();
+    if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-copyright"></i></div><h3 class="empty-state-title">No IP entries</h3><p class="empty-state-text">Register your first intellectual property.</p></div>';return;}
+    var html='<table class="data-table"><thead><tr><th>Title</th><th>Type</th><th>Artist/Creator</th><th>Owner(s)</th><th>Ownership</th><th>Registration</th><th>PRO</th><th>Actions</th></tr></thead><tbody>';
+    data.forEach(function(ip){
+      html+='<tr><td data-label="Title"><strong>'+ip.title+'</strong></td>'+
+        '<td data-label="Type"><span class="badge badge-gold">'+(typeLabels[ip.type]||ip.type)+'</span></td>'+
+        '<td data-label="Artist">'+(ip.artist||ip.writers||'—')+'</td>'+
+        '<td data-label="Owners">'+(ip.owners||'—')+'</td>'+
+        '<td data-label="Ownership">'+(ip.ownershipPct||0)+'%</td>'+
+        '<td data-label="Registration"><span class="status-pill '+(regColors[ip.registrationStatus]||'status-draft')+'">'+(ip.registrationStatus||'unknown').replace('-',' ')+'</span></td>'+
+        '<td data-label="PRO">'+(ip.pro||'—')+'</td>'+
+        '<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editIP(\''+ip.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteIP(\''+ip.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+    });
+    html+='</tbody></table>';c.innerHTML=html;
+  }
+
+  document.getElementById('add-ip-btn').addEventListener('click',function(){
+    Modal.open({title:'Register Intellectual Property',size:'lg',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Title *</label><input type="text" class="form-input" name="title" required /></div><div class="form-group"><label class="form-label">Type *</label><select class="form-select" name="type" required><option value="">Select...</option><option value="song">Song / Composition</option><option value="recording">Sound Recording</option><option value="publishing">Publishing</option><option value="master">Master Recording</option><option value="software">Software / Code</option></select></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Artist / Creator</label><input type="text" class="form-input" name="artist" /></div><div class="form-group"><label class="form-label">Writer(s)</label><input type="text" class="form-input" name="writers" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Owner(s)</label><input type="text" class="form-input" name="owners" value="Gold Bottom Ent LLC" /></div><div class="form-group"><label class="form-label">Ownership %</label><input type="number" class="form-input" name="ownershipPct" value="100" min="0" max="100" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Registration Status</label><select class="form-select" name="registrationStatus"><option value="not-registered">Not Registered</option><option value="pending">Pending</option><option value="registered">Registered</option></select></div><div class="form-group"><label class="form-label">Registration #</label><input type="text" class="form-input" name="registrationNumber" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">PRO (BMI/ASCAP/SESAC)</label><input type="text" class="form-input" name="pro" /></div><div class="form-group"><label class="form-label">ISRC Code</label><input type="text" class="form-input" name="isrc" placeholder="For recordings — register at usisrc.org" /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2"></textarea></div></form>',
+      saveText:'Register',onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});if(!d.title){Toast.error('Title required');return;}d.ownershipPct=parseInt(d.ownershipPct)||100;DataStore.addIPRight(d);Modal.close();Toast.success('IP registered: '+d.title);renderTable();}
+    });
+  });
+
+  window.editIP=function(id){var ip=DataStore.getIPRight(id);if(!ip)return;
+    Modal.open({title:'Edit: '+ip.title,size:'lg',
+      content:'<form id="modal-form"><div class="grid grid-2"><div class="form-group"><label class="form-label">Title</label><input type="text" class="form-input" name="title" value="'+(ip.title||'')+'" /></div><div class="form-group"><label class="form-label">Type</label><select class="form-select" name="type"><option value="song"'+(ip.type==='song'?' selected':'')+'>Song</option><option value="recording"'+(ip.type==='recording'?' selected':'')+'>Recording</option><option value="publishing"'+(ip.type==='publishing'?' selected':'')+'>Publishing</option><option value="master"'+(ip.type==='master'?' selected':'')+'>Master</option><option value="software"'+(ip.type==='software'?' selected':'')+'>Software</option></select></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Artist</label><input type="text" class="form-input" name="artist" value="'+(ip.artist||'')+'" /></div><div class="form-group"><label class="form-label">Writers</label><input type="text" class="form-input" name="writers" value="'+(ip.writers||'')+'" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Owners</label><input type="text" class="form-input" name="owners" value="'+(ip.owners||'')+'" /></div><div class="form-group"><label class="form-label">Ownership %</label><input type="number" class="form-input" name="ownershipPct" value="'+(ip.ownershipPct||100)+'" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="registrationStatus"><option value="not-registered"'+(ip.registrationStatus==='not-registered'?' selected':'')+'>Not Registered</option><option value="pending"'+(ip.registrationStatus==='pending'?' selected':'')+'>Pending</option><option value="registered"'+(ip.registrationStatus==='registered'?' selected':'')+'>Registered</option></select></div><div class="form-group"><label class="form-label">Registration #</label><input type="text" class="form-input" name="registrationNumber" value="'+(ip.registrationNumber||'')+'" /></div></div><div class="grid grid-2"><div class="form-group"><label class="form-label">PRO</label><input type="text" class="form-input" name="pro" value="'+(ip.pro||'')+'" /></div><div class="form-group"><label class="form-label">ISRC Code</label><input type="text" class="form-input" name="isrc" value="'+(ip.isrc||'')+'" /></div></div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="2">'+(ip.notes||'')+'</textarea></div></form>',
+      saveText:'Save',onSave:function(){var f=document.getElementById('modal-form');var d={};new FormData(f).forEach(function(v,k){d[k]=v;});d.ownershipPct=parseInt(d.ownershipPct)||100;DataStore.updateIPRight(id,d);Modal.close();Toast.success('IP updated');renderTable();}
+    });
+  };
+
+  window.deleteIP=function(id){var ip=DataStore.getIPRight(id);if(!ip)return;Modal.confirm('Delete "'+ip.title+'"?',function(){DataStore.deleteIPRight(id);Toast.success('IP deleted');renderTable();});};
+  renderTable();
+})();
+</script>

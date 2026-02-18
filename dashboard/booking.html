@@ -1,0 +1,507 @@
+<!-- dashboard/booking.html — Booking Pipeline -->
+<div class="dashboard-page" id="dash-booking">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>Booking Pipeline</h1><p class="text-muted">Manage gig leads, venue contacts, and booking confirmations.</p></div>
+      <button class="btn btn-primary" id="add-booking-btn"><i class="fa-solid fa-plus"></i> Add Booking</button>
+    </div>
+  </div>
+
+  <!-- Pipeline Summary Stats Bar -->
+  <div id="booking-stats-bar" style="display:flex;gap:var(--space-md);flex-wrap:wrap;margin-bottom:var(--space-lg);"></div>
+
+  <!-- Kanban Pipeline (8-stage, horizontally scrolling) -->
+  <div class="pipeline" id="booking-pipeline" style="display:flex;gap:var(--space-md);overflow-x:auto;padding-bottom:var(--space-md);">
+
+    <!-- Lead -->
+    <div class="pipeline-column" data-stage="lead" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(184,134,11,0.12);border-radius:var(--radius-sm);border-left:3px solid #d4a017;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-bullseye text-gold"></i> New Lead</h3>
+        <span class="badge" id="count-lead" style="background:rgba(184,134,11,0.22);color:#d4a017;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-lead"></div>
+    </div>
+
+    <!-- Qualified -->
+    <div class="pipeline-column" data-stage="qualified" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(210,153,34,0.1);border-radius:var(--radius-sm);border-left:3px solid #d29922;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-clipboard-check" style="color:#d29922;"></i> Qualified</h3>
+        <span class="badge" id="count-qualified" style="background:rgba(210,153,34,0.2);color:#d29922;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-qualified"></div>
+    </div>
+
+    <!-- Proposed -->
+    <div class="pipeline-column" data-stage="proposed" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(88,166,255,0.1);border-radius:var(--radius-sm);border-left:3px solid #58a6ff;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-file-lines" style="color:#58a6ff;"></i> Proposed</h3>
+        <span class="badge" id="count-proposed" style="background:rgba(88,166,255,0.2);color:#58a6ff;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-proposed"></div>
+    </div>
+
+    <!-- Negotiating -->
+    <div class="pipeline-column" data-stage="negotiating" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(188,140,255,0.1);border-radius:var(--radius-sm);border-left:3px solid #bc8cff;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-handshake" style="color:#bc8cff;"></i> Negotiating</h3>
+        <span class="badge" id="count-negotiating" style="background:rgba(188,140,255,0.2);color:#bc8cff;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-negotiating"></div>
+    </div>
+
+    <!-- Confirmed -->
+    <div class="pipeline-column" data-stage="confirmed" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(63,185,80,0.1);border-radius:var(--radius-sm);border-left:3px solid #3fb950;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-circle-check" style="color:#3fb950;"></i> Confirmed</h3>
+        <span class="badge" id="count-confirmed" style="background:rgba(63,185,80,0.2);color:#3fb950;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-confirmed"></div>
+    </div>
+
+    <!-- Contracted -->
+    <div class="pipeline-column" data-stage="contracted" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(46,160,67,0.1);border-radius:var(--radius-sm);border-left:3px solid #2ea043;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-file-signature" style="color:#2ea043;"></i> Contracted</h3>
+        <span class="badge" id="count-contracted" style="background:rgba(46,160,67,0.2);color:#2ea043;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-contracted"></div>
+    </div>
+
+    <!-- Completed -->
+    <div class="pipeline-column" data-stage="completed" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(163,113,247,0.1);border-radius:var(--radius-sm);border-left:3px solid #a371f7;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-flag-checkered" style="color:#a371f7;"></i> Completed</h3>
+        <span class="badge" id="count-completed" style="background:rgba(163,113,247,0.2);color:#a371f7;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-completed"></div>
+    </div>
+
+    <!-- Closed -->
+    <div class="pipeline-column" data-stage="closed" style="flex:0 0 260px;min-width:260px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);padding:var(--space-xs) var(--space-sm);background:rgba(139,148,158,0.1);border-radius:var(--radius-sm);border-left:3px solid #8b949e;">
+        <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-folder-closed" style="color:#8b949e;"></i> Closed</h3>
+        <span class="badge" id="count-closed" style="background:rgba(139,148,158,0.2);color:#8b949e;">0</span>
+      </div>
+      <div class="pipeline-column-cards" id="col-closed"></div>
+    </div>
+
+  </div>
+
+  <!-- Venue Database -->
+  <div class="glass-card" style="margin-top:var(--space-lg);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);">
+      <h3><i class="fa-solid fa-building text-gold"></i> Venue Database</h3>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr><th>Venue Name</th><th>City</th><th>Contact</th><th>Phone</th><th>Email</th><th>Capacity</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td data-label="Venue">Blues Alley</td><td data-label="City">Washington, DC</td><td data-label="Contact">[Contact Name]</td><td data-label="Phone">[Phone]</td><td data-label="Email">[Email]</td><td data-label="Capacity">200</td><td data-label="Notes">Jazz supper club</td></tr>
+          <tr><td data-label="Venue">City Winery</td><td data-label="City">Washington, DC</td><td data-label="Contact">[Contact Name]</td><td data-label="Phone">[Phone]</td><td data-label="Email">[Email]</td><td data-label="Capacity">300</td><td data-label="Notes">Dinner &amp; show format</td></tr>
+          <tr><td data-label="Venue">The Hamilton</td><td data-label="City">Washington, DC</td><td data-label="Contact">[Contact Name]</td><td data-label="Phone">[Phone]</td><td data-label="Email">[Email]</td><td data-label="Capacity">400</td><td data-label="Notes">Live music venue downtown</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Cancellation Policy -->
+  <div class="glass-card" style="margin-top:var(--space-lg);">
+    <h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-shield-halved text-gold"></i> Cancellation Policy</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-md);">
+
+      <!-- Client Cancellation -->
+      <div style="padding:var(--space-md);border:1px solid var(--color-border);border-radius:var(--radius-md);background:rgba(255,255,255,0.02);">
+        <h4 style="margin:0 0 var(--space-sm) 0;font-size:0.9rem;color:var(--color-text);"><i class="fa-solid fa-user" style="color:#d29922;margin-right:var(--space-xs);"></i> Cancellation by Client</h4>
+        <ul style="list-style:none;padding:0;margin:0;font-size:0.84rem;color:var(--color-text-muted);line-height:1.8;">
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#3fb950;">&#8226;</span> <strong>30+ days</strong> before event: Full deposit refund minus $50 admin fee</li>
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#d29922;">&#8226;</span> <strong>14&ndash;29 days</strong> before event: 50% deposit refunded</li>
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#f85149;">&#8226;</span> <strong>Under 14 days</strong>: No refund &mdash; deposit forfeited</li>
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#8b949e;">&#8226;</span> All cancellations must be submitted in writing</li>
+        </ul>
+      </div>
+
+      <!-- GBE / Artist Cancellation -->
+      <div style="padding:var(--space-md);border:1px solid var(--color-border);border-radius:var(--radius-md);background:rgba(255,255,255,0.02);">
+        <h4 style="margin:0 0 var(--space-sm) 0;font-size:0.9rem;color:var(--color-text);"><i class="fa-solid fa-microphone" style="color:#58a6ff;margin-right:var(--space-xs);"></i> Cancellation by GBE / Artist</h4>
+        <ul style="list-style:none;padding:0;margin:0;font-size:0.84rem;color:var(--color-text-muted);line-height:1.8;">
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#58a6ff;">&#8226;</span> 72 hours notice provided where possible</li>
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#58a6ff;">&#8226;</span> Full deposit refund offered</li>
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#58a6ff;">&#8226;</span> Alternative date offered at no additional charge</li>
+        </ul>
+      </div>
+
+      <!-- Force Majeure -->
+      <div style="padding:var(--space-md);border:1px solid var(--color-border);border-radius:var(--radius-md);background:rgba(255,255,255,0.02);">
+        <h4 style="margin:0 0 var(--space-sm) 0;font-size:0.9rem;color:var(--color-text);"><i class="fa-solid fa-cloud-bolt" style="color:#a371f7;margin-right:var(--space-xs);"></i> Force Majeure</h4>
+        <ul style="list-style:none;padding:0;margin:0;font-size:0.84rem;color:var(--color-text-muted);line-height:1.8;">
+          <li style="padding-left:1rem;text-indent:-0.7rem;"><span style="color:#a371f7;">&#8226;</span> Full deposit refund or applied to rescheduled date by mutual agreement</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Ticketing Integration -->
+  <div class="glass-card" style="margin-top:var(--space-lg);">
+    <h3><i class="fa-solid fa-ticket text-gold"></i> Ticketing Integration</h3>
+    <div class="grid grid-2" style="margin-top:var(--space-sm);">
+      <div class="card" style="text-align:center;padding:var(--space-lg);">
+        <i class="fa-solid fa-calendar-check" style="font-size:2rem;color:#f05537;margin-bottom:var(--space-sm);display:block;"></i>
+        <strong>Eventbrite</strong>
+        <p class="text-muted" style="font-size:0.85rem;margin-top:var(--space-xs);">Embed your Eventbrite event page here for ticket sales and attendee management.</p>
+        <div style="margin-top:var(--space-sm);padding:var(--space-md);border:1px dashed rgba(255,255,255,0.15);border-radius:var(--radius-sm);color:var(--color-text-muted);font-size:0.8rem;">[Eventbrite Embed Placeholder]</div>
+      </div>
+      <div class="card" style="text-align:center;padding:var(--space-lg);">
+        <i class="fa-solid fa-music" style="font-size:2rem;color:#00cec9;margin-bottom:var(--space-sm);display:block;"></i>
+        <strong>Bandsintown</strong>
+        <p class="text-muted" style="font-size:0.85rem;margin-top:var(--space-xs);">Display your Bandsintown tour dates widget for live dates and RSVP links.</p>
+        <div style="margin-top:var(--space-sm);padding:var(--space-md);border:1px dashed rgba(255,255,255,0.15);border-radius:var(--radius-sm);color:var(--color-text-muted);font-size:0.8rem;">[Bandsintown Widget Placeholder]</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  var stages=[
+    {key:'lead',        label:'New Lead',    icon:'fa-bullseye',         color:'#d4a017'},
+    {key:'qualified',   label:'Qualified',   icon:'fa-clipboard-check',  color:'#d29922'},
+    {key:'proposed',    label:'Proposed',    icon:'fa-file-lines',       color:'#58a6ff'},
+    {key:'negotiating', label:'Negotiating', icon:'fa-handshake',        color:'#bc8cff'},
+    {key:'confirmed',   label:'Confirmed',   icon:'fa-circle-check',     color:'#3fb950'},
+    {key:'contracted',  label:'Contracted',  icon:'fa-file-signature',   color:'#2ea043'},
+    {key:'completed',   label:'Completed',   icon:'fa-flag-checkered',   color:'#a371f7'},
+    {key:'closed',      label:'Closed',      icon:'fa-folder-closed',    color:'#8b949e'}
+  ];
+
+  var stageKeys=stages.map(function(s){return s.key;});
+  var stageColorMap={};
+  stages.forEach(function(s){stageColorMap[s.key]=s.color;});
+
+  /* ---- Hex to RGB helper ---- */
+  function hexToRGB(hex){
+    hex=hex.replace('#','');
+    if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r=parseInt(hex.substring(0,2),16);
+    var g=parseInt(hex.substring(2,4),16);
+    var b=parseInt(hex.substring(4,6),16);
+    return r+','+g+','+b;
+  }
+
+  /* ---- Pipeline Summary Stats ---- */
+  function renderStats(){
+    var bar=document.getElementById('booking-stats-bar');
+    if(!bar)return;
+    var allBookings=DataStore.getBookings();
+    var total=allBookings.length;
+    var pipelineValue=0;
+    var wonThisYear=0;
+    var now=new Date();
+    var thisYear=now.getFullYear();
+
+    allBookings.forEach(function(b){
+      pipelineValue+=(parseFloat(b.value)||0);
+      if(b.stage==='completed'){
+        if(b.date){
+          var y=new Date(b.date).getFullYear();
+          if(y===thisYear)wonThisYear++;
+        } else {
+          wonThisYear++;
+        }
+      }
+    });
+
+    var conversion=total>0?Math.round((wonThisYear/total)*100):0;
+
+    var statCards=[
+      {label:'Total Bookings', value:total,                              icon:'fa-layer-group', color:'#d4a017'},
+      {label:'Pipeline Value',  value:'$'+pipelineValue.toLocaleString(), icon:'fa-sack-dollar', color:'#3fb950'},
+      {label:'Won This Year',   value:wonThisYear,                        icon:'fa-trophy',      color:'#58a6ff'},
+      {label:'Conversion Rate', value:conversion+'%',                     icon:'fa-chart-pie',   color:'#a371f7'}
+    ];
+
+    var html='';
+    statCards.forEach(function(c){
+      html+='<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md) var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);flex:1;min-width:180px;">'+
+        '<div style="width:42px;height:42px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;background:rgba('+hexToRGB(c.color)+',0.15);color:'+c.color+';">'+
+          '<i class="fa-solid '+c.icon+'"></i>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;">'+
+          '<span style="font-family:var(--font-heading);font-size:1.4rem;font-weight:700;color:var(--color-text);line-height:1.2;">'+c.value+'</span>'+
+          '<span style="font-size:0.8rem;color:var(--color-text-muted);">'+c.label+'</span>'+
+        '</div>'+
+      '</div>';
+    });
+    bar.innerHTML=html;
+  }
+
+  /* ---- Render Pipeline Cards ---- */
+  function renderPipeline(){
+    stages.forEach(function(stage){
+      var col=document.getElementById('col-'+stage.key);
+      var bookings=DataStore.getBookingsByStage(stage.key);
+      var countEl=document.getElementById('count-'+stage.key);
+      if(countEl)countEl.textContent=bookings.length;
+      if(!col)return;
+      if(!bookings.length){
+        col.innerHTML='<div style="padding:var(--space-md);text-align:center;color:var(--color-text-muted);font-size:0.85rem;border:1px dashed rgba(255,255,255,0.1);border-radius:var(--radius-sm);">No bookings</div>';
+        return;
+      }
+      var html='';
+      bookings.forEach(function(b){
+        var depBadge=b.depositPaid
+          ?'<span class="badge" style="background:rgba(63,185,80,0.2);color:#3fb950;font-size:0.7rem;">Deposit Paid</span>'
+          :'<span class="badge" style="background:rgba(248,81,73,0.2);color:#f85149;font-size:0.7rem;">Deposit Due</span>';
+
+        /* Re-book badge: rating >=4 and rebook flag */
+        var rebookBadge='';
+        var rating=parseInt(b.rating,10);
+        if(rating>=4 && b.rebook){
+          rebookBadge=' <span class="badge" style="background:rgba(184,134,11,0.15);color:#d4a017;font-size:0.7rem;">&#11088; Re-book</span>';
+        }
+
+        /* Event type badge */
+        var typeBadge='';
+        if(b.eventType){
+          typeBadge='<div style="margin-top:var(--space-xs);"><span style="display:inline-block;padding:1px 8px;border-radius:var(--radius-sm);font-size:0.7rem;background:rgba(139,148,158,0.15);color:var(--color-text-muted);">'+Utils.escapeHtml(b.eventType)+'</span></div>';
+        }
+
+        html+='<div class="pipeline-card card" style="margin-bottom:var(--space-sm);padding:var(--space-sm);border-left:3px solid '+stage.color+';">';
+        html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-xs);flex-wrap:wrap;"><strong style="font-size:0.9rem;">'+Utils.escapeHtml(b.name||'')+'</strong><span style="display:flex;gap:4px;flex-wrap:wrap;">'+depBadge+rebookBadge+'</span></div>';
+        html+='<div style="margin-top:var(--space-xs);font-size:0.8rem;color:var(--color-text-muted);line-height:1.6;">';
+        html+='<div><i class="fa-solid fa-location-dot"></i> '+Utils.escapeHtml(b.venue||'TBD')+'</div>';
+        html+='<div><i class="fa-solid fa-calendar"></i> '+(b.date?Utils.formatDate(b.date):'TBD')+'</div>';
+        html+='<div><i class="fa-solid fa-microphone"></i> '+Utils.escapeHtml(b.artist||'TBD')+'</div>';
+        html+='<div><i class="fa-solid fa-dollar-sign"></i> $'+(b.value||0)+' &middot; Deposit: $'+(b.deposit||0)+'</div>';
+        html+='</div>';
+        html+=typeBadge;
+        html+='<div style="margin-top:var(--space-xs);display:flex;gap:var(--space-xs);">';
+        html+='<button class="btn btn-ghost btn-sm" onclick="editBooking(\''+b.id+'\')"><i class="fa-solid fa-pen"></i></button>';
+        html+='<button class="btn btn-ghost btn-sm text-danger" onclick="deleteBooking(\''+b.id+'\')"><i class="fa-solid fa-trash"></i></button>';
+        html+='</div></div>';
+      });
+      col.innerHTML=html;
+    });
+  }
+
+  /* ---- Build Form HTML ---- */
+  function bookingFormHtml(b){
+    b=b||{};
+    var stg=b.stage||'lead';
+    var showPostEvent=(stg==='completed'||stg==='closed');
+
+    function sel(name,val){return val===name?' selected':'';}
+
+    var html='<form id="modal-form">';
+
+    /* ---- Section: Event Details ---- */
+    html+='<h4 style="margin:0 0 var(--space-sm) 0;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);"><i class="fa-solid fa-calendar-day" style="margin-right:var(--space-xs);"></i>Event Details</h4>';
+    html+='<div class="grid grid-2">';
+    html+='<div class="form-group"><label class="form-label">Booking Name *</label><input type="text" class="form-input" name="name" value="'+Utils.escapeHtml(b.name||'')+'" required placeholder="e.g. Blues Alley Summer Show" /></div>';
+    html+='<div class="form-group"><label class="form-label">Venue *</label><input type="text" class="form-input" name="venue" value="'+Utils.escapeHtml(b.venue||'')+'" required placeholder="Venue name, City" /></div>';
+    html+='</div>';
+    html+='<div class="grid grid-2">';
+    html+='<div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" name="date" value="'+(b.date||'')+'" /></div>';
+    html+='<div class="form-group"><label class="form-label">Artist</label><input type="text" class="form-input" name="artist" value="'+Utils.escapeHtml(b.artist||'')+'" placeholder="Select or type artist name" /></div>';
+    html+='</div>';
+    html+='<div class="grid grid-2">';
+    html+='<div class="form-group"><label class="form-label">Event Type</label><select class="form-select" name="eventType">';
+    html+='<option value="">-- Select --</option>';
+    ['Wedding','Corporate','Bar/Club','Private Party','Festival','Birthday','Nonprofit','Other'].forEach(function(t){
+      html+='<option value="'+t+'"'+sel(t,b.eventType)+'>'+t+'</option>';
+    });
+    html+='</select></div>';
+    html+='<div class="form-group"><label class="form-label">Guest Count</label><input type="number" class="form-input" name="guestCount" value="'+(b.guestCount||'')+'" min="0" placeholder="Estimated attendance" /></div>';
+    html+='</div>';
+    html+='<div class="grid grid-2">';
+    html+='<div class="form-group"><label class="form-label">Hours Needed</label><input type="number" class="form-input" name="hoursNeeded" value="'+(b.hoursNeeded||'')+'" min="0" step="0.5" placeholder="e.g. 3" /></div>';
+    html+='<div class="form-group"><label class="form-label">Indoor / Outdoor</label><select class="form-select" name="indoorOutdoor">';
+    html+='<option value="">-- Select --</option>';
+    ['Indoor','Outdoor','Both/Hybrid'].forEach(function(o){
+      html+='<option value="'+o+'"'+sel(o,b.indoorOutdoor)+'>'+o+'</option>';
+    });
+    html+='</select></div>';
+    html+='</div>';
+
+    html+='<hr style="border-color:rgba(255,255,255,0.08);margin:var(--space-sm) 0;" />';
+
+    /* ---- Section: Financial ---- */
+    html+='<h4 style="margin:0 0 var(--space-sm) 0;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);"><i class="fa-solid fa-dollar-sign" style="margin-right:var(--space-xs);"></i>Financial</h4>';
+    html+='<div class="grid grid-2">';
+    html+='<div class="form-group"><label class="form-label">Stage</label><select class="form-select" name="stage" id="modal-stage-select">';
+    stages.forEach(function(s){
+      html+='<option value="'+s.key+'"'+sel(s.key,stg)+'>'+s.label+'</option>';
+    });
+    html+='</select></div>';
+    html+='<div class="form-group"><label class="form-label">Value ($)</label><input type="number" class="form-input" name="value" value="'+(b.value||0)+'" min="0" /></div>';
+    html+='</div>';
+    html+='<div class="grid grid-2">';
+    html+='<div class="form-group"><label class="form-label">Deposit ($)</label><input type="number" class="form-input" name="deposit" value="'+(b.deposit||0)+'" min="0" /></div>';
+    html+='<div class="form-group" style="display:flex;align-items:center;gap:var(--space-sm);padding-top:1.6rem;"><input type="checkbox" id="modal-depositPaid" name="depositPaid" '+(b.depositPaid?'checked':'')+' /><label for="modal-depositPaid" class="form-label" style="margin:0;">Deposit Paid</label></div>';
+    html+='</div>';
+    html+='<div class="grid grid-2">';
+    html+='<div class="form-group"><label class="form-label">Budget Range</label><select class="form-select" name="budgetRange">';
+    html+='<option value="">-- Select --</option>';
+    ['Under $500','$500\u2013$1,000','$1,000\u2013$2,500','$2,500\u2013$5,000','$5,000+'].forEach(function(r){
+      html+='<option value="'+r+'"'+sel(r,b.budgetRange)+'>'+r+'</option>';
+    });
+    html+='</select></div>';
+    html+='<div></div>';
+    html+='</div>';
+
+    html+='<hr style="border-color:rgba(255,255,255,0.08);margin:var(--space-sm) 0;" />';
+
+    /* ---- Section: Logistics ---- */
+    html+='<h4 style="margin:0 0 var(--space-sm) 0;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);"><i class="fa-solid fa-truck-fast" style="margin-right:var(--space-xs);"></i>Logistics</h4>';
+    html+='<div class="grid grid-3">';
+    html+='<div class="form-group"><label class="form-label">Sound System Available</label><select class="form-select" name="soundSystem">';
+    html+='<option value="">-- Select --</option>';
+    ['Yes','No','Not Sure'].forEach(function(o){
+      html+='<option value="'+o+'"'+sel(o,b.soundSystem)+'>'+o+'</option>';
+    });
+    html+='</select></div>';
+    html+='<div class="form-group"><label class="form-label">Rider Requirements Met</label><select class="form-select" name="riderMet">';
+    html+='<option value="">-- Select --</option>';
+    ['Yes','No','N/A','Pending'].forEach(function(o){
+      html+='<option value="'+o+'"'+sel(o,b.riderMet)+'>'+o+'</option>';
+    });
+    html+='</select></div>';
+    html+='<div class="form-group"><label class="form-label">Referral Source</label><input type="text" class="form-input" name="referralSource" value="'+Utils.escapeHtml(b.referralSource||'')+'" placeholder="How did they hear about us?" /></div>';
+    html+='</div>';
+
+    html+='<hr style="border-color:rgba(255,255,255,0.08);margin:var(--space-sm) 0;" />';
+
+    /* ---- Section: Contact ---- */
+    html+='<h4 style="margin:0 0 var(--space-sm) 0;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);"><i class="fa-solid fa-address-book" style="margin-right:var(--space-xs);"></i>Contact</h4>';
+    html+='<div class="grid grid-3">';
+    html+='<div class="form-group"><label class="form-label">Contact Name</label><input type="text" class="form-input" name="contactName" value="'+Utils.escapeHtml(b.contactName||'')+'" /></div>';
+    html+='<div class="form-group"><label class="form-label">Contact Email</label><input type="email" class="form-input" name="contactEmail" value="'+Utils.escapeHtml(b.contactEmail||'')+'" /></div>';
+    html+='<div class="form-group"><label class="form-label">Contact Phone</label><input type="tel" class="form-input" name="contactPhone" value="'+Utils.escapeHtml(b.contactPhone||'')+'" /></div>';
+    html+='</div>';
+
+    /* ---- Section: Post-Event (conditional) ---- */
+    html+='<div id="post-event-section" style="display:'+(showPostEvent?'block':'none')+';">';
+    html+='<hr style="border-color:rgba(255,255,255,0.08);margin:var(--space-sm) 0;" />';
+    html+='<h4 style="margin:0 0 var(--space-sm) 0;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);"><i class="fa-solid fa-star" style="margin-right:var(--space-xs);"></i>Post-Event</h4>';
+    html+='<div class="grid grid-3">';
+    html+='<div class="form-group"><label class="form-label">Client Rating</label><select class="form-select" name="rating">';
+    html+='<option value="">Not Yet Rated</option>';
+    [1,2,3,4,5].forEach(function(n){
+      html+='<option value="'+n+'"'+(parseInt(b.rating,10)===n?' selected':'')+'>'+n+'</option>';
+    });
+    html+='</select></div>';
+    html+='<div class="form-group" style="display:flex;align-items:center;gap:var(--space-sm);padding-top:1.6rem;"><input type="checkbox" id="modal-rebook" name="rebook" '+(b.rebook?'checked':'')+' /><label for="modal-rebook" class="form-label" style="margin:0;">Re-Book Candidate</label></div>';
+    html+='<div class="form-group" id="outcome-group" style="display:'+(stg==='closed'?'block':'none')+';"><label class="form-label">Outcome</label><select class="form-select" name="outcome">';
+    html+='<option value="">-- Select --</option>';
+    ['Won','Lost','Cancelled','No Response'].forEach(function(o){
+      html+='<option value="'+o+'"'+sel(o,b.outcome)+'>'+o+'</option>';
+    });
+    html+='</select></div>';
+    html+='</div>';
+    html+='</div>';
+
+    html+='<hr style="border-color:rgba(255,255,255,0.08);margin:var(--space-sm) 0;" />';
+
+    /* ---- Notes ---- */
+    html+='<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="3">'+Utils.escapeHtml(b.notes||'')+'</textarea></div>';
+
+    html+='</form>';
+    return html;
+  }
+
+  /* ---- Attach stage-change listener inside modal ---- */
+  function attachStageListener(){
+    var stageSelect=document.getElementById('modal-stage-select');
+    if(!stageSelect)return;
+    stageSelect.addEventListener('change',function(){
+      var val=stageSelect.value;
+      var postSection=document.getElementById('post-event-section');
+      var outcomeGroup=document.getElementById('outcome-group');
+      if(postSection){
+        postSection.style.display=(val==='completed'||val==='closed')?'block':'none';
+      }
+      if(outcomeGroup){
+        outcomeGroup.style.display=(val==='closed')?'block':'none';
+      }
+    });
+  }
+
+  /* ---- Parse Form ---- */
+  function parseBookingForm(){
+    var f=document.getElementById('modal-form');
+    if(!f)return {};
+    var d={};
+    new FormData(f).forEach(function(v,k){d[k]=v;});
+
+    /* Numeric fields */
+    d.value=parseFloat(d.value)||0;
+    d.deposit=parseFloat(d.deposit)||0;
+    d.guestCount=parseInt(d.guestCount,10)||0;
+    d.hoursNeeded=parseFloat(d.hoursNeeded)||0;
+    d.rating=d.rating?parseInt(d.rating,10):0;
+
+    /* Boolean checkboxes — checked means present in FormData as "on", unchecked means absent */
+    d.depositPaid=!!f.querySelector('[name="depositPaid"]').checked;
+    d.rebook=!!f.querySelector('[name="rebook"]').checked;
+
+    return d;
+  }
+
+  /* ---- Add Booking ---- */
+  document.getElementById('add-booking-btn').addEventListener('click',function(){
+    if(typeof Modal==='undefined')return;
+    Modal.open({title:'Add Booking',size:'lg',
+      content:bookingFormHtml({}),
+      saveText:'Add Booking',
+      onOpen:attachStageListener,
+      onSave:function(){
+        var d=parseBookingForm();
+        if(!d.name){Toast.error('Booking name is required');return;}
+        if(!d.venue){Toast.error('Venue is required');return;}
+        DataStore.addBooking(d);Modal.close();Toast.success('Booking added: '+d.name);renderAll();
+      }
+    });
+    /* Fallback: attach listener in case onOpen is not supported */
+    setTimeout(attachStageListener,50);
+  });
+
+  /* ---- Edit Booking ---- */
+  window.editBooking=function(id){
+    var b=DataStore.getBooking(id);
+    if(!b||typeof Modal==='undefined')return;
+    Modal.open({title:'Edit: '+Utils.escapeHtml(b.name||''),size:'lg',
+      content:bookingFormHtml(b),
+      saveText:'Save',
+      onOpen:attachStageListener,
+      onSave:function(){
+        var d=parseBookingForm();
+        if(!d.name){Toast.error('Booking name is required');return;}
+        if(!d.venue){Toast.error('Venue is required');return;}
+        DataStore.updateBooking(id,d);Modal.close();Toast.success('Booking updated');renderAll();
+      }
+    });
+    setTimeout(attachStageListener,50);
+  };
+
+  /* ---- Delete Booking ---- */
+  window.deleteBooking=function(id){
+    var b=DataStore.getBooking(id);
+    if(!b)return;
+    Modal.confirm('Delete booking "'+Utils.escapeHtml(b.name||'')+'"?',function(){
+      DataStore.deleteBooking(id);Toast.success('Booking deleted');renderAll();
+    });
+  };
+
+  /* ---- Render All ---- */
+  function renderAll(){
+    renderStats();
+    renderPipeline();
+  }
+
+  renderAll();
+})();
+</script>

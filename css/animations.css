@@ -1,0 +1,599 @@
+/* ==========================================================================
+   Gold Bottom Ent. LLC — Animations
+   Keyframes, transition utilities, reduced motion
+   ========================================================================== */
+
+/* =============================================
+   Keyframe Definitions
+   ============================================= */
+
+/* --- Fade In --- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Fade In Up --- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Fade In Down --- */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Slide In Left --- */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* --- Slide In Right --- */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* --- Slide Out Left --- */
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+/* --- Slide Out Right --- */
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* --- Scale In --- */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* --- Scale Out --- */
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* --- Pulse --- */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* --- Shimmer (loading gradient) --- */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* --- Spin --- */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Gold Glow (metallic) --- */
+@keyframes goldGlow {
+  0% {
+    box-shadow: 0 0 5px rgba(184, 134, 11, 0.12),
+                0 0 10px rgba(218, 165, 32, 0.06);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(184, 134, 11, 0.28),
+                0 0 30px rgba(218, 165, 32, 0.12);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(184, 134, 11, 0.12),
+                0 0 10px rgba(218, 165, 32, 0.06);
+  }
+}
+
+/* --- Bounce --- */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* --- Shake (for error) --- */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-6px);
+  }
+  40%, 80% {
+    transform: translateX(6px);
+  }
+}
+
+/* --- Ripple --- */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* --- Progress bar indeterminate --- */
+@keyframes indeterminate {
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  50% {
+    left: 20%;
+    width: 60%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
+}
+
+/* --- Typewriter cursor blink --- */
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* --- Slide down expand --- */
+@keyframes slideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 500px;
+    opacity: 1;
+  }
+}
+
+/* --- Count up number --- */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* =============================================
+   Animated Backgrounds — Drifting Orbs & Gradients
+   ============================================= */
+
+/* --- Slow orbit for floating orbs --- */
+@keyframes orbDrift1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  25%  { transform: translate(80px, -50px) scale(1.15); }
+  50%  { transform: translate(-40px, 60px) scale(0.9); }
+  75%  { transform: translate(-70px, -30px) scale(1.1); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes orbDrift2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  25%  { transform: translate(-60px, 40px) scale(1.1); }
+  50%  { transform: translate(50px, -70px) scale(0.88); }
+  75%  { transform: translate(40px, 50px) scale(1.05); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes orbDrift3 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(55px, 45px) scale(1.08); }
+  66%  { transform: translate(-65px, -35px) scale(0.92); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+/* --- Hero shimmer sweep --- */
+@keyframes heroShimmer {
+  0%   { opacity: 0; transform: translateX(-100%) skewX(-15deg); }
+  50%  { opacity: 0.06; }
+  100% { opacity: 0; transform: translateX(200%) skewX(-15deg); }
+}
+
+/* --- Slow ambient pulse for orbs --- */
+@keyframes ambientPulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.65; }
+}
+
+/* --- Dashboard gradient shift --- */
+@keyframes dashGradientShift {
+  0%   { background-position: 0% 0%; }
+  25%  { background-position: 50% 100%; }
+  50%  { background-position: 100% 50%; }
+  75%  { background-position: 50% 0%; }
+  100% { background-position: 0% 0%; }
+}
+
+
+/* =============================================
+   Utility Animation Classes
+   ============================================= */
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-base) ease forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.4s ease forwards;
+}
+
+.animate-slide-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.4s ease forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s ease forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease forwards;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-gold-glow {
+  animation: goldGlow 3s ease-in-out infinite;
+}
+
+.animate-spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.animate-bounce {
+  animation: bounce 1s ease infinite;
+}
+
+.animate-shake {
+  animation: shake 0.4s ease;
+}
+
+/* Stagger animation delays for lists */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.30s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.40s; }
+
+/* Initial hidden state for animated elements */
+[class*="animate-fade"],
+[class*="animate-slide"],
+[class*="animate-scale"] {
+  opacity: 0;
+}
+
+
+/* =============================================
+   Transition Utilities
+   ============================================= */
+
+.transition-none {
+  transition: none !important;
+}
+
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+
+.transition-base {
+  transition: all var(--transition-base);
+}
+
+.transition-slow {
+  transition: all var(--transition-slow);
+}
+
+.transition-spring {
+  transition: all var(--transition-spring);
+}
+
+/* Property-specific transitions */
+.transition-colors {
+  transition: color var(--transition-fast),
+              background-color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.transition-opacity {
+  transition: opacity var(--transition-base);
+}
+
+.transition-transform {
+  transition: transform var(--transition-base);
+}
+
+.transition-shadow {
+  transition: box-shadow var(--transition-base);
+}
+
+
+/* =============================================
+   Hover / Interactive States
+   ============================================= */
+
+/* Lift on hover */
+.hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Glow on hover */
+.hover-glow {
+  transition: box-shadow var(--transition-fast);
+}
+
+.hover-glow:hover {
+  box-shadow: var(--shadow-gold);
+}
+
+/* Scale on hover */
+.hover-scale {
+  transition: transform var(--transition-fast);
+}
+
+.hover-scale:hover {
+  transform: scale(1.03);
+}
+
+/* Brightness on hover (for images) */
+.hover-brighten {
+  transition: filter var(--transition-fast);
+}
+
+.hover-brighten:hover {
+  filter: brightness(1.1);
+}
+
+
+/* =============================================
+   Progress Bar
+   ============================================= */
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--color-bg-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-gold);
+  transition: width 0.6s ease;
+}
+
+.progress-bar-fill.success {
+  background: var(--color-success);
+}
+
+.progress-bar-fill.danger {
+  background: var(--color-danger);
+}
+
+/* Indeterminate loading */
+.progress-bar-indeterminate {
+  position: relative;
+}
+
+.progress-bar-indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--color-gold);
+  border-radius: 3px;
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+
+
+/* =============================================
+   Scroll-triggered Animations (JS helper)
+   ============================================= */
+
+/* Elements start hidden, JS adds .in-view */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal-left.in-view {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal-right.in-view {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.reveal-scale.in-view {
+  opacity: 1;
+  transform: scale(1);
+}
+
+
+/* =============================================
+   Reduced Motion — Accessibility
+   ============================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reveal,
+  .reveal-left,
+  .reveal-right,
+  .reveal-scale,
+  [class*="animate-fade"],
+  [class*="animate-slide"],
+  [class*="animate-scale"] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-pulse,
+  .animate-gold-glow,
+  .animate-spin,
+  .animate-bounce {
+    animation: none !important;
+  }
+
+  .hover-lift:hover {
+    transform: none;
+  }
+
+  .hover-scale:hover {
+    transform: none;
+  }
+
+  /* Disable background motion */
+  .bg-orbs .orb,
+  .hero-section::after,
+  .hero-corporate::after,
+  .hero-corporate .hero-orb {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
