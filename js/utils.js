@@ -310,6 +310,55 @@ const Utils = {
     document.body.removeChild(ta);
   },
 
+  /* ------------------------------------------
+     LocalStorage Wrapper — safe get/set/remove
+     ------------------------------------------ */
+
+  storage: {
+    /**
+     * Get a value from localStorage (JSON-parsed)
+     * @param {string} key
+     * @param {*} [fallback=null] - Default if key doesn't exist
+     * @returns {*}
+     */
+    get: function(key, fallback) {
+      if (typeof fallback === 'undefined') fallback = null;
+      try {
+        var val = localStorage.getItem(key);
+        if (val === null) return fallback;
+        return JSON.parse(val);
+      } catch (e) {
+        console.warn('[Utils.storage] Failed to read "' + key + '":', e);
+        return fallback;
+      }
+    },
+
+    /**
+     * Save a value to localStorage (JSON-stringified)
+     * @param {string} key
+     * @param {*} value
+     */
+    set: function(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (e) {
+        console.warn('[Utils.storage] Failed to write "' + key + '":', e);
+      }
+    },
+
+    /**
+     * Remove a key from localStorage
+     * @param {string} key
+     */
+    remove: function(key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.warn('[Utils.storage] Failed to remove "' + key + '":', e);
+      }
+    }
+  },
+
   /**
    * Initialize utility module
    */
