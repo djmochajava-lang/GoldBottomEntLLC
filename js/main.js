@@ -40,6 +40,9 @@
       this.initModule('Toast', typeof Toast !== 'undefined' ? Toast : null);
       this.initModule('Modal', typeof Modal !== 'undefined' ? Modal : null);
 
+      // Auth (must be before Router so guard is ready for initial route)
+      this.initModule('Auth', typeof Auth !== 'undefined' ? Auth : null);
+
       // Core SPA
       this.initModule('PageLoader', typeof PageLoader !== 'undefined' ? PageLoader : null);
       this.initModule('Router', typeof Router !== 'undefined' ? Router : null);

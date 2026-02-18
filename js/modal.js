@@ -102,7 +102,13 @@ const Modal = {
       saveBtn.type = 'button';
       saveBtn.textContent = saveText;
       saveBtn.addEventListener('click', function() {
-        if (options.onSave) options.onSave();
+        if (options.onSave) {
+          var result = options.onSave();
+          // If onSave returns a Promise, caller controls modal close
+          if (result && typeof result.then === 'function') {
+            return;
+          }
+        }
         Modal.close();
       });
 

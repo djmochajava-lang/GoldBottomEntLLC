@@ -88,6 +88,13 @@ const Router = {
       pageName = this.defaultPage;
     }
 
+    // Auth guard — block unauthenticated dashboard access
+    if (typeof Auth !== 'undefined' && Auth.initialized) {
+      if (!Auth.guardRoute(pageName)) {
+        return; // Blocked — login modal shown by Auth
+      }
+    }
+
     // Skip if already on this page (unless forced)
     if (pageName === this.currentPage && !forceLoad) {
       return;

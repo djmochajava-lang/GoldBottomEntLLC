@@ -213,6 +213,12 @@
           <i class="fa-solid fa-arrow-left"></i>
           <span class="sidebar-nav-text">View Site</span>
         </a>
+        <button id="sidebar-logout-btn" class="sidebar-nav-item sidebar-logout-btn"
+                style="display:none;width:100%;border:none;background:none;cursor:pointer;text-align:left;font-family:inherit;font-size:inherit;color:inherit;padding:0;"
+                onclick="Auth.logout().then(function(){ if(typeof Toast!=='undefined') Toast.success('Signed out'); Router.navigateTo('home'); });">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span class="sidebar-nav-text">Sign Out</span>
+        </button>
       </div>
     </aside>
 
@@ -231,9 +237,9 @@
             <i class="fa-solid fa-bell"></i>
             <span class="notification-badge">3</span>
           </button>
-          <div class="topbar-user">
+          <div class="topbar-user" id="topbar-user">
             <span class="user-avatar"><i class="fa-solid fa-user"></i></span>
-            <span class="user-name">DJ Moka</span>
+            <span class="user-name">Loading...</span>
           </div>
         </div>
       </header>
@@ -260,6 +266,10 @@
        SCRIPTS — Loaded in dependency order
        ============================================================ -->
 
+  <!-- Firebase SDK (compat mode — no build tools required) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+
   <!-- Foundation -->
   <script src="js/config.js"></script>
   <script src="js/utils.js"></script>
@@ -268,6 +278,9 @@
   <!-- UI Utilities -->
   <script src="js/toast.js"></script>
   <script src="js/modal.js"></script>
+
+  <!-- Auth -->
+  <script src="js/auth.js"></script>
 
   <!-- Core SPA -->
   <script src="js/page-loader.js"></script>
