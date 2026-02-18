@@ -31,6 +31,7 @@ const Router = {
     'dashboard-documents': 'dashboard/documents.html',
     'dashboard-integrations': 'dashboard/integrations.html',
     'dashboard-settings': 'dashboard/settings.html',
+    'dashboard-team': 'dashboard/team.html',
   },
 
   currentPage: null,
@@ -96,6 +97,14 @@ const Router = {
     if (typeof Auth !== 'undefined' && Auth.initialized) {
       if (!Auth.guardRoute(pageName)) {
         return; // Blocked — login modal shown by Auth
+      }
+
+      // Admin guard — block non-admin access to admin-only routes
+      if (pageName === 'dashboard-team' && !Auth.isAdmin()) {
+        if (typeof Toast !== 'undefined') {
+          Toast.error('Access denied. Admin privileges required.');
+        }
+        return;
       }
     }
 
@@ -244,6 +253,7 @@ const Router = {
       'dashboard-documents': 'Documents',
       'dashboard-integrations': 'Integrations',
       'dashboard-settings': 'Settings',
+      'dashboard-team': 'Team Management',
     };
 
     const label = labels[pageName] || 'Dashboard';

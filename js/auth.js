@@ -38,6 +38,9 @@ const Auth = {
   /** @type {string|null} Registration status: null, 'pending', 'approved', 'denied' */
   _registrationStatus: null,
 
+  /** @type {string|null} User's role: 'admin' or 'member' */
+  _role: null,
+
   /* ------------------------------------------
      Initialization
      ------------------------------------------ */
@@ -163,12 +166,14 @@ const Auth = {
           // Fail open for Firestore errors — allow access so site isn't broken
           Auth._authorized = true;
           Auth._registrationStatus = 'approved';
+          Auth._role = 'admin';
           Auth._updateUI(user);
           Auth._notifyListeners(user);
         });
       } else {
         Auth._authorized = false;
         Auth._registrationStatus = null;
+        Auth._role = null;
         Auth._updateUI(user);
         Auth._notifyListeners(user);
         console.log('[Auth] Signed out');
@@ -202,6 +207,7 @@ const Auth = {
    *   - photoURL (string) — profile photo URL
    *   - provider (string) — sign-in provider
    *   - status (string) — 'pending' | 'approved' | 'denied'
+   *   - role (string) — 'admin' | 'member'
    *   - registeredAt (timestamp) — when they first signed in
    *   - lastLoginAt (timestamp) — updated each sign-in
    *
@@ -222,6 +228,7 @@ const Auth = {
         if (doc.exists) {
           // Existing user — update last login and return their status
           var data = doc.data();
+          Auth._role = data.role || 'member';
           userRef.update({
             lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
             displayName: user.displayName || data.displayName,
@@ -232,6 +239,7 @@ const Auth = {
           return data.status || 'pending';
         } else {
           // New user — create registration with 'pending' status
+          Auth._role = 'member';
           return userRef.set({
             displayName: user.displayName || user.email.split('@')[0],
             emailHash: emailHash,
@@ -240,6 +248,7 @@ const Auth = {
               ? user.providerData[0].providerId
               : 'unknown',
             status: 'pending',
+            role: 'member',
             registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
             lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
           }).then(function() {
@@ -288,6 +297,22 @@ const Auth = {
    */
   isAuthenticated: function() {
     return !!this._user && this._authorized;
+  },
+
+  /**
+   * Check if the current user has admin role
+   * @returns {boolean}
+   */
+  isAdmin: function() {
+    return this.isAuthenticated() && this._role === 'admin';
+  },
+
+  /**
+   * Get the current user's role
+   * @returns {string|null} 'admin', 'member', or null
+   */
+  getRole: function() {
+    return this._role;
   },
 
   /**
@@ -718,6 +743,20 @@ const Auth = {
     var topbarUser = document.getElementById('topbar-user');
     if (topbarUser) {
       topbarUser.title = user ? Auth.getUserEmail() : '';
+    }
+
+    // Show/hide admin-only sidebar items
+    Auth._updateAdminUI();
+  },
+
+  /**
+   * Show or hide admin-only sidebar elements based on role
+   * @private
+   */
+  _updateAdminUI: function() {
+    var teamLink = document.getElementById('sidebar-team-link');
+    if (teamLink) {
+      teamLink.style.display = this.isAdmin() ? '' : 'none';
     }
   },
 
