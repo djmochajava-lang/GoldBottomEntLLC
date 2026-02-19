@@ -96,8 +96,14 @@ const PageLoader = {
       return this.cache[pageName];
     }
 
+    // Build fetch options — include session token for dashboard routes
+    const fetchOpts = {};
+    if (pageUrl.startsWith('dashboard/') && typeof Auth !== 'undefined' && Auth._sessionToken) {
+      fetchOpts.headers = { 'X-GBE-Session': Auth._sessionToken };
+    }
+
     // Fetch from server
-    const response = await fetch(pageUrl);
+    const response = await fetch(pageUrl, fetchOpts);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);

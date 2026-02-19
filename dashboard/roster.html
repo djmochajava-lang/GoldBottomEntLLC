@@ -23,6 +23,8 @@
 (function(){
   if(typeof DataStore==='undefined')return;
 
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
   var currentFilter='all';
 
   /* ---- Category badge colors ---- */
@@ -56,8 +58,13 @@
       return;
     }
 
+    var headers=['Name','Category','Genre / Skill','Status','Contract End'];
+    if(isLocal) headers.push('Commission');
+    headers.push('Contact');
+    if(isLocal) headers.push('Actions');
+
     var html='<div style="overflow-x:auto;"><table class="data-table" style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:2px solid var(--color-border);">';
-    ['Name','Category','Genre / Skill','Status','Contract End','Commission','Contact','Actions'].forEach(function(h){
+    headers.forEach(function(h){
       html+='<th style="padding:var(--space-sm);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);font-weight:var(--fw-semibold);white-space:nowrap;">'+h+'</th>';
     });
     html+='</tr></thead><tbody>';
@@ -74,12 +81,12 @@
         '<td data-label="Genre / Skill" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+(t.genre?Utils.escapeHtml(t.genre):'\u2014')+'</td>'+
         '<td data-label="Status" style="padding:var(--space-sm);"><span class="status-pill" style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--fw-semibold);background:'+sp.bg+';color:'+sp.color+';text-transform:capitalize;">'+sp.label+'</span></td>'+
         '<td data-label="Contract End" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+contractEnd+'</td>'+
-        '<td data-label="Commission" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">'+(t.commission?Utils.escapeHtml(t.commission)+'%':'\u2014')+'</td>'+
+        (isLocal?'<td data-label="Commission" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">'+(t.commission?Utils.escapeHtml(t.commission)+'%':'\u2014')+'</td>':'')+
         '<td data-label="Contact" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+contact+'</td>'+
-        '<td data-label="Actions" style="padding:var(--space-sm);"><div class="data-table-actions" style="display:flex;gap:var(--space-xs);">'+
+        (isLocal?'<td data-label="Actions" style="padding:var(--space-sm);"><div class="data-table-actions" style="display:flex;gap:var(--space-xs);">'+
           '<button class="btn btn-ghost btn-sm" onclick="editTalent(\''+t.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-text-secondary);background:none;border:none;cursor:pointer;" title="Edit"><i class="fa-solid fa-pen"></i></button>'+
           '<button class="btn btn-ghost btn-sm text-danger" onclick="deleteTalent(\''+t.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-danger);background:none;border:none;cursor:pointer;" title="Delete"><i class="fa-solid fa-trash"></i></button>'+
-        '</div></td>'+
+        '</div></td>':'')+
       '</tr>';
     });
     html+='</tbody></table></div>';
@@ -178,6 +185,12 @@
     var d={};
     new FormData(f).forEach(function(v,k){d[k]=v;});
     return d;
+  }
+
+  /* ---- Hide Add Talent button when not local ---- */
+  if(!isLocal){
+    var addTalentBtn=document.getElementById('add-talent-btn');
+    if(addTalentBtn) addTalentBtn.style.display='none';
   }
 
   /* ---- Add Talent ---- */

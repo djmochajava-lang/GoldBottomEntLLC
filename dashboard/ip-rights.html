@@ -39,13 +39,26 @@
 <script>
 (function(){
   if(typeof DataStore==='undefined')return;
+
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  /* Hide Register IP button when not local */
+  if(!isLocal){
+    var addIpBtn=document.getElementById('add-ip-btn');
+    if(addIpBtn) addIpBtn.style.display='none';
+  }
+
   var typeLabels={song:'Song',recording:'Recording',publishing:'Publishing',master:'Master',software:'Software'};
   var regColors={'registered':'status-active','pending':'status-pending','not-registered':'status-expired'};
 
   function renderTable(){
     var c=document.getElementById('ip-table-container');var data=DataStore.getIPRights();
     if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-copyright"></i></div><h3 class="empty-state-title">No IP entries</h3><p class="empty-state-text">Register your first intellectual property.</p></div>';return;}
-    var html='<table class="data-table"><thead><tr><th>Title</th><th>Type</th><th>Artist/Creator</th><th>Owner(s)</th><th>Ownership</th><th>Registration</th><th>PRO</th><th>Actions</th></tr></thead><tbody>';
+    var thHeaders=['Title','Type','Artist/Creator','Owner(s)','Ownership','Registration','PRO'];
+    if(isLocal) thHeaders.push('Actions');
+    var html='<table class="data-table"><thead><tr>';
+    thHeaders.forEach(function(h){html+='<th>'+h+'</th>';});
+    html+='</tr></thead><tbody>';
     data.forEach(function(ip){
       html+='<tr><td data-label="Title"><strong>'+ip.title+'</strong></td>'+
         '<td data-label="Type"><span class="badge badge-gold">'+(typeLabels[ip.type]||ip.type)+'</span></td>'+
@@ -54,7 +67,8 @@
         '<td data-label="Ownership">'+(ip.ownershipPct||0)+'%</td>'+
         '<td data-label="Registration"><span class="status-pill '+(regColors[ip.registrationStatus]||'status-draft')+'">'+(ip.registrationStatus||'unknown').replace('-',' ')+'</span></td>'+
         '<td data-label="PRO">'+(ip.pro||'—')+'</td>'+
-        '<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editIP(\''+ip.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteIP(\''+ip.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+        (isLocal?'<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editIP(\''+ip.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteIP(\''+ip.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td>':'')+
+        '</tr>';
     });
     html+='</tbody></table>';c.innerHTML=html;
   }

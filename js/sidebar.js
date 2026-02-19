@@ -10,8 +10,11 @@ const Sidebar = {
   collapseBtn: null,
   mobileToggle: null,
   collapsed: false,
+  initialized: false,
 
   init() {
+    if (this.initialized) return;
+
     this.sidebar = document.getElementById('sidebar');
     this.collapseBtn = document.querySelector('.sidebar-collapse-btn');
     this.mobileToggle = document.querySelector('.sidebar-mobile-toggle');
@@ -23,6 +26,7 @@ const Sidebar = {
     this.setupNavClicks();
     this.restoreState();
 
+    this.initialized = true;
     console.log('✅ Sidebar initialized');
   },
 

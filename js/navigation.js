@@ -8,14 +8,18 @@
 const Navigation = {
   mobileToggle: null,
   mobileOverlay: null,
+  initialized: false,
 
   init() {
+    if (this.initialized) return;
+
     this.mobileToggle = document.querySelector('.mobile-menu-toggle');
     this.mobileOverlay = document.getElementById('mobile-nav-overlay');
 
     this.setupMobileMenu();
     this.setupMobileLinks();
 
+    this.initialized = true;
     console.log('✅ Navigation initialized');
   },
 

@@ -20,6 +20,27 @@ secrets.json
 .DS_Store
 Thumbs.db
 
+# Business documents (sensitive — legal, financial, personal info)
+business-docs/
+AcknowledgementLetter.pdf
+
+# Local-only files (full version lives in private repo)
+claude.md
+index-local.html
+server/
+vendor/
+dashboard/finances.html
+dashboard/documents.html
+dashboard/integrations.html
+dashboard/settings.html
+dashboard/team.html
+
+# Firebase config (deployed separately)
+.firebaserc
+firestore.rules
+firestore.indexes.json
+firebase.json
+
 # Build output
 dist/
 build/

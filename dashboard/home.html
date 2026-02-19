@@ -38,6 +38,8 @@
 (function(){
   if(typeof DataStore==='undefined')return;
 
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
   /* ---- Metric Cards ---- */
   function renderMetrics(){
     var c=document.getElementById('metrics-container');
@@ -45,16 +47,17 @@
     var m=DataStore.getMetrics();
 
     var cards=[
-      {label:'Roster',         value:m.totalRoster,                             icon:'fa-users',              color:'#d4a017'},
-      {label:'Active Contracts',value:m.activeContracts,                        icon:'fa-file-signature',     color:'#58a6ff'},
-      {label:'Revenue YTD',    value:Utils.formatCurrency(m.revenueYTD),        icon:'fa-chart-line',         color:'#3fb950'},
-      {label:'Upcoming Events',value:m.upcomingEvents,                          icon:'fa-calendar-days',      color:'#d29922'},
-      {label:'Merch Sales',    value:Utils.formatCurrency(m.merchSales),        icon:'fa-bag-shopping',       color:'#d4a017'},
-      {label:'Outstanding Invoices',value:Utils.formatCurrency(m.outstandingInvoices),icon:'fa-file-invoice-dollar',color:'#f85149'}
+      {label:'Roster',         value:m.totalRoster,                             icon:'fa-users',              color:'#d4a017', sensitive:false},
+      {label:'Active Contracts',value:m.activeContracts,                        icon:'fa-file-signature',     color:'#58a6ff', sensitive:false},
+      {label:'Revenue YTD',    value:Utils.formatCurrency(m.revenueYTD),        icon:'fa-chart-line',         color:'#3fb950', sensitive:true},
+      {label:'Upcoming Events',value:m.upcomingEvents,                          icon:'fa-calendar-days',      color:'#d29922', sensitive:false},
+      {label:'Merch Sales',    value:Utils.formatCurrency(m.merchSales),        icon:'fa-bag-shopping',       color:'#d4a017', sensitive:true},
+      {label:'Outstanding Invoices',value:Utils.formatCurrency(m.outstandingInvoices),icon:'fa-file-invoice-dollar',color:'#f85149', sensitive:true}
     ];
 
     var html='';
     cards.forEach(function(card){
+      if(card.sensitive && !isLocal) return;
       html+='<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);">'+
         '<div class="metric-icon" style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(card.color)+',0.15);color:'+card.color+';">'+
           '<i class="fa-solid '+card.icon+'"></i>'+
@@ -157,6 +160,14 @@
   }
 
   renderAll();
+
+  /* Hide financial quick actions when not local */
+  if(!isLocal){
+    var qaLinks=document.querySelectorAll('#quick-actions-container a.quick-action-btn');
+    qaLinks.forEach(function(a){
+      if(a.href&&a.href.indexOf('#dashboard-finances')!==-1) a.style.display='none';
+    });
+  }
 
   /* Refresh on data changes */
   document.addEventListener('gbe:data-updated',renderAll);

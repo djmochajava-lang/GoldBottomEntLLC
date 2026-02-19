@@ -346,20 +346,25 @@ const DataStore = {
   // ============================================================
 
   getMetrics() {
-    return {
+    var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+    var metrics = {
       rosterCount: this.getActiveRoster().length,
       totalRoster: this.getRoster().length,
       activeContracts: this.getActiveContracts().length,
       totalContracts: this.getContracts().length,
-      revenueYTD: this.getTotalRevenue(),
-      expensesYTD: this.getTotalExpenses(),
-      netIncome: this.getNetIncome(),
       upcomingEvents: this.getUpcomingEvents(5).length,
-      merchSales: this.getMerchRevenue(),
-      outstandingInvoices: this.getOutstandingInvoices().reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0),
       totalBookings: this.getBookings().length,
       ipEntries: this.getIPRights().length,
     };
+    // Financial metrics only on local dashboard
+    if (isLocal) {
+      metrics.revenueYTD = this.getTotalRevenue();
+      metrics.expensesYTD = this.getTotalExpenses();
+      metrics.netIncome = this.getNetIncome();
+      metrics.merchSales = this.getMerchRevenue();
+      metrics.outstandingInvoices = this.getOutstandingInvoices().reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
+    }
+    return metrics;
   },
 
   // ============================================================
@@ -367,25 +372,43 @@ const DataStore = {
   // ============================================================
 
   seedIfEmpty() {
+    var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+    // Remote tier migration: if remote user has old financial seed data, clear it
+    if (!isLocal && !Utils.storage.get('gbe-data-v2')) {
+      var sensitiveKeys = [this.KEYS.FINANCES_REVENUE, this.KEYS.FINANCES_EXPENSES,
+        this.KEYS.INVOICES, this.KEYS.DOCUMENTS, this.KEYS.SETTINGS, this.KEYS.CHECKLIST];
+      sensitiveKeys.forEach(function(key) { Utils.storage.remove(key); });
+      Utils.storage.set('gbe-data-v2', 'remote');
+      console.log('🔒 DataStore: cleared sensitive data for remote tier');
+    }
+
     if (Utils.storage.get(this.KEYS.ROSTER)) {
       console.log('📦 DataStore: existing data found');
       return;
     }
 
-    console.log('🌱 DataStore: seeding initial data...');
+    console.log('🌱 DataStore: seeding initial data (' + (isLocal ? 'full' : 'remote-safe') + ')...');
+
+    // Both tiers — non-sensitive data
     this.seedRoster();
     this.seedContracts();
-    this.seedFinances();
     this.seedEvents();
     this.seedBookings();
     this.seedIPRights();
-    this.seedDocuments();
     this.seedMerch();
     this.seedTravel();
     this.seedDistribution();
-    this.seedSettings();
-    this.seedChecklist();
     this.seedActivity();
+
+    // Local-only — financial and sensitive config data
+    if (isLocal) {
+      this.seedFinances();
+      this.seedDocuments();
+      this.seedSettings();
+      this.seedChecklist();
+    }
+
     console.log('✅ DataStore: seed complete');
   },
 
@@ -407,13 +430,13 @@ const DataStore = {
         image: '',
         // Performance & Logistics (from Booking Agent Requirements)
         rateType: 'flat',
-        standardRate: 2500,
-        minimumRate: 500,
+        standardRate: 0,
+        minimumRate: 0,
         depositPercent: 30,
         travelRadius: 'National',
         availabilityStatus: 'available',
-        riderNeeds: '2x powered speakers, green room, 2 meals, parking for 2 vehicles',
-        noGoZones: 'No outdoor events without covered stage',
+        riderNeeds: '[RIDER REQUIREMENTS — e.g. sound system, green room, meals]',
+        noGoZones: '[ANY RESTRICTIONS — e.g. outdoor events without covered stage]',
         createdAt: '2025-01-15T00:00:00Z',
         updatedAt: '2026-01-01T00:00:00Z',
       },
@@ -514,30 +537,30 @@ const DataStore = {
       },
       {
         id: 'contract-002',
-        name: 'Venue Booking — Blues Alley',
+        name: 'Venue Booking — [Venue Name]',
         type: 'booking',
-        parties: 'Gold Bottom Ent LLC / Blues Alley',
+        parties: 'Gold Bottom Ent LLC / [Venue Name]',
         status: 'draft',
         startDate: '2026-06-15',
         endDate: '2026-06-15',
-        value: 2500,
+        value: 0,
         commission: 15,
-        notes: '[DRAFT] Pending venue confirmation for L.A. Young performance.',
+        notes: '[SAMPLE] Edit with your actual booking contract details.',
         talentId: 'talent-001',
         createdAt: '2026-02-01T00:00:00Z',
         updatedAt: '2026-02-01T00:00:00Z',
       },
       {
         id: 'contract-003',
-        name: 'Web Development — Client Project',
+        name: 'Web Development — [Client Project]',
         type: 'development',
         parties: 'Gold Bottom Ent LLC / [Client Name]',
         status: 'draft',
         startDate: '2026-03-01',
         endDate: '2026-05-31',
-        value: 5000,
+        value: 0,
         commission: 0,
-        notes: '[DRAFT] Enterprise vertical — web development project.',
+        notes: '[SAMPLE] Edit with your actual development contract details.',
         talentId: '',
         createdAt: '2026-02-01T00:00:00Z',
         updatedAt: '2026-02-01T00:00:00Z',
@@ -547,103 +570,73 @@ const DataStore = {
 
   seedFinances() {
     this._save(this.KEYS.FINANCES_REVENUE, [
-      { id: 'rev-001', date: '2026-01-15', source: 'Performance — City Winery', amount: 1800, category: 'booking', talentId: 'talent-001', notes: 'L.A. Young solo show', createdAt: '2026-01-15T00:00:00Z', updatedAt: '2026-01-15T00:00:00Z' },
-      { id: 'rev-002', date: '2026-02-01', source: 'Music Streaming Royalties', amount: 245.50, category: 'royalties', talentId: 'talent-001', notes: 'January streaming income', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'rev-001', date: '2026-01-15', source: 'Performance — [Venue Name]', amount: 0, category: 'booking', talentId: 'talent-001', notes: '[SAMPLE] Edit with your actual revenue', createdAt: '2026-01-15T00:00:00Z', updatedAt: '2026-01-15T00:00:00Z' },
+      { id: 'rev-002', date: '2026-02-01', source: 'Music Streaming Royalties', amount: 0, category: 'royalties', talentId: 'talent-001', notes: '[SAMPLE] Edit with your actual streaming income', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
     ]);
 
     this._save(this.KEYS.FINANCES_EXPENSES, [
-      { id: 'exp-001', date: '2026-01-10', description: 'Website Hosting (Annual)', amount: 150, category: 'operations', vendor: 'Hosting Provider', notes: '', createdAt: '2026-01-10T00:00:00Z', updatedAt: '2026-01-10T00:00:00Z' },
-      { id: 'exp-002', date: '2026-01-20', description: 'Studio Session — Recording', amount: 500, category: 'production', vendor: 'Studio Name', notes: 'New single recording session', createdAt: '2026-01-20T00:00:00Z', updatedAt: '2026-01-20T00:00:00Z' },
-      { id: 'exp-003', date: '2026-02-01', description: 'LLC Annual Filing Fee', amount: 100, category: 'legal', vendor: 'State of Maryland', notes: 'Annual report filing', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'exp-001', date: '2026-01-10', description: 'Website Hosting (Annual)', amount: 0, category: 'operations', vendor: '[Hosting Provider]', notes: '[SAMPLE] Edit with actual amount', createdAt: '2026-01-10T00:00:00Z', updatedAt: '2026-01-10T00:00:00Z' },
+      { id: 'exp-002', date: '2026-01-20', description: 'Studio Session — Recording', amount: 0, category: 'production', vendor: '[Studio Name]', notes: '[SAMPLE] Edit with actual amount', createdAt: '2026-01-20T00:00:00Z', updatedAt: '2026-01-20T00:00:00Z' },
+      { id: 'exp-003', date: '2026-02-01', description: 'LLC Annual Filing Fee', amount: 0, category: 'legal', vendor: 'State of Maryland', notes: '[SAMPLE] Edit with actual amount', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
     ]);
 
     this._save(this.KEYS.INVOICES, [
-      { id: 'inv-001', invoiceNumber: 'GBE-2026-001', client: 'Blues Alley', amount: 2500, status: 'draft', dueDate: '2026-06-01', description: 'L.A. Young performance deposit', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'inv-001', invoiceNumber: 'GBE-2026-001', client: '[Client Name]', amount: 0, status: 'draft', dueDate: '2026-06-01', description: '[SAMPLE] Edit with your actual invoice', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
     ]);
   },
 
   seedEvents() {
     this._save(this.KEYS.EVENTS, [
-      { id: 'evt-001', title: 'L.A. Young — Blues Alley', date: '2026-06-15T20:00:00', endDate: '2026-06-15T23:00:00', type: 'gig', venue: 'Blues Alley, DC', notes: 'Full band show', color: '#d4a017', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
-      { id: 'evt-002', title: 'Studio Session', date: '2026-03-10T14:00:00', endDate: '2026-03-10T18:00:00', type: 'studio', venue: '[Studio Name]', notes: 'New single recording', color: '#58a6ff', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'evt-001', title: 'L.A. Young — [Venue Name]', date: '2026-06-15T20:00:00', endDate: '2026-06-15T23:00:00', type: 'gig', venue: '[Venue, City]', notes: '[SAMPLE] Edit with your actual event', color: '#d4a017', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'evt-002', title: 'Studio Session', date: '2026-03-10T14:00:00', endDate: '2026-03-10T18:00:00', type: 'studio', venue: '[Studio Name]', notes: '[SAMPLE] Edit with your actual session details', color: '#58a6ff', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
       { id: 'evt-003', title: 'Quarterly Tax Deadline', date: '2026-04-15T00:00:00', endDate: '', type: 'deadline', venue: '', notes: 'Q1 estimated tax payment due', color: '#f85149', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
-      { id: 'evt-004', title: 'Networking Event — Jazz Foundation', date: '2026-05-20T18:00:00', endDate: '2026-05-20T21:00:00', type: 'meeting', venue: 'Jazz Foundation Gala', notes: 'Industry networking', color: '#3fb950', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'evt-004', title: 'Networking Event', date: '2026-05-20T18:00:00', endDate: '2026-05-20T21:00:00', type: 'meeting', venue: '[Event Location]', notes: '[SAMPLE] Edit with your actual event', color: '#3fb950', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
     ]);
   },
 
   seedBookings() {
     this._save(this.KEYS.BOOKINGS, [
       {
-        id: 'book-001', name: 'Blues Alley Summer Show', venue: 'Blues Alley, DC', date: '2026-06-15', artist: 'L.A. Young',
-        stage: 'confirmed', value: 2500, deposit: 1000, depositPaid: false,
+        id: 'book-001', name: '[Sample] Venue Show', venue: '[Venue Name, City]', date: '2026-06-15', artist: 'L.A. Young',
+        stage: 'confirmed', value: 0, deposit: 0, depositPaid: false,
         // Intake fields (from Booking Agent Requirements)
-        eventType: 'bar-club', guestCount: 200, hoursNeeded: 3, indoorOutdoor: 'indoor',
-        budgetRange: '$2,500–$5,000', soundSystem: 'yes', riderMet: 'yes', referralSource: 'Venue referral',
+        eventType: 'bar-club', guestCount: 0, hoursNeeded: 3, indoorOutdoor: 'indoor',
+        budgetRange: 'Let\'s Discuss', soundSystem: 'yes', riderMet: 'pending', referralSource: '',
         // Post-event
         rating: 0, rebook: false, outcome: '',
         // Contact
         contactName: '[Venue Contact]', contactEmail: '[EMAIL]', contactPhone: '[PHONE]',
-        notes: 'Full band, 2 sets. Rider confirmed by venue.',
+        notes: '[SAMPLE] Edit with your actual booking details.',
         createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z',
       },
       {
-        id: 'book-002', name: 'City Winery Fall Date', venue: 'City Winery, DC', date: '2026-09-20', artist: 'L.A. Young',
-        stage: 'lead', value: 3000, deposit: 0, depositPaid: false,
-        eventType: 'bar-club', guestCount: 300, hoursNeeded: 2.5, indoorOutdoor: 'indoor',
-        budgetRange: '$2,500–$5,000', soundSystem: 'yes', riderMet: 'pending', referralSource: '',
-        rating: 0, rebook: false, outcome: '',
-        contactName: '[Venue Contact]', contactEmail: '[EMAIL]', contactPhone: '[PHONE]',
-        notes: 'Prospective — follow up needed',
-        createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z',
-      },
-      {
-        id: 'book-003', name: 'Corporate Holiday Party', venue: '[Client TBD]', date: '2026-12-10', artist: 'L.A. Young',
-        stage: 'lead', value: 5000, deposit: 0, depositPaid: false,
-        eventType: 'corporate', guestCount: 150, hoursNeeded: 3, indoorOutdoor: 'indoor',
-        budgetRange: '$5,000+', soundSystem: 'not-sure', riderMet: 'na', referralSource: 'Website inquiry',
+        id: 'book-002', name: '[Sample] Corporate Event', venue: '[Client TBD]', date: '2026-12-10', artist: 'L.A. Young',
+        stage: 'lead', value: 0, deposit: 0, depositPaid: false,
+        eventType: 'corporate', guestCount: 0, hoursNeeded: 3, indoorOutdoor: 'indoor',
+        budgetRange: 'Let\'s Discuss', soundSystem: 'not-sure', riderMet: 'na', referralSource: '',
         rating: 0, rebook: false, outcome: '',
         contactName: '', contactEmail: '', contactPhone: '',
-        notes: 'Inquiry received — needs follow-up. Budget looks strong.',
+        notes: '[SAMPLE] Edit with your actual booking details.',
         createdAt: '2026-02-10T00:00:00Z', updatedAt: '2026-02-10T00:00:00Z',
-      },
-      {
-        id: 'book-004', name: 'Smith Wedding Reception', venue: 'The Hamilton, DC', date: '2025-11-15', artist: 'L.A. Young',
-        stage: 'completed', value: 3500, deposit: 1050, depositPaid: true,
-        eventType: 'wedding', guestCount: 120, hoursNeeded: 4, indoorOutdoor: 'indoor',
-        budgetRange: '$2,500–$5,000', soundSystem: 'yes', riderMet: 'yes', referralSource: 'Word of mouth',
-        rating: 5, rebook: true, outcome: '',
-        contactName: 'Sarah Smith', contactEmail: 'sarah@example.com', contactPhone: '(555) 234-5678',
-        notes: 'Exceptional event. Client loved the performance. Re-book candidate.',
-        createdAt: '2025-10-01T00:00:00Z', updatedAt: '2025-11-16T00:00:00Z',
-      },
-      {
-        id: 'book-005', name: 'Jazz Foundation Fundraiser', venue: 'City Winery, DC', date: '2025-09-10', artist: 'L.A. Young',
-        stage: 'closed', value: 1500, deposit: 450, depositPaid: true,
-        eventType: 'nonprofit', guestCount: 250, hoursNeeded: 2, indoorOutdoor: 'indoor',
-        budgetRange: '$1,000–$2,500', soundSystem: 'yes', riderMet: 'yes', referralSource: 'Industry contact',
-        rating: 4, rebook: true, outcome: 'won',
-        contactName: 'Marcus Johnson', contactEmail: 'marcus@jazzfound.org', contactPhone: '(555) 345-6789',
-        notes: 'Nonprofit rate. Great exposure. Closed-Won.',
-        createdAt: '2025-08-01T00:00:00Z', updatedAt: '2025-09-11T00:00:00Z',
       },
     ]);
   },
 
   seedIPRights() {
     this._save(this.KEYS.IP_RIGHTS, [
-      { id: 'ip-001', title: 'No One Can Love You More', type: 'recording', artist: 'L.A. Young', writers: 'Skip Scarborough', owners: 'Gold Bottom Ent LLC', ownershipPct: 100, registrationStatus: 'pending', registrationNumber: '[PENDING]', pro: '[BMI/ASCAP/SESAC]', notes: 'Master recording owned by GBE. Publishing by original writers.', createdAt: '2025-06-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-      { id: 'ip-002', title: 'L.A. Young Band Page Website', type: 'software', artist: '', writers: 'DJ Moka', owners: 'Gold Bottom Ent LLC', ownershipPct: 100, registrationStatus: 'registered', registrationNumber: '[N/A — Copyright by creation]', pro: '', notes: 'Website code and design — work for hire.', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'ip-001', title: '[Song Title]', type: 'recording', artist: 'L.A. Young', writers: '[Writer Names]', owners: 'Gold Bottom Ent LLC', ownershipPct: 100, registrationStatus: 'pending', registrationNumber: '[PENDING]', pro: '[BMI/ASCAP/SESAC]', notes: '[SAMPLE] Edit with your actual IP details. Register with copyright.gov.', createdAt: '2025-06-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      { id: 'ip-002', title: '[Website Name]', type: 'software', artist: '', writers: '[Developer Name]', owners: 'Gold Bottom Ent LLC', ownershipPct: 100, registrationStatus: 'registered', registrationNumber: '[N/A — Copyright by creation]', pro: '', notes: '[SAMPLE] Website code and design — work for hire.', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
       { id: 'ip-003', title: '[New Song Title]', type: 'song', artist: 'L.A. Young', writers: '[Writer Names]', owners: 'Gold Bottom Ent LLC / [Co-owners]', ownershipPct: 50, registrationStatus: 'not-registered', registrationNumber: '', pro: '', notes: '[Placeholder — Register with copyright.gov and your PRO]', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
     ]);
   },
 
   seedDocuments() {
     this._save(this.KEYS.DOCUMENTS, [
-      { id: 'doc-001', name: 'Articles of Organization', category: 'formation', status: 'missing', fileName: '', notes: '[UPLOAD YOUR ARTICLES OF ORGANIZATION]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      { id: 'doc-001', name: 'Articles of Organization', category: 'formation', status: 'received', fileName: 'Articles-of-Organization_SDAT-Acknowledgement_2026-01-19.pdf', notes: 'Filed 1/19/2026, acknowledged 2/18/2026. SDAT ID: W26910547. Filing #5000000012515994. Stored in business-docs/01-Formation-Legal/.', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-18T00:00:00Z' },
       { id: 'doc-002', name: 'EIN Confirmation Letter (SS-4)', category: 'formation', status: 'missing', fileName: '', notes: '[UPLOAD YOUR EIN CONFIRMATION FROM IRS]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
       { id: 'doc-003', name: 'Operating Agreement', category: 'formation', status: 'missing', fileName: '', notes: '[UPLOAD YOUR OPERATING AGREEMENT]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
       { id: 'doc-004', name: 'Business Insurance Policy', category: 'insurance', status: 'missing', fileName: '', notes: '[UPLOAD YOUR INSURANCE CERTIFICATE]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-      { id: 'doc-005', name: 'Registered Agent Info', category: 'compliance', status: 'missing', fileName: '', notes: '[YOUR REGISTERED AGENT DETAILS]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      { id: 'doc-005', name: 'Registered Agent Info', category: 'compliance', status: 'received', fileName: '', notes: 'Northwest Registered Agent Service, Inc. — 5000 Thayer Ctr, Oakland MD 21550. Confirmed on Articles of Organization.', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-02-18T00:00:00Z' },
       { id: 'doc-006', name: 'State Annual Report', category: 'compliance', status: 'missing', fileName: '', notes: '[DUE DATE: Check your state requirements]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
       { id: 'doc-007', name: 'W-9 Form', category: 'tax', status: 'missing', fileName: '', notes: '[YOUR COMPLETED W-9]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
       { id: 'doc-008', name: 'Beneficial Ownership Report (BOI)', category: 'compliance', status: 'missing', fileName: '', notes: '[FILE WITH FinCEN — fincen.gov/boi]', required: true, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
@@ -660,13 +653,13 @@ const DataStore = {
 
   seedTravel() {
     this._save(this.KEYS.TRAVEL, [
-      { id: 'trip-001', name: 'Blues Alley Show — DC', date: '2026-06-14', returnDate: '2026-06-16', city: 'Washington, DC', venue: 'Blues Alley', hotel: '[HOTEL TBD]', flight: 'N/A (Local)', perDiem: 75, totalBudget: 500, expenses: [], checklist: ['Confirm hotel', 'Arrange equipment transport', 'Confirm sound check time'], notes: '', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'trip-001', name: '[Sample] Venue Show — [City]', date: '2026-06-14', returnDate: '2026-06-16', city: '[City, State]', venue: '[Venue Name]', hotel: '[HOTEL TBD]', flight: 'N/A', perDiem: 0, totalBudget: 0, expenses: [], checklist: ['Confirm hotel', 'Arrange equipment transport', 'Confirm sound check time'], notes: '[SAMPLE] Edit with your actual travel details', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
     ]);
   },
 
   seedDistribution() {
     this._save(this.KEYS.DISTRIBUTION, [
-      { id: 'rel-001', title: 'No One Can Love You More', artist: 'L.A. Young', type: 'single', releaseDate: '2024-01-01', distributor: 'Self-Distributed', status: 'released', platforms: ['Spotify', 'Apple Music', 'YouTube Music', 'Amazon Music', 'Tidal'], isrc: '[YOUR ISRC CODE — register at usisrc.org]', upc: '[YOUR UPC CODE — purchase at gs1us.org]', spotifyUrl: '[SPOTIFY URL]', appleMusicUrl: '[APPLE MUSIC URL]', royaltyIncome: 245.50, roadmapSteps: [false,false,false,false,false,false,false,false,false,false,false,false,false,false], notes: 'DIY release — uploaded directly to each platform. Register your own ISRC at usisrc.org and purchase UPC from GS1 US. Track royalties per platform.', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'rel-001', title: '[Song Title]', artist: 'L.A. Young', type: 'single', releaseDate: '2024-01-01', distributor: 'Self-Distributed', status: 'released', platforms: ['Spotify', 'Apple Music', 'YouTube Music', 'Amazon Music', 'Tidal'], isrc: '[YOUR ISRC CODE — register at usisrc.org]', upc: '[YOUR UPC CODE — purchase at gs1us.org]', spotifyUrl: '[SPOTIFY URL]', appleMusicUrl: '[APPLE MUSIC URL]', royaltyIncome: 0, roadmapSteps: [false,false,false,false,false,false,false,false,false,false,false,false,false,false], notes: '[SAMPLE] DIY release — register your own ISRC at usisrc.org and purchase UPC from GS1 US. Edit with your actual release details.', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
     ]);
   },
 
@@ -675,9 +668,10 @@ const DataStore = {
       companyName: 'Gold Bottom Ent LLC',
       dba1: 'Gold Bottom Entertainment',
       dba2: 'Gold Bottom Enterprise',
-      ein: '[YOUR EIN HERE]',
+      ein: '[YOUR EIN HERE — apply at irs.gov]',
+      sdatId: 'W26910547',
       stateOfFormation: 'Maryland',
-      registeredAgent: '[YOUR REGISTERED AGENT]',
+      registeredAgent: 'Northwest Registered Agent Service, Inc. — 5000 Thayer Ctr, Oakland MD 21550',
       attorney: '[YOUR ATTORNEY]',
       accountant: '[YOUR ACCOUNTANT / CPA]',
       insurance: '[YOUR BUSINESS INSURANCE]',
@@ -738,9 +732,9 @@ const DataStore = {
     this._save(this.KEYS.ACTIVITY, [
       { id: 'act-001', action: 'create', entityType: 'talent', entityName: 'L.A. Young', timestamp: '2025-01-15T00:00:00Z' },
       { id: 'act-002', action: 'create', entityType: 'contract', entityName: 'L.A. Young — Artist Management Agreement', timestamp: '2025-01-15T00:00:00Z' },
-      { id: 'act-003', action: 'create', entityType: 'IP entry', entityName: 'No One Can Love You More', timestamp: '2025-06-01T00:00:00Z' },
-      { id: 'act-004', action: 'create', entityType: 'revenue', entityName: 'Performance — City Winery', timestamp: '2026-01-15T00:00:00Z' },
-      { id: 'act-005', action: 'create', entityType: 'booking', entityName: 'Blues Alley Summer Show', timestamp: '2026-02-01T00:00:00Z' },
+      { id: 'act-003', action: 'create', entityType: 'IP entry', entityName: '[Song Title]', timestamp: '2025-06-01T00:00:00Z' },
+      { id: 'act-004', action: 'create', entityType: 'revenue', entityName: 'Performance — [Venue Name]', timestamp: '2026-01-15T00:00:00Z' },
+      { id: 'act-005', action: 'create', entityType: 'booking', entityName: '[Sample] Venue Show', timestamp: '2026-02-01T00:00:00Z' },
     ]);
   },
 

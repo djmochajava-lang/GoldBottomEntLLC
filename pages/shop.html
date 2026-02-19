@@ -15,11 +15,6 @@
         Our online store is being set up. Official apparel, music, vinyl, and exclusive
         merchandise will be available here soon.
       </p>
-      <p class="text-muted" style="font-size: 0.85rem;">
-        <!-- TODO: Replace this entire section with your Shopify Buy Button embed code -->
-        <!-- Shopify Buy Button script goes here once your store is configured -->
-        <!-- See: https://help.shopify.com/en/manual/online-sales-channels/buy-button -->
-      </p>
       <div class="divider" style="max-width: 200px; margin: var(--spacing-md) auto;"></div>
       <h3>Get Notified When We Launch</h3>
       <form class="shop-notify-form" data-form="shop-notify" onsubmit="return false;">
@@ -58,7 +53,10 @@
   var grid = document.getElementById('shop-preview-grid');
   if (!grid || typeof DataStore === 'undefined') return;
 
-  var products = DataStore.getMerchProducts();
+  // Public page: show active and coming-soon products only (no drafts)
+  var products = DataStore.getMerchProducts().filter(function(p) {
+    return p.status === 'active' || p.status === 'coming-soon';
+  });
 
   if (products.length === 0) {
     grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-shirt"></i></div><h3 class="empty-state-title">Products coming soon</h3></div>';

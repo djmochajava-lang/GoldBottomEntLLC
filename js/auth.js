@@ -1,12 +1,16 @@
 /* ============================================
-   auth.js — Gold Bottom Ent. LLC Firebase Auth
+   auth.js — Gold Bottom Ent. LLC Auth System
    Federated Sign-In (Google, Apple, Microsoft)
+   + PIN-based local auth for home LAN access
    Firestore-based registration & approval
-   Version: 1.1.0-prototype
+   Version: 1.2.1
    ============================================ */
 
 const Auth = {
   initialized: false,
+
+  /** @type {boolean} Whether auth init is in progress (verifying PIN session) */
+  _initializing: false,
 
   /** @type {Object|null} Firebase app instance */
   _app: null,
@@ -41,19 +45,92 @@ const Auth = {
   /** @type {string|null} User's role: 'admin' or 'member' */
   _role: null,
 
+  /** @type {string|null} PIN session token (stored in localStorage) */
+  _sessionToken: null,
+
+  /** @type {string|null} Server base URL when on LAN (e.g., 'http://192.168.1.191:3000') */
+  _serverUrl: null,
+
+  /** @type {boolean} Whether authenticated via PIN (not Firebase) */
+  _isPinAuth: false,
+
   /* ------------------------------------------
      Initialization
      ------------------------------------------ */
 
   /**
-   * Initialize Firebase Auth + Firestore with federated providers
+   * Initialize auth system:
+   * 1. Check for LAN PIN session first (fast, no internet needed)
+   * 2. If no PIN session, fall through to Firebase Auth
    */
   init: function() {
+    if (this.initialized || this._initializing) return;
+
+    // Detect if we're on the local server
+    this._serverUrl = this._detectServerUrl();
+
+    // If on local server, check for existing PIN session FIRST
+    if (this._serverUrl) {
+      this._sessionToken = localStorage.getItem('gbe-session-token');
+      if (this._sessionToken) {
+        // Mark as initializing so guardRoute blocks dashboard access until verified
+        this._initializing = true;
+
+        // Verify the stored session with the server
+        this._verifySession().then(function(result) {
+          Auth._initializing = false;
+
+          if (result.valid) {
+            // PIN session is valid — we're authenticated!
+            Auth._isPinAuth = true;
+            Auth._authorized = true;
+            Auth._registrationStatus = 'approved';
+            Auth._role = 'admin';
+            Auth.initialized = true;
+            Auth._updatePinUI(result.user || 'Admin (Local)');
+            Auth._notifyListeners(null);
+            console.log('[Auth] PIN session restored — dashboard access granted');
+
+            // If the URL hash points to a dashboard route, navigate there now
+            var hash = window.location.hash.substring(1);
+            if (hash && hash.startsWith('dashboard-') && typeof Router !== 'undefined') {
+              Router.navigateTo(hash, true);
+            }
+          } else {
+            // Token expired or invalid — clear it
+            localStorage.removeItem('gbe-session-token');
+            Auth._sessionToken = null;
+            console.log('[Auth] PIN session expired — cleared');
+            // Fall through to Firebase init
+            Auth._initFirebase();
+          }
+        }).catch(function() {
+          Auth._initializing = false;
+          // Server unreachable — keep the token but init Firebase as fallback
+          console.warn('[Auth] Server unreachable — trying Firebase auth');
+          Auth._initFirebase();
+        });
+        return; // Don't init Firebase yet — wait for verify result
+      }
+    }
+
+    // No PIN session — initialize Firebase Auth normally
+    this._initFirebase();
+  },
+
+  /**
+   * Initialize Firebase Auth + Firestore with federated providers.
+   * This is the original init() logic, extracted so PIN session can bypass it.
+   * @private
+   */
+  _initFirebase: function() {
     if (this.initialized) return;
 
     // Check if Firebase SDK is loaded
     if (typeof firebase === 'undefined') {
       console.warn('[Auth] Firebase SDK not loaded — auth disabled');
+      // Still mark as initialized so guardRoute works (falls through to allow)
+      this.initialized = true;
       return;
     }
 
@@ -61,6 +138,7 @@ const Auth = {
     if (typeof SiteConfig !== 'undefined' &&
         SiteConfig.features && !SiteConfig.features.enableAuth) {
       console.log('[Auth] Auth disabled by feature flag');
+      this.initialized = true;
       return;
     }
 
@@ -72,6 +150,7 @@ const Auth = {
     if (!config || !config.apiKey || config.apiKey === '[FIREBASE_API_KEY]') {
       console.warn('[Auth] Firebase config not set — auth disabled');
       console.log('[Auth] Add your Firebase credentials to config.js → integrations.firebase');
+      this.initialized = true;
       return;
     }
 
@@ -119,6 +198,7 @@ const Auth = {
 
     } catch (error) {
       console.error('[Auth] Firebase initialization failed:', error);
+      this.initialized = true;
       return;
     }
 
@@ -127,6 +207,9 @@ const Auth = {
 
     // Listen for auth state changes
     this._auth.onAuthStateChanged(function(user) {
+      // Don't override PIN auth state
+      if (Auth._isPinAuth) return;
+
       Auth._user = user;
 
       if (user) {
@@ -189,6 +272,250 @@ const Auth = {
 
     this.initialized = true;
     console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft + Firestore)');
+  },
+
+  /* ------------------------------------------
+     PIN Auth (LAN-only)
+     ------------------------------------------ */
+
+  /**
+   * Detect if we're running on the local home server.
+   * Returns the server base URL if on LAN, null otherwise.
+   * @returns {string|null}
+   * @private
+   */
+  _detectServerUrl: function() {
+    var hostname = window.location.hostname;
+
+    // Check for private IP ranges or localhost
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return window.location.origin;
+    }
+
+    // 192.168.x.x
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      return window.location.origin;
+    }
+
+    // 10.x.x.x
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      return window.location.origin;
+    }
+
+    // 172.16-31.x.x
+    if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      return window.location.origin;
+    }
+
+    return null;
+  },
+
+  /**
+   * Check if we're on the local server (LAN or localhost)
+   * @returns {boolean}
+   */
+  _isOnLocalServer: function() {
+    return !!this._serverUrl;
+  },
+
+  /**
+   * Whether the current environment is the full local dashboard.
+   * Returns true on LAN/localhost (home server), false on GitHub Pages or any public host.
+   * Used by Router, DataStore, and dashboard pages to determine tier (full vs read-only).
+   * @returns {boolean}
+   */
+  isLocalDashboard: function() {
+    return this._isOnLocalServer();
+  },
+
+  /**
+   * Authenticate with a PIN code (LAN-only).
+   * Sends PIN to server, stores session token on success.
+   * @param {string} pin - The PIN entered by the user
+   * @returns {Promise<Object>} { success, message }
+   */
+  loginWithPin: function(pin) {
+    if (!this._serverUrl) {
+      return Promise.reject(new Error('PIN auth only available on local network'));
+    }
+
+    return fetch(this._serverUrl + '/api/v1/auth/pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: pin })
+    }).then(function(response) {
+      return response.json().then(function(data) {
+        if (!response.ok) {
+          return { success: false, message: data.message || 'Authentication failed' };
+        }
+
+        // Success — store token and set auth state
+        Auth._sessionToken = data.token;
+        Auth._isPinAuth = true;
+        Auth._authorized = true;
+        Auth._registrationStatus = 'approved';
+        Auth._role = 'admin';
+        Auth.initialized = true;
+
+        localStorage.setItem('gbe-session-token', data.token);
+
+        // Update UI
+        Auth._updatePinUI(data.user || 'Admin (Local)');
+        Auth._notifyListeners(null);
+
+        // Close modal and welcome
+        if (typeof Modal !== 'undefined' && Modal.isOpen) Modal.close();
+        if (typeof Toast !== 'undefined') {
+          Toast.success('Welcome, Admin');
+        }
+
+        // Navigate to pending route
+        if (Auth._pendingRoute) {
+          var route = Auth._pendingRoute;
+          Auth._pendingRoute = null;
+          if (typeof Router !== 'undefined') {
+            Router.navigateTo(route, true);
+          }
+        }
+
+        console.log('[Auth] PIN login successful');
+        return { success: true, message: 'Authenticated' };
+      });
+    }).catch(function(err) {
+      console.error('[Auth] PIN login error:', err);
+      return { success: false, message: 'Server unreachable. Is the home server running?' };
+    });
+  },
+
+  /**
+   * Verify a stored session token with the server.
+   * @returns {Promise<Object>} { valid: boolean, user: string, expiresAt: string }
+   * @private
+   */
+  _verifySession: function() {
+    if (!this._serverUrl || !this._sessionToken) {
+      return Promise.resolve({ valid: false });
+    }
+
+    return fetch(this._serverUrl + '/api/v1/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: this._sessionToken })
+    }).then(function(response) {
+      return response.json();
+    }).catch(function() {
+      return { valid: false };
+    });
+  },
+
+  /**
+   * Invalidate the PIN session on the server and clear local storage.
+   * @returns {Promise}
+   * @private
+   */
+  _logoutPinSession: function() {
+    var token = this._sessionToken;
+    var serverUrl = this._serverUrl;
+
+    console.log('[Auth] _logoutPinSession — clearing local state');
+
+    // Clear local state immediately (synchronous)
+    this._sessionToken = null;
+    this._isPinAuth = false;
+    this._authorized = false;
+    this._registrationStatus = null;
+    this._role = null;
+    localStorage.removeItem('gbe-session-token');
+
+    // Verify it's actually gone
+    var stillThere = localStorage.getItem('gbe-session-token');
+    if (stillThere) {
+      console.error('[Auth] localStorage token NOT removed! Forcing clear.');
+      localStorage.removeItem('gbe-session-token');
+      localStorage.clear(); // Nuclear option
+    }
+
+    // Tell server to invalidate the session
+    if (serverUrl && token) {
+      console.log('[Auth] Sending DELETE to server to invalidate session');
+      return fetch(serverUrl + '/api/v1/auth/session', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token })
+      }).then(function(response) {
+        console.log('[Auth] Server DELETE response:', response.status);
+      }).catch(function(err) {
+        console.warn('[Auth] Failed to invalidate server session:', err);
+      });
+    }
+
+    console.log('[Auth] No server URL or token — skipping server invalidation');
+    return Promise.resolve();
+  },
+
+  /**
+   * Update UI elements for PIN-authenticated user.
+   * @param {string} userName - Display name (e.g., 'Admin (Local)')
+   * @private
+   */
+  _updatePinUI: function(userName) {
+    // Update topbar user name
+    var userNameEl = document.querySelector('.user-name');
+    if (userNameEl) {
+      userNameEl.textContent = userName;
+    }
+
+    // Update user avatar — show lock icon for PIN auth
+    var userAvatarEl = document.querySelector('.user-avatar');
+    if (userAvatarEl) {
+      userAvatarEl.innerHTML = '<i class="fa-solid fa-user-shield" style="color:#d4a017;"></i>';
+    }
+
+    // Show logout button in sidebar and bind click handler
+    var logoutBtn = document.getElementById('sidebar-logout-btn');
+    if (logoutBtn) {
+      logoutBtn.style.display = '';
+
+      // Remove inline onclick and use proper event listener for reliability
+      logoutBtn.removeAttribute('onclick');
+
+      // Remove any previous listener to avoid duplicates
+      if (Auth._logoutClickHandler) {
+        logoutBtn.removeEventListener('click', Auth._logoutClickHandler);
+      }
+
+      Auth._logoutClickHandler = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('[Auth] Sign Out button clicked');
+        Auth.logout().then(function() {
+          if (typeof Toast !== 'undefined') Toast.success('Signed out');
+          if (typeof Router !== 'undefined') Router.navigateTo('home');
+        }).catch(function(err) {
+          console.error('[Auth] Logout error:', err);
+          // Force cleanup even on error
+          localStorage.removeItem('gbe-session-token');
+          Auth._isPinAuth = false;
+          Auth._authorized = false;
+          Auth._sessionToken = null;
+          if (typeof Router !== 'undefined') Router.navigateTo('home');
+        });
+      };
+
+      logoutBtn.addEventListener('click', Auth._logoutClickHandler);
+    }
+
+    // Update topbar tooltip
+    var topbarUser = document.getElementById('topbar-user');
+    if (topbarUser) {
+      topbarUser.title = 'Authenticated via local PIN';
+    }
+
+    // Show admin-only items (PIN auth = admin)
+    var teamLink = document.getElementById('sidebar-team-link');
+    if (teamLink) {
+      teamLink.style.display = '';
+    }
   },
 
   /* ------------------------------------------
@@ -292,10 +619,14 @@ const Auth = {
      ------------------------------------------ */
 
   /**
-   * Check if a user is currently authenticated AND approved
+   * Check if a user is currently authenticated AND approved.
+   * Works for both Firebase auth and PIN auth.
    * @returns {boolean}
    */
   isAuthenticated: function() {
+    // PIN auth: no _user object, but _authorized is true
+    if (this._isPinAuth && this._authorized) return true;
+    // Firebase auth: need both user and authorized
     return !!this._user && this._authorized;
   },
 
@@ -336,6 +667,7 @@ const Auth = {
    * @returns {string}
    */
   getUserDisplayName: function() {
+    if (this._isPinAuth) return 'Admin (Local)';
     if (!this._user) return 'Guest';
     return this._user.displayName || this._user.email.split('@')[0];
   },
@@ -345,6 +677,7 @@ const Auth = {
    * @returns {string}
    */
   getUserEmail: function() {
+    if (this._isPinAuth) return 'Local PIN Auth';
     if (!this._user) return '';
     return this._user.email || '';
   },
@@ -371,10 +704,37 @@ const Auth = {
   },
 
   /**
-   * Sign out the current user
+   * Sign out the current user (handles both PIN and Firebase auth)
    * @returns {Promise}
    */
   logout: function() {
+    console.log('[Auth] logout() called — isPinAuth:', this._isPinAuth);
+
+    // PIN auth logout
+    if (this._isPinAuth) {
+      return this._logoutPinSession().then(function() {
+        // Ensure all state is fully cleared
+        Auth._isPinAuth = false;
+        Auth._authorized = false;
+        Auth._registrationStatus = null;
+        Auth._role = null;
+        Auth._sessionToken = null;
+
+        Auth._updateUI(null);
+        Auth._notifyListeners(null);
+        console.log('[Auth] PIN session signed out — localStorage cleared:',
+          !localStorage.getItem('gbe-session-token'));
+
+        // Redirect to home if on dashboard
+        if (typeof Router !== 'undefined' &&
+            Router.currentPage &&
+            Router.isDashboardRoute(Router.currentPage)) {
+          Router.navigateTo('home');
+        }
+      });
+    }
+
+    // Firebase auth logout
     if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
     return this._auth.signOut();
   },
@@ -408,9 +768,7 @@ const Auth = {
    * @returns {boolean}
    */
   guardRoute: function(pageName) {
-    // If auth is disabled or not initialized, allow all
-    if (!this.initialized) return true;
-
+    // Check if auth is disabled by feature flag
     if (typeof SiteConfig !== 'undefined' &&
         SiteConfig.features && !SiteConfig.features.enableAuth) {
       return true;
@@ -421,7 +779,22 @@ const Auth = {
       return true;
     }
 
-    // If authenticated and approved, allow
+    // If auth is still initializing (verifying PIN session), block and queue
+    // The init callback will navigate to the dashboard route once verified
+    if (this._initializing) {
+      console.log('[Auth] Auth initializing — queuing dashboard route:', pageName);
+      this._pendingRoute = pageName;
+      return false;
+    }
+
+    // If auth hasn't initialized yet (no PIN, no Firebase), show login
+    if (!this.initialized) {
+      this._pendingRoute = pageName;
+      this.showLoginModal();
+      return false;
+    }
+
+    // If authenticated and approved (works for both PIN and Firebase), allow
     if (this.isAuthenticated()) return true;
 
     // If signed in but pending — show pending screen
@@ -441,13 +814,15 @@ const Auth = {
      ------------------------------------------ */
 
   /**
-   * Show the login modal with Google, Apple, and Microsoft sign-in buttons
+   * Show the login modal with PIN option (on LAN) + Google/Apple/Microsoft
    */
   showLoginModal: function() {
     if (typeof Modal === 'undefined') {
       console.error('[Auth] Modal system not available');
       return;
     }
+
+    var isLocal = this._isOnLocalServer();
 
     // Shared button base styles
     var btnBase =
@@ -456,6 +831,45 @@ const Auth = {
       'font-family:\'Inter\',\'Roboto\',sans-serif;font-size:15px;font-weight:500;' +
       'cursor:pointer;transition:background 0.2s,box-shadow 0.2s,opacity 0.2s;' +
       'box-shadow:0 1px 3px rgba(0,0,0,0.08);border:1px solid;';
+
+    // ── PIN section (only shown on LAN) ──
+    var pinSectionHTML = '';
+    if (isLocal) {
+      pinSectionHTML =
+        '<div style="margin-bottom:20px;">' +
+          // PIN icon + label
+          '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">' +
+            '<i class="fa-solid fa-lock" style="color:#d4a017;font-size:16px;"></i>' +
+            '<span style="color:rgba(255,255,255,0.7);font-size:14px;font-weight:600;">Local PIN</span>' +
+          '</div>' +
+          // PIN input + unlock button
+          '<div style="display:flex;gap:8px;max-width:300px;margin:0 auto;">' +
+            '<input id="auth-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" ' +
+              'placeholder="Enter PIN" autocomplete="off" maxlength="8" ' +
+              'style="flex:1;padding:12px 16px;border-radius:8px;border:1px solid rgba(255,215,0,0.3);' +
+              'background:rgba(255,215,0,0.05);color:#ffd700;font-size:18px;font-weight:600;' +
+              'text-align:center;letter-spacing:6px;outline:none;font-family:\'Inter\',monospace;' +
+              'transition:border-color 0.2s;" />' +
+            '<button id="auth-pin-submit" type="button" style="' +
+              'padding:12px 20px;border-radius:8px;border:1px solid #d4a017;' +
+              'background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;' +
+              'font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;' +
+              'transition:opacity 0.2s;">' +
+              '<i class="fa-solid fa-unlock"></i>' +
+            '</button>' +
+          '</div>' +
+          // PIN error area
+          '<div id="auth-pin-error" style="display:none;margin-top:8px;' +
+            'color:#ff6b6b;font-size:12px;text-align:center;">' +
+          '</div>' +
+        '</div>' +
+        // Divider
+        '<div style="display:flex;align-items:center;gap:12px;margin:16px auto;max-width:300px;">' +
+          '<div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>' +
+          '<span style="color:rgba(255,255,255,0.3);font-size:12px;">or sign in with</span>' +
+          '<div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>' +
+        '</div>';
+    }
 
     // Google "G" SVG
     var googleSvg =
@@ -484,12 +898,16 @@ const Auth = {
     var contentHTML =
       '<div style="text-align:center;padding:8px 0;">' +
         // Shield icon + heading
-        '<div style="margin-bottom:24px;">' +
+        '<div style="margin-bottom:' + (isLocal ? '16px' : '24px') + ';">' +
           '<i class="fa-solid fa-shield-halved" style="font-size:36px;color:#d4a017;margin-bottom:12px;display:block;"></i>' +
           '<p style="margin:0;color:rgba(255,255,255,0.6);font-size:14px;line-height:1.5;">' +
-            'Sign in to request<br>dashboard access.' +
+            (isLocal
+              ? 'Enter your PIN or sign in<br>to access the dashboard.'
+              : 'Sign in to request<br>dashboard access.') +
           '</p>' +
         '</div>' +
+        // PIN section (LAN only)
+        pinSectionHTML +
         // Provider buttons container
         '<div style="display:flex;flex-direction:column;gap:12px;max-width:300px;margin:0 auto;">' +
           // Google
@@ -533,6 +951,62 @@ const Auth = {
 
     // Bind click handlers after modal renders
     setTimeout(function() {
+      // ── PIN handlers (LAN only) ──
+      if (isLocal) {
+        var pinInput = document.getElementById('auth-pin-input');
+        var pinSubmit = document.getElementById('auth-pin-submit');
+
+        if (pinInput && pinSubmit) {
+          // Focus the PIN input
+          pinInput.focus();
+
+          // Gold border on focus
+          pinInput.addEventListener('focus', function() {
+            this.style.borderColor = '#d4a017';
+          });
+          pinInput.addEventListener('blur', function() {
+            this.style.borderColor = 'rgba(255,215,0,0.3)';
+          });
+
+          // Submit on Enter key
+          pinInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              pinSubmit.click();
+            }
+          });
+
+          // Click handler for unlock button
+          pinSubmit.addEventListener('click', function() {
+            var pin = pinInput.value.trim();
+            if (!pin) {
+              Auth._showPinError('Enter your PIN');
+              pinInput.focus();
+              return;
+            }
+
+            // Disable while verifying
+            pinInput.disabled = true;
+            pinSubmit.disabled = true;
+            pinSubmit.style.opacity = '0.5';
+            Auth._hidePinError();
+
+            Auth.loginWithPin(pin).then(function(result) {
+              if (!result.success) {
+                pinInput.disabled = false;
+                pinSubmit.disabled = false;
+                pinSubmit.style.opacity = '1';
+                Auth._showPinError(result.message);
+                pinInput.value = '';
+                pinInput.focus();
+              }
+              // If success, modal closes automatically via loginWithPin
+            });
+          });
+        }
+      }
+
+      // ── Provider button handlers ──
       var buttons = document.querySelectorAll('.auth-provider-btn');
       buttons.forEach(function(btn) {
         // Hover effects
@@ -552,6 +1026,28 @@ const Auth = {
         });
       });
     }, 100);
+  },
+
+  /**
+   * Show an error message under the PIN input
+   * @param {string} message
+   * @private
+   */
+  _showPinError: function(message) {
+    var el = document.getElementById('auth-pin-error');
+    if (el) {
+      el.textContent = message;
+      el.style.display = 'block';
+    }
+  },
+
+  /**
+   * Hide the PIN error message
+   * @private
+   */
+  _hidePinError: function() {
+    var el = document.getElementById('auth-pin-error');
+    if (el) el.style.display = 'none';
   },
 
   /**
@@ -716,6 +1212,12 @@ const Auth = {
    * @private
    */
   _updateUI: function(user) {
+    // If PIN-authenticated, use the PIN-specific UI update
+    if (this._isPinAuth && this._authorized) {
+      this._updatePinUI('Admin (Local)');
+      return;
+    }
+
     // Update topbar user name
     var userNameEl = document.querySelector('.user-name');
     if (userNameEl) {

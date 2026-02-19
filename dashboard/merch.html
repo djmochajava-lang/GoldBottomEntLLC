@@ -70,7 +70,7 @@
           </div>
         </div>
         <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Connect your Shopify store for full ecommerce.</p>
-        <div class="form-group"><label class="form-label">API Key</label><input type="text" class="form-input" id="int-shopify-key" placeholder="shpat_xxxxxxxxxxxxx" /></div>
+        <div class="form-group"><label class="form-label">API Key</label><input type="password" class="form-input" id="int-shopify-key" placeholder="shpat_xxxxxxxxxxxxx" autocomplete="off" /></div>
         <button class="btn btn-secondary btn-sm" id="int-shopify-btn"><i class="fa-solid fa-link"></i> Connect</button>
       </div>
 
@@ -86,7 +86,7 @@
           </div>
         </div>
         <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Print-on-demand fulfillment. No inventory needed.</p>
-        <div class="form-group"><label class="form-label">API Key</label><input type="text" class="form-input" id="int-printful-key" placeholder="Printful API key" /></div>
+        <div class="form-group"><label class="form-label">API Key</label><input type="password" class="form-input" id="int-printful-key" placeholder="Printful API key" autocomplete="off" /></div>
         <button class="btn btn-secondary btn-sm" id="int-printful-btn"><i class="fa-solid fa-link"></i> Connect</button>
       </div>
 
@@ -102,7 +102,7 @@
           </div>
         </div>
         <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Accept payments at live events.</p>
-        <div class="form-group"><label class="form-label">Access Token</label><input type="text" class="form-input" id="int-square-key" placeholder="Square access token" /></div>
+        <div class="form-group"><label class="form-label">Access Token</label><input type="password" class="form-input" id="int-square-key" placeholder="Square access token" autocomplete="off" /></div>
         <button class="btn btn-secondary btn-sm" id="int-square-btn"><i class="fa-solid fa-link"></i> Connect</button>
       </div>
 
@@ -118,7 +118,7 @@
           </div>
         </div>
         <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Online payment processing.</p>
-        <div class="form-group"><label class="form-label">API Key</label><input type="text" class="form-input" id="int-stripe-key" placeholder="sk_live_xxxxxxxxxxxxx" /></div>
+        <div class="form-group"><label class="form-label">API Key</label><input type="password" class="form-input" id="int-stripe-key" placeholder="sk_live_xxxxxxxxxxxxx" autocomplete="off" /></div>
         <button class="btn btn-secondary btn-sm" id="int-stripe-btn"><i class="fa-solid fa-link"></i> Connect</button>
       </div>
 
@@ -134,7 +134,7 @@
           </div>
         </div>
         <p class="text-muted" style="font-size:var(--text-sm);margin-bottom:var(--space-md);">Alternative payment processing.</p>
-        <div class="form-group"><label class="form-label">Client ID</label><input type="text" class="form-input" id="int-paypal-key" placeholder="PayPal client ID" /></div>
+        <div class="form-group"><label class="form-label">Client ID</label><input type="password" class="form-input" id="int-paypal-key" placeholder="PayPal client ID" autocomplete="off" /></div>
         <button class="btn btn-secondary btn-sm" id="int-paypal-btn"><i class="fa-solid fa-link"></i> Connect</button>
       </div>
 
@@ -145,6 +145,20 @@
 <script>
 (function(){
   if(typeof DataStore==='undefined')return;
+
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  /* Hide Add Product button when not local */
+  if(!isLocal){
+    var addProductBtn=document.getElementById('add-product-btn');
+    if(addProductBtn) addProductBtn.style.display='none';
+  }
+
+  /* Hide Ecommerce Integrations section (contains API key inputs) when not local */
+  if(!isLocal){
+    var integrationsEl=document.getElementById('merch-integrations');
+    if(integrationsEl && integrationsEl.parentElement) integrationsEl.parentElement.style.display='none';
+  }
 
   var CATEGORY_ICONS={apparel:'fa-shirt',music:'fa-compact-disc',accessories:'fa-gem',prints:'fa-image',digital:'fa-file-arrow-down',other:'fa-box'};
   var CATEGORY_COLORS={apparel:'#d4a017',music:'#bc8cff',accessories:'#58a6ff',prints:'#3fb950',digital:'#f0883e',other:'#8b949e'};
@@ -159,9 +173,19 @@
     var pendingOrders=orders.filter(function(o){return o.status==='pending';}).length;
 
     document.getElementById('merch-stat-products').textContent=products.length;
-    document.getElementById('merch-stat-sales').textContent=(typeof Utils!=='undefined')?Utils.formatCurrency(totalSales):'$'+totalSales.toFixed(2);
+    if(isLocal){
+      document.getElementById('merch-stat-sales').textContent=(typeof Utils!=='undefined')?Utils.formatCurrency(totalSales):'$'+totalSales.toFixed(2);
+    } else {
+      var salesCard=document.getElementById('merch-stat-sales');
+      if(salesCard && salesCard.closest('.glass-card')) salesCard.closest('.glass-card').style.display='none';
+    }
     document.getElementById('merch-stat-active').textContent=activeCount;
-    document.getElementById('merch-stat-pending').textContent=pendingOrders;
+    if(isLocal){
+      document.getElementById('merch-stat-pending').textContent=pendingOrders;
+    } else {
+      var pendingCard=document.getElementById('merch-stat-pending');
+      if(pendingCard && pendingCard.closest('.glass-card')) pendingCard.closest('.glass-card').style.display='none';
+    }
   }
 
   // --- Render Products ---

@@ -75,22 +75,22 @@
           </button>
         </div>
       </div>
-
-      <!-- Mobile Nav Overlay -->
-      <div class="mobile-nav-overlay" id="mobile-nav-overlay">
-        <nav class="mobile-nav" role="navigation" aria-label="Mobile navigation">
-          <a href="#home" class="mobile-nav-link" data-page="home"><i class="fa-solid fa-house"></i> Home</a>
-          <a href="#roster" class="mobile-nav-link" data-page="roster"><i class="fa-solid fa-users"></i> Roster</a>
-          <a href="#services" class="mobile-nav-link" data-page="services"><i class="fa-solid fa-briefcase"></i> Services</a>
-          <a href="#shop" class="mobile-nav-link" data-page="shop"><i class="fa-solid fa-bag-shopping"></i> Shop</a>
-          <a href="#about" class="mobile-nav-link" data-page="about"><i class="fa-solid fa-info-circle"></i> About</a>
-          <a href="#contact" class="mobile-nav-link" data-page="contact"><i class="fa-solid fa-envelope"></i> Contact</a>
-          <a href="#legal" class="mobile-nav-link" data-page="legal"><i class="fa-solid fa-scale-balanced"></i> Legal</a>
-          <div class="mobile-nav-divider"></div>
-          <a href="#dashboard-home" class="mobile-nav-link mobile-nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
-        </nav>
-      </div>
     </header>
+
+    <!-- Mobile Nav Overlay (outside header to avoid iOS backdrop-filter clipping) -->
+    <div class="mobile-nav-overlay" id="mobile-nav-overlay">
+      <nav class="mobile-nav" role="navigation" aria-label="Mobile navigation">
+        <a href="#home" class="mobile-nav-link" data-page="home"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="#roster" class="mobile-nav-link" data-page="roster"><i class="fa-solid fa-users"></i> Roster</a>
+        <a href="#services" class="mobile-nav-link" data-page="services"><i class="fa-solid fa-briefcase"></i> Services</a>
+        <a href="#shop" class="mobile-nav-link" data-page="shop"><i class="fa-solid fa-bag-shopping"></i> Shop</a>
+        <a href="#about" class="mobile-nav-link" data-page="about"><i class="fa-solid fa-info-circle"></i> About</a>
+        <a href="#contact" class="mobile-nav-link" data-page="contact"><i class="fa-solid fa-envelope"></i> Contact</a>
+        <a href="#legal" class="mobile-nav-link" data-page="legal"><i class="fa-solid fa-scale-balanced"></i> Legal</a>
+        <div class="mobile-nav-divider"></div>
+        <a href="#dashboard-home" class="mobile-nav-link mobile-nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+      </nav>
+    </div>
 
     <!-- Public Content Container -->
     <main id="public-content" class="public-main" role="main">
@@ -166,18 +166,6 @@
         </div>
 
         <div class="sidebar-nav-group">
-          <span class="sidebar-nav-label">Revenue</span>
-          <a href="#dashboard-finances" class="sidebar-nav-item" data-page="dashboard-finances">
-            <i class="fa-solid fa-chart-line"></i>
-            <span class="sidebar-nav-text">Finances</span>
-          </a>
-          <a href="#dashboard-merch" class="sidebar-nav-item" data-page="dashboard-merch">
-            <i class="fa-solid fa-bag-shopping"></i>
-            <span class="sidebar-nav-text">Merch</span>
-          </a>
-        </div>
-
-        <div class="sidebar-nav-group">
           <span class="sidebar-nav-label">Creative</span>
           <a href="#dashboard-ip" class="sidebar-nav-item" data-page="dashboard-ip">
             <i class="fa-solid fa-copyright"></i>
@@ -187,6 +175,10 @@
             <i class="fa-solid fa-tower-broadcast"></i>
             <span class="sidebar-nav-text">Distribution</span>
           </a>
+          <a href="#dashboard-merch" class="sidebar-nav-item" data-page="dashboard-merch">
+            <i class="fa-solid fa-bag-shopping"></i>
+            <span class="sidebar-nav-text">Merch</span>
+          </a>
         </div>
 
         <div class="sidebar-nav-group">
@@ -194,23 +186,6 @@
           <a href="#dashboard-travel" class="sidebar-nav-item" data-page="dashboard-travel">
             <i class="fa-solid fa-plane"></i>
             <span class="sidebar-nav-text">Travel</span>
-          </a>
-          <a href="#dashboard-documents" class="sidebar-nav-item" data-page="dashboard-documents">
-            <i class="fa-solid fa-folder-open"></i>
-            <span class="sidebar-nav-text">Documents</span>
-          </a>
-          <a href="#dashboard-integrations" class="sidebar-nav-item" data-page="dashboard-integrations">
-            <i class="fa-solid fa-plug"></i>
-            <span class="sidebar-nav-text">Integrations</span>
-          </a>
-          <a href="#dashboard-settings" class="sidebar-nav-item" data-page="dashboard-settings">
-            <i class="fa-solid fa-gear"></i>
-            <span class="sidebar-nav-text">Settings</span>
-          </a>
-          <a href="#dashboard-team" class="sidebar-nav-item" data-page="dashboard-team"
-             id="sidebar-team-link" style="display:none;">
-            <i class="fa-solid fa-user-shield"></i>
-            <span class="sidebar-nav-text">Team</span>
           </a>
         </div>
       </nav>
@@ -240,6 +215,9 @@
         <div class="topbar-breadcrumb" id="topbar-breadcrumb">
           <span class="breadcrumb-label">Dashboard</span>
         </div>
+        <span class="remote-badge" style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;background:rgba(88,166,255,0.12);color:#58a6ff;font-size:11px;font-weight:600;margin-left:8px;white-space:nowrap;">
+          <i class="fa-solid fa-globe" style="font-size:10px;"></i> Remote View
+        </span>
         <div class="topbar-actions">
           <button class="topbar-btn" title="Notifications">
             <i class="fa-solid fa-bell"></i>

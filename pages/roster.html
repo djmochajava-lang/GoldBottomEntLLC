@@ -39,7 +39,8 @@
   var grid = document.getElementById('roster-grid');
   if (!grid || typeof DataStore === 'undefined') return;
 
-  var roster = DataStore.getRoster();
+  // Public page: only show active talent (no prospects, no placeholders)
+  var roster = DataStore.getActiveRoster();
 
   var categoryIcons = {
     artist: 'fa-microphone-lines',

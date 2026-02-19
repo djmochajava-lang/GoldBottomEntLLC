@@ -34,6 +34,18 @@ const Router = {
     'dashboard-team': 'dashboard/team.html',
   },
 
+  /**
+   * Routes only available on the local (LAN) dashboard.
+   * On remote (GitHub Pages), these routes are blocked and redirect to dashboard-home.
+   */
+  localOnlyRoutes: [
+    'dashboard-finances',
+    'dashboard-documents',
+    'dashboard-integrations',
+    'dashboard-settings',
+    'dashboard-team',
+  ],
+
   currentPage: null,
   currentLayout: null,
   defaultPage: 'home',
@@ -94,9 +106,9 @@ const Router = {
     }
 
     // Auth guard — block unauthenticated dashboard access
-    if (typeof Auth !== 'undefined' && Auth.initialized) {
+    if (typeof Auth !== 'undefined') {
       if (!Auth.guardRoute(pageName)) {
-        return; // Blocked — login modal shown by Auth
+        return; // Blocked — login modal shown, or auth still initializing
       }
 
       // Admin guard — block non-admin access to admin-only routes
@@ -104,6 +116,15 @@ const Router = {
         if (typeof Toast !== 'undefined') {
           Toast.error('Access denied. Admin privileges required.');
         }
+        return;
+      }
+
+      // Environment guard — block local-only routes on remote dashboard
+      if (this.localOnlyRoutes.includes(pageName) && !Auth.isLocalDashboard()) {
+        if (typeof Toast !== 'undefined') {
+          Toast.error('This section is only available on the local dashboard.');
+        }
+        this.navigateTo('dashboard-home');
         return;
       }
     }

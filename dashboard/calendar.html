@@ -76,6 +76,14 @@
 (function(){
   if(typeof DataStore==='undefined')return;
 
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  /* Hide Add Event button when not local */
+  if(!isLocal){
+    var addEventBtn=document.getElementById('add-event-btn');
+    if(addEventBtn) addEventBtn.style.display='none';
+  }
+
   var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   var TYPE_COLORS={gig:'#d4a017',meeting:'#58a6ff',studio:'#bc8cff',deadline:'#f85149',travel:'#3fb950'};
   var TYPE_BADGES={gig:'badge-gold',meeting:'badge-info',studio:'badge',deadline:'badge-danger',travel:'badge-success'};
@@ -232,10 +240,13 @@
       html+=' <span class="badge '+badgeClass+'" style="margin-left:var(--space-xs);">'+(ev.type||'event')+'</span>';
       if(ev.venue) html+='<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;"><i class="fa-solid fa-location-dot"></i> '+ev.venue+'</div>';
       html+='</div>';
-      html+='<div class="data-table-actions">';
-      html+='<button class="btn btn-ghost btn-sm" onclick="calEditEvent(\''+ev.id+'\')"><i class="fa-solid fa-pen"></i></button>';
-      html+='<button class="btn btn-ghost btn-sm text-danger" onclick="calDeleteEvent(\''+ev.id+'\')"><i class="fa-solid fa-trash"></i></button>';
-      html+='</div></div>';
+      if(isLocal){
+        html+='<div class="data-table-actions">';
+        html+='<button class="btn btn-ghost btn-sm" onclick="calEditEvent(\''+ev.id+'\')"><i class="fa-solid fa-pen"></i></button>';
+        html+='<button class="btn btn-ghost btn-sm text-danger" onclick="calDeleteEvent(\''+ev.id+'\')"><i class="fa-solid fa-trash"></i></button>';
+        html+='</div>';
+      }
+      html+='</div>';
     });
     listEl.innerHTML=html;
   }
@@ -269,10 +280,13 @@
       html+='<span class="badge '+badgeClass+'">'+(ev.type||'event')+'</span>';
       if(ev.venue) html+='<span style="font-size:11px;color:var(--color-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+ev.venue+'</span>';
       html+='</div></div>';
-      html+='<div class="data-table-actions" style="flex-shrink:0;">';
-      html+='<button class="btn btn-ghost btn-sm" onclick="calEditEvent(\''+ev.id+'\')"><i class="fa-solid fa-pen"></i></button>';
-      html+='<button class="btn btn-ghost btn-sm text-danger" onclick="calDeleteEvent(\''+ev.id+'\')"><i class="fa-solid fa-trash"></i></button>';
-      html+='</div></div></div>';
+      if(isLocal){
+        html+='<div class="data-table-actions" style="flex-shrink:0;">';
+        html+='<button class="btn btn-ghost btn-sm" onclick="calEditEvent(\''+ev.id+'\')"><i class="fa-solid fa-pen"></i></button>';
+        html+='<button class="btn btn-ghost btn-sm text-danger" onclick="calDeleteEvent(\''+ev.id+'\')"><i class="fa-solid fa-trash"></i></button>';
+        html+='</div>';
+      }
+      html+='</div></div>';
     });
     listEl.innerHTML=html;
   }

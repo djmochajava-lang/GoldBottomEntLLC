@@ -167,6 +167,8 @@
 (function(){
   if(typeof DataStore==='undefined')return;
 
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
   var stages=[
     {key:'lead',        label:'New Lead',    icon:'fa-bullseye',         color:'#d4a017'},
     {key:'qualified',   label:'Qualified',   icon:'fa-clipboard-check',  color:'#d29922'},
@@ -218,14 +220,15 @@
     var conversion=total>0?Math.round((wonThisYear/total)*100):0;
 
     var statCards=[
-      {label:'Total Bookings', value:total,                              icon:'fa-layer-group', color:'#d4a017'},
-      {label:'Pipeline Value',  value:'$'+pipelineValue.toLocaleString(), icon:'fa-sack-dollar', color:'#3fb950'},
-      {label:'Won This Year',   value:wonThisYear,                        icon:'fa-trophy',      color:'#58a6ff'},
-      {label:'Conversion Rate', value:conversion+'%',                     icon:'fa-chart-pie',   color:'#a371f7'}
+      {label:'Total Bookings', value:total,                              icon:'fa-layer-group', color:'#d4a017', sensitive:false},
+      {label:'Pipeline Value',  value:'$'+pipelineValue.toLocaleString(), icon:'fa-sack-dollar', color:'#3fb950', sensitive:true},
+      {label:'Won This Year',   value:wonThisYear,                        icon:'fa-trophy',      color:'#58a6ff', sensitive:false},
+      {label:'Conversion Rate', value:conversion+'%',                     icon:'fa-chart-pie',   color:'#a371f7', sensitive:false}
     ];
 
     var html='';
     statCards.forEach(function(c){
+      if(c.sensitive && !isLocal) return;
       html+='<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md) var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);flex:1;min-width:180px;">'+
         '<div style="width:42px;height:42px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;background:rgba('+hexToRGB(c.color)+',0.15);color:'+c.color+';">'+
           '<i class="fa-solid '+c.icon+'"></i>'+
@@ -276,7 +279,7 @@
         html+='<div><i class="fa-solid fa-location-dot"></i> '+Utils.escapeHtml(b.venue||'TBD')+'</div>';
         html+='<div><i class="fa-solid fa-calendar"></i> '+(b.date?Utils.formatDate(b.date):'TBD')+'</div>';
         html+='<div><i class="fa-solid fa-microphone"></i> '+Utils.escapeHtml(b.artist||'TBD')+'</div>';
-        html+='<div><i class="fa-solid fa-dollar-sign"></i> $'+(b.value||0)+' &middot; Deposit: $'+(b.deposit||0)+'</div>';
+        if(isLocal) html+='<div><i class="fa-solid fa-dollar-sign"></i> $'+(b.value||0)+' &middot; Deposit: $'+(b.deposit||0)+'</div>';
         html+='</div>';
         html+=typeBadge;
         html+='<div style="margin-top:var(--space-xs);display:flex;gap:var(--space-xs);">';
@@ -449,6 +452,12 @@
     d.rebook=!!f.querySelector('[name="rebook"]').checked;
 
     return d;
+  }
+
+  /* ---- Hide Add Booking button when not local ---- */
+  if(!isLocal){
+    var addBookingBtn=document.getElementById('add-booking-btn');
+    if(addBookingBtn) addBookingBtn.style.display='none';
   }
 
   /* ---- Add Booking ---- */

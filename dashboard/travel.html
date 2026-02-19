@@ -38,13 +38,29 @@
 (function(){
   if(typeof DataStore==='undefined')return;
 
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  /* Hide Add Trip button when not local */
+  if(!isLocal){
+    var addTripBtn=document.getElementById('add-trip-btn');
+    if(addTripBtn) addTripBtn.style.display='none';
+  }
+
   function renderTable(){
     var c=document.getElementById('travel-table-container');
     var data=DataStore.getTravel();
     if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-plane"></i></div><h3 class="empty-state-title">No trips yet</h3><p class="empty-state-text">Add your first trip to start planning.</p></div>';return;}
-    var html='<table class="data-table"><thead><tr><th>Trip</th><th>Date</th><th>City</th><th>Venue</th><th>Hotel</th><th>Budget</th><th>Actions</th></tr></thead><tbody>';
+    var thHeaders=['Trip','Date','City','Venue','Hotel'];
+    if(isLocal) thHeaders.push('Budget');
+    if(isLocal) thHeaders.push('Actions');
+    var html='<table class="data-table"><thead><tr>';
+    thHeaders.forEach(function(h){html+='<th>'+h+'</th>';});
+    html+='</tr></thead><tbody>';
     data.forEach(function(t){
-      html+='<tr><td data-label="Trip"><strong>'+t.name+'</strong></td><td data-label="Date">'+t.date+'</td><td data-label="City">'+t.city+'</td><td data-label="Venue">'+(t.venue||'—')+'</td><td data-label="Hotel">'+(t.hotel||'TBD')+'</td><td data-label="Budget">$'+(t.totalBudget||0)+'</td><td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editTrip(\''+t.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteTrip(\''+t.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+      html+='<tr><td data-label="Trip"><strong>'+t.name+'</strong></td><td data-label="Date">'+t.date+'</td><td data-label="City">'+t.city+'</td><td data-label="Venue">'+(t.venue||'—')+'</td><td data-label="Hotel">'+(t.hotel||'TBD')+'</td>'+
+        (isLocal?'<td data-label="Budget">$'+(t.totalBudget||0)+'</td>':'')+
+        (isLocal?'<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editTrip(\''+t.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteTrip(\''+t.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td>':'')+
+        '</tr>';
     });
     html+='</tbody></table>';c.innerHTML=html;
   }
