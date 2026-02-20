@@ -1,4 +1,4 @@
-<!-- pages/home.html — Gold Bottom Ent. LLC Home Page -->
+<!-- pages/home.html — Root Landing Page (Vertical Selector) -->
 
 <section class="page-section" id="page-home">
 
@@ -10,33 +10,22 @@
     <div class="hero-orb hero-orb-3"></div>
     <div class="hero-content">
       <div class="hero-badge"><i class="fa-solid fa-gem"></i> Gold Bottom Ent. LLC</div>
-      <h1 class="hero-title">Elevating Talent.<br>Building Brands.<br>Creating Legacy.</h1>
+      <h1 class="hero-title">Two Brands.<br>One Vision.</h1>
       <p class="hero-subtitle">
-        Where <strong>Entertainment</strong> meets <strong>Enterprise</strong> &mdash;
-        full-service talent management, creative services, and technology solutions under one roof.
+        <strong>"Ent"</strong> stands for <strong>Entertainment</strong> and <strong>Enterprise</strong> &mdash;
+        because great talent and great technology share the same foundation: <em>excellence</em>.
       </p>
-      <div class="hero-cta-row">
-        <a href="#roster" class="btn btn-primary btn-lg">
-          <i class="fa-solid fa-users"></i> Our Roster
-        </a>
-        <a href="#contact" class="btn btn-secondary btn-lg">
-          <i class="fa-solid fa-envelope"></i> Get In Touch
-        </a>
-      </div>
     </div>
   </div>
 
-  <!-- Two Verticals -->
+  <!-- Vertical Selector Cards -->
   <div class="container">
-    <h2 class="section-heading text-center">Two Brands. One Vision.</h2>
-    <p class="section-subheading text-center">
-      "Ent" stands for <strong>Entertainment</strong> and <strong>Enterprise</strong> &mdash;
-      because great talent and great technology share the same foundation: excellence.
-    </p>
+    <h2 class="section-heading text-center">Choose Your Experience</h2>
+    <p class="section-subheading text-center">Select the side of Gold Bottom Ent that fits your needs.</p>
 
-    <div class="grid grid-2 vertical-cards">
-      <!-- Entertainment Vertical -->
-      <div class="glass-card vertical-card">
+    <div class="grid grid-2 vertical-selector">
+      <!-- Entertainment Card -->
+      <a href="#ent-home" class="vertical-selector-card ent-card glass-card">
         <div class="vertical-icon entertainment-icon">
           <i class="fa-solid fa-music"></i>
         </div>
@@ -52,15 +41,17 @@
           <li><i class="fa-solid fa-check"></i> Brand Development & PR</li>
           <li><i class="fa-solid fa-check"></i> Merch & Ecommerce</li>
         </ul>
-        <a href="#services" class="btn btn-secondary">Learn More <i class="fa-solid fa-arrow-right"></i></a>
-      </div>
+        <span class="btn btn-primary" style="pointer-events:none;">
+          <i class="fa-solid fa-arrow-right"></i> Enter Entertainment
+        </span>
+      </a>
 
-      <!-- Enterprise Vertical -->
-      <div class="glass-card vertical-card">
+      <!-- Enterprise Card -->
+      <a href="#biz-home" class="vertical-selector-card biz-card glass-card">
         <div class="vertical-icon enterprise-icon">
-          <i class="fa-solid fa-code"></i>
+          <i class="fa-solid fa-laptop-code"></i>
         </div>
-        <h3>Gold Bottom <span class="text-gold">Enterprise</span></h3>
+        <h3>Gold Bottom <span class="text-info">Enterprise</span></h3>
         <p>
           Web development, application design, technology consulting, and digital solutions
           for businesses, entrepreneurs, and organizations.
@@ -72,57 +63,10 @@
           <li><i class="fa-solid fa-check"></i> Digital Strategy & SEO</li>
           <li><i class="fa-solid fa-check"></i> Ongoing Maintenance & Support</li>
         </ul>
-        <a href="#services" class="btn btn-secondary">Learn More <i class="fa-solid fa-arrow-right"></i></a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Featured Talent -->
-  <div class="container">
-    <h2 class="section-heading text-center">Featured Talent</h2>
-    <p class="section-subheading text-center">Meet the artists and professionals on our roster.</p>
-
-    <div class="grid grid-3 talent-preview-grid">
-      <!-- L.A. Young -->
-      <div class="glass-card talent-preview-card">
-        <div class="talent-preview-avatar">
-          <i class="fa-solid fa-microphone-lines"></i>
-        </div>
-        <h4>L.A. Young</h4>
-        <div class="talent-preview-badges">
-          <span class="badge badge-gold">Soul</span>
-          <span class="badge badge-gold">Jazz</span>
-          <span class="badge badge-gold">R&B</span>
-        </div>
-        <p class="text-muted">#1 UK FM Radio &bull; Maryland Artist of Year 2018</p>
-        <a href="#roster" class="btn btn-ghost btn-sm">View Profile</a>
-      </div>
-
-      <!-- Placeholder 2 -->
-      <div class="glass-card talent-preview-card talent-placeholder">
-        <div class="talent-preview-avatar">
-          <i class="fa-solid fa-user-plus"></i>
-        </div>
-        <h4>Your Next Artist</h4>
-        <div class="talent-preview-badges">
-          <span class="badge badge-gray">Coming Soon</span>
-        </div>
-        <p class="text-muted">We're always looking for exceptional talent.</p>
-        <a href="#contact" class="btn btn-ghost btn-sm">Submit Talent</a>
-      </div>
-
-      <!-- Placeholder 3 -->
-      <div class="glass-card talent-preview-card talent-placeholder">
-        <div class="talent-preview-avatar">
-          <i class="fa-solid fa-laptop-code"></i>
-        </div>
-        <h4>Dev Team</h4>
-        <div class="talent-preview-badges">
-          <span class="badge badge-blue">Enterprise</span>
-        </div>
-        <p class="text-muted">Full-stack development and digital solutions.</p>
-        <a href="#services" class="btn btn-ghost btn-sm">Our Services</a>
-      </div>
+        <span class="btn btn-primary" style="pointer-events:none;">
+          <i class="fa-solid fa-arrow-right"></i> Enter Enterprise
+        </span>
+      </a>
     </div>
   </div>
 
@@ -135,35 +79,36 @@
           <span class="stat-label">Years in Entertainment</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">5</span>
-          <span class="stat-label">Top-5 UK Hits</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">#1</span>
-          <span class="stat-label">UK FM Radio</span>
+          <span class="stat-value">10+</span>
+          <span class="stat-label">Years in Tech</span>
         </div>
         <div class="stat-item">
           <span class="stat-value">2</span>
           <span class="stat-label">Business Verticals</span>
         </div>
+        <div class="stat-item">
+          <span class="stat-value">1</span>
+          <span class="stat-label">Standard: Excellence</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- CTA -->
+  <!-- Brief About -->
   <div class="container text-center">
     <div class="glass-card cta-card">
-      <h2>Ready to Work Together?</h2>
+      <h2>Why Gold Bottom Ent?</h2>
       <p class="text-muted">
-        Whether you're an artist looking for management, a venue seeking talent,
-        or a business needing digital solutions &mdash; let's connect.
+        Founded by entrepreneurs with deep roots in both music and technology, Gold Bottom Ent LLC
+        serves two distinct markets with the same commitment to excellence. Whether you're an artist
+        building a career or a business building a product &mdash; we're your team.
       </p>
       <div class="hero-cta-row" style="justify-content: center;">
-        <a href="#contact" class="btn btn-primary btn-lg">
-          <i class="fa-solid fa-envelope"></i> Contact Us
+        <a href="#ent-home" class="btn btn-primary btn-lg">
+          <i class="fa-solid fa-music"></i> Entertainment
         </a>
-        <a href="#about" class="btn btn-secondary btn-lg">
-          <i class="fa-solid fa-info-circle"></i> About GBE
+        <a href="#biz-home" class="btn btn-secondary btn-lg">
+          <i class="fa-solid fa-laptop-code"></i> Enterprise
         </a>
       </div>
     </div>

@@ -120,6 +120,36 @@
   --header-height:     64px;
   --max-width:         1200px;
   --max-width-narrow:  800px;
+
+  /* --- Accent Aliases (default: gold, overridden by .ent-theme / .biz-theme) --- */
+  --color-accent:        var(--color-gold);
+  --color-accent-dark:   var(--color-gold-dark);
+  --color-accent-light:  var(--color-gold-light);
+  --color-accent-muted:  var(--color-gold-muted);
+  --color-accent-border: var(--color-gold-border);
+  --shadow-accent:       var(--shadow-gold);
+}
+
+/* ---------- Vertical Theme Overrides ---------- */
+
+/* Entertainment — warm gold (formalizes the default) */
+body.ent-theme {
+  --color-accent:        var(--color-gold);
+  --color-accent-dark:   var(--color-gold-dark);
+  --color-accent-light:  var(--color-gold-light);
+  --color-accent-muted:  var(--color-gold-muted);
+  --color-accent-border: var(--color-gold-border);
+  --shadow-accent:       var(--shadow-gold);
+}
+
+/* Enterprise — cool blue (professional/tech) */
+body.biz-theme {
+  --color-accent:        #58a6ff;
+  --color-accent-dark:   #388bfd;
+  --color-accent-light:  #79c0ff;
+  --color-accent-muted:  rgba(88, 166, 255, 0.15);
+  --color-accent-border: rgba(88, 166, 255, 0.12);
+  --shadow-accent:       0 0 20px rgba(56, 139, 253, 0.18);
 }
 
 

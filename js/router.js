@@ -1,23 +1,39 @@
 // js/router.js
 
 /**
- * Router Module — Dual-Layout SPA
- * Hash-based routing with automatic layout switching.
- * Routes prefixed with 'dashboard-' use the dashboard layout.
- * All other routes use the public layout.
+ * Router Module — Dual-Layout SPA with Vertical Sub-Sites
+ * Hash-based routing with automatic layout switching and theme management.
+ *
+ * Route prefixes:
+ *   - 'ent-'       → Entertainment sub-site (gold theme)
+ *   - 'biz-'       → Enterprise sub-site (blue theme)
+ *   - 'dashboard-' → Dashboard layout (no theme override)
+ *   - (none)       → Root/shared pages (neutral theme)
  */
 
 const Router = {
   routes: {
-    // Public pages
+    // Root / Shared pages
     'home': 'pages/home.html',
-    'roster': 'pages/roster.html',
-    'services': 'pages/services.html',
-    'shop': 'pages/shop.html',
-    'about': 'pages/about.html',
-    'contact': 'pages/contact.html',
     'legal': 'pages/legal.html',
-    // Dashboard pages
+
+    // Entertainment pages (ent-* prefix)
+    'ent-home': 'pages/entertainment/home.html',
+    'ent-roster': 'pages/entertainment/roster.html',
+    'ent-services': 'pages/entertainment/services.html',
+    'ent-shop': 'pages/entertainment/shop.html',
+    'ent-events': 'pages/entertainment/events.html',
+    'ent-about': 'pages/entertainment/about.html',
+    'ent-contact': 'pages/entertainment/contact.html',
+
+    // Enterprise pages (biz-* prefix)
+    'biz-home': 'pages/enterprise/home.html',
+    'biz-services': 'pages/enterprise/services.html',
+    'biz-portfolio': 'pages/enterprise/portfolio.html',
+    'biz-about': 'pages/enterprise/about.html',
+    'biz-contact': 'pages/enterprise/contact.html',
+
+    // Dashboard pages (unchanged)
     'dashboard-home': 'dashboard/home.html',
     'dashboard-roster': 'dashboard/roster.html',
     'dashboard-contracts': 'dashboard/contracts.html',
@@ -35,6 +51,17 @@ const Router = {
   },
 
   /**
+   * Legacy route redirects (pre-split URLs → new prefixed routes)
+   */
+  legacyRedirects: {
+    'roster': 'ent-roster',
+    'shop': 'ent-shop',
+    'services': 'home',
+    'about': 'home',
+    'contact': 'home',
+  },
+
+  /**
    * Routes only available on the local (LAN) dashboard.
    * On remote (GitHub Pages), these routes are blocked and redirect to dashboard-home.
    */
@@ -48,6 +75,7 @@ const Router = {
 
   currentPage: null,
   currentLayout: null,
+  currentVertical: null,
   defaultPage: 'home',
 
   initialized: false,
@@ -61,7 +89,7 @@ const Router = {
     this.handleInitialRoute();
     this.handleBrowserNavigation();
     this.initialized = true;
-    console.log('✅ Router initialized (dual-layout)');
+    console.log('✅ Router initialized (dual-layout + vertical sub-sites)');
   },
 
   /**
@@ -69,6 +97,16 @@ const Router = {
    */
   isDashboardRoute(pageName) {
     return pageName.startsWith('dashboard-');
+  },
+
+  /**
+   * Detect vertical context from route name
+   * @returns {'ent' | 'biz' | 'neutral'}
+   */
+  getVerticalForPage(pageName) {
+    if (pageName.startsWith('ent-')) return 'ent';
+    if (pageName.startsWith('biz-')) return 'biz';
+    return 'neutral';
   },
 
   /**
@@ -99,6 +137,11 @@ const Router = {
    * Navigate to a page
    */
   async navigateTo(pageName, forceLoad = false) {
+    // Legacy route redirects (pre-split URLs)
+    if (this.legacyRedirects[pageName]) {
+      pageName = this.legacyRedirects[pageName];
+    }
+
     // Validate route
     if (!this.routes[pageName]) {
       console.warn(`Route "${pageName}" not found, loading default`);
@@ -140,6 +183,9 @@ const Router = {
       this.switchLayout(targetLayout);
     }
 
+    // Update vertical theme and nav visibility
+    this.updateTheme(pageName);
+
     // Close mobile menus
     this.closeMobileMenus();
 
@@ -162,6 +208,46 @@ const Router = {
     if (typeof Analytics !== 'undefined') {
       Analytics.trackPageView(`/#${pageName}`);
     }
+  },
+
+  /**
+   * Update body theme class and nav visibility based on vertical context
+   */
+  updateTheme(pageName) {
+    const vertical = this.getVerticalForPage(pageName);
+
+    // Skip theme changes for dashboard routes
+    if (this.isDashboardRoute(pageName)) return;
+
+    // Remove all theme classes
+    document.body.classList.remove('ent-theme', 'biz-theme');
+
+    // Apply vertical-specific theme
+    if (vertical === 'ent') {
+      document.body.classList.add('ent-theme');
+    } else if (vertical === 'biz') {
+      document.body.classList.add('biz-theme');
+    }
+
+    // Update nav visibility (desktop)
+    var entNav = document.getElementById('ent-nav');
+    var bizNav = document.getElementById('biz-nav');
+    var rootNav = document.getElementById('root-nav');
+
+    if (entNav) entNav.style.display = vertical === 'ent' ? '' : 'none';
+    if (bizNav) bizNav.style.display = vertical === 'biz' ? '' : 'none';
+    if (rootNav) rootNav.style.display = vertical === 'neutral' ? '' : 'none';
+
+    // Update mobile nav visibility
+    var entMobileNav = document.getElementById('ent-nav-mobile');
+    var bizMobileNav = document.getElementById('biz-nav-mobile');
+    var rootMobileNav = document.getElementById('root-nav-mobile');
+
+    if (entMobileNav) entMobileNav.style.display = vertical === 'ent' ? '' : 'none';
+    if (bizMobileNav) bizMobileNav.style.display = vertical === 'biz' ? '' : 'none';
+    if (rootMobileNav) rootMobileNav.style.display = vertical === 'neutral' ? '' : 'none';
+
+    this.currentVertical = vertical;
   },
 
   /**
@@ -206,7 +292,13 @@ const Router = {
    * Handle initial page load from URL hash
    */
   handleInitialRoute() {
-    const hash = window.location.hash.substring(1);
+    let hash = window.location.hash.substring(1);
+
+    // Apply legacy redirects to initial route too
+    if (this.legacyRedirects[hash]) {
+      hash = this.legacyRedirects[hash];
+    }
+
     const initialPage = hash && this.routes[hash] ? hash : this.defaultPage;
 
     // Small delay to ensure DOM is ready
@@ -220,7 +312,13 @@ const Router = {
    */
   handleBrowserNavigation() {
     window.addEventListener('popstate', () => {
-      const hash = window.location.hash.substring(1);
+      let hash = window.location.hash.substring(1);
+
+      // Apply legacy redirects
+      if (this.legacyRedirects[hash]) {
+        hash = this.legacyRedirects[hash];
+      }
+
       const pageName = hash && this.routes[hash] ? hash : this.defaultPage;
       this.navigateTo(pageName, true);
     });
@@ -240,7 +338,7 @@ const Router = {
    * Update active state on nav links
    */
   updateActiveNav(pageName) {
-    // Public nav
+    // Public nav (all three vertical navs use .nav-link)
     document.querySelectorAll('.nav-link, .mobile-nav-link').forEach((link) => {
       const linkPage = link.getAttribute('data-page');
       link.classList.toggle('active', linkPage === pageName);
@@ -305,6 +403,13 @@ const Router = {
    */
   getCurrentPage() {
     return this.currentPage;
+  },
+
+  /**
+   * Get current vertical ('ent', 'biz', or 'neutral')
+   */
+  getCurrentVertical() {
+    return this.currentVertical;
   },
 
   /**

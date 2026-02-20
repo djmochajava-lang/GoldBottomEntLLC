@@ -1,0 +1,138 @@
+<!-- pages/enterprise/portfolio.html — Enterprise Portfolio / Case Studies -->
+
+<section class="page-section" id="page-biz-portfolio">
+  <div class="container">
+    <h1 class="page-title">Our Work</h1>
+    <p class="page-subtitle">Selected projects and case studies showcasing our technical expertise.</p>
+
+    <!-- Filter Tabs -->
+    <div class="tabs portfolio-filters">
+      <button class="tab active" data-filter="all">All</button>
+      <button class="tab" data-filter="web">Web</button>
+      <button class="tab" data-filter="app">Applications</button>
+      <button class="tab" data-filter="consulting">Consulting</button>
+    </div>
+
+    <!-- Portfolio Grid -->
+    <div class="grid grid-2" id="biz-portfolio-grid">
+      <!-- Rendered by script -->
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center" style="margin-top: var(--spacing-2xl);">
+      <div class="glass-card cta-card">
+        <h2>Want to Be Our Next Success Story?</h2>
+        <p class="text-muted">
+          Let's discuss your project and see how we can help you achieve your goals.
+        </p>
+        <a href="#biz-contact" class="btn btn-primary btn-lg">
+          <i class="fa-solid fa-rocket"></i> Start a Project
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var grid = document.getElementById('biz-portfolio-grid');
+  if (!grid) return;
+
+  // Portfolio data (placeholder — will be data-driven in future phases)
+  var projects = [
+    {
+      title: 'GBE Corporate Portal',
+      category: 'web',
+      tags: ['HTML/CSS/JS', 'SPA', 'Firebase', 'Node.js'],
+      description: 'A dual-layout single-page application serving as both a public-facing website and an internal management dashboard for Gold Bottom Ent LLC.',
+      highlights: ['Hash-based SPA router with 28+ routes', 'Two-tier dashboard (local full / remote read-only)', 'Firebase Auth + Firestore integration', 'Responsive dark theme with glass morphism UI'],
+      status: 'Live'
+    },
+    {
+      title: 'GBE Home Server',
+      category: 'app',
+      tags: ['Node.js', 'Express', 'SQLite', 'REST API'],
+      description: 'A self-hosted Express.js server providing a RESTful API, automated backups, and a LAN-accessible management dashboard.',
+      highlights: ['RESTful API with key-based auth', 'Automated SQLite backups with 30-day retention', 'LAN-only dashboard with PIN access', 'Environment-aware CORS and security'],
+      status: 'Live'
+    },
+    {
+      title: 'Artist Booking Platform',
+      category: 'web',
+      tags: ['React', 'Node.js', 'PostgreSQL', 'Stripe'],
+      description: 'A booking management platform connecting venues with artists, featuring calendar integration and payment processing.',
+      highlights: ['Real-time availability calendar', 'Stripe payment integration', 'Automated booking confirmations', 'Mobile-responsive design'],
+      status: 'In Development'
+    },
+    {
+      title: 'Small Business Digital Audit',
+      category: 'consulting',
+      tags: ['Strategy', 'SEO', 'Analytics', 'Cloud'],
+      description: 'Technology audit and digital transformation roadmap for a growing retail business transitioning to e-commerce.',
+      highlights: ['Complete technology stack assessment', 'E-commerce platform recommendation', 'SEO and content strategy', 'Cloud migration plan'],
+      status: 'Completed'
+    },
+    {
+      title: 'Music Distribution Dashboard',
+      category: 'app',
+      tags: ['JavaScript', 'Chart.js', 'REST API', 'Firebase'],
+      description: 'An analytics dashboard tracking music distribution across streaming platforms with real-time revenue reporting.',
+      highlights: ['Multi-platform streaming analytics', 'Revenue tracking and forecasting', 'Interactive charts and reports', 'Automated data syncing'],
+      status: 'In Development'
+    },
+    {
+      title: 'Nonprofit Website Redesign',
+      category: 'web',
+      tags: ['WordPress', 'PHP', 'SEO', 'Accessibility'],
+      description: 'A complete website redesign for a DC-area nonprofit, focusing on accessibility, SEO, and donor conversion.',
+      highlights: ['WCAG 2.1 AA compliance', '200% increase in organic traffic', 'Donor portal integration', 'Event calendar system'],
+      status: 'Completed'
+    }
+  ];
+
+  var statusBadges = {
+    'Live': 'badge-green',
+    'In Development': 'badge-blue',
+    'Completed': 'badge-gold'
+  };
+
+  function renderProjects(filter) {
+    var filtered = filter === 'all' ? projects : projects.filter(function(p) { return p.category === filter; });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div><h3 class="empty-state-title">No projects in this category yet</h3></div>';
+      return;
+    }
+
+    grid.innerHTML = filtered.map(function(p) {
+      var tags = p.tags.map(function(t) { return '<span class="portfolio-card-tag">' + t + '</span>'; }).join('');
+      var highlights = p.highlights.map(function(h) { return '<li><i class="fa-solid fa-check"></i> ' + h + '</li>'; }).join('');
+      var badgeClass = statusBadges[p.status] || 'badge-gray';
+
+      return '<div class="portfolio-card glass-card" data-category="' + p.category + '">' +
+        '<div class="portfolio-card-body">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+            '<h3 style="margin:0;">' + p.title + '</h3>' +
+            '<span class="badge ' + badgeClass + '">' + p.status + '</span>' +
+          '</div>' +
+          '<p>' + p.description + '</p>' +
+          '<ul class="service-features" style="margin-top:12px;">' + highlights + '</ul>' +
+          '<div class="portfolio-card-tags">' + tags + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // Initial render
+  renderProjects('all');
+
+  // Filter tabs
+  document.querySelectorAll('.portfolio-filters .tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.portfolio-filters .tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      renderProjects(tab.getAttribute('data-filter'));
+    });
+  });
+})();
+</script>

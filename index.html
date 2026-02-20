@@ -53,14 +53,32 @@
           </span>
         </a>
 
-        <!-- Desktop Nav -->
-        <nav class="public-nav" role="navigation" aria-label="Main navigation">
+        <!-- Desktop Nav — Root (vertical selector) -->
+        <nav id="root-nav" class="public-nav" role="navigation" aria-label="Main navigation">
           <a href="#home" class="nav-link active" data-page="home">Home</a>
-          <a href="#roster" class="nav-link" data-page="roster">Roster</a>
-          <a href="#services" class="nav-link" data-page="services">Services</a>
-          <a href="#shop" class="nav-link" data-page="shop">Shop</a>
-          <a href="#about" class="nav-link" data-page="about">About</a>
-          <a href="#contact" class="nav-link" data-page="contact">Contact</a>
+          <a href="#ent-home" class="nav-link" data-page="ent-home">Entertainment</a>
+          <a href="#biz-home" class="nav-link" data-page="biz-home">Enterprise</a>
+          <a href="#legal" class="nav-link" data-page="legal">Legal</a>
+        </nav>
+
+        <!-- Desktop Nav — Entertainment -->
+        <nav id="ent-nav" class="public-nav" role="navigation" aria-label="Entertainment navigation" style="display:none;">
+          <a href="#ent-home" class="nav-link" data-page="ent-home">Home</a>
+          <a href="#ent-roster" class="nav-link" data-page="ent-roster">Roster</a>
+          <a href="#ent-services" class="nav-link" data-page="ent-services">Services</a>
+          <a href="#ent-events" class="nav-link" data-page="ent-events">Events</a>
+          <a href="#ent-shop" class="nav-link" data-page="ent-shop">Shop</a>
+          <a href="#ent-about" class="nav-link" data-page="ent-about">About</a>
+          <a href="#ent-contact" class="nav-link" data-page="ent-contact">Contact</a>
+        </nav>
+
+        <!-- Desktop Nav — Enterprise -->
+        <nav id="biz-nav" class="public-nav" role="navigation" aria-label="Enterprise navigation" style="display:none;">
+          <a href="#biz-home" class="nav-link" data-page="biz-home">Home</a>
+          <a href="#biz-services" class="nav-link" data-page="biz-services">Services</a>
+          <a href="#biz-portfolio" class="nav-link" data-page="biz-portfolio">Portfolio</a>
+          <a href="#biz-about" class="nav-link" data-page="biz-about">About</a>
+          <a href="#biz-contact" class="nav-link" data-page="biz-contact">Contact</a>
         </nav>
 
         <!-- Dashboard CTA + Mobile Toggle -->
@@ -79,17 +97,43 @@
 
     <!-- Mobile Nav Overlay (outside header to avoid iOS backdrop-filter clipping) -->
     <div class="mobile-nav-overlay" id="mobile-nav-overlay">
-      <nav class="mobile-nav" role="navigation" aria-label="Mobile navigation">
+
+      <!-- Mobile Nav — Root -->
+      <nav id="root-nav-mobile" class="mobile-nav" role="navigation" aria-label="Mobile navigation">
         <a href="#home" class="mobile-nav-link" data-page="home"><i class="fa-solid fa-house"></i> Home</a>
-        <a href="#roster" class="mobile-nav-link" data-page="roster"><i class="fa-solid fa-users"></i> Roster</a>
-        <a href="#services" class="mobile-nav-link" data-page="services"><i class="fa-solid fa-briefcase"></i> Services</a>
-        <a href="#shop" class="mobile-nav-link" data-page="shop"><i class="fa-solid fa-bag-shopping"></i> Shop</a>
-        <a href="#about" class="mobile-nav-link" data-page="about"><i class="fa-solid fa-info-circle"></i> About</a>
-        <a href="#contact" class="mobile-nav-link" data-page="contact"><i class="fa-solid fa-envelope"></i> Contact</a>
+        <a href="#ent-home" class="mobile-nav-link" data-page="ent-home"><i class="fa-solid fa-music"></i> Entertainment</a>
+        <a href="#biz-home" class="mobile-nav-link" data-page="biz-home"><i class="fa-solid fa-laptop-code"></i> Enterprise</a>
         <a href="#legal" class="mobile-nav-link" data-page="legal"><i class="fa-solid fa-scale-balanced"></i> Legal</a>
         <div class="mobile-nav-divider"></div>
         <a href="#dashboard-home" class="mobile-nav-link mobile-nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
       </nav>
+
+      <!-- Mobile Nav — Entertainment -->
+      <nav id="ent-nav-mobile" class="mobile-nav" role="navigation" aria-label="Entertainment mobile navigation" style="display:none;">
+        <a href="#ent-home" class="mobile-nav-link" data-page="ent-home"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="#ent-roster" class="mobile-nav-link" data-page="ent-roster"><i class="fa-solid fa-users"></i> Roster</a>
+        <a href="#ent-services" class="mobile-nav-link" data-page="ent-services"><i class="fa-solid fa-briefcase"></i> Services</a>
+        <a href="#ent-events" class="mobile-nav-link" data-page="ent-events"><i class="fa-solid fa-calendar-star"></i> Events</a>
+        <a href="#ent-shop" class="mobile-nav-link" data-page="ent-shop"><i class="fa-solid fa-bag-shopping"></i> Shop</a>
+        <a href="#ent-about" class="mobile-nav-link" data-page="ent-about"><i class="fa-solid fa-info-circle"></i> About</a>
+        <a href="#ent-contact" class="mobile-nav-link" data-page="ent-contact"><i class="fa-solid fa-envelope"></i> Contact</a>
+        <div class="mobile-nav-divider"></div>
+        <a href="#biz-home" class="mobile-nav-link mobile-nav-switch"><i class="fa-solid fa-arrow-right-arrow-left"></i> Switch to Enterprise</a>
+        <a href="#dashboard-home" class="mobile-nav-link mobile-nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+      </nav>
+
+      <!-- Mobile Nav — Enterprise -->
+      <nav id="biz-nav-mobile" class="mobile-nav" role="navigation" aria-label="Enterprise mobile navigation" style="display:none;">
+        <a href="#biz-home" class="mobile-nav-link" data-page="biz-home"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="#biz-services" class="mobile-nav-link" data-page="biz-services"><i class="fa-solid fa-briefcase"></i> Services</a>
+        <a href="#biz-portfolio" class="mobile-nav-link" data-page="biz-portfolio"><i class="fa-solid fa-folder-open"></i> Portfolio</a>
+        <a href="#biz-about" class="mobile-nav-link" data-page="biz-about"><i class="fa-solid fa-info-circle"></i> About</a>
+        <a href="#biz-contact" class="mobile-nav-link" data-page="biz-contact"><i class="fa-solid fa-envelope"></i> Contact</a>
+        <div class="mobile-nav-divider"></div>
+        <a href="#ent-home" class="mobile-nav-link mobile-nav-switch"><i class="fa-solid fa-arrow-right-arrow-left"></i> Switch to Entertainment</a>
+        <a href="#dashboard-home" class="mobile-nav-link mobile-nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+      </nav>
+
     </div>
 
     <!-- Public Content Container -->
@@ -105,8 +149,8 @@
           <p class="footer-tagline">Entertainment &bull; Enterprise &bull; Excellence</p>
         </div>
         <div class="footer-links">
-          <a href="#about">About</a>
-          <a href="#contact">Contact</a>
+          <a href="#ent-home">Entertainment</a>
+          <a href="#biz-home">Enterprise</a>
           <a href="#legal">Legal</a>
         </div>
         <div class="footer-copy">

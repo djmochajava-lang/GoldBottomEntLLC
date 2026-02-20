@@ -1,20 +1,19 @@
-<!-- pages/roster.html — Public Talent Roster -->
+<!-- pages/entertainment/roster.html — Entertainment Talent Roster -->
 
-<section class="page-section" id="page-roster">
+<section class="page-section" id="page-ent-roster">
   <div class="container">
     <h1 class="page-title">Our Roster</h1>
-    <p class="page-subtitle">Meet the talented artists, creatives, and developers represented by Gold Bottom Ent.</p>
+    <p class="page-subtitle">Meet the talented artists and creatives represented by Gold Bottom Entertainment.</p>
 
-    <!-- Filter Tabs -->
+    <!-- Filter Tabs (no Developer tab — that's enterprise) -->
     <div class="tabs roster-filters">
       <button class="tab active" data-filter="all">All</button>
       <button class="tab" data-filter="artist">Artists</button>
       <button class="tab" data-filter="creative">Creatives</button>
-      <button class="tab" data-filter="developer">Developers</button>
     </div>
 
     <!-- Roster Grid (populated by script below) -->
-    <div class="grid grid-3 roster-grid" id="roster-grid">
+    <div class="grid grid-3 roster-grid" id="ent-roster-grid">
       <!-- Cards rendered by script -->
     </div>
 
@@ -23,10 +22,10 @@
       <div class="glass-card cta-card">
         <h2>Want to Join Our Roster?</h2>
         <p class="text-muted">
-          We're always looking for exceptional talent &mdash; musicians, creatives, and developers.
+          We're always looking for exceptional talent &mdash; musicians, singers, producers, and creatives.
           Send us your info and let's talk.
         </p>
-        <a href="#contact" class="btn btn-primary btn-lg">
+        <a href="#ent-contact" class="btn btn-primary btn-lg">
           <i class="fa-solid fa-paper-plane"></i> Submit Your Info
         </a>
       </div>
@@ -36,22 +35,23 @@
 
 <script>
 (function() {
-  var grid = document.getElementById('roster-grid');
+  var grid = document.getElementById('ent-roster-grid');
   if (!grid || typeof DataStore === 'undefined') return;
 
   // Public page: only show active talent (no prospects, no placeholders)
-  var roster = DataStore.getActiveRoster();
+  // Filter to entertainment categories only (artists + creatives, not developers)
+  var roster = DataStore.getActiveRoster().filter(function(t) {
+    return t.category === 'artist' || t.category === 'creative';
+  });
 
   var categoryIcons = {
     artist: 'fa-microphone-lines',
-    creative: 'fa-palette',
-    developer: 'fa-laptop-code'
+    creative: 'fa-palette'
   };
 
   var categoryLabels = {
     artist: 'Artist',
-    creative: 'Creative',
-    developer: 'Developer'
+    creative: 'Creative'
   };
 
   var statusColors = {
@@ -64,7 +64,7 @@
     var filtered = filter === 'all' ? roster : roster.filter(function(t) { return t.category === filter; });
 
     if (filtered.length === 0) {
-      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-users"></i></div><h3 class="empty-state-title">No talent in this category yet</h3><p class="empty-state-text">Check back soon or <a href="#contact">submit talent</a>.</p></div>';
+      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-users"></i></div><h3 class="empty-state-title">No talent in this category yet</h3><p class="empty-state-text">Check back soon or <a href="#ent-contact">submit talent</a>.</p></div>';
       return;
     }
 

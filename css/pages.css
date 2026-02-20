@@ -750,3 +750,273 @@
   color: var(--color-gold);
   border-color: var(--color-gold);
 }
+
+
+/* =============================================
+   Vertical Selector (Root Landing Page)
+   ============================================= */
+
+.vertical-selector {
+  margin-top: var(--space-xl);
+  gap: var(--space-xl);
+}
+
+.vertical-selector-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-3xl) var(--space-2xl);
+  text-decoration: none;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: transform var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.vertical-selector-card:hover {
+  transform: translateY(-4px);
+}
+
+.vertical-selector-card .vertical-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-3xl);
+  margin-bottom: var(--space-lg);
+  transition: transform var(--transition-base);
+}
+
+.vertical-selector-card:hover .vertical-icon {
+  transform: scale(1.1);
+}
+
+.vertical-selector-card.ent-card .vertical-icon {
+  background: var(--color-gold-muted);
+  color: var(--color-gold);
+}
+
+.vertical-selector-card.ent-card:hover {
+  border-color: rgba(184, 134, 11, 0.3);
+  box-shadow: 0 0 30px rgba(184, 134, 11, 0.12);
+}
+
+.vertical-selector-card.biz-card .vertical-icon {
+  background: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+}
+
+.vertical-selector-card.biz-card:hover {
+  border-color: rgba(88, 166, 255, 0.3);
+  box-shadow: 0 0 30px rgba(56, 139, 253, 0.12);
+}
+
+.vertical-selector-card h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--space-sm);
+}
+
+.vertical-selector-card p {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-lg);
+  max-width: 340px;
+}
+
+.text-info {
+  color: #58a6ff;
+}
+
+
+/* =============================================
+   Events Page (Entertainment)
+   ============================================= */
+
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+}
+
+.event-card {
+  display: flex;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.event-card:hover {
+  border-color: var(--color-accent-border);
+  transform: translateX(4px);
+}
+
+.event-card-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-accent-muted);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.event-card-date .date-month {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+}
+
+.event-card-date .date-day {
+  font-size: var(--text-3xl);
+  font-weight: var(--fw-extrabold);
+  line-height: 1;
+  color: var(--color-accent);
+}
+
+.event-card-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.event-card-details h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.event-card-meta {
+  display: flex;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.event-card-meta i {
+  margin-right: var(--space-xs);
+  color: var(--color-accent);
+}
+
+.event-card-actions {
+  display: flex;
+  align-items: center;
+}
+
+.events-empty {
+  text-align: center;
+  padding: var(--space-3xl) var(--space-xl);
+  color: var(--color-text-muted);
+}
+
+.events-empty i {
+  font-size: var(--text-4xl);
+  margin-bottom: var(--space-md);
+  display: block;
+  color: var(--color-accent-muted);
+}
+
+
+/* =============================================
+   Portfolio / Case Studies Page (Enterprise)
+   ============================================= */
+
+.portfolio-grid {
+  margin-top: var(--space-xl);
+}
+
+.portfolio-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.portfolio-card:hover {
+  border-color: rgba(88, 166, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.portfolio-card-image {
+  aspect-ratio: 16 / 9;
+  background: var(--color-bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-4xl);
+  color: var(--color-text-muted);
+  overflow: hidden;
+}
+
+.portfolio-card-body {
+  padding: var(--space-lg);
+}
+
+.portfolio-card-body h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--space-xs);
+}
+
+.portfolio-card-body p {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.portfolio-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.portfolio-card-tags .badge {
+  font-size: var(--text-xs);
+}
+
+.portfolio-filters {
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-lg);
+}
+
+@media (max-width: 768px) {
+  .vertical-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .event-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .event-card-date {
+    min-width: auto;
+    flex-direction: row;
+    gap: var(--space-sm);
+    justify-content: center;
+  }
+
+  .event-card-meta {
+    justify-content: center;
+  }
+
+  .event-card-actions {
+    justify-content: center;
+  }
+}

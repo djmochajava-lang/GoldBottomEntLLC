@@ -688,3 +688,138 @@
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
+
+
+/* =============================================
+   Enterprise Theme Overrides (body.biz-theme)
+   ============================================= */
+
+/* Hero orbs — blue gradients */
+body.biz-theme .hero-corporate .hero-orb-1 {
+  background: radial-gradient(circle,
+    rgba(88, 166, 255, 0.14) 0%,
+    rgba(56, 139, 253, 0.07) 35%,
+    rgba(33, 90, 160, 0.03) 60%,
+    transparent 75%);
+}
+
+body.biz-theme .hero-corporate .hero-orb-2 {
+  background: radial-gradient(circle,
+    rgba(56, 139, 253, 0.09) 0%,
+    rgba(121, 192, 255, 0.05) 35%,
+    rgba(33, 90, 160, 0.03) 60%,
+    transparent 75%);
+}
+
+body.biz-theme .hero-corporate .hero-orb-3 {
+  background: radial-gradient(circle,
+    rgba(121, 192, 255, 0.09) 0%,
+    rgba(88, 166, 255, 0.05) 40%,
+    transparent 70%);
+}
+
+/* Hero shimmer — blue tint */
+body.biz-theme .hero-corporate::after {
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(88, 166, 255, 0.06) 44%,
+    rgba(56, 139, 253, 0.10) 50%,
+    rgba(88, 166, 255, 0.06) 56%,
+    transparent 62%
+  );
+}
+
+/* Hero badge — blue accent */
+body.biz-theme .hero-badge {
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.15);
+  border-color: rgba(88, 166, 255, 0.22);
+}
+
+/* Blue gradient text */
+body.biz-theme .text-gold,
+body.biz-theme .gold-gradient {
+  color: #58a6ff;
+  background: linear-gradient(135deg, #58a6ff 0%, #79c0ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Stats — blue accent value */
+body.biz-theme .stat-value {
+  color: #58a6ff;
+}
+
+/* Glass card hover — blue glow */
+body.biz-theme .glass-card:hover {
+  border-color: rgba(88, 166, 255, 0.22);
+  box-shadow: 0 0 20px rgba(56, 139, 253, 0.18);
+}
+
+/* Service card icon — blue background */
+body.biz-theme .service-card-icon {
+  background: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+}
+
+/* Service card hover border */
+body.biz-theme .service-card:hover {
+  border-color: rgba(88, 166, 255, 0.25);
+}
+
+/* Service features list bullets — blue */
+body.biz-theme .service-features li::before {
+  color: #58a6ff;
+}
+
+/* CTA card — blue accent */
+body.biz-theme .cta-card {
+  border-color: rgba(88, 166, 255, 0.17);
+}
+
+body.biz-theme .cta-card:hover {
+  box-shadow: 0 0 30px rgba(56, 139, 253, 0.12);
+}
+
+/* Buttons — blue primary */
+body.biz-theme .btn-primary {
+  background: linear-gradient(135deg, #58a6ff 0%, #388bfd 100%);
+  color: #0d1117;
+}
+
+body.biz-theme .btn-primary:hover {
+  background: linear-gradient(135deg, #79c0ff 0%, #58a6ff 100%);
+}
+
+body.biz-theme .btn-secondary {
+  color: #58a6ff;
+  border-color: rgba(88, 166, 255, 0.35);
+}
+
+body.biz-theme .btn-secondary:hover {
+  background: rgba(88, 166, 255, 0.1);
+  color: #79c0ff;
+}
+
+/* About icons — blue */
+body.biz-theme .about-icon {
+  color: #58a6ff;
+}
+
+/* Vertical header icon — blue */
+body.biz-theme .vertical-header-icon {
+  background: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+}
+
+/* Divider gold → blue */
+body.biz-theme .divider-gold {
+  background: linear-gradient(90deg, transparent, rgba(88, 166, 255, 0.3), transparent);
+}
+
+/* Section heading accent — blue */
+body.biz-theme .section-title-accent::after {
+  background: #58a6ff;
+}
