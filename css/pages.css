@@ -27,13 +27,13 @@
   padding-bottom: var(--space-3xl) !important;
 }
 
-/* Darken the overlay so text is readable over the bright stage image */
+/* Subtle overlay — keep the spotlights visible at the top, darken bottom for text */
 .hero-ent-stage::before {
   background: linear-gradient(
     180deg,
-    rgba(10, 10, 10, 0.40) 0%,
-    rgba(10, 10, 10, 0.20) 35%,
-    rgba(10, 10, 10, 0.55) 100%
+    rgba(10, 10, 10, 0.10) 0%,
+    rgba(10, 10, 10, 0.15) 30%,
+    rgba(10, 10, 10, 0.50) 100%
   ) !important;
 }
 
