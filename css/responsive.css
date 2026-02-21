@@ -101,6 +101,15 @@
     padding: calc(var(--header-height) + var(--space-2xl)) var(--space-lg) var(--space-2xl);
   }
 
+  .hero-split .hero-text {
+    text-align: center;
+  }
+
+  .hero-split .hero-text .hero-subtitle {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .hero-split .hero-actions {
     justify-content: center;
   }
@@ -109,6 +118,39 @@
     order: -1;
     max-width: 480px;
     margin: 0 auto;
+  }
+
+  /* --- Process timeline --- */
+  .process-step-number {
+    width: 40px;
+    height: 40px;
+    font-size: var(--text-base);
+  }
+
+  .process-timeline {
+    padding-left: var(--space-2xl);
+  }
+
+  .process-timeline::before {
+    left: 19px;
+  }
+
+  .process-step-number {
+    left: calc(-1 * var(--space-2xl));
+  }
+
+  /* --- Trust bar --- */
+  .trust-bar-logos {
+    gap: var(--space-lg);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    padding: 0 var(--space-md);
+    flex-wrap: nowrap;
+  }
+
+  .trust-bar-logo {
+    flex-shrink: 0;
   }
 
   /* --- Contact grid --- */
@@ -204,6 +246,47 @@ body.sidebar-mobile-open {
 
   .hero-scroll {
     display: none;
+  }
+
+  /* --- Hero split: stack --- */
+  .hero-split {
+    padding: calc(var(--header-height) + var(--space-2xl)) var(--space-md) var(--space-2xl);
+    gap: var(--space-xl);
+  }
+
+  .hero-media-frame {
+    width: 240px;
+    height: 280px;
+  }
+
+  .hero-code-terminal {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .hero-floating-badges {
+    display: none;
+  }
+
+  /* --- Testimonials: single column --- */
+  .testimonials-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* --- Process timeline: tighter --- */
+  .process-timeline {
+    padding-left: var(--space-2xl);
+  }
+
+  .process-step-number {
+    width: 36px;
+    height: 36px;
+    font-size: var(--text-sm);
+    left: calc(-1 * var(--space-2xl));
+  }
+
+  .process-timeline::before {
+    left: 17px;
   }
 
   /* --- Grids: single column --- */
@@ -500,6 +583,33 @@ body.sidebar-mobile-open {
 
   .hero-subtitle {
     font-size: var(--text-sm);
+  }
+
+  /* --- Hero split: compact --- */
+  .hero-code-terminal {
+    display: none;
+  }
+
+  .hero-media-frame {
+    width: 200px;
+    height: 240px;
+  }
+
+  .hero-media-frame .frame-icon {
+    font-size: 4rem;
+  }
+
+  /* --- Premium CTA: compact --- */
+  .cta-premium {
+    padding: var(--space-2xl) var(--space-md);
+  }
+
+  .cta-premium .cta-actions {
+    flex-direction: column;
+  }
+
+  .cta-premium .cta-actions .btn {
+    width: 100%;
   }
 
   /* --- Metrics grid: single column --- */

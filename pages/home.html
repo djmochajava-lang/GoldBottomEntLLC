@@ -1,4 +1,4 @@
-<!-- pages/home.html — Root Landing Page (Vertical Selector) -->
+<!-- pages/home.html — Root Landing Page -->
 
 <section class="page-section" id="page-home">
 
@@ -10,63 +10,52 @@
     <div class="hero-orb hero-orb-3"></div>
     <div class="hero-content">
       <div class="hero-badge"><i class="fa-solid fa-gem"></i> Gold Bottom Ent. LLC</div>
-      <h1 class="hero-title">Two Brands.<br>One Vision.</h1>
+      <h1 class="hero-title">The Future<br>Is Yours.</h1>
       <p class="hero-subtitle">
-        <strong>"Ent"</strong> stands for <strong>Entertainment</strong> and <strong>Enterprise</strong> &mdash;
-        because great talent and great technology share the same foundation: <em>excellence</em>.
+        Powered by creativity, driven by
+        <em>excellence</em>, and designed to move you forward.
       </p>
+      <div class="hero-actions" style="margin-top: var(--space-lg); justify-content: center;">
+        <a href="#ent-home" class="btn btn-primary btn-lg shimmer-sweep">
+          <i class="fa-solid fa-music"></i> Entertainment
+        </a>
+        <a href="#biz-home" class="btn btn-secondary btn-lg">
+          <i class="fa-solid fa-laptop-code"></i> Enterprise
+        </a>
+      </div>
     </div>
   </div>
 
-  <!-- Vertical Selector Cards -->
-  <div class="container">
-    <h2 class="section-heading text-center">Choose Your Experience</h2>
-    <p class="section-subheading text-center">Select the side of Gold Bottom Ent that fits your needs.</p>
+  <!-- What We Do -->
+  <div class="container section-spacer">
+    <h2 class="section-heading text-center reveal">What We Do</h2>
+    <p class="section-subheading text-center reveal">Full-service solutions across entertainment and technology.</p>
 
-    <div class="grid grid-2 vertical-selector">
-      <!-- Entertainment Card -->
-      <a href="#ent-home" class="vertical-selector-card ent-card glass-card">
-        <div class="vertical-icon entertainment-icon">
-          <i class="fa-solid fa-music"></i>
-        </div>
-        <h3>Gold Bottom <span class="text-gold">Entertainment</span></h3>
-        <p>
-          Artist management, live performance booking, music production, creative direction,
-          and brand building for musicians, performers, and creative professionals.
-        </p>
-        <ul class="vertical-features">
-          <li><i class="fa-solid fa-check"></i> Artist & Talent Management</li>
-          <li><i class="fa-solid fa-check"></i> Live Performance Booking</li>
-          <li><i class="fa-solid fa-check"></i> Music Production & Distribution</li>
-          <li><i class="fa-solid fa-check"></i> Brand Development & PR</li>
-          <li><i class="fa-solid fa-check"></i> Merch & Ecommerce</li>
-        </ul>
-        <span class="btn btn-primary" style="pointer-events:none;">
-          <i class="fa-solid fa-arrow-right"></i> Enter Entertainment
-        </span>
-      </a>
-
-      <!-- Enterprise Card -->
-      <a href="#biz-home" class="vertical-selector-card biz-card glass-card">
-        <div class="vertical-icon enterprise-icon">
-          <i class="fa-solid fa-laptop-code"></i>
-        </div>
-        <h3>Gold Bottom <span class="text-info">Enterprise</span></h3>
-        <p>
-          Web development, application design, technology consulting, and digital solutions
-          for businesses, entrepreneurs, and organizations.
-        </p>
-        <ul class="vertical-features">
-          <li><i class="fa-solid fa-check"></i> Web Design & Development</li>
-          <li><i class="fa-solid fa-check"></i> Application Development</li>
-          <li><i class="fa-solid fa-check"></i> Technology Consulting</li>
-          <li><i class="fa-solid fa-check"></i> Digital Strategy & SEO</li>
-          <li><i class="fa-solid fa-check"></i> Ongoing Maintenance & Support</li>
-        </ul>
-        <span class="btn btn-primary" style="pointer-events:none;">
-          <i class="fa-solid fa-arrow-right"></i> Enter Enterprise
-        </span>
-      </a>
+    <div class="grid grid-3 stagger-grid" style="margin-top: var(--space-xl);">
+      <div class="glass-card service-card text-center reveal">
+        <div class="service-card-icon"><i class="fa-solid fa-music"></i></div>
+        <h3>Entertainment</h3>
+        <p>Artist management, live performance booking, music production, and brand development for creative professionals.</p>
+        <a href="#ent-home" class="btn btn-secondary" style="margin-top: var(--space-sm);">
+          Learn More <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
+      <div class="glass-card service-card text-center reveal">
+        <div class="service-card-icon"><i class="fa-solid fa-laptop-code"></i></div>
+        <h3>Technology</h3>
+        <p>Web development, application design, consulting, and digital strategy for businesses and organizations.</p>
+        <a href="#biz-home" class="btn btn-secondary" style="margin-top: var(--space-sm);">
+          Learn More <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
+      <div class="glass-card service-card text-center reveal">
+        <div class="service-card-icon"><i class="fa-solid fa-handshake"></i></div>
+        <h3>Consulting</h3>
+        <p>Strategic guidance at the intersection of creativity and technology &mdash; helping you grow smarter and move faster.</p>
+        <a href="#biz-services" class="btn btn-secondary" style="margin-top: var(--space-sm);">
+          Learn More <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
     </div>
   </div>
 
@@ -75,36 +64,39 @@
     <div class="container">
       <div class="stats-grid">
         <div class="stat-item">
-          <span class="stat-value">20+</span>
-          <span class="stat-label">Years in Entertainment</span>
+          <i class="stat-icon fa-solid fa-calendar"></i>
+          <span class="stat-value" data-count="20" data-suffix="+">0</span>
+          <span class="stat-label">Years of Experience</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">10+</span>
-          <span class="stat-label">Years in Tech</span>
+          <i class="stat-icon fa-solid fa-folder-open"></i>
+          <span class="stat-value" data-count="50" data-suffix="+">0</span>
+          <span class="stat-label">Projects Delivered</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">2</span>
-          <span class="stat-label">Business Verticals</span>
+          <i class="stat-icon fa-solid fa-face-smile"></i>
+          <span class="stat-value" data-count="99" data-suffix="%">0</span>
+          <span class="stat-label">Client Satisfaction</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">1</span>
-          <span class="stat-label">Standard: Excellence</span>
+          <i class="stat-icon fa-solid fa-bolt"></i>
+          <span class="stat-value">24/7</span>
+          <span class="stat-label">Dedicated Support</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Brief About -->
-  <div class="container text-center">
-    <div class="glass-card cta-card">
-      <h2>Why Gold Bottom Ent?</h2>
+  <!-- CTA -->
+  <div class="container text-center" style="padding-bottom: var(--space-3xl);">
+    <div class="glass-card cta-premium reveal">
+      <h2>Ready to Get Started?</h2>
       <p class="text-muted">
-        Founded by entrepreneurs with deep roots in both music and technology, Gold Bottom Ent LLC
-        serves two distinct markets with the same commitment to excellence. Whether you're an artist
-        building a career or a business building a product &mdash; we're your team.
+        Whether you're launching an artist career or building the next great product &mdash;
+        Gold Bottom Ent has the expertise to make it happen.
       </p>
-      <div class="hero-cta-row" style="justify-content: center;">
-        <a href="#ent-home" class="btn btn-primary btn-lg">
+      <div class="cta-actions">
+        <a href="#ent-home" class="btn btn-primary btn-lg shimmer-sweep">
           <i class="fa-solid fa-music"></i> Entertainment
         </a>
         <a href="#biz-home" class="btn btn-secondary btn-lg">

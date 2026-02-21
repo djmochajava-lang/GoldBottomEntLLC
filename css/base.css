@@ -132,7 +132,7 @@
 
 /* ---------- Vertical Theme Overrides ---------- */
 
-/* Entertainment — warm gold (formalizes the default) */
+/* Entertainment — warm gold (formalizes the default) + expressive typography */
 body.ent-theme {
   --color-accent:        var(--color-gold);
   --color-accent-dark:   var(--color-gold-dark);
@@ -142,7 +142,16 @@ body.ent-theme {
   --shadow-accent:       var(--shadow-gold);
 }
 
-/* Enterprise — cool blue (professional/tech) */
+body.ent-theme .hero-title {
+  text-shadow: 0 0 60px rgba(184, 134, 11, 0.15);
+}
+
+body.ent-theme h1,
+body.ent-theme h2 {
+  font-weight: var(--fw-extrabold);
+}
+
+/* Enterprise — cool blue (professional/tech) + precision typography */
 body.biz-theme {
   --color-accent:        #58a6ff;
   --color-accent-dark:   #388bfd;
@@ -150,6 +159,17 @@ body.biz-theme {
   --color-accent-muted:  rgba(88, 166, 255, 0.15);
   --color-accent-border: rgba(88, 166, 255, 0.12);
   --shadow-accent:       0 0 20px rgba(56, 139, 253, 0.18);
+}
+
+body.biz-theme .hero-title {
+  letter-spacing: -0.03em;
+}
+
+body.biz-theme h1,
+body.biz-theme h2,
+body.biz-theme h3 {
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.015em;
 }
 
 
@@ -475,3 +495,42 @@ a:not([class]):focus-visible {
 .h-full  { height: 100%; }
 
 .relative { position: relative; }
+
+
+/* ---------- Gradient Text ---------- */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #d4a017 0%, #e8c547 50%, #b8860b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-blue {
+  background: linear-gradient(135deg, #58a6ff 0%, #79c0ff 50%, #388bfd 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---------- Extra Typography ---------- */
+.font-extrabold {
+  font-weight: var(--fw-extrabold);
+}
+
+.text-uppercase-sm {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+}
+
+/* ---------- Section Utilities ---------- */
+.section-spacer {
+  padding: var(--space-4xl) 0;
+}
+
+.section-alt {
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}

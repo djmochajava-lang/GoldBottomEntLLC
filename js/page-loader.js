@@ -179,6 +179,11 @@ const PageLoader = {
     if (typeof Utils !== 'undefined' && Utils.lazyLoadImages) {
       Utils.lazyLoadImages();
     }
+
+    // Scroll-triggered animations (reveals, counters, stagger)
+    if (typeof initScrollAnimations === 'function') {
+      initScrollAnimations();
+    }
   },
 
   /**

@@ -2,106 +2,195 @@
 
 <section class="page-section" id="page-ent-home">
 
-  <!-- Hero Banner -->
-  <div class="hero-corporate">
-    <!-- Animated floating orbs -->
+  <!-- Split Hero -->
+  <div class="hero-corporate" style="min-height: auto; padding-bottom: 0;">
     <div class="hero-orb hero-orb-1"></div>
     <div class="hero-orb hero-orb-2"></div>
     <div class="hero-orb hero-orb-3"></div>
-    <div class="hero-content">
-      <div class="hero-badge"><i class="fa-solid fa-music"></i> Gold Bottom Entertainment</div>
-      <h1 class="hero-title">Elevating Talent.<br>Booking Shows.<br>Building Legacy.</h1>
-      <p class="hero-subtitle">
-        Full-service <strong>talent management</strong>, live performance booking, music production,
-        and creative direction for artists and performers.
-      </p>
-      <div class="hero-cta-row">
-        <a href="#ent-roster" class="btn btn-primary btn-lg">
-          <i class="fa-solid fa-users"></i> Our Roster
-        </a>
-        <a href="#ent-contact" class="btn btn-secondary btn-lg">
-          <i class="fa-solid fa-envelope"></i> Book Talent
-        </a>
+    <div class="hero-split">
+      <div class="hero-text">
+        <div class="hero-badge"><i class="fa-solid fa-music"></i> Gold Bottom Entertainment</div>
+        <h1 class="hero-title">Elevating Talent.<br>Booking Shows.<br><span class="text-gradient-gold">Building Legacy.</span></h1>
+        <p class="hero-subtitle">
+          Full-service <strong>talent management</strong>, live performance booking, music production,
+          and creative direction for artists and performers.
+        </p>
+        <div class="hero-actions">
+          <a href="#ent-roster" class="btn btn-primary btn-lg shimmer-sweep">
+            <i class="fa-solid fa-users"></i> Our Roster
+          </a>
+          <a href="#ent-contact" class="btn btn-secondary btn-lg">
+            <i class="fa-solid fa-envelope"></i> Book Talent
+          </a>
+        </div>
+      </div>
+      <div class="hero-media">
+        <div class="hero-media-frame">
+          <i class="fa-solid fa-microphone-lines frame-icon"></i>
+          <div class="hero-floating-badges">
+            <div class="hero-floating-badge"><i class="fa-brands fa-spotify"></i> Spotify</div>
+            <div class="hero-floating-badge"><i class="fa-brands fa-apple"></i> Apple Music</div>
+            <div class="hero-floating-badge"><i class="fa-brands fa-youtube"></i> YouTube</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Featured Talent -->
-  <div class="container">
-    <h2 class="section-heading text-center">Featured Talent</h2>
-    <p class="section-subheading text-center">Meet the artists and performers on our roster.</p>
+  <div class="container section-spacer">
+    <h2 class="section-heading text-center reveal">Featured Talent</h2>
+    <p class="section-subheading text-center reveal">Meet the artists and performers on our roster.</p>
 
-    <div class="grid grid-3 talent-preview-grid">
+    <div class="grid grid-3 stagger-grid" style="margin-top: var(--space-xl);">
       <!-- L.A. Young -->
-      <div class="glass-card talent-preview-card">
-        <div class="talent-preview-avatar">
+      <div class="talent-card-premium">
+        <div class="talent-photo">
           <i class="fa-solid fa-microphone-lines"></i>
         </div>
-        <h4>L.A. Young</h4>
-        <div class="talent-preview-badges">
-          <span class="badge badge-gold">Soul</span>
-          <span class="badge badge-gold">Jazz</span>
-          <span class="badge badge-gold">R&B</span>
+        <h3>L.A. Young</h3>
+        <p class="talent-genre">Soul &bull; Jazz &bull; R&B</p>
+        <div class="talent-achievements">
+          <span class="badge badge-gold"><i class="fa-solid fa-trophy"></i> #1 UK FM</span>
+          <span class="badge badge-gold"><i class="fa-solid fa-award"></i> MD Artist of Year</span>
         </div>
-        <p class="text-muted">#1 UK FM Radio &bull; Maryland Artist of Year 2018</p>
-        <a href="#ent-roster" class="btn btn-ghost btn-sm">View Profile</a>
+        <div class="talent-stats">
+          <div class="talent-stat">
+            <span class="talent-stat-value">5</span>
+            <span class="talent-stat-label">UK Top-5 Hits</span>
+          </div>
+          <div class="talent-stat">
+            <span class="talent-stat-value">100+</span>
+            <span class="talent-stat-label">Live Shows</span>
+          </div>
+          <div class="talent-stat">
+            <span class="talent-stat-value">20+</span>
+            <span class="talent-stat-label">Years Active</span>
+          </div>
+        </div>
+        <div class="talent-platforms">
+          <a href="#" title="Spotify"><i class="fa-brands fa-spotify"></i></a>
+          <a href="#" title="Apple Music"><i class="fa-brands fa-apple"></i></a>
+          <a href="#" title="YouTube"><i class="fa-brands fa-youtube"></i></a>
+          <a href="#" title="SoundCloud"><i class="fa-brands fa-soundcloud"></i></a>
+        </div>
       </div>
 
       <!-- Placeholder 2 -->
-      <div class="glass-card talent-preview-card talent-placeholder">
-        <div class="talent-preview-avatar">
-          <i class="fa-solid fa-user-plus"></i>
+      <div class="talent-card-premium" style="opacity: 0.6;">
+        <div class="talent-photo" style="border-color: var(--color-border);">
+          <i class="fa-solid fa-user-plus" style="color: var(--color-text-muted);"></i>
         </div>
-        <h4>Your Next Artist</h4>
-        <div class="talent-preview-badges">
+        <h3>Your Next Artist</h3>
+        <p class="talent-genre">We're always scouting exceptional talent</p>
+        <div class="talent-achievements">
           <span class="badge badge-gray">Coming Soon</span>
         </div>
-        <p class="text-muted">We're always looking for exceptional talent.</p>
+        <div class="talent-stats">
+          <div class="talent-stat">
+            <span class="talent-stat-value">&mdash;</span>
+            <span class="talent-stat-label">Genre</span>
+          </div>
+          <div class="talent-stat">
+            <span class="talent-stat-value">&mdash;</span>
+            <span class="talent-stat-label">Shows</span>
+          </div>
+          <div class="talent-stat">
+            <span class="talent-stat-value">&mdash;</span>
+            <span class="talent-stat-label">Streams</span>
+          </div>
+        </div>
         <a href="#ent-contact" class="btn btn-ghost btn-sm">Submit Talent</a>
       </div>
 
       <!-- Placeholder 3 -->
-      <div class="glass-card talent-preview-card talent-placeholder">
-        <div class="talent-preview-avatar">
-          <i class="fa-solid fa-user-plus"></i>
+      <div class="talent-card-premium" style="opacity: 0.6;">
+        <div class="talent-photo" style="border-color: var(--color-border);">
+          <i class="fa-solid fa-user-plus" style="color: var(--color-text-muted);"></i>
         </div>
-        <h4>Open Slot</h4>
-        <div class="talent-preview-badges">
-          <span class="badge badge-gray">Coming Soon</span>
+        <h3>Open Slot</h3>
+        <p class="talent-genre">Limited roster spots available</p>
+        <div class="talent-achievements">
+          <span class="badge badge-gray">Apply Now</span>
         </div>
-        <p class="text-muted">Spots on our roster are limited. Apply today.</p>
+        <div class="talent-stats">
+          <div class="talent-stat">
+            <span class="talent-stat-value">&mdash;</span>
+            <span class="talent-stat-label">Genre</span>
+          </div>
+          <div class="talent-stat">
+            <span class="talent-stat-value">&mdash;</span>
+            <span class="talent-stat-label">Shows</span>
+          </div>
+          <div class="talent-stat">
+            <span class="talent-stat-value">&mdash;</span>
+            <span class="talent-stat-label">Streams</span>
+          </div>
+        </div>
         <a href="#ent-contact" class="btn btn-ghost btn-sm">Apply Now</a>
       </div>
     </div>
   </div>
 
-  <!-- What We Do -->
-  <div class="container">
-    <h2 class="section-heading text-center">What We Do</h2>
-    <p class="section-subheading text-center">Everything an artist needs under one roof.</p>
+  <!-- Video Spotlight -->
+  <div class="container reveal">
+    <h2 class="section-heading text-center">Featured Performance</h2>
+    <p class="section-subheading text-center">Watch our talent in action.</p>
+    <div class="video-spotlight" style="margin-top: var(--space-xl); max-width: 800px; margin-left: auto; margin-right: auto;">
+      <i class="fa-solid fa-music video-bg-icon"></i>
+      <div class="video-play-btn"><i class="fa-solid fa-play"></i></div>
+      <div class="video-spotlight-caption">
+        <h4>Live at The Howard Theatre</h4>
+        <p>L.A. Young &mdash; Soul Sessions 2024</p>
+      </div>
+    </div>
+  </div>
 
-    <div class="grid grid-3 service-cards">
-      <div class="glass-card service-card">
+  <!-- What We Do -->
+  <div class="container section-spacer">
+    <h2 class="section-heading text-center reveal">What We Do</h2>
+    <p class="section-subheading text-center reveal">Everything an artist needs under one roof.</p>
+
+    <div class="grid grid-3 service-cards stagger-grid" style="margin-top: var(--space-xl);">
+      <div class="glass-card service-card service-card-numbered">
+        <span class="service-card-watermark">01</span>
         <div class="service-card-icon"><i class="fa-solid fa-star"></i></div>
         <h3>Artist Management</h3>
         <p>Career strategy, brand building, contract negotiation, and day-to-day operations for your music career.</p>
       </div>
-      <div class="glass-card service-card">
+      <div class="glass-card service-card service-card-numbered">
+        <span class="service-card-watermark">02</span>
         <div class="service-card-icon"><i class="fa-solid fa-ticket"></i></div>
         <h3>Booking & Touring</h3>
         <p>Venue connections, tour logistics, travel arrangements, and event promotion to keep you performing.</p>
       </div>
-      <div class="glass-card service-card">
+      <div class="glass-card service-card service-card-numbered">
+        <span class="service-card-watermark">03</span>
         <div class="service-card-icon"><i class="fa-solid fa-compact-disc"></i></div>
         <h3>Music Production</h3>
         <p>From studio sessions to streaming platforms &mdash; recording, distribution, royalties, and promotion.</p>
       </div>
     </div>
 
-    <div class="text-center" style="margin-top: var(--spacing-lg);">
+    <div class="text-center" style="margin-top: var(--space-xl);">
       <a href="#ent-services" class="btn btn-secondary">
         View All Services <i class="fa-solid fa-arrow-right"></i>
       </a>
+    </div>
+  </div>
+
+  <!-- Trust Bar -->
+  <div class="trust-bar reveal">
+    <div class="container">
+      <p class="trust-bar-label">Our Artists Featured On</p>
+      <div class="trust-bar-logos">
+        <div class="trust-bar-logo"><i class="fa-brands fa-spotify"></i> <span>Spotify</span></div>
+        <div class="trust-bar-logo"><i class="fa-brands fa-apple"></i> <span>Apple Music</span></div>
+        <div class="trust-bar-logo"><i class="fa-brands fa-youtube"></i> <span>YouTube</span></div>
+        <div class="trust-bar-logo"><i class="fa-brands fa-soundcloud"></i> <span>SoundCloud</span></div>
+        <div class="trust-bar-logo"><i class="fa-brands fa-amazon"></i> <span>Amazon Music</span></div>
+        <div class="trust-bar-logo"><i class="fa-solid fa-music"></i> <span>Tidal</span></div>
+      </div>
     </div>
   </div>
 
@@ -110,19 +199,23 @@
     <div class="container">
       <div class="stats-grid">
         <div class="stat-item">
-          <span class="stat-value">20+</span>
+          <i class="stat-icon fa-solid fa-calendar-check"></i>
+          <span class="stat-value" data-count="20" data-suffix="+">0</span>
           <span class="stat-label">Years in Entertainment</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">5</span>
+          <i class="stat-icon fa-solid fa-chart-line"></i>
+          <span class="stat-value" data-count="5">0</span>
           <span class="stat-label">Top-5 UK Hits</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">#1</span>
+          <i class="stat-icon fa-solid fa-trophy"></i>
+          <span class="stat-value" data-prefix="#" data-count="1">0</span>
           <span class="stat-label">UK FM Radio</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">100+</span>
+          <i class="stat-icon fa-solid fa-microphone-lines"></i>
+          <span class="stat-value" data-count="100" data-suffix="+">0</span>
           <span class="stat-label">Live Performances</span>
         </div>
       </div>
@@ -130,18 +223,18 @@
   </div>
 
   <!-- CTA -->
-  <div class="container text-center">
-    <div class="glass-card cta-card">
+  <div class="container text-center" style="padding-bottom: var(--space-3xl);">
+    <div class="glass-card cta-premium reveal">
       <h2>Ready to Take Your Career to the Next Level?</h2>
       <p class="text-muted">
         Whether you're an artist looking for management or a venue seeking talent &mdash; let's connect.
       </p>
-      <div class="hero-cta-row" style="justify-content: center;">
-        <a href="#ent-contact" class="btn btn-primary btn-lg">
+      <div class="cta-actions">
+        <a href="#ent-contact" class="btn btn-primary btn-lg shimmer-sweep">
           <i class="fa-solid fa-envelope"></i> Get In Touch
         </a>
         <a href="#ent-about" class="btn btn-secondary btn-lg">
-          <i class="fa-solid fa-info-circle"></i> About Us
+          About Us <i class="fa-solid fa-arrow-right"></i>
         </a>
       </div>
     </div>

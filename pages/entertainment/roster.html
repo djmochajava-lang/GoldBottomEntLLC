@@ -2,32 +2,37 @@
 
 <section class="page-section" id="page-ent-roster">
   <div class="container">
-    <h1 class="page-title">Our Roster</h1>
-    <p class="page-subtitle">Meet the talented artists and creatives represented by Gold Bottom Entertainment.</p>
+    <h1 class="page-title reveal">Our Roster</h1>
+    <p class="page-subtitle reveal">Meet the talented artists and creatives represented by Gold Bottom Entertainment.</p>
 
-    <!-- Filter Tabs (no Developer tab — that's enterprise) -->
-    <div class="tabs roster-filters">
+    <!-- Filter Tabs -->
+    <div class="tabs roster-filters reveal">
       <button class="tab active" data-filter="all">All</button>
       <button class="tab" data-filter="artist">Artists</button>
       <button class="tab" data-filter="creative">Creatives</button>
     </div>
 
-    <!-- Roster Grid (populated by script below) -->
-    <div class="grid grid-3 roster-grid" id="ent-roster-grid">
+    <!-- Roster Grid -->
+    <div class="grid grid-3 roster-grid stagger-grid" id="ent-roster-grid">
       <!-- Cards rendered by script -->
     </div>
 
     <!-- CTA -->
-    <div class="text-center" style="margin-top: var(--spacing-2xl);">
-      <div class="glass-card cta-card">
+    <div class="text-center" style="margin-top: var(--space-3xl);">
+      <div class="glass-card cta-premium reveal">
         <h2>Want to Join Our Roster?</h2>
         <p class="text-muted">
           We're always looking for exceptional talent &mdash; musicians, singers, producers, and creatives.
           Send us your info and let's talk.
         </p>
-        <a href="#ent-contact" class="btn btn-primary btn-lg">
-          <i class="fa-solid fa-paper-plane"></i> Submit Your Info
-        </a>
+        <div class="cta-actions">
+          <a href="#ent-contact" class="btn btn-primary btn-lg shimmer-sweep">
+            <i class="fa-solid fa-paper-plane"></i> Submit Your Info
+          </a>
+          <a href="#ent-services" class="btn btn-secondary btn-lg">
+            Our Services <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -38,8 +43,6 @@
   var grid = document.getElementById('ent-roster-grid');
   if (!grid || typeof DataStore === 'undefined') return;
 
-  // Public page: only show active talent (no prospects, no placeholders)
-  // Filter to entertainment categories only (artists + creatives, not developers)
   var roster = DataStore.getActiveRoster().filter(function(t) {
     return t.category === 'artist' || t.category === 'creative';
   });
@@ -77,7 +80,7 @@
       }).join(' ') : '';
 
       return '<div class="glass-card talent-card" data-category="' + t.category + '">' +
-        '<div class="talent-card-avatar"><i class="fa-solid ' + icon + '"></i></div>' +
+        '<div class="talent-card-avatar" style="border: 3px solid rgba(184, 134, 11, 0.3);"><i class="fa-solid ' + icon + '"></i></div>' +
         '<h3 class="talent-card-name">' + (t.name || '[Name]') + '</h3>' +
         '<span class="badge ' + statusClass + '" style="margin-bottom: 8px;">' + catLabel + '</span>' +
         '<div class="talent-card-badges">' + genres + '</div>' +
@@ -87,10 +90,8 @@
     }).join('');
   }
 
-  // Initial render
   renderCards('all');
 
-  // Filter tabs
   document.querySelectorAll('.roster-filters .tab').forEach(function(tab) {
     tab.addEventListener('click', function() {
       document.querySelectorAll('.roster-filters .tab').forEach(function(t) { t.classList.remove('active'); });

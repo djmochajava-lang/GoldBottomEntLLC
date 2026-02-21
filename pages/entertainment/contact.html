@@ -1,13 +1,11 @@
 <!-- pages/entertainment/contact.html — Entertainment Contact / Booking -->
-
 <section class="page-section" id="page-ent-contact">
   <div class="container">
-    <h1 class="page-title">Book Our Talent</h1>
-    <p class="page-subtitle">Interested in booking an artist, submitting talent, or working with us? Let's talk.</p>
-
+    <h1 class="page-title reveal">Book Our Talent</h1>
+    <p class="page-subtitle reveal">Interested in booking, collaboration, or talent submission? Let's talk.</p>
     <div class="grid grid-2 contact-grid">
       <!-- Contact Form -->
-      <div class="glass-card">
+      <div class="glass-card reveal">
         <h2>Send Us a Message</h2>
         <form data-form="ent-contact" id="ent-contact-form">
           <div class="form-group">
@@ -16,11 +14,10 @@
               <option value="">Select inquiry type...</option>
               <option value="booking">Booking Request</option>
               <option value="talent-submission">Talent Submission</option>
-              <option value="collaboration">Collaboration / Feature</option>
+              <option value="collaboration">Collaboration</option>
               <option value="general">General Inquiry</option>
             </select>
           </div>
-
           <div class="grid grid-2">
             <div class="form-group">
               <label class="form-label" for="ent-contact-name">Full Name *</label>
@@ -31,48 +28,38 @@
               <input type="email" class="form-input" id="ent-contact-email" name="email" required placeholder="you@example.com" />
             </div>
           </div>
-
           <div class="grid grid-2">
             <div class="form-group">
               <label class="form-label" for="ent-contact-phone">Phone</label>
               <input type="tel" class="form-input" id="ent-contact-phone" name="phone" placeholder="(555) 123-4567" />
             </div>
             <div class="form-group">
-              <label class="form-label" for="ent-contact-venue">Venue / Organization</label>
-              <input type="text" class="form-input" id="ent-contact-venue" name="venue" placeholder="Venue or organization name" />
+              <label class="form-label" for="ent-contact-date">Event Date (if booking)</label>
+              <input type="date" class="form-input" id="ent-contact-date" name="eventDate" />
             </div>
           </div>
-
           <div class="form-group">
             <label class="form-label" for="ent-contact-subject">Subject *</label>
-            <input type="text" class="form-input" id="ent-contact-subject" name="subject" required placeholder="What's this about?" />
+            <input type="text" class="form-input" id="ent-contact-subject" name="subject" required placeholder="Brief description" />
           </div>
-
           <div class="form-group">
             <label class="form-label" for="ent-contact-message">Message *</label>
-            <textarea class="form-textarea" id="ent-contact-message" name="message" rows="6" required placeholder="Tell us about your event, venue, or how we can help..."></textarea>
+            <textarea class="form-textarea" id="ent-contact-message" name="message" rows="6" required placeholder="Tell us about your event, venue, or project..."></textarea>
           </div>
-
-          <div class="form-group">
-            <label class="form-label" for="ent-contact-date">Preferred Event Date (if applicable)</label>
-            <input type="date" class="form-input" id="ent-contact-date" name="eventDate" />
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-lg btn-block">
+          <button type="submit" class="btn btn-primary btn-lg btn-block shimmer-sweep">
             <i class="fa-solid fa-paper-plane"></i> Send Message
           </button>
         </form>
       </div>
-
       <!-- Contact Info Sidebar -->
       <div>
-        <div class="glass-card contact-info-card">
+        <div class="glass-card contact-info-card reveal">
           <h3><i class="fa-solid fa-music text-gold"></i> Gold Bottom Entertainment</h3>
           <div class="contact-info-list">
             <div class="contact-info-item">
               <i class="fa-solid fa-envelope text-gold"></i>
               <div>
-                <span class="text-muted">Booking Email</span>
+                <span class="text-muted">Email</span>
                 <a href="mailto:booking@goldbottom-ent.com">booking@goldbottom-ent.com</a>
               </div>
             </div>
@@ -93,15 +80,14 @@
             <div class="contact-info-item">
               <i class="fa-solid fa-clock text-gold"></i>
               <div>
-                <span class="text-muted">Business Hours</span>
-                <p>Mon &ndash; Fri: 10:00 AM &ndash; 6:00 PM EST</p>
+                <span class="text-muted">Response Time</span>
+                <p>Within 24&ndash;48 hours</p>
               </div>
             </div>
           </div>
         </div>
-
         <!-- Social Links -->
-        <div class="glass-card contact-social-card">
+        <div class="glass-card contact-social-card reveal">
           <h3>Follow Us</h3>
           <div class="social-links">
             <a href="#" class="social-link" title="Instagram"><i class="fa-brands fa-instagram"></i></a>
@@ -112,39 +98,33 @@
             <a href="#" class="social-link" title="Spotify"><i class="fa-brands fa-spotify"></i></a>
           </div>
         </div>
-
         <!-- Quick Links -->
-        <div class="glass-card">
+        <div class="glass-card reveal">
           <h3>Quick Links</h3>
           <ul class="quick-links">
-            <li><a href="#ent-roster"><i class="fa-solid fa-arrow-right"></i> View Our Roster</a></li>
+            <li><a href="#ent-roster"><i class="fa-solid fa-arrow-right"></i> Our Roster</a></li>
             <li><a href="#ent-services"><i class="fa-solid fa-arrow-right"></i> Our Services</a></li>
             <li><a href="#ent-events"><i class="fa-solid fa-arrow-right"></i> Upcoming Events</a></li>
-            <li><a href="#ent-shop"><i class="fa-solid fa-arrow-right"></i> Merch Shop</a></li>
+            <li><a href="#ent-about"><i class="fa-solid fa-arrow-right"></i> About Us</a></li>
           </ul>
         </div>
       </div>
     </div>
   </div>
 </section>
-
 <script>
 (function() {
   var form = document.getElementById('ent-contact-form');
   if (!form) return;
-
   form.addEventListener('submit', function(e) {
     e.preventDefault();
-
     var name = form.querySelector('[name="name"]').value.trim();
     var email = form.querySelector('[name="email"]').value.trim();
     var message = form.querySelector('[name="message"]').value.trim();
-
     if (!name || !email || !message) {
       if (typeof Toast !== 'undefined') Toast.error('Please fill in all required fields.');
       return;
     }
-
     if (typeof Toast !== 'undefined') {
       Toast.success('Message sent! We\'ll get back to you within 24-48 hours.');
     }

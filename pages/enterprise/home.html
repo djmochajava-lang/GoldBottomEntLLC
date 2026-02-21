@@ -2,54 +2,103 @@
 
 <section class="page-section" id="page-biz-home">
 
-  <!-- Hero Banner -->
-  <div class="hero-corporate">
-    <!-- Animated floating orbs (themed blue by body.biz-theme CSS) -->
+  <!-- Split Hero -->
+  <div class="hero-corporate" style="min-height: auto; padding-bottom: 0;">
     <div class="hero-orb hero-orb-1"></div>
     <div class="hero-orb hero-orb-2"></div>
     <div class="hero-orb hero-orb-3"></div>
-    <div class="hero-content">
-      <div class="hero-badge"><i class="fa-solid fa-laptop-code"></i> Gold Bottom Enterprise</div>
-      <h1 class="hero-title">Building Digital<br>Solutions That<br>Drive Results.</h1>
-      <p class="hero-subtitle">
-        Web development, application design, <strong>technology consulting</strong>, and digital strategy
-        for businesses and organizations ready to grow.
-      </p>
-      <div class="hero-cta-row">
-        <a href="#biz-services" class="btn btn-primary btn-lg">
-          <i class="fa-solid fa-briefcase"></i> Our Services
-        </a>
-        <a href="#biz-contact" class="btn btn-secondary btn-lg">
-          <i class="fa-solid fa-rocket"></i> Start a Project
-        </a>
+    <div class="hero-split">
+      <div class="hero-text">
+        <div class="hero-badge"><i class="fa-solid fa-laptop-code"></i> Gold Bottom Enterprise</div>
+        <h1 class="hero-title">Building Digital<br>Solutions That<br><span class="text-gradient-blue">Drive Results.</span></h1>
+        <p class="hero-subtitle">
+          Web development, application design, <strong>technology consulting</strong>, and digital strategy
+          for businesses and organizations ready to grow.
+        </p>
+        <div class="hero-actions">
+          <a href="#biz-services" class="btn btn-primary btn-lg shimmer-sweep">
+            <i class="fa-solid fa-briefcase"></i> Our Services
+          </a>
+          <a href="#biz-contact" class="btn btn-secondary btn-lg">
+            <i class="fa-solid fa-rocket"></i> Start a Project
+          </a>
+        </div>
+      </div>
+      <div class="hero-media">
+        <div class="hero-code-terminal">
+          <div class="terminal-header">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+            <span class="terminal-title">project.js</span>
+            <span class="terminal-status"><span class="status-dot"></span> live</span>
+          </div>
+          <div class="terminal-body">
+            <div class="code-line">
+              <span class="line-number">1</span>
+              <span class="line-content"><span class="code-keyword">const</span> <span class="code-variable">project</span> = {</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">2</span>
+              <span class="line-content">&nbsp;&nbsp;<span class="code-variable">client</span>: <span class="code-string">"Your Business"</span>,</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">3</span>
+              <span class="line-content">&nbsp;&nbsp;<span class="code-variable">stack</span>: [<span class="code-string">"Node"</span>, <span class="code-string">"React"</span>, <span class="code-string">"Firebase"</span>],</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">4</span>
+              <span class="line-content">&nbsp;&nbsp;<span class="code-variable">status</span>: <span class="code-string">"deploying"</span>,</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">5</span>
+              <span class="line-content">&nbsp;&nbsp;<span class="code-function">deliver</span>() { <span class="code-keyword">return</span> <span class="code-string">"excellence"</span>; }</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">6</span>
+              <span class="line-content">};</span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">7</span>
+              <span class="line-content"></span>
+            </div>
+            <div class="code-line">
+              <span class="line-number">8</span>
+              <span class="line-content"><span class="code-comment">// Ready to build yours?</span><span class="terminal-cursor"></span></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Expertise Areas -->
-  <div class="container">
-    <h2 class="section-heading text-center">What We Build</h2>
-    <p class="section-subheading text-center">Technology solutions tailored to your business needs.</p>
+  <!-- What We Build -->
+  <div class="container section-spacer">
+    <h2 class="section-heading text-center reveal">What We Build</h2>
+    <p class="section-subheading text-center reveal">Technology solutions tailored to your business needs.</p>
 
-    <div class="grid grid-3 service-cards">
-      <div class="glass-card service-card">
+    <div class="grid grid-3 service-cards stagger-grid" style="margin-top: var(--space-xl);">
+      <div class="glass-card service-card service-card-numbered">
+        <span class="service-card-watermark">01</span>
         <div class="service-card-icon"><i class="fa-solid fa-globe"></i></div>
         <h3>Web Development</h3>
         <p>Modern, responsive websites built for performance, accessibility, and conversion. From landing pages to full web applications.</p>
       </div>
-      <div class="glass-card service-card">
+      <div class="glass-card service-card service-card-numbered">
+        <span class="service-card-watermark">02</span>
         <div class="service-card-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
         <h3>Application Design</h3>
         <p>Custom web apps, progressive web apps, and API-driven solutions that solve real business problems.</p>
       </div>
-      <div class="glass-card service-card">
+      <div class="glass-card service-card service-card-numbered">
+        <span class="service-card-watermark">03</span>
         <div class="service-card-icon"><i class="fa-solid fa-lightbulb"></i></div>
         <h3>Technology Consulting</h3>
         <p>Strategic guidance on tools, platforms, and processes to help your business operate smarter and scale faster.</p>
       </div>
     </div>
 
-    <div class="text-center" style="margin-top: var(--spacing-lg);">
+    <div class="text-center" style="margin-top: var(--space-xl);">
       <a href="#biz-services" class="btn btn-secondary">
         View All Services <i class="fa-solid fa-arrow-right"></i>
       </a>
@@ -57,11 +106,11 @@
   </div>
 
   <!-- Tech Stack -->
-  <div class="container">
+  <div class="container reveal">
     <h2 class="section-heading text-center">Our Tech Stack</h2>
     <p class="section-subheading text-center">We work with modern, battle-tested technologies.</p>
 
-    <div class="glass-card text-center" style="padding: var(--spacing-xl);">
+    <div class="glass-card text-center" style="padding: var(--space-xl);">
       <div class="integration-badges" style="font-size: 1rem; gap: 12px; flex-wrap: wrap; justify-content: center;">
         <span class="badge badge-blue"><i class="fa-brands fa-html5"></i> HTML5</span>
         <span class="badge badge-blue"><i class="fa-brands fa-css3-alt"></i> CSS3</span>
@@ -77,23 +126,42 @@
     </div>
   </div>
 
+  <!-- Trust Bar -->
+  <div class="trust-bar reveal">
+    <div class="container">
+      <p class="trust-bar-label">Trusted By Businesses In</p>
+      <div class="trust-bar-logos">
+        <div class="trust-bar-logo"><i class="fa-solid fa-store"></i> <span>Retail</span></div>
+        <div class="trust-bar-logo"><i class="fa-solid fa-hand-holding-heart"></i> <span>Nonprofit</span></div>
+        <div class="trust-bar-logo"><i class="fa-solid fa-briefcase-medical"></i> <span>Healthcare</span></div>
+        <div class="trust-bar-logo"><i class="fa-solid fa-building"></i> <span>Real Estate</span></div>
+        <div class="trust-bar-logo"><i class="fa-solid fa-music"></i> <span>Entertainment</span></div>
+        <div class="trust-bar-logo"><i class="fa-solid fa-utensils"></i> <span>Hospitality</span></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats Bar -->
   <div class="stats-bar">
     <div class="container">
       <div class="stats-grid">
         <div class="stat-item">
-          <span class="stat-value">10+</span>
+          <i class="stat-icon fa-solid fa-code"></i>
+          <span class="stat-value" data-count="10" data-suffix="+">0</span>
           <span class="stat-label">Years in Tech</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">50+</span>
+          <i class="stat-icon fa-solid fa-folder-open"></i>
+          <span class="stat-value" data-count="50" data-suffix="+">0</span>
           <span class="stat-label">Projects Delivered</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">99%</span>
+          <i class="stat-icon fa-solid fa-face-smile"></i>
+          <span class="stat-value" data-count="99" data-suffix="%">0</span>
           <span class="stat-label">Client Satisfaction</span>
         </div>
         <div class="stat-item">
+          <i class="stat-icon fa-solid fa-headset"></i>
           <span class="stat-value">24/7</span>
           <span class="stat-label">Support Available</span>
         </div>
@@ -102,19 +170,19 @@
   </div>
 
   <!-- CTA -->
-  <div class="container text-center">
-    <div class="glass-card cta-card">
+  <div class="container text-center" style="padding-bottom: var(--space-3xl);">
+    <div class="glass-card cta-premium reveal">
       <h2>Ready to Build Something Great?</h2>
       <p class="text-muted">
         Tell us about your project and we'll put together a custom proposal &mdash;
         no obligation, no pressure.
       </p>
-      <div class="hero-cta-row" style="justify-content: center;">
-        <a href="#biz-contact" class="btn btn-primary btn-lg">
+      <div class="cta-actions">
+        <a href="#biz-contact" class="btn btn-primary btn-lg shimmer-sweep">
           <i class="fa-solid fa-rocket"></i> Start a Project
         </a>
         <a href="#biz-portfolio" class="btn btn-secondary btn-lg">
-          <i class="fa-solid fa-folder-open"></i> Our Work
+          Our Work <i class="fa-solid fa-arrow-right"></i>
         </a>
       </div>
     </div>
