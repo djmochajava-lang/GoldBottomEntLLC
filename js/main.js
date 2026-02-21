@@ -40,16 +40,17 @@
       this.initModule('Toast', typeof Toast !== 'undefined' ? Toast : null);
       this.initModule('Modal', typeof Modal !== 'undefined' ? Modal : null);
 
-      // Auth (must be before Router so guard is ready for initial route)
-      this.initModule('Auth', typeof Auth !== 'undefined' ? Auth : null);
-
-      // Core SPA
+      // Core SPA + Navigation FIRST — renders hero, menus, and initial page
+      // immediately so the user sees content before auth handshake completes
       this.initModule('PageLoader', typeof PageLoader !== 'undefined' ? PageLoader : null);
-      this.initModule('Router', typeof Router !== 'undefined' ? Router : null);
-
-      // Navigation
       this.initModule('Navigation', typeof Navigation !== 'undefined' ? Navigation : null);
       this.initModule('Sidebar', typeof Sidebar !== 'undefined' ? Sidebar : null);
+      this.initModule('Router', typeof Router !== 'undefined' ? Router : null);
+
+      // Auth AFTER Router — public pages load instantly; guardRoute() only
+      // blocks dashboard routes, so the initial hero/menu are already visible
+      // by the time Auth starts its async PIN verify or Firebase handshake.
+      this.initModule('Auth', typeof Auth !== 'undefined' ? Auth : null);
 
       // Data Layer
       this.initModule('DataStore', typeof DataStore !== 'undefined' ? DataStore : null);

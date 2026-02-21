@@ -261,8 +261,14 @@ const Auth = {
         Auth._notifyListeners(user);
         console.log('[Auth] Signed out');
 
+        // If there's a pending dashboard route (queued before auth was ready),
+        // show the login modal now so the user can authenticate.
+        if (Auth._pendingRoute && typeof Router !== 'undefined' &&
+            Router.isDashboardRoute(Auth._pendingRoute)) {
+          Auth.showLoginModal();
+        }
         // If currently on a dashboard route, redirect to home
-        if (typeof Router !== 'undefined' &&
+        else if (typeof Router !== 'undefined' &&
             Router.currentPage &&
             Router.isDashboardRoute(Router.currentPage)) {
           Router.navigateTo('home');
@@ -779,18 +785,12 @@ const Auth = {
       return true;
     }
 
-    // If auth is still initializing (verifying PIN session), block and queue
-    // The init callback will navigate to the dashboard route once verified
-    if (this._initializing) {
-      console.log('[Auth] Auth initializing — queuing dashboard route:', pageName);
+    // If auth is still initializing (verifying PIN session) OR hasn't started
+    // yet (modules loading), block and queue — don't show login prematurely.
+    // The init callback will navigate to the dashboard route once verified.
+    if (this._initializing || !this.initialized) {
+      console.log('[Auth] Auth not ready — queuing dashboard route:', pageName);
       this._pendingRoute = pageName;
-      return false;
-    }
-
-    // If auth hasn't initialized yet (no PIN, no Firebase), show login
-    if (!this.initialized) {
-      this._pendingRoute = pageName;
-      this.showLoginModal();
       return false;
     }
 
