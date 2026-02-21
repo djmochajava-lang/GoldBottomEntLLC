@@ -365,7 +365,24 @@
 #page-home .hero-title {
   opacity: 0;
   transform: translateY(20px);
-  animation: homeHeroReveal 0.7s ease-out 0.5s forwards;
+  animation:
+    homeHeroReveal 0.7s ease-out 0.5s forwards,
+    homeGoldWave 8s ease-in-out 3s infinite;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 40%,
+    #daa520 48%,
+    #ffd700 50%,
+    #daa520 52%,
+    #ffffff 60%,
+    #ffffff 100%
+  );
+  background-size: 400% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 #page-home .hero-accent-line {
@@ -391,6 +408,13 @@
 
 @keyframes homeAccentDraw {
   to { opacity: 1; transform: scaleX(1); }
+}
+
+/* Gold wave sweep through hero title — periodic with pause */
+@keyframes homeGoldWave {
+  0%   { background-position: 120% 0; }
+  25%  { background-position: -20% 0; }
+  100% { background-position: -20% 0; }
 }
 
 /* ── Root Home Page — Badge glow pulse ── */
