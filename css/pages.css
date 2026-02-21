@@ -58,6 +58,22 @@
   background: #000;
 }
 
+/* Stage hero title — thin, elegant sans-serif matching the design */
+.hero-title-stage {
+  font-family: 'Inter', 'Helvetica Neue', 'Arial', sans-serif !important;
+  font-weight: 300 !important;
+  font-size: clamp(2.2rem, 5vw, 4rem) !important;
+  letter-spacing: 0.22em !important;
+  text-transform: uppercase;
+  color: #fff !important;
+}
+
+/* Bigger nav text on stage hero page */
+.ent-stage-active .public-nav .nav-link {
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+}
+
 /* ENTER button — gold outlined rectangle matching the design */
 .btn-enter-stage {
   display: inline-flex;
