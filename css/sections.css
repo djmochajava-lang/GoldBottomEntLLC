@@ -872,7 +872,7 @@ body.biz-theme .section-title-accent::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(13, 17, 23, 0.7);
+  background: rgba(13, 17, 23, 0.45);
   z-index: 0;
   pointer-events: none;
 }
@@ -890,6 +890,20 @@ body.biz-theme .section-title-accent::after {
 /* Make hero-corporate transparent so section bg image shows through */
 #page-biz-home .hero-corporate {
   background: transparent;
+}
+
+/* Text shadow on enterprise pages so headings pop over lighter overlay */
+#page-biz-home .hero-title,
+#page-biz-home .hero-subtitle,
+#page-biz-services .page-title,
+#page-biz-services .section-heading,
+#page-biz-portfolio .page-title,
+#page-biz-portfolio .section-heading,
+#page-biz-about .page-title,
+#page-biz-about .section-heading,
+#page-biz-contact .page-title,
+#page-biz-contact .section-heading {
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
 }
 
 
