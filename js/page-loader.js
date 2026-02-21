@@ -193,24 +193,124 @@ const PageLoader = {
   },
 
   /**
-   * Terminal typing effect for enterprise hero code block
+   * Terminal typing effect — lines 1-3 appear instantly, lines 4-8 type
+   * character by character, then loop with a 5-second pause.
    */
   initTerminalTyping() {
     const terminal = document.querySelector('#page-biz-home .hero-code-terminal');
     if (!terminal) return;
 
-    const lines = terminal.querySelectorAll('.code-line');
-    if (!lines.length) return;
+    const allLines = terminal.querySelectorAll('.code-line');
+    if (!allLines.length) return;
 
-    // Start typing after the terminal slides in (1.0s delay + 0.8s animation)
-    const startDelay = 1800;
-    const lineDelay = 280;
+    // Lines 1-3 (index 0-2) reveal instantly after terminal slides in
+    const staticLines = Array.from(allLines).slice(0, 3);
+    const typingLines = Array.from(allLines).slice(3); // lines 4-8 (index 3-7)
 
-    lines.forEach((line, i) => {
-      setTimeout(() => {
-        line.classList.add('typed');
-      }, startDelay + (i * lineDelay));
+    // Save original HTML and extract plain text for each typing line
+    const lineData = typingLines.map((line) => {
+      const content = line.querySelector('.line-content');
+      return {
+        el: line,
+        contentEl: content,
+        originalHTML: content.innerHTML,
+        text: content.textContent
+      };
     });
+
+    // Move cursor to a ref we can relocate
+    const cursor = terminal.querySelector('.terminal-cursor');
+
+    const CHAR_SPEED = 45;       // ms per character
+    const LINE_PAUSE = 200;      // ms pause between lines
+    const LOOP_PAUSE = 5000;     // 5 sec pause before restarting
+    const INITIAL_DELAY = 1800;  // wait for terminal slide-in
+
+    // Reveal static lines (1-3) immediately after terminal appears
+    setTimeout(() => {
+      staticLines.forEach((line) => line.classList.add('typed'));
+    }, INITIAL_DELAY);
+
+    // Start the typing loop for lines 4-8
+    let loopTimer = null;
+    let charTimers = [];
+    let active = true;
+
+    function clearAllTimers() {
+      charTimers.forEach(clearTimeout);
+      charTimers = [];
+      if (loopTimer) clearTimeout(loopTimer);
+    }
+
+    function resetTypingLines() {
+      lineData.forEach(({ el, contentEl }) => {
+        el.classList.remove('typed');
+        contentEl.innerHTML = '';
+      });
+      // Hide cursor during reset
+      if (cursor) cursor.style.display = 'none';
+    }
+
+    function typeLines() {
+      if (!active) return;
+      resetTypingLines();
+
+      let totalDelay = 0;
+
+      lineData.forEach(({ el, contentEl, originalHTML, text }, lineIdx) => {
+        const lineStart = totalDelay;
+
+        // Show the line container (with line number visible)
+        charTimers.push(setTimeout(() => {
+          el.classList.add('typed');
+          contentEl.innerHTML = '';
+          // Place cursor in this line
+          if (cursor) {
+            contentEl.appendChild(cursor);
+            cursor.style.display = '';
+          }
+        }, lineStart));
+
+        // Type each character
+        for (let c = 0; c < text.length; c++) {
+          charTimers.push(setTimeout(() => {
+            // Build plain text up to this character, then append cursor
+            const typed = text.substring(0, c + 1);
+            contentEl.textContent = typed;
+            if (cursor) contentEl.appendChild(cursor);
+          }, lineStart + (c + 1) * CHAR_SPEED));
+        }
+
+        totalDelay += (text.length + 1) * CHAR_SPEED;
+
+        // After line is fully typed, swap in the syntax-highlighted HTML
+        charTimers.push(setTimeout(() => {
+          contentEl.innerHTML = originalHTML;
+          // If this is the last line, put cursor back
+          if (lineIdx === lineData.length - 1 && cursor) {
+            // cursor is already in originalHTML for last line
+          }
+        }, totalDelay));
+
+        totalDelay += LINE_PAUSE;
+      });
+
+      // After all lines typed, pause 5 sec then restart
+      loopTimer = setTimeout(() => {
+        if (active) typeLines();
+      }, totalDelay + LOOP_PAUSE);
+    }
+
+    // Kick off first cycle after initial delay + time for static lines
+    setTimeout(() => {
+      typeLines();
+    }, INITIAL_DELAY + 400);
+
+    // Clean up if page navigates away
+    this._terminalCleanup = () => {
+      active = false;
+      clearAllTimers();
+    };
   },
 
   /**
