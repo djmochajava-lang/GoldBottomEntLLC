@@ -92,10 +92,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 1.1rem 5rem;
+  padding: 0.8rem 3.2rem;
   font-family: 'Playfair Display', 'Didot', 'Georgia', serif;
-  font-size: 1.5rem;
-  letter-spacing: 0.25em;
+  font-size: 1.15rem;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: #ffd700;
   background: rgba(10, 10, 10, 0.5);
@@ -1205,6 +1205,182 @@
   color: var(--color-gold);
 }
 
+
+/* =============================================
+   Featured Artist Spotlight
+   ============================================= */
+
+.featured-artist-spotlight {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.featured-artist-hero {
+  display: flex;
+  gap: var(--space-2xl);
+  align-items: flex-start;
+  padding: var(--space-2xl);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.featured-artist-photo {
+  flex-shrink: 0;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(184, 134, 11, 0.12), rgba(218, 165, 32, 0.06));
+  border: 3px solid rgba(184, 134, 11, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  color: var(--color-gold);
+}
+
+.featured-artist-info {
+  flex: 1;
+}
+
+.featured-artist-name {
+  font-family: var(--font-heading);
+  font-size: var(--text-4xl);
+  font-weight: var(--fw-bold);
+  color: #ffffff;
+  margin-bottom: var(--space-xs);
+}
+
+.featured-artist-tagline {
+  font-size: var(--text-md);
+  color: var(--color-gold);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--space-md);
+  letter-spacing: 0.04em;
+}
+
+.featured-artist-bio {
+  font-size: var(--text-md);
+  color: var(--color-text-secondary);
+  line-height: var(--lh-relaxed);
+  margin-bottom: var(--space-lg);
+}
+
+.featured-artist-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+}
+
+.featured-artist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+/* Stats row */
+.featured-artist-stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2xl);
+  padding: var(--space-xl) var(--space-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.featured-stat {
+  text-align: center;
+}
+
+.featured-stat-value {
+  display: block;
+  font-size: var(--text-3xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-gold);
+  line-height: 1.1;
+}
+
+.featured-stat-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* Streaming platforms */
+.featured-artist-platforms {
+  text-align: center;
+  padding: var(--space-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.platforms-label {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-md);
+  font-weight: var(--fw-semibold);
+}
+
+.platforms-icons {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-xl);
+}
+
+.platforms-icons a {
+  font-size: var(--text-2xl);
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.platforms-icons a:hover {
+  color: var(--color-gold);
+  transform: scale(1.15);
+}
+
+/* Featured Artist — Responsive */
+@media (max-width: 768px) {
+  .featured-artist-hero {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-xl) var(--space-lg);
+  }
+
+  .featured-artist-photo {
+    width: 140px;
+    height: 140px;
+    font-size: 2.8rem;
+  }
+
+  .featured-artist-name {
+    font-size: var(--text-2xl);
+  }
+
+  .featured-artist-badges {
+    justify-content: center;
+  }
+
+  .featured-artist-actions {
+    justify-content: center;
+  }
+
+  .featured-artist-stats {
+    flex-wrap: wrap;
+    gap: var(--space-lg);
+  }
+
+  .featured-stat {
+    min-width: 120px;
+  }
+}
 
 /* =============================================
    Enhanced Event Cards (Entertainment)

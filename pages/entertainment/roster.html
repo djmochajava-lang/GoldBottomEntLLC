@@ -1,33 +1,88 @@
-<!-- pages/entertainment/roster.html — Entertainment Talent Roster -->
+<!-- pages/entertainment/roster.html — Featured Artist -->
 
 <section class="page-section" id="page-ent-roster">
   <div class="container">
-    <h1 class="page-title reveal">Our Roster</h1>
-    <p class="page-subtitle reveal">Meet the talented artists and creatives represented by Gold Bottom Entertainment.</p>
+    <h1 class="page-title reveal">Featured Artist</h1>
+    <p class="page-subtitle reveal">Proudly managed by Gold Bottom Entertainment.</p>
 
-    <!-- Filter Tabs -->
-    <div class="tabs roster-filters reveal">
-      <button class="tab active" data-filter="all">All</button>
-      <button class="tab" data-filter="artist">Artists</button>
-      <button class="tab" data-filter="creative">Creatives</button>
-    </div>
+    <!-- L.A. Young Spotlight -->
+    <div class="featured-artist-spotlight reveal">
+      <div class="featured-artist-hero">
+        <div class="featured-artist-photo">
+          <i class="fa-solid fa-microphone-lines"></i>
+        </div>
+        <div class="featured-artist-info">
+          <h2 class="featured-artist-name">L.A. Young</h2>
+          <p class="featured-artist-tagline">Soul &bull; Jazz &bull; R&B</p>
+          <p class="featured-artist-bio">
+            L.A. Young is a powerhouse soul, jazz, and blues vocalist with over two decades of
+            captivating audiences worldwide. With five UK Top-5 hits, a #1 on UK FM Radio,
+            and recognition as Maryland's Artist of the Year &mdash; she delivers unforgettable
+            live performances that blend raw emotion with timeless artistry.
+          </p>
 
-    <!-- Roster Grid -->
-    <div class="grid grid-3 roster-grid stagger-grid" id="ent-roster-grid">
-      <!-- Cards rendered by script -->
+          <!-- Achievements -->
+          <div class="featured-artist-badges">
+            <span class="badge badge-gold"><i class="fa-solid fa-trophy"></i> #1 UK FM Radio</span>
+            <span class="badge badge-gold"><i class="fa-solid fa-award"></i> MD Artist of Year</span>
+            <span class="badge badge-gold"><i class="fa-solid fa-music"></i> 5 UK Top-5 Hits</span>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="featured-artist-actions">
+            <a href="#ent-contact" class="btn btn-primary btn-lg shimmer-sweep">
+              <i class="fa-solid fa-calendar-check"></i> Book Now
+            </a>
+            <a href="https://layoungbandpage.com" class="btn btn-secondary btn-lg" target="_blank" rel="noopener noreferrer">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Visit Her Band Page
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="featured-artist-stats">
+        <div class="featured-stat">
+          <span class="featured-stat-value">5</span>
+          <span class="featured-stat-label">UK Top-5 Hits</span>
+        </div>
+        <div class="featured-stat">
+          <span class="featured-stat-value">100+</span>
+          <span class="featured-stat-label">Live Shows</span>
+        </div>
+        <div class="featured-stat">
+          <span class="featured-stat-value">20+</span>
+          <span class="featured-stat-label">Years Active</span>
+        </div>
+        <div class="featured-stat">
+          <span class="featured-stat-value">#1</span>
+          <span class="featured-stat-label">UK FM Radio</span>
+        </div>
+      </div>
+
+      <!-- Streaming Platforms -->
+      <div class="featured-artist-platforms">
+        <p class="platforms-label">Listen Now</p>
+        <div class="platforms-icons">
+          <a href="https://open.spotify.com/artist/3K5zIDoZCV0jCqziMOifCe" title="Spotify" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-spotify"></i></a>
+          <a href="https://music.apple.com/us/artist/l-a-young/1452030774" title="Apple Music" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-apple"></i></a>
+          <a href="https://www.youtube.com/@LAYoungMusic" title="YouTube" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-youtube"></i></a>
+          <a href="https://soundcloud.com/layoungmusic" title="SoundCloud" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-soundcloud"></i></a>
+        </div>
+      </div>
     </div>
 
     <!-- CTA -->
     <div class="text-center" style="margin-top: var(--space-3xl);">
       <div class="glass-card cta-premium reveal">
-        <h2>Want to Join Our Roster?</h2>
+        <h2>Want to Work With L.A. Young?</h2>
         <p class="text-muted">
-          We're always looking for exceptional talent &mdash; musicians, singers, producers, and creatives.
-          Send us your info and let's talk.
+          Whether you're looking to book a show, collaborate on a project, or bring
+          world-class soul to your event &mdash; let's make it happen.
         </p>
         <div class="cta-actions">
           <a href="#ent-contact" class="btn btn-primary btn-lg shimmer-sweep">
-            <i class="fa-solid fa-paper-plane"></i> Submit Your Info
+            <i class="fa-solid fa-envelope"></i> Get In Touch
           </a>
           <a href="#ent-services" class="btn btn-secondary btn-lg">
             Our Services <i class="fa-solid fa-arrow-right"></i>
@@ -37,67 +92,3 @@
     </div>
   </div>
 </section>
-
-<script>
-(function() {
-  var grid = document.getElementById('ent-roster-grid');
-  if (!grid || typeof DataStore === 'undefined') return;
-
-  var roster = DataStore.getActiveRoster().filter(function(t) {
-    return t.category === 'artist' || t.category === 'creative';
-  });
-
-  var categoryIcons = {
-    artist: 'fa-microphone-lines',
-    creative: 'fa-palette'
-  };
-
-  var categoryLabels = {
-    artist: 'Artist',
-    creative: 'Creative'
-  };
-
-  var statusColors = {
-    active: 'badge-green',
-    prospect: 'badge-blue',
-    inactive: 'badge-gray'
-  };
-
-  function renderCards(filter) {
-    var filtered = filter === 'all' ? roster : roster.filter(function(t) { return t.category === filter; });
-
-    if (filtered.length === 0) {
-      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-users"></i></div><h3 class="empty-state-title">No talent in this category yet</h3><p class="empty-state-text">Check back soon or <a href="#ent-contact">submit talent</a>.</p></div>';
-      return;
-    }
-
-    grid.innerHTML = filtered.map(function(t) {
-      var icon = categoryIcons[t.category] || 'fa-user';
-      var catLabel = categoryLabels[t.category] || t.category;
-      var statusClass = statusColors[t.status] || 'badge-gray';
-      var genres = t.genre ? t.genre.split('/').map(function(g) {
-        return '<span class="badge badge-gold">' + g.trim() + '</span>';
-      }).join(' ') : '';
-
-      return '<div class="glass-card talent-card" data-category="' + t.category + '">' +
-        '<div class="talent-card-avatar" style="border: 3px solid rgba(184, 134, 11, 0.3);"><i class="fa-solid ' + icon + '"></i></div>' +
-        '<h3 class="talent-card-name">' + (t.name || '[Name]') + '</h3>' +
-        '<span class="badge ' + statusClass + '" style="margin-bottom: 8px;">' + catLabel + '</span>' +
-        '<div class="talent-card-badges">' + genres + '</div>' +
-        '<p class="talent-card-bio">' + (t.bio ? (t.bio.length > 120 ? t.bio.substring(0, 120) + '...' : t.bio) : '[Bio coming soon]') + '</p>' +
-        (t.website ? '<a href="' + t.website + '" class="btn btn-ghost btn-sm" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Visit</a>' : '') +
-      '</div>';
-    }).join('');
-  }
-
-  renderCards('all');
-
-  document.querySelectorAll('.roster-filters .tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      document.querySelectorAll('.roster-filters .tab').forEach(function(t) { t.classList.remove('active'); });
-      tab.classList.add('active');
-      renderCards(tab.getAttribute('data-filter'));
-    });
-  });
-})();
-</script>
