@@ -123,9 +123,9 @@
 
 .hero-title {
   font-family: var(--font-heading);
-  font-size: var(--text-5xl);
+  font-size: clamp(2.5rem, 4.2vw, 4.2rem);
   font-weight: var(--fw-extrabold);
-  line-height: var(--lh-tight);
+  line-height: 1.15;
   color: #ffffff;
   margin-bottom: var(--space-md);
   letter-spacing: -0.02em;
@@ -140,11 +140,11 @@
 }
 
 .hero-subtitle {
-  font-size: var(--text-lg);
+  font-size: clamp(1.05rem, 1.4vw, 1.35rem);
   font-weight: var(--fw-regular);
   color: rgba(200, 206, 214, 0.85);
   line-height: var(--lh-relaxed);
-  max-width: 600px;
+  max-width: 620px;
   margin: 0 auto var(--space-xl);
   letter-spacing: 0.01em;
 }
@@ -251,7 +251,7 @@
 .hero-corporate .hero-content {
   position: relative;
   z-index: 2;
-  max-width: 800px;
+  max-width: 860px;
   margin: 0 auto;
   transform: translateY(-5vh);
 }
@@ -323,11 +323,121 @@
 
 /* Gold accent line under hero title */
 .hero-accent-line {
-  width: 60px;
+  width: 90px;
   height: 2px;
-  background: linear-gradient(90deg, var(--color-gold), rgba(218, 165, 32, 0.4));
+  background: linear-gradient(90deg,
+    rgba(218, 165, 32, 0.2),
+    var(--color-gold) 50%,
+    rgba(218, 165, 32, 0.2));
   margin: 0 auto var(--space-lg);
   border-radius: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer sweep on accent line */
+.hero-accent-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 100%
+  );
+  animation: accentLineShimmer 3s ease-in-out infinite;
+}
+
+@keyframes accentLineShimmer {
+  0%   { transform: translateX(-100%); }
+  60%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Root Home Page — Staggered entrance animations ── */
+#page-home .hero-badge {
+  opacity: 0;
+  transform: translateY(15px);
+  animation: homeHeroReveal 0.6s ease-out 0.2s forwards;
+}
+
+#page-home .hero-title {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: homeHeroReveal 0.7s ease-out 0.5s forwards;
+}
+
+#page-home .hero-accent-line {
+  opacity: 0;
+  transform: scaleX(0);
+  animation: homeAccentDraw 0.5s ease-out 0.9s forwards;
+}
+
+#page-home .hero-subtitle {
+  opacity: 0;
+  transform: translateY(15px);
+  animation: homeHeroReveal 0.6s ease-out 1.1s forwards;
+}
+
+#page-home .hero-scroll-indicator {
+  opacity: 0;
+  animation: homeHeroReveal 0.5s ease-out 1.6s forwards;
+}
+
+@keyframes homeHeroReveal {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes homeAccentDraw {
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+/* ── Root Home Page — Badge glow pulse ── */
+#page-home .hero-badge {
+  box-shadow: 0 0 12px rgba(184, 134, 11, 0.15), 0 0 24px rgba(184, 134, 11, 0.06);
+}
+
+#page-home .hero-badge.revealed {
+  animation: homeHeroReveal 0.6s ease-out 0.2s forwards, homeBadgeGlow 4s ease-in-out 2s infinite;
+}
+
+@keyframes homeBadgeGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(184, 134, 11, 0.15), 0 0 24px rgba(184, 134, 11, 0.06); }
+  50%      { box-shadow: 0 0 18px rgba(184, 134, 11, 0.3), 0 0 36px rgba(184, 134, 11, 0.12); }
+}
+
+/* ── Scroll-down indicator (root home) ── */
+#page-home .hero-scroll-indicator {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#page-home .hero-scroll-indicator .scroll-text {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(184, 134, 11, 0.6);
+  font-weight: var(--fw-semibold);
+}
+
+#page-home .hero-scroll-indicator .scroll-line {
+  width: 1px;
+  height: 32px;
+  background: linear-gradient(to bottom, rgba(184, 134, 11, 0.55), transparent);
+  animation: scrollLinePulse 2s ease-in-out infinite;
+}
+
+@keyframes scrollLinePulse {
+  0%, 100% { opacity: 0.5; transform: scaleY(1); }
+  50%      { opacity: 1; transform: scaleY(1.15); }
 }
 
 /* Hero badge/label */
