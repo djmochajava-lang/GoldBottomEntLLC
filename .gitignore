@@ -29,6 +29,7 @@ claude.md
 index-local.html
 server/
 vendor/
+tools/
 dashboard/finances.html
 dashboard/documents.html
 dashboard/integrations.html
