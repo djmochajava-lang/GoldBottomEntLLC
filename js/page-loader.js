@@ -176,6 +176,11 @@ const PageLoader = {
 
     // Table pages — TableManager auto-inits via inline scripts
 
+    // Enterprise home — terminal typing effect
+    if (pageName === 'biz-home') {
+      this.initTerminalTyping();
+    }
+
     // Lazy load images
     if (typeof Utils !== 'undefined' && Utils.lazyLoadImages) {
       Utils.lazyLoadImages();
@@ -185,6 +190,27 @@ const PageLoader = {
     if (typeof initScrollAnimations === 'function') {
       initScrollAnimations();
     }
+  },
+
+  /**
+   * Terminal typing effect for enterprise hero code block
+   */
+  initTerminalTyping() {
+    const terminal = document.querySelector('#page-biz-home .hero-code-terminal');
+    if (!terminal) return;
+
+    const lines = terminal.querySelectorAll('.code-line');
+    if (!lines.length) return;
+
+    // Start typing after the terminal slides in (1.0s delay + 0.8s animation)
+    const startDelay = 1800;
+    const lineDelay = 280;
+
+    lines.forEach((line, i) => {
+      setTimeout(() => {
+        line.classList.add('typed');
+      }, startDelay + (i * lineDelay));
+    });
   },
 
   /**
