@@ -8,7 +8,7 @@ const SiteConfig = {
     legalName: 'Gold Bottom Ent LLC',        // Official LLC filing name (no period)
     name: 'Gold Bottom Ent. LLC',            // Marketing / branding name (with period)
     shortName: 'GBE',
-    dba: ['Gold Bottom Entertainment', 'Gold Bottom Enterprise'],  // Official DBA trade names
+    dba: ['Gold Bottom Enterprise', 'Gold Bottom Entertainment'],  // Official DBA trade names
     tagline: 'Elevating Talent. Building Brands. Creating Legacy.',
     description: 'Talent Management, Creative Services & Enterprise Solutions',
     year: 2026,

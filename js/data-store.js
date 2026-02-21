@@ -846,7 +846,7 @@ const DataStore = {
       { id: 'chk-005', category: 'Formation & Legal', label: 'Obtained Business Insurance (General Liability + E&O)', checked: false },
       { id: 'chk-006', category: 'Formation & Legal', label: 'Retained Business Attorney', checked: false },
       { id: 'chk-007', category: 'Formation & Legal', label: 'Retained CPA / Accountant', checked: false },
-      { id: 'chk-007a', category: 'Formation & Legal', label: 'Filed DBA registrations (Gold Bottom Entertainment, Gold Bottom Enterprise)', checked: false },
+      { id: 'chk-007a', category: 'Formation & Legal', label: 'Filed DBA registrations (Gold Bottom Enterprise, Gold Bottom Entertainment)', checked: false },
       // Banking & Finance
       { id: 'chk-008', category: 'Banking & Finance', label: 'Opened Business Bank Account', checked: false },
       { id: 'chk-009', category: 'Banking & Finance', label: 'Set Up Accounting System (QuickBooks, Wave, etc.)', checked: false },
