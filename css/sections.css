@@ -1479,8 +1479,14 @@ body.ent-theme .trust-bar-logo:hover {
   color: var(--color-gold);
 }
 
+body.biz-theme .trust-bar-logo {
+  color: var(--color-gold);
+  opacity: 0.8;
+}
+
 body.biz-theme .trust-bar-logo:hover {
   color: #58a6ff;
+  opacity: 1;
 }
 
 .trust-bar-logo i {
