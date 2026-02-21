@@ -12,8 +12,8 @@ const Sidebar = {
   collapsed: false,
   initialized: false,
 
-  /** @type {string|null} Snapshot of the original sidebar nav HTML before filtering */
-  _navOriginalHTML: null,
+  /** @type {string|null} Snapshot of the static sidebar nav HTML (standard items from index.html) */
+  _navStaticHTML: null,
 
   init() {
     if (this.initialized) return;
@@ -165,20 +165,21 @@ const Sidebar = {
   },
 
   /**
-   * Remove inaccessible sidebar menu items from the DOM entirely.
-   * Reads Auth.getDashboardAccess() which returns the effective list of
-   * accessible route names for this session (Firestore-stored per-user config
-   * intersected with environment restrictions like localOnlyRoutes).
+   * Build the sidebar nav from two sources:
    *
-   * Items are fully removed — not hidden — so they cannot be discovered
-   * via DOM inspection. A snapshot of the original nav HTML is stored on
-   * first run so items can be restored when access changes (e.g., re-login).
+   * 1. Static items — standard menu groups hardcoded in index.html
+   *    (Overview, Management, Creative, Operations). These are restored
+   *    from a snapshot and filtered by the user's access list.
    *
-   * Removes entire nav groups when all their items are inaccessible.
+   * 2. Dynamic items — privileged menu groups fetched from Firestore
+   *    (e.g., IT Dept). These never appear in the public repo HTML.
+   *    Only items present in the user's dashboardAccess are rendered.
+   *
+   * Items removed from the DOM cannot be discovered via inspection.
    */
   filterMenuItems() {
     if (!this.sidebar) return;
-    if (typeof Auth === 'undefined' || !Auth.getDashboardAccess) return;
+    if (typeof Auth === 'undefined') return;
 
     const access = Auth.getDashboardAccess();
     if (!access) return;
@@ -186,32 +187,73 @@ const Sidebar = {
     const nav = this.sidebar.querySelector('.sidebar-nav');
     if (!nav) return;
 
-    // First call: snapshot the full nav HTML so we can restore on access changes
-    if (this._navOriginalHTML === null) {
-      this._navOriginalHTML = nav.innerHTML;
+    // Snapshot the static HTML on first run
+    if (this._navStaticHTML === null) {
+      this._navStaticHTML = nav.innerHTML;
     }
 
-    // Restore full nav from snapshot (clean slate before filtering)
-    nav.innerHTML = this._navOriginalHTML;
+    // ── 1. Restore and filter static items ──
+    nav.innerHTML = this._navStaticHTML;
 
-    // Remove inaccessible items from the DOM
+    // Remove static items the user doesn't have access to
     nav.querySelectorAll('.sidebar-nav-item[data-page]').forEach((item) => {
       const page = item.getAttribute('data-page');
-      if (!page || !page.startsWith('dashboard-')) return;
-      if (access.indexOf(page) === -1) {
+      if (page && access.indexOf(page) === -1) {
         item.remove();
       }
     });
 
-    // Remove groups that have no remaining items
+    // Remove static groups that are now empty
     nav.querySelectorAll('.sidebar-nav-group').forEach((group) => {
       if (group.querySelectorAll('.sidebar-nav-item').length === 0) {
         group.remove();
       }
     });
 
+    // ── 2. Append privileged items from Firestore config ──
+    const config = Auth.getMenuConfig ? Auth.getMenuConfig() : null;
+    if (config && config.groups) {
+      config.groups.forEach((group) => {
+        const visibleItems = group.items.filter((item) =>
+          access.indexOf(item.route) !== -1
+        );
+
+        if (visibleItems.length === 0) return;
+
+        let groupHTML = '<div class="sidebar-nav-group">';
+        groupHTML += '<span class="sidebar-nav-label">' + this._escapeHTML(group.label) + '</span>';
+
+        visibleItems.forEach((item) => {
+          groupHTML += '<a href="#' + item.route + '" class="sidebar-nav-item" data-page="' + item.route + '">';
+          groupHTML += '<i class="' + this._escapeHTML(item.icon) + '"></i>';
+          groupHTML += '<span class="sidebar-nav-text">' + this._escapeHTML(item.label) + '</span>';
+          groupHTML += '</a>';
+        });
+
+        groupHTML += '</div>';
+        nav.insertAdjacentHTML('beforeend', groupHTML);
+      });
+    }
+
     // Re-bind mobile close handlers on the fresh DOM elements
     this.setupNavClicks();
+
+    // Re-apply active state for the current page
+    if (typeof Router !== 'undefined' && Router.currentPage) {
+      this.setActiveLink(Router.currentPage);
+    }
+  },
+
+  /**
+   * Escape a string for safe insertion into HTML.
+   * @param {string} str
+   * @returns {string}
+   * @private
+   */
+  _escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   },
 
   /**

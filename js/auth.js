@@ -51,6 +51,9 @@ const Auth = {
   /** @type {Array<string>|null} Raw dashboardAccess from Firestore (before environment filtering) */
   _firestoreAccess: null,
 
+  /** @type {Object|null} Dashboard menu structure from Firestore (groups, labels, icons) */
+  _menuConfig: null,
+
   /** @type {string|null} PIN session token (stored in localStorage) */
   _sessionToken: null,
 
@@ -264,6 +267,7 @@ const Auth = {
         Auth._registrationStatus = null;
         Auth._role = null;
         Auth._firestoreAccess = null;
+        Auth._menuConfig = null;
         Auth._updateUI(user);
         Auth._notifyListeners(user);
         console.log('[Auth] Signed out');
@@ -439,6 +443,91 @@ const Auth = {
    */
   getDashboardAccess: function() {
     return this._dashboardAccess;
+  },
+
+  /**
+   * Fetch privileged/restricted menu items from Firestore.
+   * Standard menu groups (Overview, Management, Creative, Operations)
+   * live in index.html. Only privileged groups (e.g., IT Dept) are
+   * stored in Firestore so they never appear in the public GitHub repo.
+   * Falls back to a local default for PIN auth or when Firestore is unavailable.
+   * @returns {Promise}
+   * @private
+   */
+  _fetchMenuConfig: function() {
+    // Already cached — emit immediately
+    if (this._menuConfig) {
+      this._emitAccessReady();
+      return Promise.resolve();
+    }
+
+    // PIN auth or no Firestore — use local fallback
+    if (this._isPinAuth || !this._db) {
+      this._menuConfig = this._localMenuConfig();
+      this._emitAccessReady();
+      return Promise.resolve();
+    }
+
+    // Fetch from Firestore: config/dashboardMenu
+    return this._db.collection('config').doc('dashboardMenu').get()
+      .then(function(doc) {
+        if (doc.exists) {
+          Auth._menuConfig = doc.data();
+          console.log('[Auth] Privileged menu config loaded from Firestore');
+        } else {
+          console.warn('[Auth] No dashboardMenu config in Firestore — using defaults');
+          Auth._menuConfig = Auth._localMenuConfig();
+        }
+        Auth._emitAccessReady();
+      })
+      .catch(function(err) {
+        console.error('[Auth] Failed to fetch menu config:', err);
+        Auth._menuConfig = Auth._localMenuConfig();
+        Auth._emitAccessReady();
+      });
+  },
+
+  /**
+   * Local fallback for privileged menu items. Used for PIN auth (LAN)
+   * or when Firestore is unreachable. Only contains restricted groups
+   * that are NOT in the public HTML — the standard groups are hardcoded
+   * in index.html and don't need to be here.
+   * @returns {Object}
+   * @private
+   */
+  _localMenuConfig: function() {
+    return {
+      groups: [
+        {
+          label: 'IT Dept',
+          items: [
+            { route: 'dashboard-architecture', label: 'Architecture', icon: 'fa-solid fa-sitemap' },
+            { route: 'dashboard-credentials', label: 'Credentials', icon: 'fa-solid fa-key' },
+            { route: 'dashboard-servers', label: 'Servers & Costs', icon: 'fa-solid fa-server' }
+          ]
+        }
+      ]
+    };
+  },
+
+  /**
+   * Emit gbe:auth-access-ready only when both the access list
+   * and menu config are available.
+   * @private
+   */
+  _emitAccessReady: function() {
+    if (this._dashboardAccess && this._menuConfig) {
+      document.dispatchEvent(new CustomEvent('gbe:auth-access-ready'));
+    }
+  },
+
+  /**
+   * Get the privileged menu configuration (groups, labels, icons).
+   * Returns null if not yet loaded.
+   * @returns {Object|null}
+   */
+  getMenuConfig: function() {
+    return this._menuConfig;
   },
 
   /**
@@ -838,6 +927,7 @@ const Auth = {
         Auth._role = null;
         Auth._sessionToken = null;
         Auth._firestoreAccess = null;
+        Auth._menuConfig = null;
 
         Auth._updateUI(null);
         Auth._notifyListeners(null);
@@ -1377,15 +1467,21 @@ const Auth = {
 
   /**
    * Notify all registered listeners of auth state change.
-   * Also recomputes dashboard access and dispatches gbe:auth-access-ready
-   * so the Sidebar can filter menu items.
+   * Also recomputes dashboard access and fetches/caches the menu config,
+   * then dispatches gbe:auth-access-ready once both are available.
    * @param {Object|null} user
    * @private
    */
   _notifyListeners: function(user) {
     // Recompute effective dashboard access for the current session
     this._computeDashboardAccess();
-    document.dispatchEvent(new CustomEvent('gbe:auth-access-ready'));
+
+    // Fetch menu config (cached after first call) then emit ready event
+    if (this._menuConfig) {
+      this._emitAccessReady();
+    } else {
+      this._fetchMenuConfig();
+    }
 
     for (var i = 0; i < this._listeners.length; i++) {
       try {
