@@ -25,6 +25,8 @@ const DataStore = {
     SETTINGS: 'gbe-settings',
     CHECKLIST: 'gbe-checklist',
     VENUE_LEADS: 'gbe-venue-leads',
+    IT_CREDENTIALS: 'gbe-it-credentials',
+    IT_SERVERS: 'gbe-it-servers',
     ACTIVITY: 'gbe-activity',
   },
 
@@ -100,6 +102,8 @@ const DataStore = {
       [this.KEYS.TRAVEL]: 'itinerary',
       [this.KEYS.DISTRIBUTION]: 'release',
       [this.KEYS.VENUE_LEADS]: 'venue lead',
+      [this.KEYS.IT_CREDENTIALS]: 'credential',
+      [this.KEYS.IT_SERVERS]: 'server',
     };
 
     const label = entityLabels[entityKey] || 'item';
@@ -312,6 +316,40 @@ const DataStore = {
   },
 
   // ============================================================
+  // IT CREDENTIALS (Service Accounts & Passwords)
+  // ============================================================
+
+  getCredentials() { return this._getAll(this.KEYS.IT_CREDENTIALS); },
+  getCredential(id) { return this._getById(this.KEYS.IT_CREDENTIALS, id); },
+  addCredential(cred) { return this._add(this.KEYS.IT_CREDENTIALS, cred); },
+  updateCredential(id, data) { return this._update(this.KEYS.IT_CREDENTIALS, id, data); },
+  deleteCredential(id) { return this._delete(this.KEYS.IT_CREDENTIALS, id); },
+
+  getCredentialsByCategory(category) {
+    return this.getCredentials().filter(function(c) { return c.category === category; });
+  },
+
+  // ============================================================
+  // IT SERVERS & SUBSCRIPTIONS
+  // ============================================================
+
+  getServers() { return this._getAll(this.KEYS.IT_SERVERS); },
+  getServer(id) { return this._getById(this.KEYS.IT_SERVERS, id); },
+  addServer(server) { return this._add(this.KEYS.IT_SERVERS, server); },
+  updateServer(id, data) { return this._update(this.KEYS.IT_SERVERS, id, data); },
+  deleteServer(id) { return this._delete(this.KEYS.IT_SERVERS, id); },
+
+  getActiveServers() {
+    return this.getServers().filter(function(s) { return s.status === 'active'; });
+  },
+
+  getTotalMonthlyCost() {
+    return this.getActiveServers().reduce(function(sum, s) {
+      return sum + (parseFloat(s.monthlyCost) || 0);
+    }, 0);
+  },
+
+  // ============================================================
   // INTEGRATIONS STATE
   // ============================================================
 
@@ -412,6 +450,18 @@ const DataStore = {
       console.log('🏛️ DataStore: migrated venue leads');
     }
 
+    // One-time migration: seed IT credentials for existing users (local only)
+    if (isLocal && !Utils.storage.get(this.KEYS.IT_CREDENTIALS)) {
+      this.seedITCredentials();
+      console.log('🔑 DataStore: migrated IT credentials');
+    }
+
+    // One-time migration: seed IT servers for existing users
+    if (!Utils.storage.get(this.KEYS.IT_SERVERS)) {
+      this.seedITServers();
+      console.log('🖥️ DataStore: migrated IT servers');
+    }
+
     if (Utils.storage.get(this.KEYS.ROSTER)) {
       console.log('📦 DataStore: existing data found');
       return;
@@ -429,6 +479,7 @@ const DataStore = {
     this.seedTravel();
     this.seedDistribution();
     this.seedVenueLeads();
+    this.seedITServers();
     this.seedActivity();
 
     // Local-only — financial and sensitive config data
@@ -437,6 +488,7 @@ const DataStore = {
       this.seedDocuments();
       this.seedSettings();
       this.seedChecklist();
+      this.seedITCredentials();
     }
 
     console.log('✅ DataStore: seed complete');
@@ -735,6 +787,30 @@ const DataStore = {
       { id: 'vl-029', name: 'Washington Talent Agency', category: 'agency', city: 'Washington', state: 'DC', capacity: '', website: 'https://www.washingtontalent.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'DMV\'s largest event entertainment agency. Books acts for corporate events, weddings, galas.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
       { id: 'vl-030', name: 'Extraordinary Entertainment', category: 'agency', city: 'Rockville', state: 'MD', capacity: '', website: 'https://www.extraordinaryentertainment.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Full-service entertainment agency. Weddings, corporate, private events across DMV.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
       { id: 'vl-031', name: 'Live Nation — DC Market', category: 'agency', city: 'Washington', state: 'DC', capacity: '', website: 'https://www.livenation.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'low', lastContact: '', notes: 'Major promoter. Books The Anthem, Fillmore, Merriweather. Long-term relationship target.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+    ]);
+  },
+
+  seedITCredentials() {
+    this._save(this.KEYS.IT_CREDENTIALS, [
+      { id: 'cred-001', name: 'GitHub', category: 'hosting', loginUrl: 'https://github.com/login', username: '[YOUR GITHUB USERNAME]', password: '[YOUR PASSWORD]', apiKey: '', notes: 'Main repo: GoldBottomEntLLC. GitHub Pages deployment. Workflows in .github/workflows/static.yml.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'cred-002', name: 'Firebase Console', category: 'database', loginUrl: 'https://console.firebase.google.com/', username: '[YOUR GOOGLE EMAIL]', password: '[GOOGLE ACCOUNT]', apiKey: '[SEE js/config.js firebaseConfig]', notes: 'Project: goldbottoment. Auth (Google/Apple/Microsoft) + Firestore (users, contact_submissions, booking_requests).', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'cred-003', name: 'DigitalOcean', category: 'hosting', loginUrl: 'https://cloud.digitalocean.com/login', username: '[YOUR EMAIL]', password: '[YOUR PASSWORD]', apiKey: '', notes: 'Backend hosting. Droplet for API server and Listmonk email service.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'cred-004', name: 'Domain Registrar', category: 'hosting', loginUrl: '[YOUR REGISTRAR URL]', username: '[YOUR USERNAME]', password: '[YOUR PASSWORD]', apiKey: '', notes: 'Domain name management and DNS settings. CNAME to GitHub Pages.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'cred-005', name: 'Listmonk (Email)', category: 'email', loginUrl: '[YOUR LISTMONK URL]/admin', username: 'admin', password: '[YOUR PASSWORD]', apiKey: '', notes: 'Self-hosted email marketing on DigitalOcean. Subscriber lists and campaigns.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'cred-006', name: 'Home Server (LAN)', category: 'server', loginUrl: 'http://[YOUR-LAN-IP]:3000', username: 'PIN Auth', password: '[PIN from server/.env]', apiKey: '[API KEY from server/.env]', notes: 'Node.js/Express on home network. SQLite database. PIN: GBE_DASHBOARD_PIN in server/.env.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'cred-007', name: 'Shopify', category: 'ecommerce', loginUrl: 'https://[YOUR-STORE].myshopify.com/admin', username: '[YOUR EMAIL]', password: '[YOUR PASSWORD]', apiKey: '[STOREFRONT TOKEN]', notes: 'Merch storefront. Printful integration for print-on-demand fulfillment.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'cred-008', name: 'Stripe', category: 'payments', loginUrl: 'https://dashboard.stripe.com', username: '[YOUR EMAIL]', password: '[YOUR PASSWORD]', apiKey: '[PUBLISHABLE KEY]', notes: 'Payment processing for online sales. Connect to Shopify and direct payments.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+    ]);
+  },
+
+  seedITServers() {
+    this._save(this.KEYS.IT_SERVERS, [
+      { id: 'srv-001', name: 'GitHub Pages', provider: 'GitHub', category: 'hosting', purpose: 'Public website hosting — GBE corporate site + L.A. Young band page', url: 'https://djmochajava-lang.github.io/GoldBottomEntLLC/', ip: '', status: 'active', monthlyCost: 0, billingCycle: 'free', renewalDate: '', notes: 'Free tier. Auto-deploys from master branch via GitHub Actions (.github/workflows/static.yml).', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'srv-002', name: 'Home Server', provider: 'Self-Hosted', category: 'server', purpose: 'Local API server — Express + SQLite, PIN auth, full dashboard access', url: 'http://[YOUR-LAN-IP]:3000', ip: '[YOUR-LAN-IP]', status: 'active', monthlyCost: 0, billingCycle: 'free', renewalDate: '', notes: 'Node.js on home LAN. WAL-mode SQLite. PM2 process manager in production. server/ directory.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'srv-003', name: 'DigitalOcean Droplet', provider: 'DigitalOcean', category: 'hosting', purpose: 'Remote backend — API endpoints + Listmonk email service', url: '[YOUR DROPLET URL]', ip: '[YOUR DROPLET IP]', status: 'active', monthlyCost: 0, billingCycle: 'monthly', renewalDate: '', notes: 'Ubuntu droplet. Hosts Listmonk self-hosted email + remote API. Update cost when active.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'srv-004', name: 'Firebase', provider: 'Google', category: 'database', purpose: 'Authentication (Google/Apple/Microsoft sign-in) + Firestore database', url: 'https://console.firebase.google.com', ip: '', status: 'active', monthlyCost: 0, billingCycle: 'free', renewalDate: '', notes: 'Spark (free) plan. Project: goldbottoment. Collections: users, contact_submissions, booking_requests.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'srv-005', name: 'Domain Name', provider: '[Registrar]', category: 'domain', purpose: 'Primary domain name — DNS to GitHub Pages', url: '[YOUR DOMAIN]', ip: '', status: 'active', monthlyCost: 0, billingCycle: 'annual', renewalDate: '[RENEWAL DATE]', notes: 'DNS configured with CNAME to GitHub Pages. Update with actual registrar and cost.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'srv-006', name: 'Shopify Store', provider: 'Shopify', category: 'ecommerce', purpose: 'Merch storefront + Printful print-on-demand fulfillment', url: '[YOUR STORE URL]', ip: '', status: 'planned', monthlyCost: 0, billingCycle: 'monthly', renewalDate: '', notes: 'Not yet active. Will host merchandise with print-on-demand via Printful. Update plan cost when activated.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
     ]);
   },
 

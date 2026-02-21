@@ -49,6 +49,11 @@ const Router = {
     'dashboard-integrations': 'dashboard/integrations.html',
     'dashboard-settings': 'dashboard/settings.html',
     'dashboard-team': 'dashboard/team.html',
+
+    // IT Dept pages
+    'dashboard-architecture': 'dashboard/architecture.html',
+    'dashboard-credentials': 'dashboard/credentials.html',
+    'dashboard-servers': 'dashboard/servers.html',
   },
 
   /**
@@ -72,6 +77,7 @@ const Router = {
     'dashboard-integrations',
     'dashboard-settings',
     'dashboard-team',
+    'dashboard-credentials',
   ],
 
   currentPage: null,
@@ -375,6 +381,9 @@ const Router = {
       'dashboard-integrations': 'Integrations',
       'dashboard-settings': 'Settings',
       'dashboard-team': 'Team Management',
+      'dashboard-architecture': 'Site Architecture',
+      'dashboard-credentials': 'Credentials & Connections',
+      'dashboard-servers': 'Servers & Costs',
     };
 
     const label = labels[pageName] || 'Dashboard';

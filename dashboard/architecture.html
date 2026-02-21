@@ -1,0 +1,691 @@
+<!-- dashboard/architecture.html — Site Architecture Documentation -->
+
+<div class="dashboard-page" id="dash-architecture">
+  <div class="dashboard-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+    <div>
+      <h1 style="font-size:1.5rem;font-weight:700;color:var(--color-text);margin:0 0 4px;">Site Architecture</h1>
+      <p style="color:var(--color-text-muted);font-size:0.85rem;margin:0;">Complete platform overview — hosting, data flows, services, authentication, and deployment.</p>
+    </div>
+    <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:8px;background:rgba(255,215,0,0.08);color:var(--color-gold);font-size:0.75rem;font-weight:600;white-space:nowrap;">
+      <i class="fa-solid fa-clock"></i> Last updated: Feb 2026
+    </span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: PLATFORM OVERVIEW                           -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2><i class="fa-solid fa-layer-group"></i> Platform Overview</h2>
+    <div class="arch-card">
+      <p style="line-height:1.7;color:var(--color-text-secondary);margin:0;">
+        <strong style="color:var(--color-text);">Gold Bottom Ent LLC</strong> runs a <strong style="color:var(--color-gold);">multi-vertical Single Page Application (SPA)</strong> built with
+        vanilla HTML5, CSS3, and JavaScript — no frameworks, no bundler, no build step. The platform serves three audiences:
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px;">
+        <div class="arch-mini-card" style="border-left:3px solid #ffd700;">
+          <strong style="color:#ffd700;">Entertainment</strong>
+          <span>Public artist site for L.A. Young — bio, music, gallery, booking</span>
+        </div>
+        <div class="arch-mini-card" style="border-left:3px solid #58a6ff;">
+          <strong style="color:#58a6ff;">Enterprise</strong>
+          <span>Tech consulting services — portfolio, capabilities</span>
+        </div>
+        <div class="arch-mini-card" style="border-left:3px solid #3fb950;">
+          <strong style="color:#3fb950;">Dashboard</strong>
+          <span>Private management console — 17+ entities, CRUD, analytics</span>
+        </div>
+      </div>
+      <p style="line-height:1.7;color:var(--color-text-secondary);margin:16px 0 0;">
+        The site is deployed to <strong>GitHub Pages</strong> (public read-only tier) and a <strong>home LAN server</strong>
+        (full admin access with PIN auth). Firebase handles federated authentication, and Firestore stores user registrations.
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: ARCHITECTURE DIAGRAM                        -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2><i class="fa-solid fa-diagram-project"></i> Architecture Diagram</h2>
+    <div class="arch-diagram">
+
+      <!-- TIER 1: CLIENTS -->
+      <div class="arch-tier">
+        <div class="arch-tier-label">Clients (Browsers)</div>
+        <div class="arch-tier-boxes">
+          <div class="arch-box frontend">
+            <div class="arch-icon"><i class="fa-solid fa-globe"></i></div>
+            <h4>GitHub Pages (Public)</h4>
+            <p>index.html — CDN-hosted SPA<br>Entertainment + Enterprise pages<br>Remote dashboard (read-only tier)</p>
+          </div>
+          <div class="arch-box backend">
+            <div class="arch-icon"><i class="fa-solid fa-house-signal"></i></div>
+            <h4>Home LAN (Private)</h4>
+            <p>index-local.html — server-hosted SPA<br>Full dashboard with PIN auth<br>Financial data, credentials, admin</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARROW DOWN -->
+      <div class="arch-arrow"><i class="fa-solid fa-arrows-up-down"></i></div>
+
+      <!-- TIER 2: APPLICATION LAYER -->
+      <div class="arch-tier">
+        <div class="arch-tier-label">Application Layer</div>
+        <div class="arch-tier-boxes">
+          <div class="arch-box frontend" style="min-width:240px;">
+            <div class="arch-icon"><i class="fa-brands fa-js"></i></div>
+            <h4>Vanilla JS SPA</h4>
+            <p>
+              router.js — hash-based routing<br>
+              page-loader.js — dynamic HTML injection<br>
+              data-store.js — localStorage CRUD (17 entities)<br>
+              auth.js — Firebase + PIN dual auth<br>
+              modal.js / toast.js — UI components
+            </p>
+          </div>
+          <div class="arch-box backend" style="min-width:240px;">
+            <div class="arch-icon"><i class="fa-brands fa-node-js"></i></div>
+            <h4>Home Server (Express)</h4>
+            <p>
+              Port 3000 — Node.js/Express<br>
+              better-sqlite3 (WAL mode)<br>
+              PIN auth + API key auth<br>
+              Generic CRUD routes (/api/v1/*)<br>
+              Helmet CSP + Morgan logging
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARROW DOWN -->
+      <div class="arch-arrow"><i class="fa-solid fa-arrows-up-down"></i></div>
+
+      <!-- TIER 3: DATA STORES -->
+      <div class="arch-tier">
+        <div class="arch-tier-label">Data Stores</div>
+        <div class="arch-tier-boxes">
+          <div class="arch-box database">
+            <div class="arch-icon"><i class="fa-solid fa-hard-drive"></i></div>
+            <h4>localStorage</h4>
+            <p>Client-side persistence<br>17 entity keys (gbe-*)<br>Seed data on first load</p>
+          </div>
+          <div class="arch-box database">
+            <div class="arch-icon"><i class="fa-solid fa-database"></i></div>
+            <h4>SQLite</h4>
+            <p>Server-side (better-sqlite3)<br>Sessions, backups, entity JSON<br>WAL mode, 5s busy timeout</p>
+          </div>
+          <div class="arch-box database">
+            <div class="arch-icon"><i class="fa-solid fa-fire"></i></div>
+            <h4>Firestore</h4>
+            <p>Cloud database (Firebase)<br>Collections: users, contacts,<br>booking_requests</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARROW DOWN -->
+      <div class="arch-arrow"><i class="fa-solid fa-arrows-up-down"></i></div>
+
+      <!-- TIER 4: EXTERNAL SERVICES -->
+      <div class="arch-tier">
+        <div class="arch-tier-label">External Services</div>
+        <div class="arch-tier-boxes">
+          <div class="arch-box auth">
+            <div class="arch-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <h4>Firebase Auth</h4>
+            <p>Google / Apple / Microsoft<br>Federated sign-in</p>
+          </div>
+          <div class="arch-box external">
+            <div class="arch-icon"><i class="fa-solid fa-envelope"></i></div>
+            <h4>Listmonk</h4>
+            <p>Self-hosted email<br>On DigitalOcean</p>
+          </div>
+          <div class="arch-box external">
+            <div class="arch-icon"><i class="fa-solid fa-shop"></i></div>
+            <h4>Shopify</h4>
+            <p>Merch storefront<br>+ Printful fulfillment</p>
+          </div>
+          <div class="arch-box external">
+            <div class="arch-icon"><i class="fa-solid fa-credit-card"></i></div>
+            <h4>Stripe / PayPal</h4>
+            <p>Payment processing<br>Online sales</p>
+          </div>
+          <div class="arch-box external">
+            <div class="arch-icon"><i class="fa-solid fa-music"></i></div>
+            <h4>DistroKid</h4>
+            <p>Music distribution<br>All major platforms</p>
+          </div>
+          <div class="arch-box external">
+            <div class="arch-icon"><i class="fa-solid fa-file-signature"></i></div>
+            <h4>DocuSign</h4>
+            <p>E-signatures<br>Contract execution</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: SERVICE INVENTORY                           -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2><i class="fa-solid fa-plug"></i> Service Inventory</h2>
+    <div class="arch-card" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--color-border);text-align:left;">
+            <th style="padding:8px 12px;color:var(--color-text-muted);font-weight:600;">Service</th>
+            <th style="padding:8px 12px;color:var(--color-text-muted);font-weight:600;">Category</th>
+            <th style="padding:8px 12px;color:var(--color-text-muted);font-weight:600;">Status</th>
+            <th style="padding:8px 12px;color:var(--color-text-muted);font-weight:600;">Purpose</th>
+            <th style="padding:8px 12px;color:var(--color-text-muted);font-weight:600;">Connection</th>
+          </tr>
+        </thead>
+        <tbody id="arch-service-table">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 4: DATA FLOW DOCUMENTATION                     -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2><i class="fa-solid fa-arrows-spin"></i> Data Flows</h2>
+
+    <details class="arch-details" open>
+      <summary><i class="fa-solid fa-browser" style="margin-right:6px;color:var(--color-gold);"></i> Frontend &harr; Home Server</summary>
+      <div class="arch-flow-content">
+        <div class="arch-flow-row">
+          <span class="arch-flow-step" style="background:rgba(88,166,255,0.12);color:#58a6ff;">Browser SPA</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(255,215,0,0.12);color:#ffd700;">fetch('/api/v1/auth/pin')</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(188,140,255,0.12);color:#bc8cff;">SQLite sessions</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(63,185,80,0.12);color:#3fb950;">Session token</span>
+        </div>
+        <div class="arch-flow-row">
+          <span class="arch-flow-step" style="background:rgba(88,166,255,0.12);color:#58a6ff;">Dashboard page</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(255,215,0,0.12);color:#ffd700;">fetch('/api/v1/{entity}')</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(188,140,255,0.12);color:#bc8cff;">SQLite JSON data</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(63,185,80,0.12);color:#3fb950;">JSON response</span>
+        </div>
+        <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:8px;">
+          The SPA on the home LAN talks to the Express server on port 3000. Auth uses PIN + session tokens.
+          Dashboard pages currently use <strong>localStorage</strong> as the primary data source (client-side), with the server
+          API available for future sync. Auth.js auto-detects LAN IP and redirects API calls to port 3000.
+        </p>
+      </div>
+    </details>
+
+    <details class="arch-details">
+      <summary><i class="fa-solid fa-fire" style="margin-right:6px;color:#f85149;"></i> Firebase Authentication Flow</summary>
+      <div class="arch-flow-content">
+        <div class="arch-flow-row">
+          <span class="arch-flow-step" style="background:rgba(88,166,255,0.12);color:#58a6ff;">User clicks Sign In</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(248,81,73,0.12);color:#f85149;">Firebase SDK popup</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(255,215,0,0.12);color:#ffd700;">Google / Apple / MS</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(63,185,80,0.12);color:#3fb950;">Firebase token</span>
+        </div>
+        <div class="arch-flow-row">
+          <span class="arch-flow-step" style="background:rgba(63,185,80,0.12);color:#3fb950;">Token received</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(248,81,73,0.12);color:#f85149;">Firestore: users/{uid}</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(255,215,0,0.12);color:#ffd700;">Check status field</span>
+          <span class="arch-flow-arrow">&rarr;</span>
+          <span class="arch-flow-step" style="background:rgba(188,140,255,0.12);color:#bc8cff;">approved / pending / denied</span>
+        </div>
+        <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:8px;">
+          New users get <code>status: 'pending'</code> in Firestore. Admin must approve via the Team page.
+          Email is hashed (SHA-256) before storage. The <code>onAuthStateChanged</code> listener in auth.js handles state.
+        </p>
+      </div>
+    </details>
+
+    <details class="arch-details">
+      <summary><i class="fa-solid fa-hard-drive" style="margin-right:6px;color:#bc8cff;"></i> localStorage Entity Map</summary>
+      <div class="arch-flow-content">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;" id="arch-entity-map">
+        </div>
+        <p style="font-size:0.8rem;color:var(--color-text-muted);margin-top:12px;">
+          All entities use the generic CRUD pattern: <code>_getAll(key)</code>, <code>_add(key, item)</code>,
+          <code>_update(key, id, data)</code>, <code>_delete(key, id)</code>. Auto-generated IDs and timestamps.
+          Activity log keeps last 50 entries. Sensitive keys (finances, docs, settings, credentials) are cleared for remote users.
+        </p>
+      </div>
+    </details>
+
+    <details class="arch-details">
+      <summary><i class="fa-solid fa-code-branch" style="margin-right:6px;color:#3fb950;"></i> Deployment Pipeline</summary>
+      <div class="arch-flow-content">
+        <div style="margin-bottom:12px;">
+          <strong style="color:var(--color-text);font-size:0.85rem;">Public Site (GitHub Pages):</strong>
+          <div class="arch-flow-row" style="margin-top:6px;">
+            <span class="arch-flow-step" style="background:rgba(88,166,255,0.12);color:#58a6ff;">Code edit</span>
+            <span class="arch-flow-arrow">&rarr;</span>
+            <span class="arch-flow-step" style="background:rgba(188,140,255,0.12);color:#bc8cff;">git push origin master</span>
+            <span class="arch-flow-arrow">&rarr;</span>
+            <span class="arch-flow-step" style="background:rgba(255,215,0,0.12);color:#ffd700;">GitHub Actions</span>
+            <span class="arch-flow-arrow">&rarr;</span>
+            <span class="arch-flow-step" style="background:rgba(63,185,80,0.12);color:#3fb950;">GitHub Pages CDN</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--color-text-muted);margin:4px 0 0;">Workflow: <code>.github/workflows/static.yml</code> — deploys on push to master.</p>
+        </div>
+        <div>
+          <strong style="color:var(--color-text);font-size:0.85rem;">Home Server (LAN):</strong>
+          <div class="arch-flow-row" style="margin-top:6px;">
+            <span class="arch-flow-step" style="background:rgba(88,166,255,0.12);color:#58a6ff;">Code edit</span>
+            <span class="arch-flow-arrow">&rarr;</span>
+            <span class="arch-flow-step" style="background:rgba(188,140,255,0.12);color:#bc8cff;">git pull</span>
+            <span class="arch-flow-arrow">&rarr;</span>
+            <span class="arch-flow-step" style="background:rgba(255,215,0,0.12);color:#ffd700;">PM2 restart / npm start</span>
+            <span class="arch-flow-arrow">&rarr;</span>
+            <span class="arch-flow-step" style="background:rgba(63,185,80,0.12);color:#3fb950;">Express serves SPA + API</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--color-text-muted);margin:4px 0 0;">Server entry: <code>server/src/index.js</code> — serves index-local.html with bundled vendor assets.</p>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 5: AUTHENTICATION FLOW                         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2><i class="fa-solid fa-lock"></i> Authentication Flow</h2>
+    <div class="arch-card">
+      <div class="arch-auth-flow">
+        <div class="auth-step" style="border-color:#58a6ff;">
+          <div class="auth-step-num" style="background:#58a6ff;">1</div>
+          <strong>Route Guard</strong>
+          <span>User navigates to <code>#dashboard-*</code><br>Router calls <code>Auth.guardRoute()</code></span>
+        </div>
+        <div class="auth-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        <div class="auth-step" style="border-color:#ffd700;">
+          <div class="auth-step-num" style="background:#ffd700;color:#000;">2</div>
+          <strong>Auth Check</strong>
+          <span><code>Auth.isAuthenticated()</code><br>If no &rarr; show login modal</span>
+        </div>
+        <div class="auth-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        <div class="auth-step" style="border-color:#3fb950;">
+          <div class="auth-step-num" style="background:#3fb950;">3</div>
+          <strong>Login Method</strong>
+          <span>LAN: PIN (4-6 digit)<br>Remote: Firebase popup</span>
+        </div>
+        <div class="auth-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        <div class="auth-step" style="border-color:#bc8cff;">
+          <div class="auth-step-num" style="background:#bc8cff;">4</div>
+          <strong>Verification</strong>
+          <span>PIN &rarr; Server validates &rarr; token<br>Firebase &rarr; Firestore status check</span>
+        </div>
+        <div class="auth-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        <div class="auth-step" style="border-color:#f85149;">
+          <div class="auth-step-num" style="background:#f85149;">5</div>
+          <strong>Access Decision</strong>
+          <span>approved &rarr; Dashboard<br>pending &rarr; Waiting screen<br>denied &rarr; Blocked</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:rgba(255,215,0,0.05);border:1px solid rgba(255,215,0,0.15);border-radius:8px;">
+        <strong style="color:var(--color-gold);font-size:0.82rem;">Two-Tier Access Control:</strong>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;font-size:0.8rem;">
+          <div>
+            <strong style="color:var(--color-text);">Local (LAN) — Full Access</strong><br>
+            <span style="color:var(--color-text-muted);">14 dashboard pages. Finances, documents, settings, credentials, team management. CRUD on all entities.</span>
+          </div>
+          <div>
+            <strong style="color:var(--color-text);">Remote (GitHub Pages) — Read-Only</strong><br>
+            <span style="color:var(--color-text-muted);">9 dashboard pages. No financial data, no credentials, no settings. Blocked routes redirect to dashboard home.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 6: TECH STACK                                  -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2><i class="fa-solid fa-microchip"></i> Tech Stack</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+
+      <div class="arch-card">
+        <h3 style="font-size:0.9rem;color:var(--color-gold);margin:0 0 12px;"><i class="fa-solid fa-palette" style="margin-right:6px;"></i>Frontend</h3>
+        <ul class="arch-tech-list">
+          <li><strong>HTML5 / CSS3 / Vanilla JS</strong> — no frameworks</li>
+          <li><strong>SPA Router</strong> — hash-based (#page-name)</li>
+          <li><strong>CSS Variables</strong> — design tokens in base.css</li>
+          <li><strong>IIFE Modules</strong> — each JS file self-contained</li>
+          <li><strong>Font Awesome 6</strong> — icon library</li>
+          <li><strong>Google Fonts</strong> — Montserrat + Inter</li>
+          <li><strong>Firebase SDK</strong> — auth + Firestore client</li>
+        </ul>
+      </div>
+
+      <div class="arch-card">
+        <h3 style="font-size:0.9rem;color:var(--color-gold);margin:0 0 12px;"><i class="fa-solid fa-server" style="margin-right:6px;"></i>Backend</h3>
+        <ul class="arch-tech-list">
+          <li><strong>Node.js &ge;18</strong> — runtime</li>
+          <li><strong>Express 4.21</strong> — web framework</li>
+          <li><strong>better-sqlite3 11</strong> — synchronous SQLite</li>
+          <li><strong>Helmet 8</strong> — CSP security headers</li>
+          <li><strong>Morgan</strong> — HTTP request logging</li>
+          <li><strong>dotenv</strong> — environment variables</li>
+          <li><strong>uuid</strong> — ID generation</li>
+          <li><strong>cookie-parser</strong> — cookie handling</li>
+        </ul>
+      </div>
+
+      <div class="arch-card">
+        <h3 style="font-size:0.9rem;color:var(--color-gold);margin:0 0 12px;"><i class="fa-solid fa-cloud" style="margin-right:6px;"></i>Infrastructure</h3>
+        <ul class="arch-tech-list">
+          <li><strong>GitHub Pages</strong> — public CDN hosting</li>
+          <li><strong>GitHub Actions</strong> — CI/CD pipeline</li>
+          <li><strong>Home Server</strong> — LAN Express + SQLite</li>
+          <li><strong>DigitalOcean</strong> — remote backend</li>
+          <li><strong>Firebase (Spark)</strong> — auth + Firestore</li>
+          <li><strong>Listmonk</strong> — self-hosted email</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SECTION 7: FILE STRUCTURE                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="arch-section">
+    <h2><i class="fa-solid fa-folder-tree"></i> Project File Structure</h2>
+    <details class="arch-details">
+      <summary>GoldBottomEntLLC/ — click to expand</summary>
+      <div class="arch-card" style="font-family:monospace;font-size:0.78rem;line-height:1.8;white-space:pre;overflow-x:auto;color:var(--color-text-secondary);">
+<span style="color:var(--color-gold);">GoldBottomEntLLC/</span>
+ |- index.html             <span style="color:var(--color-text-muted);"># GitHub Pages shell (CDN assets)</span>
+ |- index-local.html       <span style="color:var(--color-text-muted);"># Home server shell (bundled vendor/)</span>
+ |- firebase.json          <span style="color:var(--color-text-muted);"># Firebase project config</span>
+ |- firestore.rules        <span style="color:var(--color-text-muted);"># Firestore security rules</span>
+ |
+ |- <span style="color:#58a6ff;">css/</span>                    <span style="color:var(--color-text-muted);"># 8 modular stylesheets</span>
+ |   |- base.css           <span style="color:var(--color-text-muted);"># Design tokens (CSS variables)</span>
+ |   |- layout.css, components.css, sections.css, pages.css
+ |   |- dashboard.css, animations.css, responsive.css
+ |
+ |- <span style="color:#58a6ff;">js/</span>                     <span style="color:var(--color-text-muted);"># 17+ JS modules (IIFE pattern)</span>
+ |   |- config.js          <span style="color:var(--color-text-muted);"># Feature flags + Firebase config</span>
+ |   |- auth.js            <span style="color:var(--color-text-muted);"># Firebase + PIN dual auth (~1300 lines)</span>
+ |   |- main.js            <span style="color:var(--color-text-muted);"># App controller / initializer</span>
+ |   |- router.js          <span style="color:var(--color-text-muted);"># Hash-based SPA routing</span>
+ |   |- page-loader.js     <span style="color:var(--color-text-muted);"># Dynamic page loading</span>
+ |   |- data-store.js      <span style="color:var(--color-text-muted);"># localStorage CRUD layer</span>
+ |   |- modal.js, toast.js <span style="color:var(--color-text-muted);"># UI components</span>
+ |   |- forms.js, utils.js <span style="color:var(--color-text-muted);"># Form handling, utilities</span>
+ |   +- ...                <span style="color:var(--color-text-muted);"># navigation, sidebar, calendar, etc.</span>
+ |
+ |- <span style="color:#58a6ff;">pages/</span>                  <span style="color:var(--color-text-muted);"># Dynamic page templates</span>
+ |   |- home.html          <span style="color:var(--color-text-muted);"># Landing page</span>
+ |   |- entertainment/     <span style="color:var(--color-text-muted);"># Gold theme pages</span>
+ |   +- enterprise/        <span style="color:var(--color-text-muted);"># Blue theme pages</span>
+ |
+ |- <span style="color:#3fb950;">dashboard/</span>              <span style="color:var(--color-text-muted);"># Dashboard page fragments (17 pages)</span>
+ |   |- home.html, roster.html, contracts.html, booking.html
+ |   |- leads.html, calendar.html, ip-rights.html, distribution.html
+ |   |- merch.html, travel.html, finances.html, documents.html
+ |   |- integrations.html, settings.html, team.html
+ |   +- <span style="color:var(--color-gold);">architecture.html, credentials.html, servers.html</span>  <span style="color:var(--color-text-muted);"># IT Dept</span>
+ |
+ |- <span style="color:#58a6ff;">images/</span>                 <span style="color:var(--color-text-muted);"># Media assets</span>
+ |- <span style="color:#58a6ff;">vendor/</span>                 <span style="color:var(--color-text-muted);"># Bundled libs (home server only)</span>
+ |
+ |- <span style="color:#ffd700;">server/</span>                 <span style="color:var(--color-text-muted);"># Node.js backend</span>
+ |   |- src/index.js       <span style="color:var(--color-text-muted);"># Express app entry point</span>
+ |   |- src/config.js      <span style="color:var(--color-text-muted);"># Server config from .env</span>
+ |   |- src/db/connection.js  <span style="color:var(--color-text-muted);"># SQLite setup + tables</span>
+ |   |- src/routes/        <span style="color:var(--color-text-muted);"># health.js, auth.js, entity.js</span>
+ |   |- src/middleware/     <span style="color:var(--color-text-muted);"># auth, dashboard-auth, cors</span>
+ |   |- package.json       <span style="color:var(--color-text-muted);"># 8 dependencies</span>
+ |   +- .env               <span style="color:var(--color-text-muted);"># Secrets (git-ignored)</span>
+ |
+ +- <span style="color:#58a6ff;">.github/workflows/</span>
+     +- static.yml         <span style="color:var(--color-text-muted);"># GitHub Actions deployment</span></div>
+    </details>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARCHITECTURE PAGE STYLES                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<style>
+  .arch-section { margin-bottom: 32px; }
+  .arch-section h2 {
+    font-size: 1.05rem; font-weight: 600; color: var(--color-text);
+    margin: 0 0 16px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .arch-section h2 i { color: var(--color-gold); margin-right: 8px; }
+
+  .arch-card {
+    background: rgba(22,33,62,0.6); border: 1px solid rgba(255,215,0,0.1);
+    border-radius: 12px; padding: 20px;
+  }
+  .arch-mini-card {
+    background: rgba(10,10,10,0.4); border-radius: 8px; padding: 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .arch-mini-card span { font-size: 0.8rem; color: var(--color-text-muted); }
+
+  /* Architecture Diagram */
+  .arch-diagram {
+    background: rgba(22,33,62,0.6); border: 1px solid rgba(255,215,0,0.1);
+    border-radius: 12px; padding: 24px; overflow-x: auto;
+  }
+  .arch-tier { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .arch-tier-label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--color-text-muted); background: rgba(255,255,255,0.04);
+    padding: 4px 14px; border-radius: 20px; border: 1px solid var(--color-border);
+  }
+  .arch-tier-boxes { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+  .arch-box {
+    background: rgba(10,10,10,0.5); border: 1px solid var(--color-border);
+    border-radius: 12px; padding: 16px 20px; min-width: 180px; max-width: 280px;
+    text-align: center; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .arch-box:hover { box-shadow: 0 0 20px rgba(255,215,0,0.08); }
+  .arch-box h4 { font-size: 0.85rem; color: var(--color-text); margin: 0 0 6px; }
+  .arch-box p { font-size: 0.75rem; color: var(--color-text-muted); margin: 0; line-height: 1.6; }
+  .arch-box .arch-icon { font-size: 1.3rem; margin-bottom: 8px; }
+
+  .arch-box.frontend { border-top: 3px solid #58a6ff; }
+  .arch-box.frontend .arch-icon { color: #58a6ff; }
+  .arch-box.backend { border-top: 3px solid #ffd700; }
+  .arch-box.backend .arch-icon { color: #ffd700; }
+  .arch-box.external { border-top: 3px solid #3fb950; }
+  .arch-box.external .arch-icon { color: #3fb950; }
+  .arch-box.database { border-top: 3px solid #bc8cff; }
+  .arch-box.database .arch-icon { color: #bc8cff; }
+  .arch-box.auth { border-top: 3px solid #f0883e; }
+  .arch-box.auth .arch-icon { color: #f0883e; }
+
+  .arch-arrow { display: flex; justify-content: center; padding: 4px 0; }
+  .arch-arrow i { color: var(--color-text-muted); font-size: 0.9rem; }
+
+  /* Data flow rows */
+  .arch-flow-content { padding: 12px 0 8px; }
+  .arch-flow-row {
+    display: flex; align-items: center; gap: 6px; padding: 6px 0; flex-wrap: wrap;
+  }
+  .arch-flow-step {
+    padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; white-space: nowrap;
+  }
+  .arch-flow-arrow { color: var(--color-text-muted); font-size: 0.75rem; }
+
+  /* Details / Collapsible */
+  .arch-details {
+    margin-bottom: 8px; background: rgba(22,33,62,0.6);
+    border: 1px solid rgba(255,215,0,0.08); border-radius: 10px; padding: 0 16px;
+  }
+  .arch-details summary {
+    cursor: pointer; font-weight: 600; font-size: 0.88rem;
+    color: var(--color-text); padding: 14px 0; list-style: none;
+  }
+  .arch-details summary::-webkit-details-marker { display: none; }
+  .arch-details summary::before { content: '\25B6  '; font-size: 0.65rem; color: var(--color-text-muted); }
+  .arch-details[open] summary::before { content: '\25BC  '; }
+  .arch-details[open] summary { color: var(--color-gold); }
+
+  /* Auth flow */
+  .arch-auth-flow {
+    display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;
+    justify-content: center; padding: 8px 0;
+  }
+  .auth-step {
+    background: rgba(10,10,10,0.5); border: 1px solid var(--color-border);
+    border-radius: 10px; padding: 14px 16px; min-width: 130px; max-width: 170px;
+    text-align: center; position: relative; border-top: 3px solid;
+  }
+  .auth-step strong { display: block; font-size: 0.82rem; color: var(--color-text); margin-bottom: 4px; }
+  .auth-step span { font-size: 0.73rem; color: var(--color-text-muted); line-height: 1.5; }
+  .auth-step-num {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    width: 20px; height: 20px; border-radius: 50%; font-size: 0.7rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+  }
+  .auth-arrow { display: flex; align-items: center; padding-top: 30px; color: var(--color-text-muted); }
+
+  /* Tech list */
+  .arch-tech-list {
+    list-style: none; padding: 0; margin: 0;
+  }
+  .arch-tech-list li {
+    padding: 5px 0; font-size: 0.82rem; color: var(--color-text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .arch-tech-list li:last-child { border-bottom: none; }
+  .arch-tech-list li strong { color: var(--color-text); }
+
+  /* Entity map pills */
+  .arch-entity-pill {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    background: rgba(10,10,10,0.4); border-radius: 6px; font-size: 0.75rem;
+  }
+  .arch-entity-pill code { color: var(--color-gold); font-size: 0.72rem; }
+  .arch-entity-pill .pill-label { color: var(--color-text-muted); }
+  .arch-entity-pill.sensitive { border-left: 2px solid #f85149; }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .arch-auth-flow { flex-direction: column; align-items: center; }
+    .auth-arrow { padding-top: 0; transform: rotate(90deg); }
+    .auth-step { max-width: 100%; min-width: 0; width: 100%; }
+    .arch-tier-boxes { flex-direction: column; align-items: center; }
+    .arch-box { min-width: 0; max-width: 100%; width: 100%; }
+  }
+</style>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARCHITECTURE PAGE SCRIPT                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  // ── Service Inventory Table ──────────────────────────
+  var services = [
+    { name: 'GitHub Pages', cat: 'Hosting', status: 'active', purpose: 'Public website CDN — static file hosting', conn: 'Git push' },
+    { name: 'Home Server (Express)', cat: 'Hosting', status: 'active', purpose: 'LAN dashboard server — API + SPA', conn: 'Local network' },
+    { name: 'DigitalOcean', cat: 'Hosting', status: 'active', purpose: 'Remote backend + Listmonk email', conn: 'SSH / API' },
+    { name: 'Firebase Auth', cat: 'Auth', status: 'active', purpose: 'Google / Apple / Microsoft sign-in', conn: 'Firebase SDK' },
+    { name: 'Firestore', cat: 'Database', status: 'active', purpose: 'User registration + contact submissions', conn: 'Firebase SDK' },
+    { name: 'SQLite (better-sqlite3)', cat: 'Database', status: 'active', purpose: 'Server-side sessions, entity JSON, backups', conn: 'Native driver' },
+    { name: 'localStorage', cat: 'Database', status: 'active', purpose: 'Client-side entity persistence (17 keys)', conn: 'Browser API' },
+    { name: 'Listmonk', cat: 'Email', status: 'active', purpose: 'Self-hosted email marketing & newsletters', conn: 'REST API' },
+    { name: 'GitHub Actions', cat: 'CI/CD', status: 'active', purpose: 'Auto-deploy on push to master', conn: 'Workflow YAML' },
+    { name: 'Shopify', cat: 'Ecommerce', status: 'planned', purpose: 'Merch storefront + Printful fulfillment', conn: 'Storefront API' },
+    { name: 'Stripe', cat: 'Payments', status: 'planned', purpose: 'Online payment processing', conn: 'REST API' },
+    { name: 'PayPal', cat: 'Payments', status: 'planned', purpose: 'Alternative payment option', conn: 'REST API' },
+    { name: 'Square', cat: 'Payments', status: 'planned', purpose: 'POS for live event merch sales', conn: 'REST API' },
+    { name: 'Printful', cat: 'Ecommerce', status: 'planned', purpose: 'Print-on-demand merch fulfillment', conn: 'Shopify integration' },
+    { name: 'QuickBooks', cat: 'Accounting', status: 'planned', purpose: 'Bookkeeping & financial reporting', conn: 'OAuth API' },
+    { name: 'Eventbrite', cat: 'Events', status: 'planned', purpose: 'Event ticketing & registration', conn: 'REST API' },
+    { name: 'Bandsintown', cat: 'Events', status: 'planned', purpose: 'Artist tour date listings', conn: 'Widget / API' },
+    { name: 'Google Calendar', cat: 'Events', status: 'planned', purpose: 'Event scheduling & reminders', conn: 'OAuth API' },
+    { name: 'DistroKid', cat: 'Music', status: 'planned', purpose: 'Music distribution to all platforms', conn: 'Manual' },
+    { name: 'Spotify for Artists', cat: 'Music', status: 'planned', purpose: 'Streaming analytics & profile', conn: 'Manual' },
+    { name: 'YouTube Studio', cat: 'Music', status: 'planned', purpose: 'Video channel management', conn: 'Manual' },
+    { name: 'SoundExchange', cat: 'Music', status: 'planned', purpose: 'Digital performance royalties', conn: 'Manual' },
+    { name: 'BMI / ASCAP / SESAC', cat: 'Music', status: 'planned', purpose: 'Performance rights organization', conn: 'Manual' },
+    { name: 'DocuSign', cat: 'Legal', status: 'planned', purpose: 'Electronic contract signatures', conn: 'REST API' },
+    { name: 'Google Maps', cat: 'Travel', status: 'planned', purpose: 'Venue mapping & directions', conn: 'Embed / API' },
+  ];
+
+  var catColors = {
+    'Hosting': '#58a6ff', 'Auth': '#f0883e', 'Database': '#bc8cff', 'Email': '#3fb950',
+    'CI/CD': '#79c0ff', 'Ecommerce': '#ffd700', 'Payments': '#f85149', 'Accounting': '#d29922',
+    'Events': '#a5d6ff', 'Music': '#d2a8ff', 'Legal': '#ffa657', 'Travel': '#7ee787',
+  };
+
+  var statusPills = {
+    'active': { label: 'Active', bg: 'rgba(63,185,80,0.15)', color: '#3fb950' },
+    'planned': { label: 'Planned', bg: 'rgba(139,148,158,0.15)', color: '#8b949e' },
+  };
+
+  var tbody = document.getElementById('arch-service-table');
+  if (tbody) {
+    tbody.innerHTML = services.map(function(s) {
+      var catColor = catColors[s.cat] || '#8b949e';
+      var pill = statusPills[s.status] || statusPills['planned'];
+      return '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">' +
+        '<td style="padding:8px 12px;color:var(--color-text);font-weight:500;">' + s.name + '</td>' +
+        '<td style="padding:8px 12px;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:600;background:' + catColor + '20;color:' + catColor + ';">' + s.cat + '</span></td>' +
+        '<td style="padding:8px 12px;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:600;background:' + pill.bg + ';color:' + pill.color + ';">' + pill.label + '</span></td>' +
+        '<td style="padding:8px 12px;color:var(--color-text-secondary);font-size:0.8rem;">' + s.purpose + '</td>' +
+        '<td style="padding:8px 12px;color:var(--color-text-muted);font-size:0.78rem;">' + s.conn + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ── localStorage Entity Map ──────────────────────────
+  var entities = [
+    { key: 'gbe-roster', label: 'Roster (Talent)', sensitive: false },
+    { key: 'gbe-contracts', label: 'Contracts', sensitive: false },
+    { key: 'gbe-revenue', label: 'Revenue', sensitive: true },
+    { key: 'gbe-expenses', label: 'Expenses', sensitive: true },
+    { key: 'gbe-invoices', label: 'Invoices', sensitive: true },
+    { key: 'gbe-events', label: 'Events', sensitive: false },
+    { key: 'gbe-bookings', label: 'Bookings', sensitive: false },
+    { key: 'gbe-ip-rights', label: 'IP & Rights', sensitive: false },
+    { key: 'gbe-documents', label: 'Documents', sensitive: true },
+    { key: 'gbe-merch-products', label: 'Merch Products', sensitive: false },
+    { key: 'gbe-merch-orders', label: 'Merch Orders', sensitive: false },
+    { key: 'gbe-travel', label: 'Travel', sensitive: false },
+    { key: 'gbe-distribution', label: 'Distribution', sensitive: false },
+    { key: 'gbe-venue-leads', label: 'Venue Leads', sensitive: false },
+    { key: 'gbe-integrations', label: 'Integrations', sensitive: true },
+    { key: 'gbe-settings', label: 'Settings', sensitive: true },
+    { key: 'gbe-checklist', label: 'Checklist', sensitive: true },
+    { key: 'gbe-it-credentials', label: 'IT Credentials', sensitive: true },
+    { key: 'gbe-it-servers', label: 'IT Servers', sensitive: false },
+    { key: 'gbe-activity', label: 'Activity Log', sensitive: false },
+  ];
+
+  var entityMap = document.getElementById('arch-entity-map');
+  if (entityMap) {
+    entityMap.innerHTML = entities.map(function(e) {
+      return '<div class="arch-entity-pill' + (e.sensitive ? ' sensitive' : '') + '">' +
+        '<code>' + e.key + '</code>' +
+        '<span class="pill-label">' + e.label + (e.sensitive ? ' <i class="fa-solid fa-lock" style="font-size:0.65rem;color:#f85149;" title="Local-only / sensitive"></i>' : '') + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+})();
+</script>
