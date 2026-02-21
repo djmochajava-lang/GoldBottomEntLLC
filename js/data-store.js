@@ -24,6 +24,7 @@ const DataStore = {
     INTEGRATIONS: 'gbe-integrations',
     SETTINGS: 'gbe-settings',
     CHECKLIST: 'gbe-checklist',
+    VENUE_LEADS: 'gbe-venue-leads',
     ACTIVITY: 'gbe-activity',
   },
 
@@ -98,6 +99,7 @@ const DataStore = {
       [this.KEYS.MERCH_ORDERS]: 'order',
       [this.KEYS.TRAVEL]: 'itinerary',
       [this.KEYS.DISTRIBUTION]: 'release',
+      [this.KEYS.VENUE_LEADS]: 'venue lead',
     };
 
     const label = entityLabels[entityKey] || 'item';
@@ -292,6 +294,24 @@ const DataStore = {
   deleteDocument(id) { return this._delete(this.KEYS.DOCUMENTS, id); },
 
   // ============================================================
+  // VENUE LEADS
+  // ============================================================
+
+  getVenueLeads() { return this._getAll(this.KEYS.VENUE_LEADS); },
+  getVenueLead(id) { return this._getById(this.KEYS.VENUE_LEADS, id); },
+  addVenueLead(lead) { return this._add(this.KEYS.VENUE_LEADS, lead); },
+  updateVenueLead(id, data) { return this._update(this.KEYS.VENUE_LEADS, id, data); },
+  deleteVenueLead(id) { return this._delete(this.KEYS.VENUE_LEADS, id); },
+
+  getVenueLeadsByCategory(category) {
+    return this.getVenueLeads().filter(function(l) { return l.category === category; });
+  },
+
+  getVenueLeadsByStatus(status) {
+    return this.getVenueLeads().filter(function(l) { return l.outreachStatus === status; });
+  },
+
+  // ============================================================
   // INTEGRATIONS STATE
   // ============================================================
 
@@ -355,6 +375,9 @@ const DataStore = {
       upcomingEvents: this.getUpcomingEvents(5).length,
       totalBookings: this.getBookings().length,
       ipEntries: this.getIPRights().length,
+      totalVenueLeads: this.getVenueLeads().length,
+      contactedVenues: this.getVenueLeadsByStatus('contacted').length,
+      bookedVenues: this.getVenueLeadsByStatus('booked').length,
     };
     // Financial metrics only on local dashboard
     if (isLocal) {
@@ -383,6 +406,12 @@ const DataStore = {
       console.log('🔒 DataStore: cleared sensitive data for remote tier');
     }
 
+    // One-time migration: seed venue leads for existing users
+    if (!Utils.storage.get(this.KEYS.VENUE_LEADS)) {
+      this.seedVenueLeads();
+      console.log('🏛️ DataStore: migrated venue leads');
+    }
+
     if (Utils.storage.get(this.KEYS.ROSTER)) {
       console.log('📦 DataStore: existing data found');
       return;
@@ -399,6 +428,7 @@ const DataStore = {
     this.seedMerch();
     this.seedTravel();
     this.seedDistribution();
+    this.seedVenueLeads();
     this.seedActivity();
 
     // Local-only — financial and sensitive config data
@@ -660,6 +690,51 @@ const DataStore = {
   seedDistribution() {
     this._save(this.KEYS.DISTRIBUTION, [
       { id: 'rel-001', title: '[Song Title]', artist: 'L.A. Young', type: 'single', releaseDate: '2024-01-01', distributor: 'Self-Distributed', status: 'released', platforms: ['Spotify', 'Apple Music', 'YouTube Music', 'Amazon Music', 'Tidal'], isrc: '[YOUR ISRC CODE — register at usisrc.org]', upc: '[YOUR UPC CODE — purchase at gs1us.org]', spotifyUrl: '[SPOTIFY URL]', appleMusicUrl: '[APPLE MUSIC URL]', royaltyIncome: 0, roadmapSteps: [false,false,false,false,false,false,false,false,false,false,false,false,false,false], notes: '[SAMPLE] DIY release — register your own ISRC at usisrc.org and purchase UPC from GS1 US. Edit with your actual release details.', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+    ]);
+  },
+
+  seedVenueLeads() {
+    this._save(this.KEYS.VENUE_LEADS, [
+      // ── Restaurants (8) ──
+      { id: 'vl-001', name: 'JoJo Restaurant & Bar', category: 'restaurant', city: 'Washington', state: 'DC', capacity: '150', website: 'https://www.jojorestaurantdc.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Upscale dining with live entertainment. Located in U Street corridor.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-002', name: 'Blues Alley', category: 'restaurant', city: 'Washington', state: 'DC', capacity: '125', website: 'https://www.bluesalley.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Legendary Georgetown jazz supper club. Premier jazz venue since 1965.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-003', name: 'City Winery DC', category: 'restaurant', city: 'Washington', state: 'DC', capacity: '300', website: 'https://citywinery.com/washington-dc', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Winery, restaurant & concert venue at The Wharf. Intimate seated shows.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-004', name: 'The Hamilton Live', category: 'restaurant', city: 'Washington', state: 'DC', capacity: '400', website: 'https://www.thehamiltondc.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Restaurant & performance space near the White House. Diverse live music lineup nightly.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-005', name: '219 Restaurant', category: 'restaurant', city: 'Alexandria', state: 'VA', capacity: '150', website: 'https://www.219restaurant.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Old Town Alexandria. Upscale dining with live jazz & blues.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-006', name: 'Bethesda Blues & Jazz', category: 'restaurant', city: 'Bethesda', state: 'MD', capacity: '200', website: 'https://www.bethesdabluesjazz.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Dedicated jazz & blues supper club in downtown Bethesda.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-007', name: 'Clyde\'s Restaurant Group', category: 'restaurant', city: 'Various', state: 'DMV', capacity: '200', website: 'https://www.clydes.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Multiple upscale locations across DMV. Hosts live music at select venues.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-008', name: 'Hen Quarter', category: 'restaurant', city: 'Alexandria', state: 'VA', capacity: '175', website: 'https://www.henquarter.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Southern cuisine with live music. Old Town Alexandria & other locations.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+
+      // ── Theaters & Performance Venues (9) ──
+      { id: 'vl-009', name: 'The Birchmere', category: 'theater', city: 'Alexandria', state: 'VA', capacity: '500', website: 'https://www.birchmere.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Legendary listening room. National touring acts plus regional artists.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-010', name: 'Kennedy Center — Millennium Stage', category: 'theater', city: 'Washington', state: 'DC', capacity: '400', website: 'https://www.kennedy-center.org', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Free daily performances on the Millennium Stage. Apply through their artist submission process.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-011', name: 'The Howard Theatre', category: 'theater', city: 'Washington', state: 'DC', capacity: '650', website: 'https://www.thehowardtheatre.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Historic U Street venue. Recently restored. R&B, soul, and jazz programming.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-012', name: 'Strathmore — Music Center', category: 'theater', city: 'North Bethesda', state: 'MD', capacity: '1976', website: 'https://www.strathmore.org', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'World-class concert hall. Hosts jazz, classical, and pop. Multiple venue sizes.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-013', name: 'Wolf Trap', category: 'theater', city: 'Vienna', state: 'VA', capacity: '7000', website: 'https://www.wolftrap.org', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'National Park for the Performing Arts. The Barns (smaller indoor venue) seats 382.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-014', name: 'The Anthem', category: 'theater', city: 'Washington', state: 'DC', capacity: '6000', website: 'https://www.theanthemdc.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'low', lastContact: '', notes: 'Major concert venue at The Wharf. Adjustable capacity. Book through Live Nation/I.M.P.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-015', name: 'Rams Head On Stage', category: 'theater', city: 'Annapolis', state: 'MD', capacity: '350', website: 'https://www.ramsheadonstage.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Intimate dinner-theater format. Strong R&B/soul/jazz bookings.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-016', name: 'Creative Alliance', category: 'theater', city: 'Baltimore', state: 'MD', capacity: '250', website: 'https://www.creativealliance.org', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Highlandtown arts venue. Eclectic programming. Community-focused.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-017', name: 'Hylton Performing Arts Center', category: 'theater', city: 'Manassas', state: 'VA', capacity: '1129', website: 'https://www.hyltoncenter.org', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'George Mason University venue. Multiple performance spaces.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+
+      // ── Corporate / Gala Venues (6) ──
+      { id: 'vl-018', name: 'Gaylord National Resort', category: 'corporate', city: 'National Harbor', state: 'MD', capacity: '2000', website: 'https://www.marriott.com/hotels/travel/wasgn-gaylord-national-resort-and-convention-center', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Major convention center & resort. Corporate galas, holiday events, large-scale entertainment.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-019', name: 'The Ritz-Carlton, Tysons Corner', category: 'corporate', city: 'McLean', state: 'VA', capacity: '500', website: 'https://www.ritzcarlton.com/en/hotels/iadrc-the-ritz-carlton-tysons-corner', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Luxury hotel. Corporate events, galas, and private entertainment.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-020', name: 'Four Seasons Georgetown', category: 'corporate', city: 'Washington', state: 'DC', capacity: '350', website: 'https://www.fourseasons.com/washington', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Luxury hotel. Private events, corporate dinners, and VIP entertainment.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-021', name: 'MGM National Harbor', category: 'corporate', city: 'Oxon Hill', state: 'MD', capacity: '3000', website: 'https://www.mgmnationalharbor.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Casino resort with theater and event spaces. National touring acts and private events.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-022', name: 'National Museum of Women in the Arts', category: 'corporate', city: 'Washington', state: 'DC', capacity: '400', website: 'https://nmwa.org', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Museum event space. Galas, fundraisers, and cultural events with live entertainment.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-023', name: 'Ronald Reagan Building', category: 'corporate', city: 'Washington', state: 'DC', capacity: '5000', website: 'https://www.rrbitc.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Iconic DC event venue. International Trade Center. Galas, inaugurals, corporate events.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+
+      // ── Wedding / Event Venues (5) ──
+      { id: 'vl-024', name: 'Salamander Resort & Spa', category: 'wedding', city: 'Middleburg', state: 'VA', capacity: '500', website: 'https://www.salamanderresort.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Luxury resort in Virginia wine country. Weddings, corporate retreats, galas.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-025', name: 'Decatur House', category: 'wedding', city: 'Washington', state: 'DC', capacity: '300', website: 'https://www.decaturhouse.org', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Historic venue on Lafayette Square. Weddings and upscale private events.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-026', name: 'The Fillmore Silver Spring', category: 'wedding', city: 'Silver Spring', state: 'MD', capacity: '2000', website: 'https://www.fillmoresilverspring.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Live Nation venue. Available for private events and weddings on select dates.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-027', name: 'Newton White Mansion', category: 'wedding', city: 'Mitchellville', state: 'MD', capacity: '250', website: 'https://www.pgparks.com/3040/Newton-White-Mansion', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Prince George\'s County historic estate. Weddings, receptions, and private events.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-028', name: 'Oxon Hill Manor', category: 'wedding', city: 'Oxon Hill', state: 'MD', capacity: '300', website: 'https://www.pgparks.com/3035/Oxon-Hill-Manor', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'medium', lastContact: '', notes: 'Georgian Revival mansion overlooking the Potomac. Weddings, galas, corporate events.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+
+      // ── Talent Agencies / Booking Partners (3) ──
+      { id: 'vl-029', name: 'Washington Talent Agency', category: 'agency', city: 'Washington', state: 'DC', capacity: '', website: 'https://www.washingtontalent.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'DMV\'s largest event entertainment agency. Books acts for corporate events, weddings, galas.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-030', name: 'Extraordinary Entertainment', category: 'agency', city: 'Rockville', state: 'MD', capacity: '', website: 'https://www.extraordinaryentertainment.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'high', lastContact: '', notes: 'Full-service entertainment agency. Weddings, corporate, private events across DMV.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
+      { id: 'vl-031', name: 'Live Nation — DC Market', category: 'agency', city: 'Washington', state: 'DC', capacity: '', website: 'https://www.livenation.com', contactName: '', contactEmail: '', contactPhone: '', outreachStatus: 'not-contacted', priority: 'low', lastContact: '', notes: 'Major promoter. Books The Anthem, Fillmore, Merriweather. Long-term relationship target.', createdAt: '2026-02-20T00:00:00Z', updatedAt: '2026-02-20T00:00:00Z' },
     ]);
   },
 

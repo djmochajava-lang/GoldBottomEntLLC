@@ -292,28 +292,35 @@ const Auth = {
    */
   _detectServerUrl: function() {
     var hostname = window.location.hostname;
+    var isPrivate = false;
 
     // Check for private IP ranges or localhost
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return window.location.origin;
+      isPrivate = true;
     }
-
     // 192.168.x.x
-    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
-      return window.location.origin;
+    else if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      isPrivate = true;
     }
-
     // 10.x.x.x
-    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
-      return window.location.origin;
+    else if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      isPrivate = true;
     }
-
     // 172.16-31.x.x
-    if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
-      return window.location.origin;
+    else if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      isPrivate = true;
     }
 
-    return null;
+    if (!isPrivate) return null;
+
+    // If already on the API server port (3000), use origin as-is.
+    // Otherwise the SPA is served by a different server (e.g. VS Code
+    // Live Server on 8080), so point to the API on port 3000.
+    var port = window.location.port;
+    if (port === '3000') {
+      return window.location.origin;
+    }
+    return window.location.protocol + '//' + hostname + ':3000';
   },
 
   /**
