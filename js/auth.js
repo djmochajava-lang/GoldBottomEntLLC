@@ -45,6 +45,12 @@ const Auth = {
   /** @type {string|null} User's role: 'admin' or 'member' */
   _role: null,
 
+  /** @type {Array<string>|null} Effective dashboard routes accessible to the current user */
+  _dashboardAccess: null,
+
+  /** @type {Array<string>|null} Raw dashboardAccess from Firestore (before environment filtering) */
+  _firestoreAccess: null,
+
   /** @type {string|null} PIN session token (stored in localStorage) */
   _sessionToken: null,
 
@@ -257,6 +263,7 @@ const Auth = {
         Auth._authorized = false;
         Auth._registrationStatus = null;
         Auth._role = null;
+        Auth._firestoreAccess = null;
         Auth._updateUI(user);
         Auth._notifyListeners(user);
         console.log('[Auth] Signed out');
@@ -339,6 +346,99 @@ const Auth = {
    */
   isLocalDashboard: function() {
     return this._isOnLocalServer();
+  },
+
+  /* ------------------------------------------
+     Dashboard Access Control
+     ------------------------------------------ */
+
+  /**
+   * All dashboard route names. Used as the basis for access computation.
+   * @type {Array<string>}
+   * @private
+   */
+  _allDashboardRoutes: [
+    'dashboard-home',
+    'dashboard-roster',
+    'dashboard-contracts',
+    'dashboard-finances',
+    'dashboard-booking',
+    'dashboard-leads',
+    'dashboard-merch',
+    'dashboard-travel',
+    'dashboard-calendar',
+    'dashboard-ip',
+    'dashboard-distribution',
+    'dashboard-documents',
+    'dashboard-integrations',
+    'dashboard-settings',
+    'dashboard-team',
+    'dashboard-architecture',
+    'dashboard-credentials',
+    'dashboard-servers',
+  ],
+
+  /**
+   * Compute the effective dashboard access for the current session.
+   * Combines the user's Firestore-stored dashboardAccess with environment
+   * restrictions (localOnlyRoutes are stripped when on a public host).
+   *
+   * Called automatically on every auth state change via _notifyListeners.
+   * @private
+   */
+  _computeDashboardAccess: function() {
+    // Not authenticated — no access
+    if (!this._authorized) {
+      this._dashboardAccess = [];
+      return;
+    }
+
+    var role = this._role || 'member';
+
+    // Start with Firestore access if available, otherwise role defaults
+    var base;
+    if (this._firestoreAccess && Array.isArray(this._firestoreAccess) && this._firestoreAccess.length > 0) {
+      base = this._firestoreAccess.slice();
+    } else {
+      base = this._defaultAccessForRole(role);
+    }
+
+    // Apply environment ceiling — remove localOnlyRoutes when remote
+    if (!this.isLocalDashboard() && typeof Router !== 'undefined' && Router.localOnlyRoutes) {
+      var localOnly = Router.localOnlyRoutes;
+      base = base.filter(function(route) {
+        return localOnly.indexOf(route) === -1;
+      });
+    }
+
+    this._dashboardAccess = base;
+  },
+
+  /**
+   * Get the default dashboardAccess list for a given role.
+   * Admin gets all routes; member gets all except admin-only routes.
+   * @param {string} role - 'admin' or 'member'
+   * @returns {Array<string>}
+   * @private
+   */
+  _defaultAccessForRole: function(role) {
+    var all = this._allDashboardRoutes.slice();
+    if (role === 'admin') return all;
+
+    // Members: exclude admin-only routes
+    return all.filter(function(r) {
+      return r !== 'dashboard-team';
+    });
+  },
+
+  /**
+   * Get the list of dashboard routes accessible to the current user.
+   * Returns null if access hasn't been computed yet (auth not ready).
+   * Used by Sidebar to filter visible menu items.
+   * @returns {Array<string>|null}
+   */
+  getDashboardAccess: function() {
+    return this._dashboardAccess;
   },
 
   /**
@@ -550,6 +650,7 @@ const Auth = {
    *   - role (string) — 'admin' | 'member'
    *   - registeredAt (timestamp) — when they first signed in
    *   - lastLoginAt (timestamp) — updated each sign-in
+   *   - dashboardAccess (array<string>) — dashboard routes this user can access
    *
    * @param {Object} user - Firebase user object
    * @returns {Promise<string>} 'approved', 'pending', or 'denied'
@@ -569,6 +670,7 @@ const Auth = {
           // Existing user — update last login and return their status
           var data = doc.data();
           Auth._role = data.role || 'member';
+          Auth._firestoreAccess = data.dashboardAccess || null;
           userRef.update({
             lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
             displayName: user.displayName || data.displayName,
@@ -580,6 +682,8 @@ const Auth = {
         } else {
           // New user — create registration with 'pending' status
           Auth._role = 'member';
+          var defaultAccess = Auth._defaultAccessForRole('member');
+          Auth._firestoreAccess = defaultAccess;
           return userRef.set({
             displayName: user.displayName || user.email.split('@')[0],
             emailHash: emailHash,
@@ -589,6 +693,7 @@ const Auth = {
               : 'unknown',
             status: 'pending',
             role: 'member',
+            dashboardAccess: defaultAccess,
             registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
             lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
           }).then(function() {
@@ -732,6 +837,7 @@ const Auth = {
         Auth._registrationStatus = null;
         Auth._role = null;
         Auth._sessionToken = null;
+        Auth._firestoreAccess = null;
 
         Auth._updateUI(null);
         Auth._notifyListeners(null);
@@ -1270,11 +1376,17 @@ const Auth = {
   },
 
   /**
-   * Notify all registered listeners of auth state change
+   * Notify all registered listeners of auth state change.
+   * Also recomputes dashboard access and dispatches gbe:auth-access-ready
+   * so the Sidebar can filter menu items.
    * @param {Object|null} user
    * @private
    */
   _notifyListeners: function(user) {
+    // Recompute effective dashboard access for the current session
+    this._computeDashboardAccess();
+    document.dispatchEvent(new CustomEvent('gbe:auth-access-ready'));
+
     for (var i = 0; i < this._listeners.length; i++) {
       try {
         this._listeners[i](user);

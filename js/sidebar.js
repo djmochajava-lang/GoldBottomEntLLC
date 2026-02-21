@@ -25,6 +25,7 @@ const Sidebar = {
     this.setupMobileToggle();
     this.setupNavClicks();
     this.restoreState();
+    this.setupAccessFilter();
 
     this.initialized = true;
     console.log('✅ Sidebar initialized');
@@ -147,6 +148,52 @@ const Sidebar = {
         if (icon) icon.className = 'fa-solid fa-angles-right';
       }
     }
+  },
+
+  /**
+   * Listen for auth access changes and filter sidebar items accordingly.
+   * Auth dispatches 'gbe:auth-access-ready' after computing the user's
+   * effective dashboard access (Firestore config + environment restrictions).
+   */
+  setupAccessFilter() {
+    document.addEventListener('gbe:auth-access-ready', () => {
+      this.filterMenuItems();
+    });
+  },
+
+  /**
+   * Show or hide sidebar menu items based on the current user's dashboard access.
+   * Reads Auth.getDashboardAccess() which returns the effective list of
+   * accessible route names for this session (Firestore-stored per-user config
+   * intersected with environment restrictions like localOnlyRoutes).
+   *
+   * Hides entire nav groups when all their items are inaccessible.
+   */
+  filterMenuItems() {
+    if (!this.sidebar) return;
+    if (typeof Auth === 'undefined' || !Auth.getDashboardAccess) return;
+
+    const access = Auth.getDashboardAccess();
+    if (!access) return;
+
+    // Show or hide each sidebar item based on access list
+    this.sidebar.querySelectorAll('.sidebar-nav-item[data-page]').forEach((item) => {
+      const page = item.getAttribute('data-page');
+      if (!page || !page.startsWith('dashboard-')) return;
+      item.style.display = access.indexOf(page) !== -1 ? '' : 'none';
+    });
+
+    // Hide nav groups where all items are inaccessible
+    this.sidebar.querySelectorAll('.sidebar-nav-group').forEach((group) => {
+      const items = group.querySelectorAll('.sidebar-nav-item[data-page]');
+      if (items.length === 0) return;
+
+      let anyVisible = false;
+      items.forEach((item) => {
+        if (item.style.display !== 'none') anyVisible = true;
+      });
+      group.style.display = anyVisible ? '' : 'none';
+    });
   },
 
   /**
