@@ -827,7 +827,7 @@ const DataStore = {
       accountant: '[YOUR ACCOUNTANT / CPA]',
       insurance: '[YOUR BUSINESS INSURANCE]',
       bankName: '[BANK NAME]',
-      ownerName: 'DJ Moka',
+      ownerName: 'Jeffery Ponder, CISSP',
       ownerEmail: '[YOUR EMAIL]',
       ownerPhone: '[YOUR PHONE]',
       notifyEmail: true,
