@@ -1233,11 +1233,13 @@
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(184, 134, 11, 0.12), rgba(218, 165, 32, 0.06));
   border: 3px solid rgba(184, 134, 11, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3.5rem;
-  color: var(--color-gold);
+  overflow: hidden;
+}
+
+.featured-artist-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .featured-artist-info {
@@ -1357,7 +1359,6 @@
   .featured-artist-photo {
     width: 140px;
     height: 140px;
-    font-size: 2.8rem;
   }
 
   .featured-artist-name {
