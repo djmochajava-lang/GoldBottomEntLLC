@@ -993,6 +993,25 @@ body.biz-theme .section-title-accent::after {
   opacity: 0;
   transform: translateX(40px);
   animation: heroTerminalReveal 0.8s ease-out 1.0s forwards;
+  margin-top: 80px;
+}
+
+/* CISSP credential badge */
+#page-biz-home .hero-credential {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(212, 160, 23, 0.15);
+  border: 1px solid rgba(212, 160, 23, 0.4);
+  border-radius: 20px;
+  color: #d4a017;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-sm);
+  opacity: 0;
+  animation: heroContentReveal 0.6s ease-out 1.3s forwards;
 }
 
 @keyframes heroTerminalReveal {
