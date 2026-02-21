@@ -52,6 +52,12 @@
   display: none;
 }
 
+/* Show the FULL image (top spotlights + bottom stage floor) */
+.hero-ent-stage .hero-bg img {
+  object-fit: contain;
+  background: #000;
+}
+
 /* ENTER button — gold outlined rectangle matching the design */
 .btn-enter-stage {
   display: inline-flex;
