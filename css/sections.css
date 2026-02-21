@@ -824,6 +824,74 @@ body.biz-theme .section-title-accent::after {
   background: #58a6ff;
 }
 
+/* =============================================
+   Enterprise Page Backgrounds
+   ============================================= */
+
+#page-biz-home {
+  background-image: url('../images/backgrounds/IMG_0814.jpg');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+#page-biz-services {
+  background-image: url('../images/backgrounds/IMG_0809.jpg');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+#page-biz-portfolio {
+  background-image: url('../images/backgrounds/IMG_0812.jpg');
+  background-size: cover;
+  background-position: center top;
+  position: relative;
+}
+
+#page-biz-about {
+  background-image: url('../images/backgrounds/IMG_0813.jpg');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+#page-biz-contact {
+  background-image: url('../images/backgrounds/helloworld.png');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+/* Dark overlay for readability over background images */
+#page-biz-home::before,
+#page-biz-services::before,
+#page-biz-portfolio::before,
+#page-biz-about::before,
+#page-biz-contact::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 17, 23, 0.7);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Ensure all content sits above the overlay */
+#page-biz-home > *,
+#page-biz-services > *,
+#page-biz-portfolio > *,
+#page-biz-about > *,
+#page-biz-contact > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Make hero-corporate transparent so section bg image shows through */
+#page-biz-home .hero-corporate {
+  background: transparent;
+}
+
 
 /* =============================================
    Split Hero Layout (Two-Column)
