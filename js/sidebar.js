@@ -12,6 +12,9 @@ const Sidebar = {
   collapsed: false,
   initialized: false,
 
+  /** @type {string|null} Snapshot of the original sidebar nav HTML before filtering */
+  _navOriginalHTML: null,
+
   init() {
     if (this.initialized) return;
 
@@ -162,12 +165,16 @@ const Sidebar = {
   },
 
   /**
-   * Show or hide sidebar menu items based on the current user's dashboard access.
+   * Remove inaccessible sidebar menu items from the DOM entirely.
    * Reads Auth.getDashboardAccess() which returns the effective list of
    * accessible route names for this session (Firestore-stored per-user config
    * intersected with environment restrictions like localOnlyRoutes).
    *
-   * Hides entire nav groups when all their items are inaccessible.
+   * Items are fully removed — not hidden — so they cannot be discovered
+   * via DOM inspection. A snapshot of the original nav HTML is stored on
+   * first run so items can be restored when access changes (e.g., re-login).
+   *
+   * Removes entire nav groups when all their items are inaccessible.
    */
   filterMenuItems() {
     if (!this.sidebar) return;
@@ -176,24 +183,35 @@ const Sidebar = {
     const access = Auth.getDashboardAccess();
     if (!access) return;
 
-    // Show or hide each sidebar item based on access list
-    this.sidebar.querySelectorAll('.sidebar-nav-item[data-page]').forEach((item) => {
+    const nav = this.sidebar.querySelector('.sidebar-nav');
+    if (!nav) return;
+
+    // First call: snapshot the full nav HTML so we can restore on access changes
+    if (this._navOriginalHTML === null) {
+      this._navOriginalHTML = nav.innerHTML;
+    }
+
+    // Restore full nav from snapshot (clean slate before filtering)
+    nav.innerHTML = this._navOriginalHTML;
+
+    // Remove inaccessible items from the DOM
+    nav.querySelectorAll('.sidebar-nav-item[data-page]').forEach((item) => {
       const page = item.getAttribute('data-page');
       if (!page || !page.startsWith('dashboard-')) return;
-      item.style.display = access.indexOf(page) !== -1 ? '' : 'none';
+      if (access.indexOf(page) === -1) {
+        item.remove();
+      }
     });
 
-    // Hide nav groups where all items are inaccessible
-    this.sidebar.querySelectorAll('.sidebar-nav-group').forEach((group) => {
-      const items = group.querySelectorAll('.sidebar-nav-item[data-page]');
-      if (items.length === 0) return;
-
-      let anyVisible = false;
-      items.forEach((item) => {
-        if (item.style.display !== 'none') anyVisible = true;
-      });
-      group.style.display = anyVisible ? '' : 'none';
+    // Remove groups that have no remaining items
+    nav.querySelectorAll('.sidebar-nav-group').forEach((group) => {
+      if (group.querySelectorAll('.sidebar-nav-item').length === 0) {
+        group.remove();
+      }
     });
+
+    // Re-bind mobile close handlers on the fresh DOM elements
+    this.setupNavClicks();
   },
 
   /**
