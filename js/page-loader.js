@@ -102,8 +102,9 @@ const PageLoader = {
       fetchOpts.headers = { 'X-GBE-Session': Auth._sessionToken };
     }
 
-    // Fetch from server
-    const response = await fetch(pageUrl, fetchOpts);
+    // Fetch from server (cache-bust to avoid stale CDN/browser cache)
+    const bustUrl = pageUrl + (pageUrl.includes('?') ? '&' : '?') + '_v=' + Date.now();
+    const response = await fetch(bustUrl, fetchOpts);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
