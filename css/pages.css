@@ -1229,8 +1229,8 @@
 .featured-artist-photo {
   flex-shrink: 0;
   width: 180px;
-  height: 180px;
-  border-radius: 50%;
+  height: 270px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(135deg, rgba(184, 134, 11, 0.12), rgba(218, 165, 32, 0.06));
   border: 3px solid rgba(184, 134, 11, 0.35);
   overflow: hidden;
@@ -1358,7 +1358,7 @@
 
   .featured-artist-photo {
     width: 140px;
-    height: 140px;
+    height: 210px;
   }
 
   .featured-artist-name {
