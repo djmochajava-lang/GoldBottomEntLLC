@@ -223,7 +223,7 @@ const PageLoader = {
 
     const CHAR_SPEED = 45;       // ms per character
     const LINE_PAUSE = 200;      // ms pause between lines
-    const LOOP_PAUSE = 5000;     // 5 sec pause before restarting
+    const LOOP_PAUSE = 10000;    // 10 sec pause before restarting
     const INITIAL_DELAY = 1800;  // wait for terminal slide-in
 
     // Reveal static lines (1-3) immediately after terminal appears
