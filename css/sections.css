@@ -126,9 +126,10 @@
   font-size: var(--text-5xl);
   font-weight: var(--fw-extrabold);
   line-height: var(--lh-tight);
-  color: var(--color-text);
-  margin-bottom: var(--space-lg);
+  color: #ffffff;
+  margin-bottom: var(--space-md);
   letter-spacing: -0.02em;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
 }
 
 .hero-title .gold-gradient {
@@ -141,10 +142,16 @@
 .hero-subtitle {
   font-size: var(--text-lg);
   font-weight: var(--fw-regular);
-  color: var(--color-text-secondary);
+  color: rgba(200, 206, 214, 0.85);
   line-height: var(--lh-relaxed);
   max-width: 600px;
   margin: 0 auto var(--space-xl);
+  letter-spacing: 0.01em;
+}
+
+.hero-subtitle em {
+  color: var(--color-gold);
+  font-style: italic;
 }
 
 .hero-actions {
@@ -196,24 +203,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 90vh;
-  padding: calc(var(--header-height) + var(--space-3xl)) var(--space-lg) var(--space-3xl);
+  min-height: calc(100vh - var(--header-height));
+  padding: 0 var(--space-lg) var(--space-xl);
   overflow: hidden;
   text-align: center;
-  background: var(--color-bg);
+  background: transparent;
 }
 
-/* Gradient overlay */
+/* Gradient overlay — radial vignette framing center content */
 .hero-corporate::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(13, 17, 23, 0.3) 0%,
-    rgba(13, 17, 23, 0.6) 50%,
-    var(--color-bg) 100%
-  );
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 45%,
+      transparent 0%,
+      rgba(13, 17, 23, 0.25) 60%,
+      rgba(13, 17, 23, 0.65) 100%),
+    linear-gradient(
+      180deg,
+      rgba(13, 17, 23, 0.05) 0%,
+      rgba(13, 17, 23, 0.15) 40%,
+      rgba(13, 17, 23, 0.55) 100%
+    );
   z-index: 1;
   pointer-events: none;
 }
@@ -241,6 +253,7 @@
   z-index: 2;
   max-width: 800px;
   margin: 0 auto;
+  transform: translateY(-5vh);
 }
 
 /* Floating accent orbs */
@@ -254,41 +267,67 @@
 }
 
 .hero-corporate .hero-orb-1 {
-  width: 400px;
-  height: 400px;
-  top: 10%;
-  left: -5%;
+  width: 500px;
+  height: 500px;
+  top: 5%;
+  left: -8%;
   background: radial-gradient(circle,
-    rgba(184, 134, 11, 0.16) 0%,
-    rgba(218, 165, 32, 0.08) 35%,
-    rgba(139, 109, 20, 0.04) 60%,
+    rgba(184, 134, 11, 0.22) 0%,
+    rgba(218, 165, 32, 0.12) 30%,
+    rgba(139, 109, 20, 0.05) 55%,
     transparent 75%);
   animation: orbDrift3 20s ease-in-out infinite, ambientPulse 6s ease-in-out infinite;
 }
 
 .hero-corporate .hero-orb-2 {
-  width: 350px;
-  height: 350px;
-  bottom: 5%;
-  right: -8%;
+  width: 450px;
+  height: 450px;
+  bottom: 0%;
+  right: -10%;
   background: radial-gradient(circle,
-    rgba(160, 120, 40, 0.10) 0%,
-    rgba(205, 175, 100, 0.06) 35%,
-    rgba(120, 100, 60, 0.03) 60%,
+    rgba(160, 120, 40, 0.16) 0%,
+    rgba(205, 175, 100, 0.08) 30%,
+    rgba(120, 100, 60, 0.04) 55%,
     transparent 75%);
   animation: orbDrift1 22s ease-in-out infinite, ambientPulse 8s ease-in-out 2s infinite;
 }
 
 .hero-corporate .hero-orb-3 {
-  width: 300px;
-  height: 300px;
-  top: 50%;
-  right: 15%;
+  width: 400px;
+  height: 400px;
+  top: 40%;
+  right: 10%;
   background: radial-gradient(circle,
-    rgba(205, 155, 29, 0.09) 0%,
-    rgba(184, 134, 11, 0.05) 40%,
+    rgba(205, 155, 29, 0.13) 0%,
+    rgba(184, 134, 11, 0.07) 35%,
     transparent 70%);
   animation: orbDrift2 26s ease-in-out infinite, ambientPulse 9s ease-in-out 4s infinite;
+}
+
+/* Subtle radial glow behind hero content */
+.hero-corporate .hero-content::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 140%;
+  height: 180%;
+  background: radial-gradient(ellipse at center,
+    rgba(184, 134, 11, 0.06) 0%,
+    rgba(184, 134, 11, 0.02) 40%,
+    transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Gold accent line under hero title */
+.hero-accent-line {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-gold), rgba(218, 165, 32, 0.4));
+  margin: 0 auto var(--space-lg);
+  border-radius: 1px;
 }
 
 /* Hero badge/label */

@@ -326,27 +326,27 @@
   inset: -50%;
   width: 200%;
   height: 200%;
-  z-index: 0;
+  z-index: 2;
   pointer-events: none;
-  opacity: 0.45;
+  opacity: 1;
   background-repeat: repeat;
-  background-size: 400px 300px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Cg transform='rotate(-18 200 150)'%3E%3Ctext x='30' y='82' font-family='Georgia,serif' font-size='20' font-weight='bold' fill='rgba(212,160,23,0.12)' letter-spacing='4'%3EGBE%3C/text%3E%3Cg transform='translate(225,58)' fill='rgba(212,160,23,0.12)'%3E%3Cellipse cx='3' cy='20' rx='7' ry='5.5' transform='rotate(-15 3 20)'/%3E%3Crect x='8' y='0' width='3' height='22' rx='1'/%3E%3Cpath d='M11,0 Q19,-5 15,5 Q12,10 11,7' fill='rgba(212,160,23,0.12)'/%3E%3C/g%3E%3Ctext x='140' y='207' font-family='Georgia,serif' font-size='20' font-weight='bold' fill='rgba(212,160,23,0.12)' letter-spacing='4'%3EGBE%3C/text%3E%3Cg transform='translate(323,178) scale(0.047)' fill='rgba(212,160,23,0.12)'%3E%3Cpath d='M116.7 33.8c4.5-6.1 11.7-9.8 19.3-9.8l240 0c7.6 0 14.8 3.6 19.3 9.8l112 152c6.8 9.2 6.1 21.9-1.5 30.4l-232 256c-4.5 5-11 7.9-17.8 7.9s-13.2-2.9-17.8-7.9l-232-256c-7.7-8.5-8.3-21.2-1.5-30.4l112-152zm38.5 39.8c-3.3 2.5-4.2 7-2.1 10.5l57.4 95.6L63.3 192c-4.1 .3-7.3 3.8-7.3 8s3.2 7.6 7.3 8l192 16c.4 0 .9 0 1.3 0l192-16c4.1-.3 7.3-3.8 7.3-8s-3.2-7.6-7.3-8L301.5 179.8l57.4-95.6c2.1-3.5 1.2-8.1-2.1-10.5s-7.9-2-10.7 1L256 172.2 165.9 74.6c-2.8-3-7.4-3.4-10.7-1z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  animation: watermarkDrift 60s linear infinite;
+  background-size: 500px 380px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='380'%3E%3Cdefs%3E%3Cstyle%3Etext%7Bfont-family:Georgia,'Times New Roman',serif%7D%3C/style%3E%3C/defs%3E%3Cg transform='rotate(-20 250 190)'%3E%3C!-- Tile 1 --%3E%3Cg transform='translate(30,70)'%3E%3Cpolygon points='7,0 14,7 7,14 0,7' fill='none' stroke='rgba(255,215,0,0.10)' stroke-width='0.8'/%3E%3Cpolygon points='7,3 11,7 7,11 3,7' fill='rgba(255,215,0,0.05)'/%3E%3C/g%3E%3Ctext x='52' y='83' font-size='15' font-weight='600' fill='rgba(255,215,0,0.09)' letter-spacing='5'%3EGOLD BOTTOM%3C/text%3E%3Cline x1='52' y1='91' x2='205' y2='91' stroke='rgba(255,215,0,0.07)' stroke-width='0.5'/%3E%3Ctext x='97' y='106' font-size='8.5' fill='rgba(255,215,0,0.065)' letter-spacing='4.5'%3EENT. LLC%3C/text%3E%3C!-- Tile 2 (half-brick offset) --%3E%3Cg transform='translate(280,190)'%3E%3Cpolygon points='7,0 14,7 7,14 0,7' fill='none' stroke='rgba(255,215,0,0.10)' stroke-width='0.8'/%3E%3Cpolygon points='7,3 11,7 7,11 3,7' fill='rgba(255,215,0,0.05)'/%3E%3C/g%3E%3Ctext x='302' y='203' font-size='15' font-weight='600' fill='rgba(255,215,0,0.09)' letter-spacing='5'%3EGOLD BOTTOM%3C/text%3E%3Cline x1='302' y1='211' x2='455' y2='211' stroke='rgba(255,215,0,0.07)' stroke-width='0.5'/%3E%3Ctext x='347' y='226' font-size='8.5' fill='rgba(255,215,0,0.065)' letter-spacing='4.5'%3EENT. LLC%3C/text%3E%3C/g%3E%3C/svg%3E");
+  animation: watermarkDrift 120s linear infinite;
   will-change: transform;
 }
 
 /* Responsive: denser pattern on mobile */
 @media (max-width: 768px) {
   .bg-watermark {
-    background-size: 280px 210px;
+    background-size: 350px 266px;
   }
 }
 
 /* Responsive: looser pattern on ultrawide */
 @media (min-width: 1920px) {
   .bg-watermark {
-    background-size: 500px 375px;
+    background-size: 620px 470px;
   }
 }
 
