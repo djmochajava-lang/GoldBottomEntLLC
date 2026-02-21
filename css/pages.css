@@ -20,6 +20,11 @@
   padding-top: 0;
 }
 
+/* Kill .page-section padding so the hero image extends to the very top */
+.ent-stage-active #page-ent-home {
+  padding-top: 0 !important;
+}
+
 .hero-ent-stage {
   min-height: 100vh !important;
   /* Push text content below the nav, but image fills from the very top */
