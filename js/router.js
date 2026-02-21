@@ -78,6 +78,8 @@ const Router = {
     'dashboard-settings',
     'dashboard-team',
     'dashboard-credentials',
+    'dashboard-architecture',
+    'dashboard-servers',
   ],
 
   currentPage: null,
