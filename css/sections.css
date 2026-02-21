@@ -884,7 +884,7 @@ body.biz-theme .section-title-accent::after {
 #page-biz-about > *,
 #page-biz-contact > * {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* Make hero-corporate transparent so section bg image shows through */
@@ -919,25 +919,33 @@ body.biz-theme .section-title-accent::after {
   padding-top: calc(var(--header-height) + var(--space-xl));
 }
 
-/* ── Slow background zoom for cinematic feel ── */
+/* ── Animated background — zoom + drift for visible motion ── */
 #page-biz-home {
   overflow: hidden;
+  background-image: none !important; /* clear static bg — ::after handles it */
 }
 
 #page-biz-home::after {
   content: '';
   position: absolute;
-  inset: -10%;
-  background: inherit;
+  inset: -15%;
+  background-image: url('../images/backgrounds/IMG_0814.jpg');
   background-size: cover;
   background-position: center;
-  z-index: -1;
-  animation: bgSlowZoom 25s ease-in-out infinite alternate;
+  z-index: 0;
+  animation: bgZoomDrift 18s ease-in-out infinite alternate;
 }
 
-@keyframes bgSlowZoom {
-  0%   { transform: scale(1); }
-  100% { transform: scale(1.08); }
+/* Overlay sits above animated bg */
+#page-biz-home::before {
+  z-index: 1 !important;
+}
+
+@keyframes bgZoomDrift {
+  0%   { transform: scale(1) translate(0, 0); }
+  33%  { transform: scale(1.08) translate(-1.5%, 1%); }
+  66%  { transform: scale(1.05) translate(1.5%, -0.5%); }
+  100% { transform: scale(1.12) translate(-0.5%, -1.5%); }
 }
 
 /* ── Hero text panel — frosted glass ── */
@@ -1065,20 +1073,22 @@ body.biz-theme #page-biz-home .hero-badge {
 
 .hero-particle {
   position: absolute;
-  width: 3px;
-  height: 3px;
-  background: rgba(88, 166, 255, 0.5);
+  width: 4px;
+  height: 4px;
+  background: rgba(88, 166, 255, 0.7);
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
+  box-shadow: 0 0 6px rgba(88, 166, 255, 0.6), 0 0 12px rgba(88, 166, 255, 0.3);
   animation: particleFloat linear infinite;
 }
 
 @keyframes particleFloat {
   0%   { transform: translateY(0) translateX(0); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translateY(-100vh) translateX(30px); opacity: 0; }
+  8%   { opacity: 1; }
+  50%  { transform: translateY(-50vh) translateX(20px); opacity: 0.9; }
+  92%  { opacity: 0.6; }
+  100% { transform: translateY(-100vh) translateX(-10px); opacity: 0; }
 }
 
 /* ── Scroll-down indicator ── */
