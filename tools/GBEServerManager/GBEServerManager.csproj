@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+<AssemblyName>GBEServerManager</AssemblyName>
+    <RootNamespace>GBEServerManager</RootNamespace>
+    <Description>Gold Bottom Ent. — Server Manager (Start/Stop Node.js backend on port 3000)</Description>
+    <Company>Gold Bottom Ent. LLC</Company>
+    <Product>GBE Server Manager</Product>
+    <Version>1.0.0</Version>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+</Project>
