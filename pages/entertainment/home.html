@@ -225,3 +225,22 @@
   </div>
 
 </section>
+
+<script>
+  // Toggle transparent header for stage hero
+  document.body.classList.add('ent-stage-active');
+  // Clean up when navigating away
+  if (typeof Router !== 'undefined') {
+    const _origNav = Router._origNavForStage || Router.navigateTo.bind(Router);
+    if (!Router._origNavForStage) {
+      Router._origNavForStage = _origNav;
+      const _realNav = Router.navigateTo;
+      Router.navigateTo = function(page, force) {
+        if (page !== 'ent-home') {
+          document.body.classList.remove('ent-stage-active');
+        }
+        return _realNav.call(this, page, force);
+      };
+    }
+  }
+</script>

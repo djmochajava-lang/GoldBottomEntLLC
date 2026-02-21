@@ -7,18 +7,29 @@
    Entertainment Hero — Stage Background
    ============================================= */
 
+/* When the stage hero is active, make the header transparent */
+.ent-stage-active .public-header {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom-color: transparent;
+}
+
 .hero-ent-stage {
   min-height: 100vh !important;
+  /* Let the image extend behind the fixed header */
+  padding-top: var(--space-3xl) !important;
   padding-bottom: var(--space-3xl) !important;
+  margin-top: calc(-1 * var(--header-height));
 }
 
 /* Darken the overlay so text is readable over the bright stage image */
 .hero-ent-stage::before {
   background: linear-gradient(
     180deg,
-    rgba(10, 10, 10, 0.55) 0%,
-    rgba(10, 10, 10, 0.35) 40%,
-    rgba(10, 10, 10, 0.65) 100%
+    rgba(10, 10, 10, 0.40) 0%,
+    rgba(10, 10, 10, 0.20) 35%,
+    rgba(10, 10, 10, 0.55) 100%
   ) !important;
 }
 
