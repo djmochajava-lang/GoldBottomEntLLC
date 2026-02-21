@@ -52,10 +52,10 @@
   display: none;
 }
 
-/* Show the FULL image (top spotlights + bottom stage floor) */
+/* Background image always fills top-to-bottom on every screen size */
 .hero-ent-stage .hero-bg img {
-  object-fit: contain;
-  background: #000;
+  object-fit: cover;
+  object-position: center 30%;  /* Bias toward the top — keep spotlights and head visible */
 }
 
 /* Stage hero title — thin, elegant sans-serif matching the design */
@@ -1437,6 +1437,78 @@ body.ent-theme .service-card-numbered .service-card-watermark {
 .video-spotlight-caption p {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
+}
+
+
+/* =============================================
+   Entertainment Stage Hero — Responsive
+   ============================================= */
+
+/* Tablet — override responsive.css that sets min-height: 80vh */
+@media (max-width: 1024px) {
+  .hero-ent-stage {
+    min-height: 100vh !important;
+  }
+}
+
+/* Mobile — keep full-height, tweak button/title sizing + image focus */
+@media (max-width: 768px) {
+  .hero-ent-stage {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;  /* dynamic viewport height — accounts for mobile browser chrome */
+    padding-top: calc(var(--header-height) + var(--space-2xl)) !important;
+    padding-bottom: var(--space-2xl) !important;
+  }
+
+  .hero-ent-stage .hero-bg img {
+    object-position: center 25%;  /* Shift up slightly — keep singer's head/spotlights visible on narrow screens */
+  }
+
+  .hero-title-stage {
+    font-size: clamp(1.6rem, 6vw, 2.8rem) !important;
+    letter-spacing: 0.15em !important;
+  }
+
+  .btn-enter-stage {
+    padding: 0.9rem 3rem;
+    font-size: 1.2rem;
+    letter-spacing: 0.2em;
+  }
+
+  .ent-stage-active .public-nav .nav-link {
+    font-size: 0.85rem;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .hero-ent-stage {
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+  }
+
+  .hero-ent-stage .hero-bg img {
+    object-position: center 20%;
+  }
+
+  .hero-title-stage {
+    font-size: clamp(1.3rem, 7vw, 2rem) !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .btn-enter-stage {
+    padding: 0.8rem 2.2rem;
+    font-size: 1rem;
+    letter-spacing: 0.18em;
+  }
+}
+
+/* Print — override responsive.css that sets min-height: auto */
+@media print {
+  .hero-ent-stage {
+    min-height: 0 !important;
+    padding: 2rem 0 !important;
+  }
 }
 
 
