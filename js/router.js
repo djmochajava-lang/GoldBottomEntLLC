@@ -16,6 +16,7 @@ const Router = {
     // Root / Shared pages
     'home': 'pages/home.html',
     'legal': 'pages/legal.html',
+    '404': 'pages/404.html',
 
     // Entertainment pages (ent-* prefix)
     'ent-home': 'pages/entertainment/home.html',
@@ -151,10 +152,10 @@ const Router = {
       pageName = this.legacyRedirects[pageName];
     }
 
-    // Validate route
+    // Validate route — show 404 for unknown routes
     if (!this.routes[pageName]) {
-      console.warn(`Route "${pageName}" not found, loading default`);
-      pageName = this.defaultPage;
+      console.warn(`Route "${pageName}" not found, loading 404`);
+      pageName = '404';
     }
 
     // Auth guard — block unauthenticated dashboard access
@@ -308,7 +309,7 @@ const Router = {
       hash = this.legacyRedirects[hash];
     }
 
-    const initialPage = hash && this.routes[hash] ? hash : this.defaultPage;
+    const initialPage = hash ? (this.routes[hash] ? hash : '404') : this.defaultPage;
 
     // Small delay to ensure DOM is ready
     setTimeout(() => {
@@ -328,7 +329,7 @@ const Router = {
         hash = this.legacyRedirects[hash];
       }
 
-      const pageName = hash && this.routes[hash] ? hash : this.defaultPage;
+      const pageName = hash ? (this.routes[hash] ? hash : '404') : this.defaultPage;
       this.navigateTo(pageName, true);
     });
   },

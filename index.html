@@ -6,6 +6,29 @@
   <meta name="description" content="Gold Bottom Ent. LLC — Talent Management, Creative Services & Enterprise Solutions" />
   <title>Gold Bottom Ent. LLC</title>
 
+  <!-- Favicon -->
+  <link rel="icon" href="images/logo/gbe-logo.svg" type="image/svg+xml" />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://djmochajava-lang.github.io/GoldBottomEntLLC/" />
+
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#0d1117" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Gold Bottom Ent. LLC" />
+  <meta property="og:description" content="Talent Management, Creative Services & Enterprise Solutions — Two Brands, One Vision." />
+  <meta property="og:image" content="https://djmochajava-lang.github.io/GoldBottomEntLLC/images/logo/gbe-logo.svg" />
+  <meta property="og:url" content="https://djmochajava-lang.github.io/GoldBottomEntLLC/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Gold Bottom Ent. LLC" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Gold Bottom Ent. LLC" />
+  <meta name="twitter:description" content="Talent Management, Creative Services & Enterprise Solutions — Two Brands, One Vision." />
+  <meta name="twitter:image" content="https://djmochajava-lang.github.io/GoldBottomEntLLC/images/logo/gbe-logo.svg" />
+
   <!-- Google Fonts: Montserrat (headings) + Inter (body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,6 +36,10 @@
 
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Preload critical CSS -->
+  <link rel="preload" href="css/base.css" as="style" />
+  <link rel="preload" href="css/layout.css" as="style" />
 
   <!-- Stylesheets (load order matters) -->
   <link rel="stylesheet" href="css/base.css" />
@@ -23,6 +50,50 @@
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/animations.css" />
   <link rel="stylesheet" href="css/responsive.css" />
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Gold Bottom Ent. LLC",
+    "legalName": "Gold Bottom Ent LLC",
+    "url": "https://djmochajava-lang.github.io/GoldBottomEntLLC/",
+    "logo": "https://djmochajava-lang.github.io/GoldBottomEntLLC/images/logo/gbe-logo.svg",
+    "description": "Talent Management, Creative Services & Enterprise Solutions — Two Brands, One Vision.",
+    "foundingDate": "2026-01-19",
+    "address": {
+      "@type": "PostalAddress",
+      "addressRegion": "MD",
+      "addressCountry": "US"
+    },
+    "contactPoint": [
+      {
+        "@type": "ContactPoint",
+        "contactType": "booking",
+        "description": "Entertainment booking and talent inquiries"
+      },
+      {
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "description": "Enterprise project inquiries and consulting"
+      }
+    ],
+    "department": [
+      {
+        "@type": "Organization",
+        "name": "Gold Bottom Entertainment",
+        "description": "Talent management, booking, and creative services"
+      },
+      {
+        "@type": "Organization",
+        "name": "Gold Bottom Enterprise",
+        "description": "Web development, app development, and tech consulting"
+      }
+    ],
+    "sameAs": []
+  }
+  </script>
 </head>
 <body data-layout="public">
 
@@ -353,6 +424,15 @@
 
   <!-- App Controller (must be last) -->
   <script src="js/main.js"></script>
+
+  <!-- Cookie Consent Banner -->
+  <div id="cookie-consent" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9998;background:rgba(13,17,23,0.97);border-top:1px solid rgba(212,160,23,0.3);padding:14px 24px;font-size:14px;color:#c9d1d9;backdrop-filter:blur(10px);">
+    <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <span>This site uses cookies for essential functionality. <a href="#legal" style="color:#d4a017;text-decoration:underline;">Privacy Policy</a></span>
+      <button onclick="document.getElementById('cookie-consent').style.display='none';localStorage.setItem('gbe-cookie-consent','1');" style="background:#d4a017;color:#0d1117;border:none;padding:8px 20px;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px;">Accept</button>
+    </div>
+  </div>
+  <script>if(!localStorage.getItem('gbe-cookie-consent'))document.getElementById('cookie-consent').style.display='block';</script>
 
 </body>
 </html>

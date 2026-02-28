@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /server/
+Sitemap: https://djmochajava-lang.github.io/GoldBottomEntLLC/sitemap.xml
