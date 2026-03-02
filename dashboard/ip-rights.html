@@ -2,13 +2,81 @@
 <div class="dashboard-page" id="dash-ip">
   <div class="dashboard-page-header">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
-      <div><h1>IP & Rights Management</h1><p class="text-muted">Track intellectual property, copyrights, ownership splits, and registrations.</p></div>
+      <div><h1>IP & Rights Management</h1><p class="text-muted">Track intellectual property, copyrights, trademarks, ownership splits, and registrations.</p></div>
       <button class="btn btn-primary" id="add-ip-btn"><i class="fa-solid fa-plus"></i> Register IP</button>
     </div>
   </div>
 
   <!-- IP Table -->
   <div class="card" id="ip-table-container"></div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TRADEMARK MANAGEMENT SECTION                            -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div style="margin-top:var(--space-2xl);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-md);">
+      <div>
+        <h2 style="color:var(--color-gold);margin:0;font-size:20px;"><i class="fa-solid fa-trademark" style="margin-right:8px;"></i>Trademark Portfolio</h2>
+        <p class="text-muted" style="margin-top:4px;">Manage the &ldquo;I _____ because I am human&rdquo; brand &mdash; Gold Bottom Ent LLC company asset.</p>
+      </div>
+      <button class="btn btn-primary" id="add-tm-btn"><i class="fa-solid fa-plus"></i> Add Trademark</button>
+    </div>
+
+    <!-- Trademark Summary Cards -->
+    <div id="tm-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:var(--space-md);"></div>
+
+    <!-- Trademark Table -->
+    <div class="card" id="tm-table-container"></div>
+
+    <!-- Trademark Action Plan -->
+    <div style="margin-top:var(--space-lg);padding:20px;background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.2);border-radius:10px;">
+      <h3 style="color:var(--color-gold);margin:0 0 12px;font-size:16px;"><i class="fa-solid fa-list-check" style="margin-right:8px;"></i>Trademark Filing Action Plan</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+        <!-- Phase 1 -->
+        <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="background:var(--color-gold);color:#0a0a06;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;">1</span>
+            <strong style="color:var(--color-gold);">Foundation (~$700)</strong>
+          </div>
+          <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:var(--color-text-secondary);">
+            <li style="padding:4px 0;"><i class="fa-solid fa-check" style="color:var(--color-success);width:16px;"></i> Add &trade; symbol to website (bio + support pages)</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> File &ldquo;BECAUSE I AM HUMAN&rdquo; with USPTO ($350)</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> File &ldquo;I SING BECAUSE I AM HUMAN&rdquo; with USPTO ($350)</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> Both under Gold Bottom Ent LLC, Class 025</li>
+          </ul>
+        </div>
+        <!-- Phase 2 -->
+        <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="background:var(--color-text-muted);color:#0a0a06;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;">2</span>
+            <strong style="color:var(--color-text-secondary);">Family Expansion (~$350/each)</strong>
+          </div>
+          <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:var(--color-text-secondary);">
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> File &ldquo;I DANCE BECAUSE I AM HUMAN&rdquo;</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> File &ldquo;I CREATE BECAUSE I AM HUMAN&rdquo;</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> Each variant builds &ldquo;family of marks&rdquo; doctrine</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> After 3+ marks: GBE owns the entire pattern</li>
+          </ul>
+        </div>
+        <!-- Phase 3 -->
+        <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;padding:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="background:var(--color-text-muted);color:#0a0a06;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;">3</span>
+            <strong style="color:var(--color-text-secondary);">Additional Classes (~$350/each)</strong>
+          </div>
+          <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:var(--color-text-secondary);">
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> Class 041 &mdash; Entertainment services</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> Class 009 &mdash; Digital goods / downloads</li>
+            <li style="padding:4px 0;"><i class="fa-regular fa-square" style="color:var(--color-text-muted);width:16px;"></i> Broadens protection beyond clothing</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--color-text-muted);">
+        <strong>Key risks:</strong> Ornamental refusal (slogan on clothing) &mdash; mitigate by showing brand use on website. Failure-to-function &mdash; mitigate by filing specific verb variants first.<br>
+        <strong>Timeline:</strong> USPTO examination takes 8&ndash;12 months. Expect at least one office action. Registration ~18 months from filing.
+      </div>
+    </div>
+  </div>
 
   <!-- Educational Resources -->
   <div class="grid grid-2" style="margin-top:var(--space-lg);">
@@ -22,6 +90,20 @@
         <li>Software and code</li>
       </ul>
       <a href="https://www.copyright.gov" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:var(--space-sm);"><i class="fa-solid fa-arrow-up-right-from-square"></i> copyright.gov</a>
+    </div>
+    <div class="glass-card">
+      <h3><i class="fa-solid fa-trademark text-gold"></i> USPTO Trademark Filing</h3>
+      <p class="text-muted">Register trademarks with the USPTO to protect brand names, slogans, and logos.</p>
+      <ul style="list-style:disc;padding-left:20px;color:var(--color-text-secondary);">
+        <li>TEAS Plus: $250/class (strict requirements)</li>
+        <li>TEAS Standard: $350/class (flexible)</li>
+        <li>Search existing marks before filing</li>
+        <li>Must demonstrate use in commerce</li>
+      </ul>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--space-sm);">
+        <a href="https://teas.uspto.gov" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> File (TEAS)</a>
+        <a href="https://tmsearch.uspto.gov" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Search Marks</a>
+      </div>
     </div>
     <div class="glass-card">
       <h3><i class="fa-solid fa-music text-gold"></i> Performance Rights (PROs)</h3>
@@ -42,11 +124,17 @@
 
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
 
-  /* Hide Register IP button when not local */
+  /* Hide action buttons when not local */
   if(!isLocal){
     var addIpBtn=document.getElementById('add-ip-btn');
     if(addIpBtn) addIpBtn.style.display='none';
+    var addTmBtn=document.getElementById('add-tm-btn');
+    if(addTmBtn) addTmBtn.style.display='none';
   }
+
+  /* ══════════════════════════════════════════════════════════
+     IP RIGHTS TABLE (existing)
+     ══════════════════════════════════════════════════════════ */
 
   var typeLabels={song:'Song',recording:'Recording',publishing:'Publishing',master:'Master',software:'Software'};
   var regColors={'registered':'status-active','pending':'status-pending','not-registered':'status-expired'};
@@ -88,6 +176,135 @@
   };
 
   window.deleteIP=function(id){var ip=DataStore.getIPRight(id);if(!ip)return;Modal.confirm('Delete "'+ip.title+'"?',function(){DataStore.deleteIPRight(id);Toast.success('IP deleted');renderTable();});};
+
+  /* ══════════════════════════════════════════════════════════
+     TRADEMARK TABLE
+     ══════════════════════════════════════════════════════════ */
+
+  var tmStatusLabels={'not-filed':'Not Filed','filed':'Filed','pending':'Pending Exam','published':'Published','registered':'Registered','refused':'Refused','planned':'Planned'};
+  var tmStatusColors={'not-filed':'status-expired','filed':'status-pending','pending':'status-pending','published':'status-pending','registered':'status-active','refused':'status-expired','planned':'status-draft'};
+
+  function esc(s){return(s||'').replace(/'/g,'&#39;').replace(/"/g,'&quot;');}
+
+  function renderTmSummary(){
+    var data=DataStore.getTrademarks();
+    var total=data.length;
+    var filed=data.filter(function(t){return t.status==='filed'||t.status==='pending'||t.status==='published';}).length;
+    var registered=data.filter(function(t){return t.status==='registered';}).length;
+    var planned=data.filter(function(t){return t.status==='planned'||t.status==='not-filed';}).length;
+    var c=document.getElementById('tm-summary');
+    c.innerHTML=
+      '<div class="glass-card" style="text-align:center;padding:12px;"><div style="font-size:28px;font-weight:800;color:var(--color-gold);">'+total+'</div><div style="font-size:11px;color:var(--color-text-muted);">Total Marks</div></div>'+
+      '<div class="glass-card" style="text-align:center;padding:12px;"><div style="font-size:28px;font-weight:800;color:var(--color-success);">'+registered+'</div><div style="font-size:11px;color:var(--color-text-muted);">Registered</div></div>'+
+      '<div class="glass-card" style="text-align:center;padding:12px;"><div style="font-size:28px;font-weight:800;color:var(--color-gold);">'+filed+'</div><div style="font-size:11px;color:var(--color-text-muted);">In Process</div></div>'+
+      '<div class="glass-card" style="text-align:center;padding:12px;"><div style="font-size:28px;font-weight:800;color:var(--color-text-muted);">'+planned+'</div><div style="font-size:11px;color:var(--color-text-muted);">To File</div></div>';
+  }
+
+  function renderTmTable(){
+    var c=document.getElementById('tm-table-container');var data=DataStore.getTrademarks();
+    if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-trademark"></i></div><h3 class="empty-state-title">No trademarks</h3><p class="empty-state-text">Add your first trademark to track.</p></div>';return;}
+    var thHeaders=['Mark','Owner','Status','Class','Phase','Artist','Use in Commerce'];
+    if(isLocal) thHeaders.push('Actions');
+    var html='<table class="data-table"><thead><tr>';
+    thHeaders.forEach(function(h){html+='<th>'+h+'</th>';});
+    html+='</tr></thead><tbody>';
+    data.forEach(function(tm){
+      var statusLabel=tmStatusLabels[tm.status]||tm.status;
+      var statusClass=tmStatusColors[tm.status]||'status-draft';
+      html+='<tr>'+
+        '<td data-label="Mark"><strong>'+esc(tm.mark)+'</strong>'+(tm.notes?'<div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;max-width:260px;white-space:normal;">'+esc(tm.notes.substring(0,80))+(tm.notes.length>80?'...':'')+'</div>':'')+'</td>'+
+        '<td data-label="Owner">'+esc(tm.owner)+'</td>'+
+        '<td data-label="Status"><span class="status-pill '+statusClass+'">'+statusLabel+'</span></td>'+
+        '<td data-label="Class">'+(tm.classes?'Class '+esc(tm.classes):'—')+'</td>'+
+        '<td data-label="Phase"><span class="badge badge-gold" style="font-size:10px;">'+esc(tm.phase||'—')+'</span></td>'+
+        '<td data-label="Artist">'+(tm.associatedArtist||'—')+'</td>'+
+        '<td data-label="Use">'+(tm.useInCommerce?'<i class="fa-solid fa-check" style="color:var(--color-success);"></i> Yes':'<i class="fa-solid fa-minus" style="color:var(--color-text-muted);"></i> No')+'</td>'+
+        (isLocal?'<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editTM(\''+tm.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteTM(\''+tm.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td>':'')+
+        '</tr>';
+    });
+    html+='</tbody></table>';c.innerHTML=html;
+  }
+
+  /* Trademark form HTML builder */
+  function tmFormHTML(tm){
+    tm=tm||{};
+    var statOpts=['not-filed','filed','pending','published','registered','refused','planned'];
+    var selHtml='';statOpts.forEach(function(s){selHtml+='<option value="'+s+'"'+(tm.status===s?' selected':'')+'>'+(tmStatusLabels[s]||s)+'</option>';});
+    return '<form id="modal-form">'+
+      '<div class="grid grid-2">'+
+        '<div class="form-group"><label class="form-label">Mark (exact text) *</label><input type="text" class="form-input" name="mark" value="'+esc(tm.mark||'')+'" required placeholder="e.g. I SING BECAUSE I AM HUMAN" /></div>'+
+        '<div class="form-group"><label class="form-label">Type</label><select class="form-select" name="type"><option value="wordmark"'+(tm.type==='wordmark'||!tm.type?' selected':'')+'>Wordmark</option><option value="design"'+(tm.type==='design'?' selected':'')+'>Design Mark</option><option value="logo"'+(tm.type==='logo'?' selected':'')+'>Logo</option><option value="slogan"'+(tm.type==='slogan'?' selected':'')+'>Slogan</option></select></div>'+
+      '</div>'+
+      '<div class="grid grid-2">'+
+        '<div class="form-group"><label class="form-label">Owner *</label><input type="text" class="form-input" name="owner" value="'+esc(tm.owner||'Gold Bottom Ent LLC')+'" required /></div>'+
+        '<div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status">'+selHtml+'</select></div>'+
+      '</div>'+
+      '<div class="grid grid-2">'+
+        '<div class="form-group"><label class="form-label">USPTO Serial #</label><input type="text" class="form-input" name="serialNumber" value="'+esc(tm.serialNumber||'')+'" placeholder="Assigned after filing" /></div>'+
+        '<div class="form-group"><label class="form-label">Registration #</label><input type="text" class="form-input" name="registrationNumber" value="'+esc(tm.registrationNumber||'')+'" placeholder="Assigned after approval" /></div>'+
+      '</div>'+
+      '<div class="grid grid-2">'+
+        '<div class="form-group"><label class="form-label">Filing Date</label><input type="date" class="form-input" name="filingDate" value="'+esc(tm.filingDate||'')+'" /></div>'+
+        '<div class="form-group"><label class="form-label">Registration Date</label><input type="date" class="form-input" name="registrationDate" value="'+esc(tm.registrationDate||'')+'" /></div>'+
+      '</div>'+
+      '<div class="grid grid-2">'+
+        '<div class="form-group"><label class="form-label">Class(es)</label><input type="text" class="form-input" name="classes" value="'+esc(tm.classes||'025')+'" placeholder="e.g. 025, 041" /></div>'+
+        '<div class="form-group"><label class="form-label">Class Description</label><input type="text" class="form-input" name="classDescription" value="'+esc(tm.classDescription||'')+'" placeholder="e.g. Clothing" /></div>'+
+      '</div>'+
+      '<div class="form-group"><label class="form-label">Goods / Services Description</label><input type="text" class="form-input" name="goodsServices" value="'+esc(tm.goodsServices||'')+'" placeholder="Exact description for USPTO filing" /></div>'+
+      '<div class="grid grid-2">'+
+        '<div class="form-group"><label class="form-label">Phase / Strategy</label><input type="text" class="form-input" name="phase" value="'+esc(tm.phase||'')+'" placeholder="e.g. Phase 1 — Core Mark" /></div>'+
+        '<div class="form-group"><label class="form-label">Associated Artist</label><input type="text" class="form-input" name="associatedArtist" value="'+esc(tm.associatedArtist||'')+'" /></div>'+
+      '</div>'+
+      '<div class="grid grid-2">'+
+        '<div class="form-group"><label class="form-label">Use in Commerce?</label><select class="form-select" name="useInCommerce"><option value="true"'+(tm.useInCommerce!==false?' selected':'')+'>Yes — currently in use</option><option value="false"'+(tm.useInCommerce===false?' selected':'')+'>No — intent to use</option></select></div>'+
+        '<div class="form-group"><label class="form-label">First Use Date</label><input type="date" class="form-input" name="firstUseDate" value="'+esc(tm.firstUseDate||'')+'" /></div>'+
+      '</div>'+
+      '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" rows="3">'+esc(tm.notes||'')+'</textarea></div>'+
+    '</form>';
+  }
+
+  document.getElementById('add-tm-btn').addEventListener('click',function(){
+    Modal.open({title:'Add Trademark',size:'lg',
+      content:tmFormHTML(),
+      saveText:'Add Trademark',onSave:function(){
+        var f=document.getElementById('modal-form');var d={};
+        new FormData(f).forEach(function(v,k){d[k]=v;});
+        if(!d.mark){Toast.error('Mark text is required');return;}
+        d.useInCommerce=(d.useInCommerce==='true');
+        DataStore.addTrademark(d);Modal.close();Toast.success('Trademark added: '+d.mark);
+        renderTmSummary();renderTmTable();
+      }
+    });
+  });
+
+  window.editTM=function(id){
+    var tm=DataStore.getTrademark(id);if(!tm)return;
+    Modal.open({title:'Edit: '+tm.mark,size:'lg',
+      content:tmFormHTML(tm),
+      saveText:'Save',onSave:function(){
+        var f=document.getElementById('modal-form');var d={};
+        new FormData(f).forEach(function(v,k){d[k]=v;});
+        d.useInCommerce=(d.useInCommerce==='true');
+        DataStore.updateTrademark(id,d);Modal.close();Toast.success('Trademark updated');
+        renderTmSummary();renderTmTable();
+      }
+    });
+  };
+
+  window.deleteTM=function(id){
+    var tm=DataStore.getTrademark(id);if(!tm)return;
+    Modal.confirm('Delete trademark "'+tm.mark+'"?',function(){
+      DataStore.deleteTrademark(id);Toast.success('Trademark deleted');
+      renderTmSummary();renderTmTable();
+    });
+  };
+
+  /* ══════════════════════════════════════════════════════════
+     INITIAL RENDER
+     ══════════════════════════════════════════════════════════ */
   renderTable();
+  renderTmSummary();
+  renderTmTable();
 })();
 </script>

@@ -27,6 +27,7 @@ const DataStore = {
     VENUE_LEADS: 'gbe-venue-leads',
     IT_CREDENTIALS: 'gbe-it-credentials',
     IT_SERVERS: 'gbe-it-servers',
+    TRADEMARKS: 'gbe-trademarks',
     ACTIVITY: 'gbe-activity',
   },
 
@@ -104,6 +105,7 @@ const DataStore = {
       [this.KEYS.VENUE_LEADS]: 'venue lead',
       [this.KEYS.IT_CREDENTIALS]: 'credential',
       [this.KEYS.IT_SERVERS]: 'server',
+      [this.KEYS.TRADEMARKS]: 'trademark',
     };
 
     const label = entityLabels[entityKey] || 'item';
@@ -251,6 +253,16 @@ const DataStore = {
   addIPRight(entry) { return this._add(this.KEYS.IP_RIGHTS, entry); },
   updateIPRight(id, data) { return this._update(this.KEYS.IP_RIGHTS, id, data); },
   deleteIPRight(id) { return this._delete(this.KEYS.IP_RIGHTS, id); },
+
+  // ============================================================
+  // TRADEMARKS
+  // ============================================================
+
+  getTrademarks() { return this._getAll(this.KEYS.TRADEMARKS); },
+  getTrademark(id) { return this._getById(this.KEYS.TRADEMARKS, id); },
+  addTrademark(entry) { return this._add(this.KEYS.TRADEMARKS, entry); },
+  updateTrademark(id, data) { return this._update(this.KEYS.TRADEMARKS, id, data); },
+  deleteTrademark(id) { return this._delete(this.KEYS.TRADEMARKS, id); },
 
   // ============================================================
   // MERCH — Products & Orders
@@ -413,6 +425,7 @@ const DataStore = {
       upcomingEvents: this.getUpcomingEvents(5).length,
       totalBookings: this.getBookings().length,
       ipEntries: this.getIPRights().length,
+      trademarkCount: this.getTrademarks().length,
       totalVenueLeads: this.getVenueLeads().length,
       contactedVenues: this.getVenueLeadsByStatus('contacted').length,
       bookedVenues: this.getVenueLeadsByStatus('booked').length,
@@ -475,6 +488,7 @@ const DataStore = {
     this.seedEvents();
     this.seedBookings();
     this.seedIPRights();
+    this.seedTrademarks();
     this.seedMerch();
     this.seedTravel();
     this.seedDistribution();
@@ -709,6 +723,74 @@ const DataStore = {
       { id: 'ip-001', title: '[Song Title]', type: 'recording', artist: 'L.A. Young', writers: '[Writer Names]', owners: 'Gold Bottom Ent LLC', ownershipPct: 100, registrationStatus: 'pending', registrationNumber: '[PENDING]', pro: '[BMI/ASCAP/SESAC]', notes: '[SAMPLE] Edit with your actual IP details. Register with copyright.gov.', createdAt: '2025-06-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
       { id: 'ip-002', title: '[Website Name]', type: 'software', artist: '', writers: '[Developer Name]', owners: 'Gold Bottom Ent LLC', ownershipPct: 100, registrationStatus: 'registered', registrationNumber: '[N/A — Copyright by creation]', pro: '', notes: '[SAMPLE] Website code and design — work for hire.', createdAt: '2025-01-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
       { id: 'ip-003', title: '[New Song Title]', type: 'song', artist: 'L.A. Young', writers: '[Writer Names]', owners: 'Gold Bottom Ent LLC / [Co-owners]', ownershipPct: 50, registrationStatus: 'not-registered', registrationNumber: '', pro: '', notes: '[Placeholder — Register with copyright.gov and your PRO]', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+    ]);
+  },
+
+  seedTrademarks() {
+    this._save(this.KEYS.TRADEMARKS, [
+      {
+        id: 'tm-001',
+        mark: 'BECAUSE I AM HUMAN',
+        type: 'wordmark',
+        owner: 'Gold Bottom Ent LLC',
+        status: 'not-filed',
+        serialNumber: '',
+        registrationNumber: '',
+        filingDate: '',
+        registrationDate: '',
+        classes: '025',
+        classDescription: 'Clothing — t-shirts, hats, apparel',
+        goodsServices: 'Clothing, namely t-shirts, hats, hoodies, and sweatshirts featuring the mark',
+        useInCommerce: true,
+        firstUseDate: '2026-03-01',
+        phase: 'Phase 1 — Core Mark',
+        associatedArtist: 'L.A. Young',
+        notes: 'Core trademark for the "I _____ because I am human" brand. Template phrase where the blank is any creative art verb. File this FIRST as the foundation for family of marks strategy. Common law rights established via layoungbandpage.com (bio + support pages).',
+        createdAt: '2026-03-04T00:00:00Z',
+        updatedAt: '2026-03-04T00:00:00Z',
+      },
+      {
+        id: 'tm-002',
+        mark: 'I SING BECAUSE I AM HUMAN',
+        type: 'wordmark',
+        owner: 'Gold Bottom Ent LLC',
+        status: 'not-filed',
+        serialNumber: '',
+        registrationNumber: '',
+        filingDate: '',
+        registrationDate: '',
+        classes: '025',
+        classDescription: 'Clothing — t-shirts, hats, apparel',
+        goodsServices: 'Clothing, namely t-shirts, hats, hoodies, and sweatshirts featuring the mark',
+        useInCommerce: true,
+        firstUseDate: '2026-03-01',
+        phase: 'Phase 1 — Primary Variant',
+        associatedArtist: 'L.A. Young',
+        notes: 'Primary variant — L.A. Young\'s signature phrase. File alongside the core mark. TM symbol already on layoungbandpage.com (bio + support pages). Strengthens family of marks doctrine.',
+        createdAt: '2026-03-04T00:00:00Z',
+        updatedAt: '2026-03-04T00:00:00Z',
+      },
+      {
+        id: 'tm-003',
+        mark: 'I DANCE BECAUSE I AM HUMAN',
+        type: 'wordmark',
+        owner: 'Gold Bottom Ent LLC',
+        status: 'planned',
+        serialNumber: '',
+        registrationNumber: '',
+        filingDate: '',
+        registrationDate: '',
+        classes: '025',
+        classDescription: 'Clothing — t-shirts, hats, apparel',
+        goodsServices: 'Clothing, namely t-shirts, hats, hoodies, and sweatshirts featuring the mark',
+        useInCommerce: false,
+        firstUseDate: '',
+        phase: 'Phase 2 — Family Expansion',
+        associatedArtist: '',
+        notes: 'Future verb variant to build family of marks. File after Phase 1 marks are approved. Each additional variant strengthens GBE\'s ownership of the entire "I _____ because I am human" pattern.',
+        createdAt: '2026-03-04T00:00:00Z',
+        updatedAt: '2026-03-04T00:00:00Z',
+      },
     ]);
   },
 
