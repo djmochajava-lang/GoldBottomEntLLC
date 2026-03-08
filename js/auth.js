@@ -1,9 +1,11 @@
 /* ============================================
    auth.js — Gold Bottom Ent. LLC Auth System
-   Federated Sign-In (Google, Apple, Microsoft)
+   Federated Sign-In (Google, Apple, Microsoft, Email/Password)
    + PIN-based local auth for home LAN access
+   + Duplicate email detection via emailHash
+   + Provider claim normalization (IDP-001 policy)
    Firestore-based registration & approval
-   Version: 1.2.1
+   Version: 2.0.0
    ============================================ */
 
 const Auth = {
@@ -215,7 +217,33 @@ const Auth = {
       if (user) {
         // Check Firestore registration + approval status
         Auth._checkRegistration(user).then(function(status) {
+          // Handle duplicate detection (IDP-001 §4.2)
+          if (status && status.indexOf && status.indexOf('duplicate:') === 0) {
+            var primaryProvider = status.split(':')[1];
+            Auth._registrationStatus = 'duplicate';
+            Auth._authorized = false;
+            Auth._updateUI(user);
+            Auth._notifyListeners(user);
+            // Sign out the duplicate session
+            Auth._auth.signOut();
+            Auth._showDuplicateAccount(primaryProvider);
+            return;
+          }
+
           Auth._registrationStatus = status;
+
+          // Email/Password users: require email verification (IDP-001 §6.3)
+          var isEmailPassword = user.providerData && user.providerData.length > 0 &&
+            user.providerData[0].providerId === 'password';
+          if (isEmailPassword && !user.emailVerified) {
+            Auth._authorized = false;
+            Auth._updateUI(user);
+            Auth._notifyListeners(user);
+            Auth._showEmailVerificationRequired(user);
+            console.log('[Auth] Email not verified — blocking access:', user.email);
+            return;
+          }
+
           Auth._authorized = (status === 'approved');
           Auth._updateUI(user);
           Auth._notifyListeners(user);
@@ -247,6 +275,8 @@ const Auth = {
         }).catch(function(err) {
           console.error('[Auth] Registration check failed:', err);
           // Fail open for Firestore errors — allow access so site isn't broken
+          // Log fail-open event per IDP-001 §7.2
+          console.warn('[Auth] FAIL-OPEN: Granting temporary access due to Firestore error');
           Auth._authorized = true;
           Auth._registrationStatus = 'approved';
           Auth._role = 'admin';
@@ -277,7 +307,7 @@ const Auth = {
     });
 
     this.initialized = true;
-    console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft + Firestore)');
+    console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft, Email/Password + Firestore)');
   },
 
   /* ------------------------------------------
@@ -537,22 +567,26 @@ const Auth = {
 
   /**
    * Check or create a user's registration in Firestore.
-   * Returns the approval status: 'approved', 'pending', or 'denied'.
+   * Returns the approval status: 'approved', 'pending', 'denied', or 'duplicate:{provider}'.
+   *
+   * Implements IDP-001 §4 (duplicate detection via emailHash) and §5 (unified profile).
    *
    * Firestore collection: 'users'
    * Document ID: user.uid
    * Fields:
-   *   - displayName (string) — plain text name from Google
+   *   - displayName (string) — from provider profile or email local part
    *   - emailHash (string) — SHA-256 hash of email (privacy)
-   *   - photoURL (string) — profile photo URL
-   *   - provider (string) — sign-in provider
+   *   - photoURL (string) — profile photo URL (null for Apple/Email)
+   *   - provider (string) — sign-in provider ID (first login)
+   *   - primaryProvider (string) — the provider used for first registration
+   *   - linkedProviders (string[]) — all provider IDs that have matched this emailHash
    *   - status (string) — 'pending' | 'approved' | 'denied'
    *   - role (string) — 'admin' | 'member'
    *   - registeredAt (timestamp) — when they first signed in
    *   - lastLoginAt (timestamp) — updated each sign-in
    *
    * @param {Object} user - Firebase user object
-   * @returns {Promise<string>} 'approved', 'pending', or 'denied'
+   * @returns {Promise<string>} 'approved', 'pending', 'denied', or 'duplicate:{providerId}'
    */
   _checkRegistration: function(user) {
     if (!this._db) {
@@ -562,38 +596,85 @@ const Auth = {
     }
 
     var userRef = this._db.collection('users').doc(user.uid);
+    var currentProvider = (user.providerData && user.providerData.length > 0)
+      ? user.providerData[0].providerId
+      : 'unknown';
 
-    return this._hashEmail(user.email).then(function(emailHash) {
+    // Use email if available; fall back to UID-based placeholder (Apple may hide email)
+    var emailForHash = user.email || (user.uid + '@noemail.placeholder');
+
+    return this._hashEmail(emailForHash).then(function(emailHash) {
       return userRef.get().then(function(doc) {
         if (doc.exists) {
-          // Existing user — update last login and return their status
+          // Existing user — update last login, ensure current provider is tracked
           var data = doc.data();
           Auth._role = data.role || 'member';
+
+          // Build linkedProviders array, adding current provider if not yet listed
+          var linked = data.linkedProviders || [data.provider || currentProvider];
+          if (linked.indexOf(currentProvider) === -1) {
+            linked.push(currentProvider);
+          }
+
+          // Normalize displayName: use provider value, fall back to stored, then email local part
+          var displayName = user.displayName || data.displayName ||
+            (user.email ? user.email.split('@')[0] : 'User');
+
           userRef.update({
             lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
-            displayName: user.displayName || data.displayName,
-            photoURL: user.photoURL || data.photoURL || ''
+            displayName: displayName,
+            photoURL: user.photoURL || data.photoURL || '',
+            linkedProviders: linked
           }).catch(function(e) {
             console.warn('[Auth] Failed to update last login:', e);
           });
           return data.status || 'pending';
         } else {
-          // New user — create registration with 'pending' status
-          Auth._role = 'member';
-          return userRef.set({
-            displayName: user.displayName || user.email.split('@')[0],
-            emailHash: emailHash,
-            photoURL: user.photoURL || '',
-            provider: user.providerData && user.providerData[0]
-              ? user.providerData[0].providerId
-              : 'unknown',
-            status: 'pending',
-            role: 'member',
-            registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-            lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
-          }).then(function() {
-            console.log('[Auth] New registration created for:', user.displayName || user.email);
-            return 'pending';
+          // New user — check for duplicate emailHash before creating (IDP-001 §4.2)
+          return Auth._checkDuplicateEmail(emailHash, user.uid).then(function(primaryDoc) {
+            if (primaryDoc) {
+              // Duplicate found — add current provider to primary's linkedProviders
+              var primaryData = primaryDoc.data();
+              var primaryLinked = primaryData.linkedProviders || [primaryData.provider || 'unknown'];
+              if (primaryLinked.indexOf(currentProvider) === -1) {
+                primaryLinked.push(currentProvider);
+              }
+              primaryDoc.ref.update({
+                linkedProviders: primaryLinked
+              }).catch(function(e) {
+                console.warn('[Auth] Failed to update primary linkedProviders:', e);
+              });
+
+              console.log('[Auth] Duplicate detected — primary UID:', primaryDoc.id,
+                'provider:', primaryData.primaryProvider || primaryData.provider,
+                '| duplicate UID:', user.uid, 'provider:', currentProvider);
+
+              // Return special status so onAuthStateChanged can handle it
+              return 'duplicate:' + (primaryData.primaryProvider || primaryData.provider || 'unknown');
+            }
+
+            // No duplicate — create new registration with IDP-001 §5 unified profile
+            Auth._role = 'member';
+
+            // Normalize displayName per IDP-001 §5.4
+            var displayName = user.displayName ||
+              (user.email ? user.email.split('@')[0] : 'User');
+
+            return userRef.set({
+              displayName: displayName,
+              emailHash: emailHash,
+              photoURL: user.photoURL || '',
+              provider: currentProvider,
+              primaryProvider: currentProvider,
+              linkedProviders: [currentProvider],
+              status: 'pending',
+              role: 'member',
+              registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+              lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(function() {
+              console.log('[Auth] New registration created for:', displayName, '(' + currentProvider + ')');
+              return 'pending';
+            });
           });
         }
       });
@@ -625,6 +706,51 @@ const Auth = {
    */
   hashEmail: function(email) {
     return this._hashEmail(email);
+  },
+
+  /**
+   * Check if any existing user document has a matching emailHash with a different UID.
+   * Used for duplicate identity detection per IDP-001 §4.2.
+   * Returns the primary user document (earliest registeredAt) or null.
+   * @param {string} emailHash - SHA-256 hash of the email
+   * @param {string} currentUid - The current user's UID to exclude
+   * @returns {Promise<Object|null>} Firestore document snapshot or null
+   * @private
+   */
+  _checkDuplicateEmail: function(emailHash, currentUid) {
+    if (!this._db) return Promise.resolve(null);
+
+    return this._db.collection('users')
+      .where('emailHash', '==', emailHash)
+      .limit(5)
+      .get()
+      .then(function(snapshot) {
+        var primary = null;
+        snapshot.forEach(function(doc) {
+          if (doc.id !== currentUid) {
+            // Found a different user with the same email hash
+            // Pick the one with earliest registeredAt as primary
+            if (!primary) {
+              primary = doc;
+            } else {
+              var existingDate = primary.data().registeredAt;
+              var candidateDate = doc.data().registeredAt;
+              if (candidateDate && existingDate && candidateDate.toMillis && existingDate.toMillis &&
+                  candidateDate.toMillis() < existingDate.toMillis()) {
+                primary = doc;
+              }
+            }
+          }
+        });
+        if (primary) {
+          console.log('[Auth] Duplicate emailHash detected — primary UID:', primary.id);
+        }
+        return primary;
+      })
+      .catch(function(e) {
+        console.warn('[Auth] Duplicate email check failed:', e);
+        return null; // Fail open — allow registration
+      });
   },
 
   /* ------------------------------------------
@@ -714,6 +840,56 @@ const Auth = {
     var provider = this._providers[providerName];
     if (!provider) return Promise.reject(new Error('Unknown provider: ' + providerName));
     return this._auth.signInWithPopup(provider);
+  },
+
+  /**
+   * Sign in with email and password (IDP-001 §6).
+   * @param {string} email
+   * @param {string} password
+   * @returns {Promise}
+   */
+  loginWithEmail: function(email, password) {
+    if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
+    return this._auth.signInWithEmailAndPassword(email, password);
+  },
+
+  /**
+   * Register a new account with email and password.
+   * Sends email verification after creation (IDP-001 §6.3).
+   * @param {string} email
+   * @param {string} password
+   * @param {string} displayName - Display name for the user profile
+   * @returns {Promise}
+   */
+  registerWithEmail: function(email, password, displayName) {
+    if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
+    return this._auth.createUserWithEmailAndPassword(email, password)
+      .then(function(credential) {
+        // Set display name on the Firebase Auth profile
+        if (displayName && credential.user.updateProfile) {
+          credential.user.updateProfile({ displayName: displayName }).catch(function(e) {
+            console.warn('[Auth] Failed to set display name:', e);
+          });
+        }
+        // Send verification email
+        if (credential.user && credential.user.sendEmailVerification) {
+          credential.user.sendEmailVerification().catch(function(e) {
+            console.warn('[Auth] Failed to send verification email:', e);
+          });
+        }
+        console.log('[Auth] Email/Password account created for:', email);
+        return credential;
+      });
+  },
+
+  /**
+   * Send a password reset email (IDP-001 §6.2).
+   * @param {string} email
+   * @returns {Promise}
+   */
+  sendPasswordReset: function(email) {
+    if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
+    return this._auth.sendPasswordResetEmail(email);
   },
 
   /**
@@ -936,6 +1112,55 @@ const Auth = {
             '<span>Sign in with Microsoft</span>' +
           '</button>' +
         '</div>' +
+        // Email/Password divider
+        '<div style="display:flex;align-items:center;gap:12px;margin:20px auto;max-width:300px;">' +
+          '<div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>' +
+          '<span style="color:rgba(255,255,255,0.3);font-size:12px;">or use email</span>' +
+          '<div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>' +
+        '</div>' +
+        // Email/Password form (IDP-001 §6)
+        '<div id="auth-email-section" style="max-width:300px;margin:0 auto;">' +
+          // Display name (register mode only — hidden by default)
+          '<input id="auth-email-name" type="text" placeholder="Display name" ' +
+            'style="display:none;width:100%;padding:10px 14px;margin-bottom:8px;' +
+            'border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
+            'background:rgba(255,255,255,0.05);color:#e6edf3;font-size:14px;' +
+            'font-family:inherit;outline:none;box-sizing:border-box;' +
+            'transition:border-color 0.2s;" />' +
+          // Email input
+          '<input id="auth-email-input" type="email" placeholder="Email address" ' +
+            'autocomplete="email" style="width:100%;padding:10px 14px;margin-bottom:8px;' +
+            'border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
+            'background:rgba(255,255,255,0.05);color:#e6edf3;font-size:14px;' +
+            'font-family:inherit;outline:none;box-sizing:border-box;' +
+            'transition:border-color 0.2s;" />' +
+          // Password input
+          '<input id="auth-email-password" type="password" placeholder="Password" ' +
+            'autocomplete="current-password" style="width:100%;padding:10px 14px;margin-bottom:4px;' +
+            'border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
+            'background:rgba(255,255,255,0.05);color:#e6edf3;font-size:14px;' +
+            'font-family:inherit;outline:none;box-sizing:border-box;' +
+            'transition:border-color 0.2s;" />' +
+          // Password requirements (register mode only — hidden by default)
+          '<div id="auth-email-requirements" style="display:none;margin-bottom:8px;' +
+            'color:rgba(255,255,255,0.3);font-size:11px;text-align:left;padding-left:2px;">' +
+            'Minimum 8 characters' +
+          '</div>' +
+          // Submit button
+          '<button id="auth-email-submit" type="button" style="' +
+            btnBase + 'background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;' +
+            'border-color:#b8860b;margin-top:8px;margin-bottom:8px;">' +
+            '<i class="fa-solid fa-envelope"></i>' +
+            '<span>Sign In with Email</span>' +
+          '</button>' +
+          // Toggle + forgot password links
+          '<div style="display:flex;justify-content:space-between;align-items:center;padding:0 2px;">' +
+            '<a id="auth-email-toggle" href="#" style="color:#d4a017;font-size:12px;' +
+              'text-decoration:none;transition:opacity 0.2s;">Create an account</a>' +
+            '<a id="auth-email-forgot" href="#" style="color:rgba(255,255,255,0.4);font-size:12px;' +
+              'text-decoration:none;transition:opacity 0.2s;">Forgot password?</a>' +
+          '</div>' +
+        '</div>' +
         // Error area
         '<div id="auth-error" style="display:none;margin-top:16px;' +
           'padding:10px;border-radius:8px;background:rgba(220,53,69,0.15);color:#ff6b6b;font-size:13px;">' +
@@ -1032,6 +1257,177 @@ const Auth = {
           Auth._handleProviderSignIn(provider, this);
         });
       });
+
+      // ── Email/Password handlers (IDP-001 §6) ──
+      var emailName = document.getElementById('auth-email-name');
+      var emailInput = document.getElementById('auth-email-input');
+      var emailPassword = document.getElementById('auth-email-password');
+      var emailSubmit = document.getElementById('auth-email-submit');
+      var emailToggle = document.getElementById('auth-email-toggle');
+      var emailForgot = document.getElementById('auth-email-forgot');
+      var emailRequirements = document.getElementById('auth-email-requirements');
+
+      if (emailSubmit && emailInput && emailPassword) {
+        var isRegisterMode = false;
+
+        // Focus styling for email inputs
+        [emailInput, emailPassword, emailName].forEach(function(input) {
+          if (!input) return;
+          input.addEventListener('focus', function() {
+            this.style.borderColor = 'rgba(212,160,23,0.5)';
+          });
+          input.addEventListener('blur', function() {
+            this.style.borderColor = 'rgba(255,255,255,0.15)';
+          });
+        });
+
+        // Toggle between sign-in and register mode
+        if (emailToggle) {
+          emailToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            isRegisterMode = !isRegisterMode;
+            if (emailName) emailName.style.display = isRegisterMode ? 'block' : 'none';
+            if (emailRequirements) emailRequirements.style.display = isRegisterMode ? 'block' : 'none';
+            if (emailForgot) emailForgot.style.display = isRegisterMode ? 'none' : '';
+            emailSubmit.querySelector('span').textContent = isRegisterMode
+              ? 'Create Account' : 'Sign In with Email';
+            emailToggle.textContent = isRegisterMode
+              ? 'Sign in instead' : 'Create an account';
+            emailPassword.setAttribute('autocomplete', isRegisterMode
+              ? 'new-password' : 'current-password');
+            // Hide any previous error
+            var errorDiv = document.getElementById('auth-error');
+            if (errorDiv) errorDiv.style.display = 'none';
+          });
+        }
+
+        // Forgot password handler
+        if (emailForgot) {
+          emailForgot.addEventListener('click', function(e) {
+            e.preventDefault();
+            var email = emailInput.value.trim();
+            if (!email) {
+              Auth._showLoginError('Enter your email address first.');
+              emailInput.focus();
+              return;
+            }
+            Auth.sendPasswordReset(email).then(function() {
+              // Show as info (gold) instead of error (red)
+              var errorDiv = document.getElementById('auth-error');
+              if (errorDiv) {
+                errorDiv.textContent = 'Password reset email sent. Check your inbox.';
+                errorDiv.style.display = 'block';
+                errorDiv.style.background = 'rgba(212,160,23,0.15)';
+                errorDiv.style.color = '#d4a017';
+              }
+            }).catch(function(err) {
+              var msg = 'Failed to send reset email.';
+              if (err && err.code === 'auth/user-not-found') {
+                msg = 'No account found with this email.';
+              }
+              Auth._showLoginError(msg);
+            });
+          });
+        }
+
+        // Submit handler (sign in or register)
+        emailSubmit.addEventListener('click', function() {
+          var email = emailInput.value.trim();
+          var password = emailPassword.value;
+          var name = emailName ? emailName.value.trim() : '';
+
+          // Validate
+          if (!email) {
+            Auth._showLoginError('Enter your email address.');
+            emailInput.focus();
+            return;
+          }
+          if (!password) {
+            Auth._showLoginError('Enter your password.');
+            emailPassword.focus();
+            return;
+          }
+          if (isRegisterMode && password.length < 8) {
+            Auth._showLoginError('Password must be at least 8 characters.');
+            emailPassword.focus();
+            return;
+          }
+
+          // Disable form during auth
+          emailInput.disabled = true;
+          emailPassword.disabled = true;
+          emailSubmit.disabled = true;
+          emailSubmit.style.opacity = '0.5';
+          emailSubmit.style.cursor = 'wait';
+          var originalLabel = emailSubmit.querySelector('span').textContent;
+          emailSubmit.querySelector('span').textContent = isRegisterMode
+            ? 'Creating account...' : 'Signing in...';
+          var errorDiv = document.getElementById('auth-error');
+          if (errorDiv) errorDiv.style.display = 'none';
+
+          // Also disable provider buttons
+          var provBtns = document.querySelectorAll('.auth-provider-btn');
+          provBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
+
+          var action;
+          if (isRegisterMode) {
+            action = Auth.registerWithEmail(email, password, name || email.split('@')[0]);
+          } else {
+            action = Auth.loginWithEmail(email, password);
+          }
+
+          action.catch(function(error) {
+            // Re-enable form
+            emailInput.disabled = false;
+            emailPassword.disabled = false;
+            emailSubmit.disabled = false;
+            emailSubmit.style.opacity = '1';
+            emailSubmit.style.cursor = 'pointer';
+            emailSubmit.querySelector('span').textContent = originalLabel;
+            provBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; });
+
+            var message = 'Authentication failed. Please try again.';
+            if (error && error.code) {
+              switch (error.code) {
+                case 'auth/user-not-found':
+                  message = 'No account found with this email. Create an account first.';
+                  break;
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                  message = 'Invalid email or password.';
+                  break;
+                case 'auth/email-already-in-use':
+                  message = 'An account with this email already exists. Try signing in.';
+                  break;
+                case 'auth/weak-password':
+                  message = 'Password must be at least 8 characters.';
+                  break;
+                case 'auth/invalid-email':
+                  message = 'Invalid email address.';
+                  break;
+                case 'auth/too-many-requests':
+                  message = 'Too many attempts. Please wait and try again.';
+                  break;
+              }
+            }
+            Auth._showLoginError(message);
+            console.warn('[Auth] Email auth failed:', error);
+          });
+        });
+
+        // Enter key: email → focus password, password → submit
+        emailInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); emailPassword.focus(); }
+        });
+        emailPassword.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); emailSubmit.click(); }
+        });
+        if (emailName) {
+          emailName.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); emailInput.focus(); }
+          });
+        }
+      }
     }, 100);
   },
 
@@ -1124,6 +1520,142 @@ const Auth = {
   },
 
   /**
+   * Show duplicate account detection message (IDP-001 §4.2).
+   * Prompts user to sign in with their primary provider.
+   * @param {string} primaryProvider - The primary provider ID (e.g., 'google.com')
+   * @private
+   */
+  _showDuplicateAccount: function(primaryProvider) {
+    var providerNames = {
+      'google.com': 'Google',
+      'apple.com': 'Apple',
+      'microsoft.com': 'Microsoft',
+      'password': 'Email/Password'
+    };
+    var providerLabel = providerNames[primaryProvider] || primaryProvider;
+
+    if (typeof Modal === 'undefined') return;
+
+    Modal.open({
+      title: 'Existing Account Found',
+      content:
+        '<div style="text-align:center;padding:16px 0;">' +
+          '<i class="fa-solid fa-user-group" style="font-size:36px;color:#d4a017;margin-bottom:16px;display:block;"></i>' +
+          '<p style="margin:0 0 16px;color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">' +
+            'You already have an account using<br>' +
+            '<strong style="color:#d4a017;">' + providerLabel + '</strong>.' +
+          '</p>' +
+          '<p style="margin:0 0 20px;color:rgba(255,255,255,0.5);font-size:13px;line-height:1.5;">' +
+            'Please sign in with that provider instead.<br>' +
+            'Accounts are linked by email address for security.' +
+          '</p>' +
+          '<button id="auth-dup-ok" type="button" style="' +
+            'padding:10px 32px;border-radius:8px;border:1px solid #d4a017;' +
+            'background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;font-size:14px;' +
+            'font-weight:600;cursor:pointer;transition:opacity 0.2s;">' +
+            'OK, Sign In with ' + providerLabel +
+          '</button>' +
+        '</div>',
+      size: 'sm',
+      showFooter: false
+    });
+
+    setTimeout(function() {
+      var btn = document.getElementById('auth-dup-ok');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          Modal.close();
+          // Re-open the login modal so user can pick the correct provider
+          setTimeout(function() { Auth.showLoginModal(); }, 200);
+        });
+      }
+    }, 100);
+  },
+
+  /**
+   * Show email verification required message (IDP-001 §6.3).
+   * Offers resend verification or sign out.
+   * @param {Object} user - Firebase user object
+   * @private
+   */
+  _showEmailVerificationRequired: function(user) {
+    if (typeof Modal === 'undefined') return;
+
+    Modal.open({
+      title: 'Email Verification Required',
+      content:
+        '<div style="text-align:center;padding:16px 0;">' +
+          '<i class="fa-solid fa-envelope-circle-check" style="font-size:36px;color:#d4a017;margin-bottom:16px;display:block;"></i>' +
+          '<p style="margin:0 0 12px;color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">' +
+            'Please verify your email address<br>before accessing the dashboard.' +
+          '</p>' +
+          '<p style="margin:0 0 20px;color:rgba(255,255,255,0.4);font-size:13px;">' +
+            'A verification link was sent to<br>' +
+            '<strong style="color:#e6edf3;">' + (user.email || '') + '</strong>' +
+          '</p>' +
+          '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
+            '<button id="auth-verify-resend" type="button" style="' +
+              'padding:10px 24px;border-radius:8px;border:1px solid #d4a017;' +
+              'background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;font-size:14px;' +
+              'font-weight:600;cursor:pointer;transition:opacity 0.2s;">' +
+              'Resend Verification' +
+            '</button>' +
+            '<button id="auth-verify-signout" type="button" style="' +
+              'padding:10px 24px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
+              'background:transparent;color:rgba(255,255,255,0.6);font-size:14px;' +
+              'cursor:pointer;transition:all 0.2s;">' +
+              'Sign Out' +
+            '</button>' +
+          '</div>' +
+          '<p style="margin:16px 0 0;color:rgba(255,255,255,0.3);font-size:11px;">' +
+            'After verifying, sign in again. Admin approval is also required.' +
+          '</p>' +
+        '</div>',
+      size: 'sm',
+      showFooter: false
+    });
+
+    setTimeout(function() {
+      var resendBtn = document.getElementById('auth-verify-resend');
+      var signoutBtn = document.getElementById('auth-verify-signout');
+
+      if (resendBtn) {
+        resendBtn.addEventListener('click', function() {
+          resendBtn.disabled = true;
+          resendBtn.textContent = 'Sending...';
+          resendBtn.style.opacity = '0.5';
+          user.sendEmailVerification().then(function() {
+            resendBtn.textContent = 'Sent!';
+            resendBtn.style.opacity = '1';
+            setTimeout(function() {
+              resendBtn.disabled = false;
+              resendBtn.textContent = 'Resend Verification';
+            }, 3000);
+          }).catch(function(e) {
+            resendBtn.disabled = false;
+            resendBtn.textContent = 'Resend Verification';
+            resendBtn.style.opacity = '1';
+            console.warn('[Auth] Failed to resend verification:', e);
+            if (typeof Toast !== 'undefined') {
+              Toast.error('Failed to send. Try again later.');
+            }
+          });
+        });
+      }
+
+      if (signoutBtn) {
+        signoutBtn.addEventListener('click', function() {
+          Auth.logout().then(function() {
+            Modal.close();
+            if (typeof Toast !== 'undefined') Toast.success('Signed out');
+            if (typeof Router !== 'undefined') Router.navigateTo('home');
+          });
+        });
+      }
+    }, 100);
+  },
+
+  /**
    * Handle federated provider sign-in
    * @param {string} providerName - 'google', 'apple', or 'microsoft'
    * @param {HTMLElement} btn - The button element clicked
@@ -1133,7 +1665,7 @@ const Auth = {
     if (this._signingIn) return;
     this._signingIn = true;
 
-    // Disable all provider buttons
+    // Disable all provider buttons + email form
     var allBtns = document.querySelectorAll('.auth-provider-btn');
     var originalLabel = btn.querySelector('span').textContent;
     allBtns.forEach(function(b) {
@@ -1143,6 +1675,14 @@ const Auth = {
     });
     btn.style.opacity = '0.8';
     btn.querySelector('span').textContent = 'Signing in...';
+
+    // Also disable email form during OAuth
+    var emailSubmitBtn = document.getElementById('auth-email-submit');
+    var emailInputEl = document.getElementById('auth-email-input');
+    var emailPassEl = document.getElementById('auth-email-password');
+    if (emailSubmitBtn) { emailSubmitBtn.disabled = true; emailSubmitBtn.style.opacity = '0.5'; }
+    if (emailInputEl) emailInputEl.disabled = true;
+    if (emailPassEl) emailPassEl.disabled = true;
 
     // Hide any previous error
     var errorDiv = document.getElementById('auth-error');
@@ -1157,13 +1697,16 @@ const Auth = {
       .catch(function(error) {
         Auth._signingIn = false;
 
-        // Re-enable all buttons
+        // Re-enable all buttons + email form
         allBtns.forEach(function(b) {
           b.disabled = false;
           b.style.opacity = '1';
           b.style.cursor = 'pointer';
         });
         btn.querySelector('span').textContent = originalLabel;
+        if (emailSubmitBtn) { emailSubmitBtn.disabled = false; emailSubmitBtn.style.opacity = '1'; }
+        if (emailInputEl) emailInputEl.disabled = false;
+        if (emailPassEl) emailPassEl.disabled = false;
 
         // Map Firebase error codes to user-friendly messages
         var message = 'Sign in failed. Please try again.';
@@ -1177,7 +1720,7 @@ const Auth = {
               message = 'Popup was blocked by your browser. Please allow popups for this site.';
               break;
             case 'auth/account-exists-with-different-credential':
-              message = 'An account already exists with this email using a different sign-in method.';
+              message = 'An account already exists with this email using a different sign-in method. Try another provider.';
               break;
             case 'auth/unauthorized-domain':
               message = 'This domain is not authorized. Add it in Firebase Console \u2192 Auth \u2192 Settings.';
