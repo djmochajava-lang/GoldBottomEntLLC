@@ -10,6 +10,10 @@ bower_components/
 *.pem
 credentials.json
 secrets.json
+serviceAccountKey.json
+service-account.json
+*.p12
+*.pfx
 
 # IDE
 .vscode/
@@ -35,6 +39,7 @@ dashboard/documents.html
 dashboard/integrations.html
 dashboard/settings.html
 dashboard/team.html
+dashboard/credentials.html
 
 # Firebase config (deployed separately)
 .firebaserc
