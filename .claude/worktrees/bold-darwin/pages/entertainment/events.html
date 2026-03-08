@@ -1,0 +1,135 @@
+<!-- pages/entertainment/events.html — Upcoming Events & Tour Dates -->
+
+<section class="page-section" id="page-ent-events">
+  <div class="container">
+    <h1 class="page-title reveal">Events & Tour Dates</h1>
+    <p class="page-subtitle reveal">Catch our artists live. From intimate venues to festival stages.</p>
+
+    <!-- Filter Tabs -->
+    <div class="tabs reveal" id="events-filter-tabs">
+      <button class="tab active" data-filter="all">All Events</button>
+      <button class="tab" data-filter="upcoming">Upcoming</button>
+      <button class="tab" data-filter="past">Past Events</button>
+    </div>
+
+    <!-- Events List -->
+    <div class="events-list stagger-grid" id="ent-events-list">
+      <!-- Rendered by script -->
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center" style="margin-top: var(--space-3xl);">
+      <div class="glass-card cta-premium reveal">
+        <h2>Want Us at Your Event?</h2>
+        <p class="text-muted">
+          Looking to book our artists for your venue, festival, or private event? Let's make it happen.
+        </p>
+        <div class="cta-actions">
+          <a href="#ent-contact" class="btn btn-primary btn-lg shimmer-sweep">
+            <i class="fa-solid fa-calendar-plus"></i> Book an Artist
+          </a>
+          <a href="#ent-roster" class="btn btn-secondary btn-lg">
+            Featured Artist <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var list = document.getElementById('ent-events-list');
+  if (!list) return;
+
+  var events = [];
+  var now = new Date();
+
+  // Try DataStore first
+  if (typeof DataStore !== 'undefined' && DataStore.getEvents) {
+    try { events = DataStore.getEvents() || []; } catch(e) { events = []; }
+  }
+
+  // Fallback placeholder events
+  if (!events.length) {
+    events = [
+      { title: 'L.A. Young Live', venue: 'The Howard Theatre', city: 'Washington, DC', date: '2025-04-15', time: '8:00 PM', description: 'An evening of soul, jazz, and R&B classics and originals.', status: 'confirmed' },
+      { title: 'Soul Sessions', venue: 'Blues Alley', city: 'Georgetown, DC', date: '2025-05-10', time: '9:00 PM', description: 'Intimate acoustic set featuring new material from the upcoming album.', status: 'confirmed' },
+      { title: 'Summer Music Festival', venue: 'National Harbor', city: 'Oxon Hill, MD', date: '2025-07-20', time: '3:00 PM', description: 'Festival performance alongside top regional artists.', status: 'tentative' },
+      { title: 'Jazz in the Park', venue: 'Meridian Hill Park', city: 'Washington, DC', date: '2024-09-14', time: '5:00 PM', description: 'Free outdoor concert series. Brought to you by DC Parks.', status: 'completed' },
+      { title: 'New Year Gala', venue: 'The Anthem', city: 'Washington, DC', date: '2024-12-31', time: '10:00 PM', description: 'Ring in the new year with live performances and celebration.', status: 'completed' }
+    ];
+  }
+
+  function formatDate(dateStr) {
+    var d = new Date(dateStr + 'T00:00:00');
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    return { month: months[d.getMonth()], day: d.getDate(), year: d.getFullYear() };
+  }
+
+  function isUpcoming(dateStr) {
+    return new Date(dateStr + 'T23:59:59') >= now;
+  }
+
+  function renderEvents(filter) {
+    var filtered = events;
+    if (filter === 'upcoming') filtered = events.filter(function(e) { return isUpcoming(e.date); });
+    if (filter === 'past') filtered = events.filter(function(e) { return !isUpcoming(e.date); });
+
+    // Sort: upcoming first (nearest), then past (most recent)
+    filtered.sort(function(a, b) {
+      var aUp = isUpcoming(a.date);
+      var bUp = isUpcoming(b.date);
+      if (aUp && !bUp) return -1;
+      if (!aUp && bUp) return 1;
+      if (aUp) return new Date(a.date) - new Date(b.date);
+      return new Date(b.date) - new Date(a.date);
+    });
+
+    if (!filtered.length) {
+      list.innerHTML = '<div class="events-empty"><i class="fa-solid fa-calendar-xmark"></i><h3>No events found</h3><p class="text-muted">Check back soon for upcoming performances.</p></div>';
+      return;
+    }
+
+    var isFirst = true;
+    list.innerHTML = filtered.map(function(e) {
+      var d = formatDate(e.date);
+      var upcoming = isUpcoming(e.date);
+      var featured = isFirst && upcoming ? ' event-card-featured' : '';
+      if (featured) isFirst = false;
+
+      var ticketBadge = upcoming
+        ? '<span class="event-tickets-badge tickets-available"><i class="fa-solid fa-ticket"></i> Tickets Available</span>'
+        : '<span class="event-tickets-badge sold-out"><i class="fa-solid fa-check"></i> Past Event</span>';
+
+      return '<div class="event-card' + featured + '">' +
+        '<div class="event-card-date">' +
+          '<span class="date-month">' + d.month + '</span>' +
+          '<span class="date-day">' + d.day + '</span>' +
+          '<span class="date-month">' + d.year + '</span>' +
+        '</div>' +
+        '<div class="event-card-details">' +
+          '<h3>' + e.title + '</h3>' +
+          '<div class="event-card-meta">' +
+            '<span><i class="fa-solid fa-location-dot"></i> ' + e.venue + ', ' + (e.city || '') + '</span>' +
+            '<span><i class="fa-solid fa-clock"></i> ' + (e.time || 'TBA') + '</span>' +
+          '</div>' +
+          '<p style="margin-top:4px;font-size:var(--text-sm);color:var(--color-text-secondary);">' + (e.description || '') + '</p>' +
+          '<div style="margin-top:var(--space-sm);">' + ticketBadge + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  renderEvents('all');
+
+  // Filter tabs
+  document.querySelectorAll('#events-filter-tabs .tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('#events-filter-tabs .tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      renderEvents(tab.getAttribute('data-filter'));
+    });
+  });
+})();
+</script>

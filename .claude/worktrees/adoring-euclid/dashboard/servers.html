@@ -1,0 +1,346 @@
+<!-- dashboard/servers.html — Servers & Costs -->
+
+<div class="dashboard-page" id="dash-servers">
+  <div class="dashboard-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+    <div>
+      <h1 style="font-size:1.5rem;font-weight:700;color:var(--color-text);margin:0 0 4px;">Servers &amp; Costs</h1>
+      <p style="color:var(--color-text-muted);font-size:0.85rem;margin:0;">Infrastructure inventory, subscriptions, and monthly cost tracking.</p>
+    </div>
+    <button class="btn btn-primary" id="add-server-btn" style="display:none;padding:8px 18px;border-radius:8px;background:var(--color-gold);color:#000;font-weight:600;font-size:0.85rem;border:none;cursor:pointer;">
+      <i class="fa-solid fa-plus"></i> Add Server / Service
+    </button>
+  </div>
+
+  <!-- Cost Summary Cards -->
+  <div id="servers-cost-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;"></div>
+
+  <!-- Server Inventory Table -->
+  <div class="card" id="servers-table-container" style="background:rgba(22,33,62,0.6);border:1px solid rgba(255,215,0,0.1);border-radius:12px;padding:0;overflow:hidden;"></div>
+
+  <!-- Cost Breakdown by Category -->
+  <div id="servers-cost-breakdown" style="margin-top:20px;"></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  if (typeof DataStore === 'undefined') return;
+
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  // Show add button for local users
+  if (isLocal) {
+    document.getElementById('add-server-btn').style.display = 'inline-flex';
+  }
+
+  // ── Category Badges ──────────────────────────────────
+  var catBadge = {
+    'hosting':    { label: 'Hosting',    bg: 'rgba(88,166,255,0.15)',  color: '#58a6ff' },
+    'server':     { label: 'Server',     bg: 'rgba(121,192,255,0.15)', color: '#79c0ff' },
+    'database':   { label: 'Database',   bg: 'rgba(188,140,255,0.15)', color: '#bc8cff' },
+    'domain':     { label: 'Domain',     bg: 'rgba(255,166,87,0.15)',  color: '#ffa657' },
+    'ecommerce':  { label: 'Ecommerce',  bg: 'rgba(255,215,0,0.15)',   color: '#ffd700' },
+    'email':      { label: 'Email',      bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' },
+    'cdn':        { label: 'CDN',        bg: 'rgba(165,214,255,0.15)', color: '#a5d6ff' },
+    'monitoring': { label: 'Monitoring', bg: 'rgba(210,169,34,0.15)',  color: '#d2a922' },
+  };
+
+  // ── Status Badges ────────────────────────────────────
+  var statusBadge = {
+    'active':    { label: 'Active',    bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' },
+    'paused':    { label: 'Paused',    bg: 'rgba(210,169,34,0.15)',  color: '#d2a922' },
+    'cancelled': { label: 'Cancelled', bg: 'rgba(248,81,73,0.15)',   color: '#f85149' },
+    'planned':   { label: 'Planned',   bg: 'rgba(139,148,158,0.15)', color: '#8b949e' },
+  };
+
+  // ── Format Currency ──────────────────────────────────
+  function fmtCost(val) {
+    var n = parseFloat(val) || 0;
+    return '$' + n.toFixed(2);
+  }
+
+  // ── Render Cost Summary ──────────────────────────────
+  function renderCostSummary() {
+    var container = document.getElementById('servers-cost-summary');
+    var all = DataStore.getServers();
+    var active = all.filter(function(s) { return s.status === 'active'; });
+    var totalMonthly = active.reduce(function(sum, s) { return sum + (parseFloat(s.monthlyCost) || 0); }, 0);
+    var freeTier = active.filter(function(s) { return (parseFloat(s.monthlyCost) || 0) === 0; });
+
+    var cards = [
+      { icon: 'fa-dollar-sign',    label: 'Total Monthly',     value: fmtCost(totalMonthly),       color: '#ffd700' },
+      { icon: 'fa-calendar-check', label: 'Annual Projection', value: fmtCost(totalMonthly * 12),  color: '#58a6ff' },
+      { icon: 'fa-server',         label: 'Active Services',   value: active.length,                color: '#3fb950' },
+      { icon: 'fa-gift',           label: 'Free Tier',         value: freeTier.length,              color: '#bc8cff' },
+    ];
+
+    container.innerHTML = cards.map(function(c) {
+      return '<div style="background:rgba(22,33,62,0.6);border:1px solid rgba(255,215,0,0.1);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;">' +
+        '<div style="width:40px;height:40px;border-radius:8px;background:' + c.color + '18;display:flex;align-items:center;justify-content:center;">' +
+        '<i class="fa-solid ' + c.icon + '" style="color:' + c.color + ';font-size:1rem;"></i></div>' +
+        '<div><div style="font-size:1.25rem;font-weight:700;color:var(--color-text);">' + c.value + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--color-text-muted);">' + c.label + '</div></div></div>';
+    }).join('');
+  }
+
+  // ── Render Table ─────────────────────────────────────
+  function renderTable() {
+    var container = document.getElementById('servers-table-container');
+    var data = DataStore.getServers();
+
+    if (data.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--color-text-muted);">' +
+        '<i class="fa-solid fa-server" style="font-size:2rem;margin-bottom:12px;display:block;"></i>' +
+        'No servers or services tracked yet.</div>';
+      return;
+    }
+
+    var html = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.82rem;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Name</th>';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Provider</th>';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Category</th>';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Purpose</th>';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">URL / IP</th>';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Status</th>';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Monthly Cost</th>';
+    html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Billing</th>';
+    if (isLocal) {
+      html += '<th style="padding:10px 12px;color:var(--color-text-muted);font-weight:600;">Actions</th>';
+    }
+    html += '</tr></thead><tbody>';
+
+    data.forEach(function(s) {
+      var cat = catBadge[s.category] || { label: s.category || 'Other', bg: 'rgba(139,148,158,0.15)', color: '#8b949e' };
+      var stat = statusBadge[s.status] || statusBadge['planned'];
+      var esc = typeof Utils !== 'undefined' ? Utils.escapeHtml : function(v) { return v || ''; };
+      var cost = parseFloat(s.monthlyCost) || 0;
+
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
+      html += '<td style="padding:10px 12px;color:var(--color-text);font-weight:500;">' + esc(s.name) + '</td>';
+      html += '<td style="padding:10px 12px;color:var(--color-text-secondary);">' + esc(s.provider) + '</td>';
+      html += '<td style="padding:10px 12px;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:600;background:' + cat.bg + ';color:' + cat.color + ';">' + cat.label + '</span></td>';
+      html += '<td style="padding:10px 12px;color:var(--color-text-secondary);font-size:0.8rem;max-width:220px;">' + esc(s.purpose) + '</td>';
+
+      // URL / IP
+      html += '<td style="padding:10px 12px;">';
+      if (s.url && !s.url.startsWith('[')) {
+        html += '<a href="' + esc(s.url) + '" target="_blank" rel="noopener" style="color:#58a6ff;font-size:0.78rem;text-decoration:none;">' +
+          '<i class="fa-solid fa-arrow-up-right-from-square" style="margin-right:3px;"></i>Open</a>';
+      }
+      if (s.ip && !s.ip.startsWith('[')) {
+        html += (s.url && !s.url.startsWith('[') ? '<br>' : '') + '<span style="color:var(--color-text-muted);font-family:monospace;font-size:0.75rem;">' + esc(s.ip) + '</span>';
+      }
+      if ((!s.url || s.url.startsWith('[')) && (!s.ip || s.ip.startsWith('['))) {
+        html += '<span style="color:var(--color-text-muted);font-style:italic;">not set</span>';
+      }
+      html += '</td>';
+
+      html += '<td style="padding:10px 12px;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:600;background:' + stat.bg + ';color:' + stat.color + ';">' + stat.label + '</span></td>';
+      html += '<td style="padding:10px 12px;font-weight:600;color:' + (cost > 0 ? 'var(--color-text)' : 'var(--color-text-muted)') + ';">' + (cost > 0 ? fmtCost(cost) : 'Free') + '</td>';
+      html += '<td style="padding:10px 12px;color:var(--color-text-muted);font-size:0.78rem;">' + esc(s.billingCycle || '') + (s.renewalDate && !s.renewalDate.startsWith('[') ? '<br><span style="font-size:0.7rem;">Renews: ' + esc(s.renewalDate) + '</span>' : '') + '</td>';
+
+      if (isLocal) {
+        html += '<td style="padding:10px 12px;">';
+        html += '<button onclick="editServer(\'' + s.id + '\')" style="background:none;border:none;cursor:pointer;color:var(--color-gold);font-size:0.82rem;margin-right:8px;" title="Edit"><i class="fa-solid fa-pen"></i></button>';
+        html += '<button onclick="deleteServer(\'' + s.id + '\')" style="background:none;border:none;cursor:pointer;color:#f85149;font-size:0.82rem;" title="Delete"><i class="fa-solid fa-trash"></i></button>';
+        html += '</td>';
+      }
+
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  // ── Render Cost Breakdown ────────────────────────────
+  function renderCostBreakdown() {
+    var container = document.getElementById('servers-cost-breakdown');
+    var data = DataStore.getServers().filter(function(s) { return s.status === 'active'; });
+
+    // Group by category
+    var groups = {};
+    data.forEach(function(s) {
+      var cat = s.category || 'other';
+      if (!groups[cat]) groups[cat] = { items: [], total: 0 };
+      var cost = parseFloat(s.monthlyCost) || 0;
+      groups[cat].items.push(s);
+      groups[cat].total += cost;
+    });
+
+    var totalMonthly = data.reduce(function(sum, s) { return sum + (parseFloat(s.monthlyCost) || 0); }, 0);
+
+    var html = '<div style="background:rgba(22,33,62,0.6);border:1px solid rgba(255,215,0,0.1);border-radius:12px;padding:20px;">';
+    html += '<h3 style="font-size:0.95rem;font-weight:600;color:var(--color-text);margin:0 0 16px;"><i class="fa-solid fa-chart-pie" style="color:var(--color-gold);margin-right:8px;"></i>Cost Breakdown (Active Services)</h3>';
+
+    var catKeys = Object.keys(groups).sort();
+    catKeys.forEach(function(cat) {
+      var g = groups[cat];
+      var badge = catBadge[cat] || { label: cat, color: '#8b949e' };
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">';
+      html += '<div style="display:flex;align-items:center;gap:8px;">';
+      html += '<span style="width:8px;height:8px;border-radius:50%;background:' + badge.color + ';display:inline-block;"></span>';
+      html += '<span style="color:var(--color-text-secondary);font-size:0.85rem;">' + badge.label + '</span>';
+      html += '<span style="color:var(--color-text-muted);font-size:0.75rem;">(' + g.items.length + ' service' + (g.items.length !== 1 ? 's' : '') + ')</span>';
+      html += '</div>';
+      html += '<span style="font-weight:600;color:' + (g.total > 0 ? 'var(--color-text)' : 'var(--color-text-muted)') + ';font-size:0.85rem;">' + fmtCost(g.total) + '/mo</span>';
+      html += '</div>';
+    });
+
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;margin-top:4px;border-top:2px solid var(--color-border);">';
+    html += '<span style="font-weight:700;color:var(--color-text);font-size:0.9rem;">Total</span>';
+    html += '<div style="text-align:right;">';
+    html += '<span style="font-weight:700;color:var(--color-gold);font-size:1rem;">' + fmtCost(totalMonthly) + '/mo</span>';
+    html += '<span style="display:block;font-size:0.75rem;color:var(--color-text-muted);">' + fmtCost(totalMonthly * 12) + '/yr</span>';
+    html += '</div></div>';
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ── Form HTML ────────────────────────────────────────
+  function serverFormHTML(data) {
+    var d = data || {};
+    return '<form id="modal-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+      '<div style="grid-column:1/-1;">' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Service Name *</label>' +
+        '<input type="text" name="name" value="' + (d.name || '') + '" required ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;" placeholder="e.g. GitHub Pages, DigitalOcean Droplet">' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Provider</label>' +
+        '<input type="text" name="provider" value="' + (d.provider || '') + '" ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;" placeholder="e.g. GitHub, DigitalOcean, Google">' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Category</label>' +
+        '<select name="category" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;">' +
+          '<option value="hosting"' + (d.category === 'hosting' ? ' selected' : '') + '>Hosting</option>' +
+          '<option value="server"' + (d.category === 'server' ? ' selected' : '') + '>Server</option>' +
+          '<option value="database"' + (d.category === 'database' ? ' selected' : '') + '>Database</option>' +
+          '<option value="domain"' + (d.category === 'domain' ? ' selected' : '') + '>Domain</option>' +
+          '<option value="ecommerce"' + (d.category === 'ecommerce' ? ' selected' : '') + '>Ecommerce</option>' +
+          '<option value="email"' + (d.category === 'email' ? ' selected' : '') + '>Email</option>' +
+          '<option value="cdn"' + (d.category === 'cdn' ? ' selected' : '') + '>CDN</option>' +
+          '<option value="monitoring"' + (d.category === 'monitoring' ? ' selected' : '') + '>Monitoring</option>' +
+        '</select>' +
+      '</div>' +
+      '<div style="grid-column:1/-1;">' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Purpose</label>' +
+        '<input type="text" name="purpose" value="' + (d.purpose || '') + '" ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;" placeholder="What does this server/service do?">' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">URL</label>' +
+        '<input type="url" name="url" value="' + (d.url || '') + '" ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;" placeholder="https://...">' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">IP Address</label>' +
+        '<input type="text" name="ip" value="' + (d.ip || '') + '" ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;" placeholder="e.g. 192.168.1.100">' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Status</label>' +
+        '<select name="status" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;">' +
+          '<option value="active"' + (d.status === 'active' ? ' selected' : '') + '>Active</option>' +
+          '<option value="planned"' + (d.status === 'planned' ? ' selected' : '') + '>Planned</option>' +
+          '<option value="paused"' + (d.status === 'paused' ? ' selected' : '') + '>Paused</option>' +
+          '<option value="cancelled"' + (d.status === 'cancelled' ? ' selected' : '') + '>Cancelled</option>' +
+        '</select>' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Monthly Cost ($)</label>' +
+        '<input type="number" name="monthlyCost" value="' + (d.monthlyCost || 0) + '" min="0" step="0.01" ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;" placeholder="0.00">' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Billing Cycle</label>' +
+        '<select name="billingCycle" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;">' +
+          '<option value="free"' + (d.billingCycle === 'free' ? ' selected' : '') + '>Free</option>' +
+          '<option value="monthly"' + (d.billingCycle === 'monthly' ? ' selected' : '') + '>Monthly</option>' +
+          '<option value="annual"' + (d.billingCycle === 'annual' ? ' selected' : '') + '>Annual</option>' +
+          '<option value="one-time"' + (d.billingCycle === 'one-time' ? ' selected' : '') + '>One-time</option>' +
+        '</select>' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Renewal Date</label>' +
+        '<input type="date" name="renewalDate" value="' + (d.renewalDate || '') + '" ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;">' +
+      '</div>' +
+      '<div style="grid-column:1/-1;">' +
+        '<label style="font-size:0.78rem;color:var(--color-text-muted);display:block;margin-bottom:4px;">Notes</label>' +
+        '<textarea name="notes" rows="3" ' +
+        'style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:0.85rem;resize:vertical;">' + (d.notes || '') + '</textarea>' +
+      '</div>' +
+    '</form>';
+  }
+
+  function collectFormData() {
+    var form = document.getElementById('modal-form');
+    if (!form) return {};
+    var d = {};
+    new FormData(form).forEach(function(v, k) { d[k] = v; });
+    d.monthlyCost = parseFloat(d.monthlyCost) || 0;
+    return d;
+  }
+
+  // ── CRUD Handlers ────────────────────────────────────
+  document.getElementById('add-server-btn').addEventListener('click', function() {
+    Modal.open({
+      title: 'Add Server / Service',
+      size: 'lg',
+      content: serverFormHTML({ status: 'active', billingCycle: 'free', monthlyCost: 0 }),
+      saveText: 'Add Service',
+      onSave: function() {
+        var d = collectFormData();
+        if (!d.name) { Toast.error('Service name is required'); return; }
+        DataStore.addServer(d);
+        Modal.close();
+        Toast.success('Added: ' + d.name);
+        renderAll();
+      }
+    });
+  });
+
+  window.editServer = function(id) {
+    var srv = DataStore.getServer(id);
+    if (!srv) return;
+    Modal.open({
+      title: 'Edit: ' + srv.name,
+      size: 'lg',
+      content: serverFormHTML(srv),
+      saveText: 'Save Changes',
+      onSave: function() {
+        var d = collectFormData();
+        if (!d.name) { Toast.error('Service name is required'); return; }
+        DataStore.updateServer(id, d);
+        Modal.close();
+        Toast.success('Updated: ' + d.name);
+        renderAll();
+      }
+    });
+  };
+
+  window.deleteServer = function(id) {
+    var srv = DataStore.getServer(id);
+    if (!srv) return;
+    Modal.confirm('Delete "' + srv.name + '"?', function() {
+      DataStore.deleteServer(id);
+      Toast.success('Deleted: ' + srv.name);
+      renderAll();
+    });
+  };
+
+  // ── Render All ───────────────────────────────────────
+  function renderAll() {
+    renderCostSummary();
+    renderTable();
+    renderCostBreakdown();
+  }
+
+  renderAll();
+
+})();
+</script>

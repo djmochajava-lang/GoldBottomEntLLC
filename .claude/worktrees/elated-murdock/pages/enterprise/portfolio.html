@@ -1,0 +1,174 @@
+<!-- pages/enterprise/portfolio.html — Enterprise Portfolio / Case Studies -->
+
+<section class="page-section" id="page-biz-portfolio">
+  <div class="container">
+    <h1 class="page-title reveal">Our Work</h1>
+    <p class="page-subtitle reveal">Selected projects and case studies showcasing our technical expertise.</p>
+
+    <!-- Filter Tabs -->
+    <div class="tabs portfolio-filters reveal">
+      <button class="tab active" data-filter="all">All</button>
+      <button class="tab" data-filter="web">Web</button>
+      <button class="tab" data-filter="app">Applications</button>
+      <button class="tab" data-filter="consulting">Consulting</button>
+    </div>
+
+    <!-- Portfolio Grid -->
+    <div class="grid grid-2 stagger-grid" id="biz-portfolio-grid">
+      <!-- Rendered by script -->
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center" style="margin-top: var(--space-3xl);">
+      <div class="glass-card cta-premium reveal">
+        <h2>Want to Be Our Next Success Story?</h2>
+        <p class="text-muted">
+          Let's discuss your project and see how we can help you achieve your goals.
+        </p>
+        <div class="cta-actions">
+          <a href="#biz-contact" class="btn btn-primary btn-lg shimmer-sweep">
+            <i class="fa-solid fa-rocket"></i> Start a Project
+          </a>
+          <a href="#biz-services" class="btn btn-secondary btn-lg">
+            Our Services <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var grid = document.getElementById('biz-portfolio-grid');
+  if (!grid) return;
+
+  var projects = [
+    {
+      title: 'GBE Corporate Portal',
+      category: 'web',
+      tags: ['HTML/CSS/JS', 'SPA', 'Firebase', 'Node.js'],
+      description: 'A dual-layout single-page application serving as both a public-facing website and an internal management dashboard for Gold Bottom Ent LLC.',
+      outcomes: [
+        { value: '28+', label: 'Routes' },
+        { value: '2', label: 'Layouts' },
+        { value: '99.9%', label: 'Uptime' }
+      ],
+      status: 'live',
+      statusLabel: 'Live'
+    },
+    {
+      title: 'GBE Home Server',
+      category: 'app',
+      tags: ['Node.js', 'Express', 'SQLite', 'REST API'],
+      description: 'A self-hosted Express.js server providing a RESTful API, automated backups, and a LAN-accessible management dashboard.',
+      outcomes: [
+        { value: '30', label: 'Day Retention' },
+        { value: 'REST', label: 'API' },
+        { value: 'Auto', label: 'Backups' }
+      ],
+      status: 'live',
+      statusLabel: 'Live'
+    },
+    {
+      title: 'Artist Booking Platform',
+      category: 'web',
+      tags: ['React', 'Node.js', 'PostgreSQL', 'Stripe'],
+      description: 'A booking management platform connecting venues with artists, featuring calendar integration and payment processing.',
+      outcomes: [
+        { value: 'Real-time', label: 'Calendar' },
+        { value: 'Stripe', label: 'Payments' },
+        { value: 'Auto', label: 'Confirmations' }
+      ],
+      status: 'development',
+      statusLabel: 'In Development'
+    },
+    {
+      title: 'Small Business Digital Audit',
+      category: 'consulting',
+      tags: ['Strategy', 'SEO', 'Analytics', 'Cloud'],
+      description: 'Technology audit and digital transformation roadmap for a growing retail business transitioning to e-commerce.',
+      outcomes: [
+        { value: 'Full', label: 'Tech Audit' },
+        { value: 'E-comm', label: 'Platform' },
+        { value: 'Cloud', label: 'Migration' }
+      ],
+      status: 'completed',
+      statusLabel: 'Completed'
+    },
+    {
+      title: 'Music Distribution Dashboard',
+      category: 'app',
+      tags: ['JavaScript', 'Chart.js', 'REST API', 'Firebase'],
+      description: 'An analytics dashboard tracking music distribution across streaming platforms with real-time revenue reporting.',
+      outcomes: [
+        { value: 'Multi', label: 'Platforms' },
+        { value: 'Real-time', label: 'Revenue' },
+        { value: 'Auto', label: 'Sync' }
+      ],
+      status: 'development',
+      statusLabel: 'In Development'
+    },
+    {
+      title: 'Nonprofit Website Redesign',
+      category: 'web',
+      tags: ['WordPress', 'PHP', 'SEO', 'Accessibility'],
+      description: 'A complete website redesign for a DC-area nonprofit, focusing on accessibility, SEO, and donor conversion.',
+      outcomes: [
+        { value: '200%', label: 'Traffic Increase' },
+        { value: 'AA', label: 'WCAG Level' },
+        { value: 'Donor', label: 'Portal' }
+      ],
+      status: 'completed',
+      statusLabel: 'Completed'
+    }
+  ];
+
+  function renderProjects(filter) {
+    var filtered = filter === 'all' ? projects : projects.filter(function(p) { return p.category === filter; });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div><h3 class="empty-state-title">No projects in this category yet</h3></div>';
+      return;
+    }
+
+    grid.innerHTML = filtered.map(function(p) {
+      var tags = p.tags.map(function(t) {
+        return '<span class="portfolio-card-tag">' + t + '</span>';
+      }).join('');
+
+      var outcomes = p.outcomes.map(function(o) {
+        return '<div class="portfolio-outcome">' +
+          '<span class="portfolio-outcome-value">' + o.value + '</span>' +
+          '<span class="portfolio-outcome-label">' + o.label + '</span>' +
+        '</div>';
+      }).join('');
+
+      return '<div class="portfolio-card-premium" data-category="' + p.category + '">' +
+        '<div class="portfolio-screenshot"><i class="fa-solid fa-laptop-code"></i></div>' +
+        '<div class="portfolio-card-body">' +
+          '<h3>' + p.title + '</h3>' +
+          '<p>' + p.description + '</p>' +
+          '<div class="portfolio-outcomes">' + outcomes + '</div>' +
+          '<div class="portfolio-tech">' + tags + '</div>' +
+          '<div class="portfolio-card-footer">' +
+            '<span class="portfolio-status ' + p.status + '">' +
+              '<span class="status-dot ' + p.status + '"></span> ' + p.statusLabel +
+            '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  renderProjects('all');
+
+  document.querySelectorAll('.portfolio-filters .tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.portfolio-filters .tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      renderProjects(tab.getAttribute('data-filter'));
+    });
+  });
+})();
+</script>

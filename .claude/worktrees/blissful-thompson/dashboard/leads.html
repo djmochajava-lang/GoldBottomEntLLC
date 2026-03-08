@@ -1,0 +1,290 @@
+<!-- dashboard/leads.html — Venue Leads -->
+<div class="dashboard-page" id="dash-leads">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>Venue Leads</h1><p class="text-muted">Track and manage venue outreach for live performance bookings.</p></div>
+      <button class="btn btn-primary" id="add-lead-btn"><i class="fa-solid fa-plus"></i> Add Lead</button>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div id="leads-stats-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+
+  <!-- Filter Bar -->
+  <div id="leads-filters" style="display:flex;gap:var(--space-xs);margin-bottom:var(--space-md);flex-wrap:wrap;">
+    <button class="filter-btn active" data-filter="all" style="padding:var(--space-xs) var(--space-md);border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:var(--fw-medium);border:1px solid var(--color-border);cursor:pointer;transition:all 150ms ease;">All</button>
+    <button class="filter-btn" data-filter="restaurant" style="padding:var(--space-xs) var(--space-md);border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:var(--fw-medium);border:1px solid var(--color-border);cursor:pointer;transition:all 150ms ease;">Restaurants</button>
+    <button class="filter-btn" data-filter="theater" style="padding:var(--space-xs) var(--space-md);border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:var(--fw-medium);border:1px solid var(--color-border);cursor:pointer;transition:all 150ms ease;">Theaters</button>
+    <button class="filter-btn" data-filter="corporate" style="padding:var(--space-xs) var(--space-md);border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:var(--fw-medium);border:1px solid var(--color-border);cursor:pointer;transition:all 150ms ease;">Corporate / Gala</button>
+    <button class="filter-btn" data-filter="wedding" style="padding:var(--space-xs) var(--space-md);border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:var(--fw-medium);border:1px solid var(--color-border);cursor:pointer;transition:all 150ms ease;">Wedding / Event</button>
+    <button class="filter-btn" data-filter="agency" style="padding:var(--space-xs) var(--space-md);border-radius:var(--radius-full);font-size:var(--text-sm);font-weight:var(--fw-medium);border:1px solid var(--color-border);cursor:pointer;transition:all 150ms ease;">Agencies</button>
+  </div>
+
+  <!-- Data Table -->
+  <div class="card" id="leads-table-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
+</div>
+
+<script>
+(function(){
+  if(typeof DataStore==='undefined')return;
+
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  var currentFilter='all';
+
+  /* ---- Category badge colors ---- */
+  var catBadge={
+    restaurant: {label:'Restaurant',  bg:'rgba(184,134,11,0.15)',  color:'#d4a017'},
+    theater:    {label:'Theater',     bg:'rgba(88,166,255,0.15)',  color:'#58a6ff'},
+    corporate:  {label:'Corporate',   bg:'rgba(188,140,255,0.15)', color:'#bc8cff'},
+    wedding:    {label:'Wedding',     bg:'rgba(63,185,80,0.15)',   color:'#3fb950'},
+    agency:     {label:'Agency',      bg:'rgba(210,153,34,0.15)',  color:'#d29922'}
+  };
+
+  /* ---- Status pill colors ---- */
+  var statusPill={
+    'not-contacted': {label:'Not Contacted', bg:'rgba(139,148,158,0.15)', color:'#8b949e'},
+    'contacted':     {label:'Contacted',     bg:'rgba(88,166,255,0.15)',  color:'#58a6ff'},
+    'in-talks':      {label:'In Talks',      bg:'rgba(210,153,34,0.15)',  color:'#d29922'},
+    'booked':        {label:'Booked',        bg:'rgba(63,185,80,0.15)',   color:'#3fb950'},
+    'declined':      {label:'Declined',      bg:'rgba(248,81,73,0.15)',   color:'#f85149'},
+    'follow-up':     {label:'Follow Up',     bg:'rgba(188,140,255,0.15)', color:'#bc8cff'}
+  };
+
+  /* ---- Priority pill colors ---- */
+  var priorityPill={
+    'high':   {label:'High',   bg:'rgba(248,81,73,0.15)',   color:'#f85149'},
+    'medium': {label:'Medium', bg:'rgba(210,153,34,0.15)',  color:'#d29922'},
+    'low':    {label:'Low',    bg:'rgba(139,148,158,0.15)', color:'#8b949e'}
+  };
+
+  /* ---- Render stats bar ---- */
+  function renderStats(){
+    var bar=document.getElementById('leads-stats-bar');
+    if(!bar)return;
+    var all=DataStore.getVenueLeads();
+    var contacted=all.filter(function(l){return l.outreachStatus==='contacted'||l.outreachStatus==='in-talks'||l.outreachStatus==='booked'||l.outreachStatus==='follow-up';}).length;
+    var booked=all.filter(function(l){return l.outreachStatus==='booked';}).length;
+    var notContacted=all.filter(function(l){return l.outreachStatus==='not-contacted';}).length;
+
+    var stats=[
+      {icon:'fa-building-columns',label:'Total Leads',value:all.length,color:'#58a6ff'},
+      {icon:'fa-phone',label:'Contacted',value:contacted,color:'#d29922'},
+      {icon:'fa-check-circle',label:'Booked',value:booked,color:'#3fb950'},
+      {icon:'fa-clock',label:'Not Contacted',value:notContacted,color:'#8b949e'}
+    ];
+
+    bar.innerHTML=stats.map(function(s){
+      return '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md);">'+
+        '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-xs);">'+
+          '<i class="fa-solid '+s.icon+'" style="color:'+s.color+';font-size:var(--text-lg);"></i>'+
+          '<span style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+s.value+'</span>'+
+        '</div>'+
+        '<span style="font-size:var(--text-xs);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;">'+s.label+'</span>'+
+      '</div>';
+    }).join('');
+  }
+
+  /* ---- Render table ---- */
+  function renderTable(){
+    var c=document.getElementById('leads-table-container');
+    if(!c)return;
+    var data=DataStore.getVenueLeads();
+
+    /* Apply filter */
+    if(currentFilter!=='all'){
+      data=data.filter(function(l){return l.category===currentFilter;});
+    }
+
+    if(!data.length){
+      var emptyMsg=currentFilter==='all'?'No venue leads yet. Add your first lead.':'No '+currentFilter+' venues found.';
+      c.innerHTML='<div class="empty-state" style="text-align:center;padding:var(--space-3xl) var(--space-lg);"><div class="empty-state-icon" style="font-size:var(--text-4xl);color:var(--color-text-muted);margin-bottom:var(--space-md);"><i class="fa-solid fa-building-columns"></i></div><h3 class="empty-state-title" style="color:var(--color-text);margin-bottom:var(--space-sm);">No Venue Leads</h3><p class="empty-state-text" style="color:var(--color-text-secondary);font-size:var(--text-sm);">'+emptyMsg+'</p></div>';
+      return;
+    }
+
+    var headers=['Name','Category','Location','Capacity','Priority','Status','Last Contact','Website'];
+    if(isLocal) headers.push('Actions');
+
+    var html='<div style="overflow-x:auto;"><table class="data-table" style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:2px solid var(--color-border);">';
+    headers.forEach(function(h){
+      html+='<th style="padding:var(--space-sm);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);font-weight:var(--fw-semibold);white-space:nowrap;">'+h+'</th>';
+    });
+    html+='</tr></thead><tbody>';
+
+    data.forEach(function(l){
+      var cb=catBadge[l.category]||{label:l.category||'Other',bg:'rgba(139,148,158,0.15)',color:'#8b949e'};
+      var sp=statusPill[l.outreachStatus]||{label:l.outreachStatus||'Unknown',bg:'rgba(139,148,158,0.15)',color:'#8b949e'};
+      var pp=priorityPill[l.priority]||{label:l.priority||'—',bg:'rgba(139,148,158,0.15)',color:'#8b949e'};
+      var loc=l.city?(Utils.escapeHtml(l.city)+', '+Utils.escapeHtml(l.state||'')):'\u2014';
+      var cap=l.capacity?Utils.escapeHtml(l.capacity):'\u2014';
+      var lastContact=l.lastContact?Utils.formatDate(l.lastContact):'\u2014';
+      var websiteLink=l.website?'<a href="'+Utils.escapeHtml(l.website)+'" target="_blank" rel="noopener" style="color:var(--color-gold);text-decoration:none;font-size:var(--text-xs);" title="'+Utils.escapeHtml(l.website)+'"><i class="fa-solid fa-external-link-alt"></i> Visit</a>':'\u2014';
+
+      html+='<tr style="border-bottom:1px solid var(--color-border);">'+
+        '<td data-label="Name" style="padding:var(--space-sm);font-size:var(--text-sm);"><strong>'+Utils.escapeHtml(l.name)+'</strong></td>'+
+        '<td data-label="Category" style="padding:var(--space-sm);"><span style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--fw-semibold);background:'+cb.bg+';color:'+cb.color+';">'+cb.label+'</span></td>'+
+        '<td data-label="Location" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+loc+'</td>'+
+        '<td data-label="Capacity" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+cap+'</td>'+
+        '<td data-label="Priority" style="padding:var(--space-sm);"><span style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--fw-semibold);background:'+pp.bg+';color:'+pp.color+';">'+pp.label+'</span></td>'+
+        '<td data-label="Status" style="padding:var(--space-sm);"><span style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--fw-semibold);background:'+sp.bg+';color:'+sp.color+';">'+sp.label+'</span></td>'+
+        '<td data-label="Last Contact" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+lastContact+'</td>'+
+        '<td data-label="Website" style="padding:var(--space-sm);">'+websiteLink+'</td>'+
+        (isLocal?'<td data-label="Actions" style="padding:var(--space-sm);"><div style="display:flex;gap:var(--space-xs);">'+
+          '<button class="btn btn-ghost btn-sm" onclick="editLead(\''+l.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-text-secondary);background:none;border:none;cursor:pointer;" title="Edit"><i class="fa-solid fa-pen"></i></button>'+
+          '<button class="btn btn-ghost btn-sm text-danger" onclick="deleteLead(\''+l.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-danger);background:none;border:none;cursor:pointer;" title="Delete"><i class="fa-solid fa-trash"></i></button>'+
+        '</div></td>':'')+
+      '</tr>';
+    });
+    html+='</tbody></table></div>';
+    c.innerHTML=html;
+  }
+
+  /* ---- Filter buttons ---- */
+  var filterBar=document.getElementById('leads-filters');
+  if(filterBar){
+    filterBar.addEventListener('click',function(e){
+      var btn=e.target.closest('.filter-btn');
+      if(!btn)return;
+      currentFilter=btn.getAttribute('data-filter')||'all';
+
+      filterBar.querySelectorAll('.filter-btn').forEach(function(b){
+        var isActive=b===btn;
+        b.classList.toggle('active',isActive);
+        b.style.background=isActive?'var(--color-gold)':'none';
+        b.style.color=isActive?'var(--color-text-inverse)':'var(--color-text-secondary)';
+        b.style.borderColor=isActive?'var(--color-gold)':'var(--color-border)';
+      });
+
+      renderTable();
+    });
+
+    filterBar.querySelectorAll('.filter-btn').forEach(function(b){
+      var isActive=b.classList.contains('active');
+      b.style.background=isActive?'var(--color-gold)':'none';
+      b.style.color=isActive?'var(--color-text-inverse)':'var(--color-text-secondary)';
+      b.style.borderColor=isActive?'var(--color-gold)':'var(--color-border)';
+    });
+  }
+
+  /* ---- Modal form HTML ---- */
+  function leadFormHTML(data){
+    var d=data||{};
+    var esc=Utils.escapeHtml;
+    return '<form id="modal-form">'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Venue Name *</label><input type="text" class="form-input" name="name" required placeholder="Venue name" value="'+esc(d.name||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Category *</label><select class="form-select" name="category" required style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);">'+
+          '<option value="restaurant"'+(d.category==='restaurant'?' selected':'')+'>Restaurant</option>'+
+          '<option value="theater"'+(d.category==='theater'?' selected':'')+'>Theater</option>'+
+          '<option value="corporate"'+(d.category==='corporate'?' selected':'')+'>Corporate / Gala</option>'+
+          '<option value="wedding"'+(d.category==='wedding'?' selected':'')+'>Wedding / Event</option>'+
+          '<option value="agency"'+(d.category==='agency'?' selected':'')+'>Agency</option>'+
+        '</select></div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-md);margin-top:var(--space-md);">'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">City</label><input type="text" class="form-input" name="city" placeholder="City" value="'+esc(d.city||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">State</label><input type="text" class="form-input" name="state" placeholder="State" value="'+esc(d.state||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Capacity</label><input type="text" class="form-input" name="capacity" placeholder="e.g. 300" value="'+esc(d.capacity||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-top:var(--space-md);">'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Priority</label><select class="form-select" name="priority" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);">'+
+          '<option value="high"'+(d.priority==='high'?' selected':'')+'>High</option>'+
+          '<option value="medium"'+(!d.priority||d.priority==='medium'?' selected':'')+'>Medium</option>'+
+          '<option value="low"'+(d.priority==='low'?' selected':'')+'>Low</option>'+
+        '</select></div>'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Outreach Status</label><select class="form-select" name="outreachStatus" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);">'+
+          '<option value="not-contacted"'+(!d.outreachStatus||d.outreachStatus==='not-contacted'?' selected':'')+'>Not Contacted</option>'+
+          '<option value="contacted"'+(d.outreachStatus==='contacted'?' selected':'')+'>Contacted</option>'+
+          '<option value="in-talks"'+(d.outreachStatus==='in-talks'?' selected':'')+'>In Talks</option>'+
+          '<option value="follow-up"'+(d.outreachStatus==='follow-up'?' selected':'')+'>Follow Up</option>'+
+          '<option value="booked"'+(d.outreachStatus==='booked'?' selected':'')+'>Booked</option>'+
+          '<option value="declined"'+(d.outreachStatus==='declined'?' selected':'')+'>Declined</option>'+
+        '</select></div>'+
+      '</div>'+
+      '<div class="form-group" style="margin-top:var(--space-md);"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Website</label><input type="url" class="form-input" name="website" placeholder="https://..." value="'+esc(d.website||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+      '<div style="margin-top:var(--space-md);padding-top:var(--space-md);border-top:1px solid rgba(255,255,255,0.08);"><h4 style="margin:0 0 var(--space-sm);font-size:var(--text-sm);color:var(--color-gold);font-weight:var(--fw-semibold);"><i class="fa-solid fa-address-book" style="margin-right:6px;"></i> Contact Info</h4></div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-md);margin-top:var(--space-sm);">'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Contact Name</label><input type="text" class="form-input" name="contactName" placeholder="Name" value="'+esc(d.contactName||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Email</label><input type="email" class="form-input" name="contactEmail" placeholder="email@venue.com" value="'+esc(d.contactEmail||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+        '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Phone</label><input type="tel" class="form-input" name="contactPhone" placeholder="(555) 123-4567" value="'+esc(d.contactPhone||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+      '</div>'+
+      '<div class="form-group" style="margin-top:var(--space-md);"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Last Contact Date</label><input type="date" class="form-input" name="lastContact" value="'+(d.lastContact||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
+      '<div class="form-group" style="margin-top:var(--space-md);"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Notes</label><textarea class="form-textarea" name="notes" rows="3" placeholder="Internal notes about this venue..." style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);resize:vertical;">'+esc(d.notes||'')+'</textarea></div>'+
+    '</form>';
+  }
+
+  /* ---- Collect form data ---- */
+  function collectFormData(){
+    var f=document.getElementById('modal-form');
+    if(!f)return null;
+    var d={};
+    new FormData(f).forEach(function(v,k){d[k]=v;});
+    return d;
+  }
+
+  /* ---- Hide Add Lead button when not local ---- */
+  if(!isLocal){
+    var addLeadBtn=document.getElementById('add-lead-btn');
+    if(addLeadBtn) addLeadBtn.style.display='none';
+  }
+
+  /* ---- Add Lead ---- */
+  var addBtn=document.getElementById('add-lead-btn');
+  if(addBtn){
+    addBtn.addEventListener('click',function(){
+      if(typeof Modal==='undefined')return;
+      Modal.open({
+        title:'Add Venue Lead',
+        size:'lg',
+        content:leadFormHTML({outreachStatus:'not-contacted',priority:'medium',category:'restaurant'}),
+        saveText:'Add Lead',
+        onSave:function(){
+          var d=collectFormData();
+          if(!d||!d.name){Toast.error('Venue name is required');return;}
+          DataStore.addVenueLead(d);
+          Modal.close();
+          Toast.success('Added: '+d.name);
+          renderStats();
+          renderTable();
+        }
+      });
+    });
+  }
+
+  /* ---- Edit Lead ---- */
+  window.editLead=function(id){
+    var l=DataStore.getVenueLead(id);
+    if(!l||typeof Modal==='undefined')return;
+    Modal.open({
+      title:'Edit: '+l.name,
+      size:'lg',
+      content:leadFormHTML(l),
+      saveText:'Save',
+      onSave:function(){
+        var d=collectFormData();
+        if(!d)return;
+        DataStore.updateVenueLead(id,d);
+        Modal.close();
+        Toast.success('Updated: '+(d.name||l.name));
+        renderStats();
+        renderTable();
+      }
+    });
+  };
+
+  /* ---- Delete Lead ---- */
+  window.deleteLead=function(id){
+    var l=DataStore.getVenueLead(id);
+    if(!l)return;
+    Modal.confirm('Delete "'+l.name+'" from venue leads?',function(){
+      DataStore.deleteVenueLead(id);
+      Toast.success('Removed: '+l.name);
+      renderStats();
+      renderTable();
+    });
+  };
+
+  renderStats();
+  renderTable();
+})();
+</script>
