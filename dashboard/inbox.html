@@ -122,7 +122,7 @@
 
   function apiHeaders() {
     var h = { 'Content-Type': 'application/json' };
-    if (typeof Auth !== 'undefined' && Auth._apiKey) h['X-API-Key'] = Auth._apiKey;
+    if (typeof Auth !== 'undefined' && Auth._apiKey) h['Authorization'] = 'Bearer ' + Auth._apiKey;
     return h;
   }
 
