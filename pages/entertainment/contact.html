@@ -113,21 +113,83 @@
 </section>
 <script>
 (function() {
+  'use strict';
   var form = document.getElementById('ent-contact-form');
   if (!form) return;
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    var name = form.querySelector('[name="name"]').value.trim();
-    var email = form.querySelector('[name="email"]').value.trim();
-    var message = form.querySelector('[name="message"]').value.trim();
-    if (!name || !email || !message) {
-      if (typeof Toast !== 'undefined') Toast.error('Please fill in all required fields.');
+
+  var FALLBACK_EMAIL = 'booking@goldbottom-ent.com';
+
+  function showFeedback(msg, isError) {
+    if (typeof Toast !== 'undefined') {
+      isError ? Toast.error(msg) : Toast.success(msg);
       return;
     }
-    if (typeof Toast !== 'undefined') {
-      Toast.success('Message sent! We\'ll get back to you within 24-48 hours.');
+    var status = form.querySelector('.form-status');
+    if (!status) {
+      status = document.createElement('div');
+      status.className = 'form-status';
+      status.style.cssText = 'margin-top:12px;padding:10px 14px;border-radius:6px;font-size:14px;';
+      form.appendChild(status);
     }
-    form.reset();
+    status.style.background = isError ? 'rgba(248,81,73,0.15)' : 'rgba(63,185,80,0.15)';
+    status.style.color = isError ? '#f85149' : '#3fb950';
+    status.textContent = msg;
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Safeguard 1: Firestore availability guard
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      showFeedback('Unable to send \u2014 please try again later or email us at ' + FALLBACK_EMAIL, true);
+      return;
+    }
+
+    // Safeguard 3: Validate all required fields (inquiryType, name, email, subject, message)
+    var inquiryType = form.querySelector('[name="inquiryType"]').value;
+    var name = form.querySelector('[name="name"]').value.trim();
+    var email = form.querySelector('[name="email"]').value.trim();
+    var subject = form.querySelector('[name="subject"]').value.trim();
+    var message = form.querySelector('[name="message"]').value.trim();
+
+    if (!inquiryType || !name || !email || !subject || !message) {
+      showFeedback('Please fill in all required fields.', true);
+      return;
+    }
+
+    // Collect all form fields
+    var data = {
+      formType: 'entertainment',
+      source: 'gbe-public',
+      inquiryType: inquiryType,
+      name: name,
+      email: email,
+      phone: form.querySelector('[name="phone"]').value.trim() || '',
+      eventDate: form.querySelector('[name="eventDate"]').value || '',
+      subject: subject,
+      message: message,
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Disable submit button to prevent double-submit
+    var btn = form.querySelector('[type="submit"]');
+    var origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending\u2026';
+
+    // Safeguard 2: Write to Firestore with server timestamp
+    Auth._db.collection('contact_submissions').add(data)
+      .then(function() {
+        showFeedback('Message sent! We\u2019ll get back to you within 24\u201348 hours.', false);
+        form.reset();
+      })
+      .catch(function() {
+        showFeedback('Unable to send \u2014 please try again or email us at ' + FALLBACK_EMAIL, true);
+      })
+      .then(function() {
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+      });
   });
 })();
 </script>
