@@ -12,7 +12,7 @@ const SiteConfig = {
     tagline: 'Elevating Talent. Building Brands. Creating Legacy.',
     description: 'Talent Management, Creative Services & Enterprise Solutions',
     year: 2026,
-    email: '[YOUR BUSINESS EMAIL]',
+    email: 'booking@layoungbandpage.com',
     phone: '[YOUR BUSINESS PHONE]',
     address: '[YOUR BUSINESS ADDRESS]',
     state: 'Maryland',

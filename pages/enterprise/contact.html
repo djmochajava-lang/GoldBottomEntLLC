@@ -96,7 +96,7 @@
               <i class="fa-solid fa-envelope text-gold"></i>
               <div>
                 <span class="text-muted">Email</span>
-                <a href="mailto:dev@goldbottom-ent.com">dev@goldbottom-ent.com</a>
+                <p>Use the form to reach us directly</p>
               </div>
             </div>
             <div class="contact-info-item">
@@ -154,7 +154,7 @@
   var form = document.getElementById('biz-contact-form');
   if (!form) return;
 
-  var FALLBACK_EMAIL = 'dev@goldbottom-ent.com';
+  var FALLBACK_EMAIL = 'booking@layoungbandpage.com';
 
   function showFeedback(msg, isError) {
     if (typeof Toast !== 'undefined') {
@@ -198,6 +198,7 @@
     var data = {
       formType: 'enterprise',
       source: 'gbe-public',
+      routeTo: 'ceo',
       inquiryType: inquiryType,
       name: name,
       email: email,

@@ -60,7 +60,7 @@
               <i class="fa-solid fa-envelope text-gold"></i>
               <div>
                 <span class="text-muted">Email</span>
-                <a href="mailto:booking@goldbottom-ent.com">booking@goldbottom-ent.com</a>
+                <a href="mailto:booking@layoungbandpage.com">booking@layoungbandpage.com</a>
               </div>
             </div>
             <div class="contact-info-item">
@@ -117,7 +117,7 @@
   var form = document.getElementById('ent-contact-form');
   if (!form) return;
 
-  var FALLBACK_EMAIL = 'booking@goldbottom-ent.com';
+  var FALLBACK_EMAIL = 'booking@layoungbandpage.com';
 
   function showFeedback(msg, isError) {
     if (typeof Toast !== 'undefined') {
@@ -161,6 +161,7 @@
     var data = {
       formType: 'entertainment',
       source: 'gbe-public',
+      routeTo: 'ceo',
       inquiryType: inquiryType,
       name: name,
       email: email,

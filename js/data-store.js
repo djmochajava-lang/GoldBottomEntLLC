@@ -516,7 +516,7 @@ const DataStore = {
         category: 'artist',
         genre: 'Soul / Jazz / Blues / R&B',
         status: 'active',
-        email: 'layoung@goldbottom-ent.com',
+        email: 'booking@layoungbandpage.com',
         phone: '[PHONE]',
         bio: 'International soul artist, Phyllis Hyman tribute performer. #1 UK FM Radio, 5 Top-5 UK hits, Maryland Artist of Year 2018.',
         website: '../LAYoungBandPage/index.html',
