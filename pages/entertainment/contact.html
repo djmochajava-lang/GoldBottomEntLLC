@@ -117,7 +117,17 @@
   var form = document.getElementById('ent-contact-form');
   if (!form) return;
 
-  var FALLBACK_EMAIL = 'booking@layoungbandpage.com';
+  var BOOKING_EMAIL = 'booking@layoungbandpage.com';
+
+  function isBookingInquiry() {
+    return form.querySelector('[name="inquiryType"]').value === 'booking';
+  }
+
+  function getFallbackMsg() {
+    return isBookingInquiry()
+      ? 'Unable to send \u2014 please try again or email us at ' + BOOKING_EMAIL
+      : 'Unable to send \u2014 please try again later.';
+  }
 
   function showFeedback(msg, isError) {
     if (typeof Toast !== 'undefined') {
@@ -141,7 +151,7 @@
 
     // Safeguard 1: Firestore availability guard
     if (typeof Auth === 'undefined' || !Auth._db) {
-      showFeedback('Unable to send \u2014 please try again later or email us at ' + FALLBACK_EMAIL, true);
+      showFeedback(getFallbackMsg(), true);
       return;
     }
 
@@ -157,11 +167,14 @@
       return;
     }
 
+    // Route booking inquiries to artist brand, everything else to CEO
+    var routeTo = (inquiryType === 'booking') ? 'booking' : 'ceo';
+
     // Collect all form fields
     var data = {
       formType: 'entertainment',
       source: 'gbe-public',
-      routeTo: 'ceo',
+      routeTo: routeTo,
       inquiryType: inquiryType,
       name: name,
       email: email,
@@ -185,7 +198,7 @@
         form.reset();
       })
       .catch(function() {
-        showFeedback('Unable to send \u2014 please try again or email us at ' + FALLBACK_EMAIL, true);
+        showFeedback(getFallbackMsg(), true);
       })
       .then(function() {
         btn.disabled = false;
