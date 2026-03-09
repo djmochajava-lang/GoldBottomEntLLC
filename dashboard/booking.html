@@ -204,7 +204,11 @@
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
 
   /* ---- API Helpers ---- */
-  function apiUrl() { return window.location.origin + '/api/v1'; }
+  function apiUrl() {
+    // Use Auth._serverUrl to handle dev server (e.g. port 8111) → API server (port 3000)
+    if (typeof Auth !== 'undefined' && Auth._serverUrl) return Auth._serverUrl + '/api/v1';
+    return window.location.origin + '/api/v1';
+  }
   function apiHeaders() {
     var h = { 'Content-Type': 'application/json' };
     if (typeof Auth !== 'undefined') {

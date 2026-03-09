@@ -64,7 +64,10 @@
   var ownerLabels = { 'entertainment': 'Entertainment', 'enterprise': 'Enterprise', 'admin': 'Admin' };
 
   /* ---- API helpers ---- */
-  function apiUrl() { return window.location.origin + '/api/v1'; }
+  function apiUrl() {
+    if (typeof Auth !== 'undefined' && Auth._serverUrl) return Auth._serverUrl + '/api/v1';
+    return window.location.origin + '/api/v1';
+  }
   function apiHeaders() {
     var h = { 'Content-Type': 'application/json' };
     if (typeof Auth !== 'undefined') {

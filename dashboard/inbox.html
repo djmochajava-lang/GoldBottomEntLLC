@@ -117,6 +117,7 @@
 
   /* ---- API Helper ---- */
   function apiUrl() {
+    if (typeof Auth !== 'undefined' && Auth._serverUrl) return Auth._serverUrl + '/api/v1';
     return window.location.origin + '/api/v1';
   }
 
