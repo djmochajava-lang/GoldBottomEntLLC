@@ -56,6 +56,10 @@ const Router = {
     'dashboard-architecture': 'dashboard/architecture.html',
     'dashboard-credentials': 'dashboard/credentials.html',
     'dashboard-servers': 'dashboard/servers.html',
+
+    // Analytics & Export (OPS-METRICS-001)
+    'dashboard-metrics': 'dashboard/metrics.html',
+    'dashboard-export': 'dashboard/export.html',
   },
 
   /**
@@ -82,6 +86,8 @@ const Router = {
     'dashboard-credentials',
     'dashboard-architecture',
     'dashboard-servers',
+    'dashboard-metrics',
+    'dashboard-export',
   ],
 
   currentPage: null,
@@ -389,6 +395,8 @@ const Router = {
       'dashboard-architecture': 'Site Architecture',
       'dashboard-credentials': 'Credentials & Connections',
       'dashboard-servers': 'Servers & Costs',
+      'dashboard-metrics': 'Metrics & Analytics',
+      'dashboard-export': 'Evidence Export',
     };
 
     const label = labels[pageName] || 'Dashboard';

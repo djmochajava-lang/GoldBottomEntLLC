@@ -1,0 +1,305 @@
+<!-- dashboard/metrics.html — Ecosystem Metrics & Analytics (OPS-METRICS-001) -->
+<div class="dashboard-page" id="dash-metrics">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>Metrics & Analytics</h1><p class="text-muted">Ecosystem-wide lead capture, conversion, and system health overview.</p></div>
+      <div style="display:flex;gap:var(--space-sm);align-items:center;flex-wrap:wrap;">
+        <input type="date" id="metrics-start" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+        <span style="color:var(--color-text-muted);">to</span>
+        <input type="date" id="metrics-end" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+        <button class="btn btn-primary" id="metrics-apply-btn"><i class="fa-solid fa-filter"></i> Apply</button>
+        <button class="btn" id="metrics-refresh-btn" style="border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);cursor:pointer;"><i class="fa-solid fa-rotate"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Health Row -->
+  <div style="margin-bottom:var(--space-lg);">
+    <h3 style="font-size:var(--text-base);margin-bottom:var(--space-sm);color:var(--color-text-muted);"><i class="fa-solid fa-heart-pulse"></i> System Health</h3>
+    <div id="metrics-system" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);"></div>
+  </div>
+
+  <!-- Lead Capture Row -->
+  <div style="margin-bottom:var(--space-lg);">
+    <h3 style="font-size:var(--text-base);margin-bottom:var(--space-sm);color:var(--color-text-muted);"><i class="fa-solid fa-envelope-open-text"></i> Lead Capture</h3>
+    <div id="metrics-intake" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--space-md);"></div>
+  </div>
+
+  <!-- Source Breakdown Table -->
+  <div style="margin-bottom:var(--space-lg);">
+    <h3 style="font-size:var(--text-base);margin-bottom:var(--space-sm);color:var(--color-text-muted);"><i class="fa-solid fa-chart-pie"></i> Source Breakdown</h3>
+    <div class="card" id="metrics-source-table" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);overflow-x:auto;"></div>
+  </div>
+
+  <!-- Conversion Row -->
+  <div style="margin-bottom:var(--space-lg);">
+    <h3 style="font-size:var(--text-base);margin-bottom:var(--space-sm);color:var(--color-text-muted);"><i class="fa-solid fa-handshake"></i> Conversion & Bookings</h3>
+    <div id="metrics-bookings" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);"></div>
+  </div>
+
+  <!-- Recent Activity Table -->
+  <div style="margin-bottom:var(--space-lg);">
+    <h3 style="font-size:var(--text-base);margin-bottom:var(--space-sm);color:var(--color-text-muted);"><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h3>
+    <div class="card" id="metrics-activity-table" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);overflow-x:auto;"></div>
+  </div>
+
+  <!-- Last updated -->
+  <div id="metrics-footer" style="text-align:center;color:var(--color-text-muted);font-size:var(--text-sm);padding:var(--space-sm) 0;"></div>
+</div>
+
+<script>
+(function(){
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+  if (!isLocal) {
+    document.getElementById('metrics-system').innerHTML =
+      '<p class="text-muted" style="text-align:center;padding:var(--space-xl);grid-column:1/-1;">' +
+      '<i class="fa-solid fa-lock"></i> Metrics are only available on the private server dashboard.</p>';
+    return;
+  }
+
+  /* ---- Pill helpers (reuse inbox patterns) ---- */
+  var priorityColors = { P1: '#f85149', P2: '#d29922', P3: '#58a6ff', P4: '#8b949e', P5: '#6e7681' };
+  var statusColors = { 'new': '#58a6ff', 'triaged': '#bc8cff', 'in_progress': '#d29922', 'awaiting_reply': '#e3b341', 'resolved': '#3fb950', 'archived': '#6e7681' };
+  var sourceLabels = { 'la-young': 'LA Young', 'la-young-epk': 'EPK', 'gbe-public': 'GBE Public', 'direct-email': 'Direct Email' };
+  var ownerLabels = { 'entertainment': 'Entertainment', 'enterprise': 'Enterprise', 'admin': 'Admin' };
+
+  /* ---- API helpers ---- */
+  function apiUrl() { return window.location.origin + '/api/v1'; }
+  function apiHeaders() {
+    var h = { 'Content-Type': 'application/json' };
+    if (typeof Auth !== 'undefined' && Auth._apiKey) h['Authorization'] = 'Bearer ' + Auth._apiKey;
+    return h;
+  }
+  async function apiFetch(path, opts) {
+    opts = opts || {};
+    opts.headers = apiHeaders();
+    var resp = await fetch(apiUrl() + path, opts);
+    if (!resp.ok) throw new Error('API error: ' + resp.status);
+    return resp.json();
+  }
+
+  /* ---- Utilities ---- */
+  function escHtml(str) {
+    if (!str) return '';
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function statCard(label, value, color, subtitle) {
+    return '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:center;">' +
+      '<div style="font-size:1.5rem;font-weight:700;color:' + (color || 'var(--color-text)') + ';">' + escHtml(String(value)) + '</div>' +
+      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-top:4px;">' + escHtml(label) + '</div>' +
+      (subtitle ? '<div style="font-size:0.7rem;color:var(--color-text-muted);margin-top:2px;">' + escHtml(subtitle) + '</div>' : '') +
+      '</div>';
+  }
+
+  function miniBar(items, total) {
+    if (!total || total === 0) return '<div style="height:6px;background:var(--color-border);border-radius:3px;"></div>';
+    var html = '<div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:4px;">';
+    for (var i = 0; i < items.length; i++) {
+      var pct = Math.round((items[i].count / total) * 100);
+      if (pct > 0) {
+        html += '<div style="width:' + pct + '%;background:' + items[i].color + ';" title="' + escHtml(items[i].label) + ': ' + items[i].count + '"></div>';
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function formatTimeAgo(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    var now = new Date();
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString();
+  }
+
+  /* ---- Date defaults (last 30 days) ---- */
+  var now = new Date();
+  var end = now.toISOString().split('T')[0];
+  var start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  document.getElementById('metrics-start').value = start;
+  document.getElementById('metrics-end').value = end;
+
+  /* ---- Load metrics ---- */
+  async function loadMetrics() {
+    var s = document.getElementById('metrics-start').value;
+    var e = document.getElementById('metrics-end').value;
+    if (!s || !e) return;
+
+    try {
+      var data = await apiFetch('/metrics/ecosystem?start=' + s + '&end=' + e);
+      renderSystem(data.system);
+      renderIntake(data.intake);
+      renderSourceTable(data.intake);
+      renderBookings(data.bookings);
+      renderActivity(data.activity);
+      document.getElementById('metrics-footer').textContent = 'Last updated: ' + new Date(data.generatedAt).toLocaleString();
+    } catch (err) {
+      console.error('[Metrics] Load error:', err);
+      document.getElementById('metrics-system').innerHTML =
+        '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);grid-column:1/-1;">Failed to load metrics. Is the server running?</p>';
+    }
+  }
+
+  /* ---- Render: System Health ---- */
+  function renderSystem(sys) {
+    var el = document.getElementById('metrics-system');
+    el.innerHTML =
+      statCard('Server Status', 'Online', '#3fb950') +
+      statCard('Uptime', sys.uptime, '#58a6ff') +
+      statCard('Database', sys.dbSize, '#bc8cff') +
+      statCard('Pending Inbox', sys.queueHealth.pendingInbox, sys.queueHealth.pendingInbox > 0 ? '#d29922' : '#3fb950') +
+      statCard('Errored Inbox', sys.queueHealth.erroredInbox, sys.queueHealth.erroredInbox > 0 ? '#f85149' : '#3fb950') +
+      statCard('Version', sys.serverVersion, '#8b949e');
+  }
+
+  /* ---- Render: Lead Capture ---- */
+  function renderIntake(intake) {
+    var el = document.getElementById('metrics-intake');
+
+    // Priority bar items
+    var prioItems = ['P1','P2','P3','P4','P5'].map(function(p) {
+      return { label: p, count: intake.byPriority[p] || 0, color: priorityColors[p] };
+    });
+
+    // Source bar items
+    var srcColors = { 'la-young': '#d4a017', 'la-young-epk': '#d4a017', 'gbe-public': '#58a6ff', 'direct-email': '#3fb950' };
+    var srcItems = Object.keys(intake.bySource).map(function(s) {
+      return { label: sourceLabels[s] || s, count: intake.bySource[s], color: srcColors[s] || '#8b949e' };
+    });
+
+    var newCount = intake.byStatus['new'] || 0;
+    var inProgCount = (intake.byStatus['in_progress'] || 0) + (intake.byStatus['awaiting_reply'] || 0);
+    var resolvedCount = intake.byStatus['resolved'] || 0;
+
+    el.innerHTML =
+      statCard('Total Leads', intake.total, '#8b949e') +
+      statCard('New', newCount, '#58a6ff') +
+      statCard('In Progress', inProgCount, '#d29922') +
+      statCard('Resolved', resolvedCount, '#3fb950') +
+      '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:4px;">By Priority</div>' +
+        prioItems.map(function(p) {
+          return '<span style="display:inline-block;margin:0 2px;font-size:0.75rem;color:' + p.color + ';font-weight:600;">' + p.label + ':' + p.count + '</span>';
+        }).join(' ') +
+        miniBar(prioItems, intake.total) +
+      '</div>' +
+      '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:4px;">By Source</div>' +
+        srcItems.map(function(s) {
+          return '<span style="display:inline-block;margin:0 2px;font-size:0.75rem;color:' + s.color + ';font-weight:600;">' + s.label + ':' + s.count + '</span>';
+        }).join(' ') +
+        miniBar(srcItems, intake.total) +
+      '</div>' +
+      statCard('Avg to Triage', intake.avgResponseTime.toTriageHours != null ? intake.avgResponseTime.toTriageHours + 'h' : 'N/A', '#bc8cff') +
+      statCard('Avg to Resolve', intake.avgResponseTime.toResolutionHours != null ? intake.avgResponseTime.toResolutionHours + 'h' : 'N/A', '#bc8cff');
+  }
+
+  /* ---- Render: Source Breakdown Table ---- */
+  function renderSourceTable(intake) {
+    var el = document.getElementById('metrics-source-table');
+    var rows = intake.sourceBreakdown || [];
+    if (rows.length === 0) {
+      el.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-md);">No intake data for this date range.</p>';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Source</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Form Type</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Count</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">% of Total</th>';
+    html += '</tr></thead><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var pct = intake.total > 0 ? Math.round((r.c / intake.total) * 100) : 0;
+      html += '<tr style="border-bottom:1px solid var(--color-border);">';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + escHtml(sourceLabels[r.source] || r.source) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + escHtml(r.form_type) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);font-weight:600;">' + r.c + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">';
+      html += '<div style="display:flex;align-items:center;gap:var(--space-xs);">';
+      html += '<div style="flex:1;height:6px;background:var(--color-border);border-radius:3px;max-width:100px;"><div style="height:100%;width:' + pct + '%;background:#58a6ff;border-radius:3px;"></div></div>';
+      html += '<span>' + pct + '%</span>';
+      html += '</div></td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  /* ---- Render: Bookings ---- */
+  function renderBookings(bookings) {
+    var el = document.getElementById('metrics-bookings');
+
+    var stageItems = Object.keys(bookings.byStage).map(function(s) {
+      return s + ': ' + bookings.byStage[s];
+    }).join(', ') || 'None';
+
+    el.innerHTML =
+      statCard('Total Bookings', bookings.total, '#8b949e') +
+      statCard('Completed', bookings.completed, '#3fb950') +
+      statCard('Conversion Rate', bookings.conversionRate + '%', bookings.conversionRate > 50 ? '#3fb950' : '#d29922') +
+      '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);">' +
+        '<div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:4px;">Pipeline</div>' +
+        '<div style="font-size:0.75rem;color:var(--color-text);">' + escHtml(stageItems) + '</div>' +
+      '</div>';
+  }
+
+  /* ---- Render: Activity Table ---- */
+  function renderActivity(activity) {
+    var el = document.getElementById('metrics-activity-table');
+    var rows = activity.recent || [];
+    if (rows.length === 0) {
+      el.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-md);">No recent activity.</p>';
+      return;
+    }
+
+    var actionColors = { 'create': '#3fb950', 'update': '#58a6ff', 'delete': '#f85149' };
+
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Time</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Action</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Entity Type</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Name</th>';
+    html += '</tr></thead><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var color = actionColors[r.action] || '#8b949e';
+      html += '<tr style="border-bottom:1px solid var(--color-border);">';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);color:var(--color-text-muted);white-space:nowrap;">' + escHtml(formatTimeAgo(r.timestamp)) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);"><span style="display:inline-block;padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;font-weight:600;background:' + color + '22;color:' + color + ';">' + escHtml(r.action) + '</span></td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + escHtml(r.entity_type) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.entity_name || r.entity_id || '-') + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+
+    // Summary bar below table
+    var actionSummary = Object.keys(activity.byAction).map(function(a) {
+      return a + ': ' + activity.byAction[a];
+    }).join(' | ');
+    html += '<div style="padding:var(--space-sm) 0;font-size:var(--text-sm);color:var(--color-text-muted);">' +
+      'Total in range: ' + activity.total + (actionSummary ? ' (' + escHtml(actionSummary) + ')' : '') + '</div>';
+
+    el.innerHTML = html;
+  }
+
+  /* ---- Event Listeners ---- */
+  document.getElementById('metrics-apply-btn').addEventListener('click', loadMetrics);
+  document.getElementById('metrics-refresh-btn').addEventListener('click', loadMetrics);
+
+  /* ---- Initial Load ---- */
+  loadMetrics();
+
+  /* ---- Auto-refresh every 120 seconds ---- */
+  setInterval(loadMetrics, 120000);
+})();
+</script>
