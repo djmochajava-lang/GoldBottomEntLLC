@@ -67,7 +67,10 @@
   function apiUrl() { return window.location.origin + '/api/v1'; }
   function apiHeaders() {
     var h = { 'Content-Type': 'application/json' };
-    if (typeof Auth !== 'undefined' && Auth._apiKey) h['Authorization'] = 'Bearer ' + Auth._apiKey;
+    if (typeof Auth !== 'undefined') {
+      var token = Auth._apiKey || Auth._sessionToken;
+      if (token) h['Authorization'] = 'Bearer ' + token;
+    }
     return h;
   }
   async function apiFetch(path, opts) {
