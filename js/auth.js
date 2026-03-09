@@ -88,6 +88,10 @@ const Auth = {
             Auth._authorized = true;
             Auth._registrationStatus = 'approved';
             Auth._role = 'admin';
+
+            // Still initialize Firestore so contact forms can write submissions
+            Auth._initFirestoreOnly();
+
             Auth.initialized = true;
             Auth._updatePinUI(result.user || 'Admin (Local)');
             Auth._notifyListeners(null);
@@ -308,6 +312,42 @@ const Auth = {
 
     this.initialized = true;
     console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft, Email/Password + Firestore)');
+  },
+
+  /**
+   * Initialize Firebase App + Firestore only (no auth providers or listeners).
+   * Used by PIN auth path so contact forms can still write to Firestore.
+   * @private
+   */
+  _initFirestoreOnly: function() {
+    if (this._db) return; // Already initialized
+    if (typeof firebase === 'undefined') return;
+
+    var config = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
+      ? SiteConfig.integrations.firebase : null;
+    if (!config || !config.apiKey || config.apiKey === '[FIREBASE_API_KEY]') return;
+
+    try {
+      if (!firebase.apps.length) {
+        this._app = firebase.initializeApp({
+          apiKey: config.apiKey,
+          authDomain: config.authDomain,
+          projectId: config.projectId,
+          storageBucket: config.storageBucket,
+          messagingSenderId: config.messagingSenderId,
+          appId: config.appId
+        });
+      } else {
+        this._app = firebase.app();
+      }
+
+      if (typeof firebase.firestore === 'function') {
+        this._db = firebase.firestore();
+        console.log('[Auth] Firestore connected (PIN auth path)');
+      }
+    } catch (e) {
+      console.warn('[Auth] Firestore init failed in PIN path:', e);
+    }
   },
 
   /* ------------------------------------------

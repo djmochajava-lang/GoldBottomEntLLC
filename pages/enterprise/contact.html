@@ -154,7 +154,7 @@
   var form = document.getElementById('biz-contact-form');
   if (!form) return;
 
-  var FALLBACK_EMAIL = 'booking@layoungbandpage.com';
+  var FALLBACK_MSG = 'Unable to send \u2014 please try again later.';
 
   function showFeedback(msg, isError) {
     if (typeof Toast !== 'undefined') {
@@ -178,7 +178,7 @@
 
     // Safeguard 1: Firestore availability guard
     if (typeof Auth === 'undefined' || !Auth._db) {
-      showFeedback('Unable to send \u2014 please try again later or email us at ' + FALLBACK_EMAIL, true);
+      showFeedback(FALLBACK_MSG, true);
       return;
     }
 
@@ -224,7 +224,7 @@
         form.reset();
       })
       .catch(function() {
-        showFeedback('Unable to send \u2014 please try again or email us at ' + FALLBACK_EMAIL, true);
+        showFeedback(FALLBACK_MSG, true);
       })
       .then(function() {
         btn.disabled = false;
