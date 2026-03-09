@@ -253,6 +253,50 @@
     return parseInt(hex.substring(0,2),16)+','+parseInt(hex.substring(2,4),16)+','+parseInt(hex.substring(4,6),16);
   }
 
+  /* ---- Email Protocol (which email to use at each stage) ---- */
+  var emailProtocol = null;
+
+  async function loadEmailProtocol() {
+    if (!isLocal) return;
+    try {
+      emailProtocol = await apiFetch('/queue/email-protocol');
+    } catch (e) {
+      console.warn('[Booking] Email protocol load error:', e);
+    }
+  }
+
+  function getReplyFrom(stage) {
+    if (!emailProtocol || !emailProtocol.stageMap) return null;
+    var email = emailProtocol.stageMap[stage];
+    if (!email) return null;
+    var isCorporate = emailProtocol.corporateStages.includes(stage);
+    return {
+      email: email,
+      label: isCorporate ? emailProtocol.corporateLabel : emailProtocol.bookingLabel,
+      isCorporate: isCorporate
+    };
+  }
+
+  function replyFromHTML(stage) {
+    var info = getReplyFrom(stage);
+    if (!info) return '';
+    var bgColor = info.isCorporate ? 'rgba(88,166,255,0.08)' : 'rgba(184,134,11,0.08)';
+    var borderColor = info.isCorporate ? '#58a6ff' : '#d4a017';
+    var iconColor = info.isCorporate ? '#58a6ff' : '#d4a017';
+    return '<div style="margin-bottom:var(--space-md);padding:var(--space-sm) var(--space-md);background:' + bgColor + ';border:1px solid ' + borderColor + ';border-radius:var(--radius-md);display:flex;align-items:center;gap:var(--space-sm);">' +
+      '<i class="fa-solid fa-envelope" style="color:' + iconColor + ';font-size:1rem;"></i>' +
+      '<div><div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text);">Reply from: ' + esc(info.email) + '</div>' +
+      '<div style="font-size:0.75rem;color:var(--color-text-muted);">' + esc(info.label) + '</div></div></div>';
+  }
+
+  function columnEmailBadge(stage) {
+    if (!emailProtocol || !emailProtocol.stageMap) return '';
+    var isCorporate = emailProtocol.corporateStages.includes(stage);
+    var shortLabel = isCorporate ? 'JP' : 'booking@';
+    var color = isCorporate ? '#58a6ff' : '#d4a017';
+    return '<div style="font-size:0.65rem;color:' + color + ';margin-top:2px;opacity:0.7;"><i class="fa-solid fa-envelope" style="font-size:0.55rem;margin-right:2px;"></i>' + shortLabel + '</div>';
+  }
+
   /* ---- Stage / Status Configs ---- */
   var inquiryStages = [
     { key: 'new',            label: 'New',            icon: 'fa-inbox',           color: '#58a6ff' },
@@ -426,6 +470,9 @@
       var pp = priorityPill[r.priority] || priorityPill.P3;
       html += pill(pp.bg, pp.color, r.priority);
       html += '</div>';
+
+      // Reply From indicator
+      html += replyFromHTML(r.inquiry_stage);
 
       // Contact info
       html += '<div style="display:grid;grid-template-columns:110px 1fr;gap:4px var(--space-sm);margin-bottom:var(--space-md);font-size:var(--text-sm);">';
@@ -639,6 +686,9 @@
       var html = '<h2 style="margin:0 0 var(--space-sm) 0;font-size:1.2rem;">' + esc(b.name || b.contactName || 'Booking') + '</h2>';
       html += '<div style="margin-bottom:var(--space-md);">' + pill('rgba(' + hexToRGB(stageInfo.color) + ',0.15)', stageInfo.color, stageInfo.label) + '</div>';
 
+      // Reply From indicator
+      html += replyFromHTML(b.stage);
+
       // Booking form
       html += '<form id="bk-form">';
       html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">';
@@ -720,7 +770,18 @@
               DataStore.updateBooking(btn.dataset.id, updates);
             }
             closeModal();
-            if (typeof Toast !== 'undefined') Toast.success('Booking updated');
+            // Detect handoff: old stage was non-corporate, new stage is corporate
+            if (emailProtocol && emailProtocol.corporateStages) {
+              var oldWasCorp = emailProtocol.corporateStages.includes(b.stage);
+              var newIsCorp = emailProtocol.corporateStages.includes(updates.stage);
+              if (!oldWasCorp && newIsCorp) {
+                if (typeof Toast !== 'undefined') Toast.success('Handoff: Correspondence should now come from ' + emailProtocol.corporateEmail);
+              } else {
+                if (typeof Toast !== 'undefined') Toast.success('Booking updated');
+              }
+            } else {
+              if (typeof Toast !== 'undefined') Toast.success('Booking updated');
+            }
             loadPipeline();
           } catch (e) {
             alert('Failed to save: ' + e.message);
@@ -874,9 +935,46 @@
     });
   });
 
+  /* ---- Inject Email Badges into Column Headers ---- */
+  function injectEmailBadges() {
+    if (!emailProtocol) return;
+
+    // Helper: add badge below column header row
+    function addBadge(colEl, stage) {
+      if (!colEl) return;
+      var headerRow = colEl.querySelector('div:first-child');
+      if (!headerRow || headerRow.querySelector('.email-badge')) return;
+      var isCorporate = emailProtocol.corporateStages.includes(stage);
+      var shortLabel = isCorporate ? 'JP' : 'booking@';
+      var color = isCorporate ? '#58a6ff' : '#d4a017';
+      var badgeEl = document.createElement('div');
+      badgeEl.className = 'email-badge';
+      badgeEl.style.cssText = 'font-size:0.65rem;color:' + color + ';text-align:center;opacity:0.7;margin-top:-4px;margin-bottom:4px;';
+      badgeEl.innerHTML = '<i class="fa-solid fa-envelope" style="font-size:0.55rem;margin-right:2px;"></i>' + shortLabel;
+      // Insert after the header row div
+      headerRow.insertAdjacentElement('afterend', badgeEl);
+    }
+
+    // Inquiry columns
+    inquiryStages.forEach(function(s) {
+      var col = document.querySelector('.pipeline-column[data-inq-stage="' + s.key + '"]');
+      addBadge(col, s.key);
+    });
+
+    // Pipeline columns
+    pipelineStages.forEach(function(s) {
+      var col = document.querySelector('.pipeline-column[data-stage="' + s.key + '"]');
+      addBadge(col, s.key);
+    });
+  }
+
   /* ---- Initial Load ---- */
-  loadInquiries();
-  loadPipeline();
+  // Load email protocol first, then data
+  loadEmailProtocol().then(function() {
+    injectEmailBadges();
+    loadInquiries();
+    loadPipeline();
+  });
 
   // Auto-refresh every 60 seconds
   setInterval(function() {
