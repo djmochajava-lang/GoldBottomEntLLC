@@ -140,14 +140,18 @@
   /* ---- Stats Bar ---- */
   async function loadStats() {
     try {
-      var stats = await apiFetch('/queue/stats');
+      // Load counts for Contact Queue only (exclude booking inquiries)
+      var all = await apiFetch('/queue?inquiry_stage=null&limit=1');
+      var newR = await apiFetch('/queue?inquiry_stage=null&status=new&limit=1');
+      var ip = await apiFetch('/queue?inquiry_stage=null&status=in_progress,awaiting_reply&limit=1');
+      var res = await apiFetch('/queue?inquiry_stage=null&status=resolved&limit=1');
+
       var bar = document.getElementById('inbox-stats-bar');
       bar.innerHTML =
-        statCard('Total', stats.total, '#8b949e') +
-        statCard('New', stats.byStatus.new || 0, '#58a6ff') +
-        statCard('In Progress', (stats.byStatus.in_progress || 0) + (stats.byStatus.awaiting_reply || 0), '#d29922') +
-        statCard('Resolved', stats.byStatus.resolved || 0, '#3fb950') +
-        statCard('Last 24h', stats.recent24h || 0, '#bc8cff');
+        statCard('Total', all.total, '#8b949e') +
+        statCard('New', newR.total, '#58a6ff') +
+        statCard('In Progress', ip.total, '#d29922') +
+        statCard('Resolved', res.total, '#3fb950');
     } catch (e) {
       console.error('[Inbox] Stats load error:', e);
     }
@@ -177,6 +181,9 @@
 
       var searchVal = document.getElementById('inbox-search').value.trim();
       if (searchVal) params.push('search=' + encodeURIComponent(searchVal));
+
+      // Exclude booking inquiries — they live on the Booking Pipeline page
+      params.push('inquiry_stage=null');
 
       params.push('limit=' + pageSize);
       params.push('offset=' + (currentPage * pageSize));
