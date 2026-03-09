@@ -220,7 +220,7 @@
     // Safeguard 2: Write to Firestore with server timestamp
     Auth._db.collection('contact_submissions').add(data)
       .then(function() {
-        showFeedback('Proposal request received! We\u2019ll get back to you within 24\u201348 hours.', false);
+        showFeedback('Proposal request received! Someone will get back to you soon.', false);
         form.reset();
       })
       .catch(function() {
