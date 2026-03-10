@@ -45,6 +45,10 @@ const Calendar = {
     var container = document.getElementById('calendar-container');
     if (!container) return;
 
+    // Don't overwrite the dashboard calendar — it has its own inline
+    // script with full CRUD (add/edit/delete) and inline grid styles.
+    if (document.getElementById('cal-grid')) return;
+
     this.render('calendar-container');
 
     // Render upcoming events sidebar if container exists

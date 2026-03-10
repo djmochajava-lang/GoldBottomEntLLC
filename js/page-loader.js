@@ -165,9 +165,12 @@ const PageLoader = {
       DashboardWidgets.init();
     }
 
-    if (pageName === 'dashboard-calendar' && typeof Calendar !== 'undefined') {
-      Calendar.init();
-    }
+    // Dashboard calendar page has its own inline script with full CRUD.
+    // Calendar.init() would overwrite #calendar-container with class-based
+    // HTML that has no CSS, breaking the layout. Skip it here.
+    // if (pageName === 'dashboard-calendar' && typeof Calendar !== 'undefined') {
+    //   Calendar.init();
+    // }
 
     // Form pages
     if ((pageName === 'contact' || pageName.startsWith('dashboard-')) && typeof Forms !== 'undefined') {
