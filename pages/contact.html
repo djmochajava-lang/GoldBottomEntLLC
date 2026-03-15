@@ -1,0 +1,214 @@
+<!-- pages/contact.html — General Contact Form (FRD1-FORM-001) -->
+<section class="page-section" id="page-contact">
+  <div class="container">
+    <h1 class="page-title reveal">Contact Us</h1>
+    <p class="page-subtitle reveal">Have a question, idea, or opportunity? We'd love to hear from you.</p>
+    <div class="grid grid-2 contact-grid">
+      <!-- Contact Form -->
+      <div class="glass-card reveal">
+        <h2>Send Us a Message</h2>
+        <form data-form="general-contact" id="general-contact-form">
+          <div class="form-group">
+            <label class="form-label" for="gen-inquiry-type">Inquiry Type</label>
+            <select class="form-select" id="gen-inquiry-type" name="inquiryType">
+              <option value="">Select inquiry type (optional)...</option>
+              <option value="general">General Question</option>
+              <option value="partnership">Partnership / Sponsorship</option>
+              <option value="media">Media / Press</option>
+              <option value="careers">Careers / Opportunities</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="gen-contact-name">Full Name *</label>
+              <input type="text" class="form-input" id="gen-contact-name" name="name" required placeholder="Your name" minlength="2" maxlength="200" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="gen-contact-email">Email *</label>
+              <input type="email" class="form-input" id="gen-contact-email" name="email" required placeholder="you@example.com" maxlength="254" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="gen-contact-phone">Phone</label>
+            <input type="tel" class="form-input" id="gen-contact-phone" name="phone" placeholder="(555) 123-4567" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="gen-contact-subject">Subject *</label>
+            <input type="text" class="form-input" id="gen-contact-subject" name="subject" required placeholder="What is this about?" maxlength="500" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="gen-contact-message">Message *</label>
+            <textarea class="form-textarea" id="gen-contact-message" name="message" rows="6" required placeholder="Tell us more..." minlength="10" maxlength="5000"></textarea>
+          </div>
+          <div class="form-status" id="gen-form-status" style="display:none;"></div>
+          <button type="submit" class="btn btn-primary btn-lg btn-block shimmer-sweep" id="gen-submit-btn">
+            <i class="fa-solid fa-paper-plane"></i> Send Message
+          </button>
+        </form>
+      </div>
+      <!-- Contact Info Sidebar -->
+      <div>
+        <div class="glass-card contact-info-card reveal">
+          <h3><i class="fa-solid fa-building text-gold"></i> Gold Bottom Ent. LLC</h3>
+          <div class="contact-info-list">
+            <div class="contact-info-item">
+              <i class="fa-solid fa-envelope text-gold"></i>
+              <div>
+                <span class="text-muted">Email</span>
+                <a href="mailto:info@goldbottom-ent.com">info@goldbottom-ent.com</a>
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fa-solid fa-phone text-gold"></i>
+              <div>
+                <span class="text-muted">Phone</span>
+                <p>Available upon request</p>
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fa-solid fa-location-dot text-gold"></i>
+              <div>
+                <span class="text-muted">Location</span>
+                <p>Washington, DC Metropolitan Area</p>
+              </div>
+            </div>
+            <div class="contact-info-item">
+              <i class="fa-solid fa-clock text-gold"></i>
+              <div>
+                <span class="text-muted">Response Time</span>
+                <p>We'll get back to you within 24-48 hours</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Quick Links to Verticals -->
+        <div class="glass-card reveal" style="margin-top: var(--space-lg);">
+          <h3>Looking for something specific?</h3>
+          <p class="text-muted" style="margin-bottom: var(--space-md);">We have dedicated contact forms for each division:</p>
+          <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+            <a href="#ent-contact" class="btn btn-outline" style="text-align: center;">
+              <i class="fa-solid fa-music"></i> Entertainment Booking & Talent
+            </a>
+            <a href="#biz-contact" class="btn btn-outline" style="text-align: center;">
+              <i class="fa-solid fa-laptop-code"></i> Enterprise Project Inquiry
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var form = document.getElementById('general-contact-form');
+  if (!form) return;
+
+  var submitBtn = document.getElementById('gen-submit-btn');
+  var statusEl = document.getElementById('gen-form-status');
+
+  function showFeedback(msg, isError) {
+    if (typeof Toast !== 'undefined') {
+      isError ? Toast.error(msg) : Toast.success(msg);
+    }
+    statusEl.textContent = msg;
+    statusEl.style.display = 'block';
+    statusEl.style.color = isError ? '#f85149' : '#3fb950';
+    statusEl.style.padding = 'var(--space-sm)';
+    statusEl.style.borderRadius = 'var(--radius-sm)';
+    statusEl.style.marginBottom = 'var(--space-sm)';
+  }
+
+  function clearFieldError(input) {
+    input.style.borderColor = '';
+  }
+
+  function setFieldError(input, msg) {
+    input.style.borderColor = '#f85149';
+    input.focus();
+    showFeedback(msg, true);
+  }
+
+  // Clear error styling on input
+  form.querySelectorAll('input, textarea, select').forEach(function(el) {
+    el.addEventListener('input', function() { clearFieldError(this); });
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Reset status
+    statusEl.style.display = 'none';
+
+    // Gather values
+    var name = form.querySelector('[name="name"]').value.trim();
+    var email = form.querySelector('[name="email"]').value.trim();
+    var phone = form.querySelector('[name="phone"]').value.trim();
+    var inquiryType = form.querySelector('[name="inquiryType"]').value;
+    var subject = form.querySelector('[name="subject"]').value.trim();
+    var message = form.querySelector('[name="message"]').value.trim();
+
+    // Validation
+    if (!name || name.length < 2) {
+      setFieldError(form.querySelector('[name="name"]'), 'Please enter your name (at least 2 characters)');
+      return;
+    }
+    if (!email) {
+      setFieldError(form.querySelector('[name="email"]'), 'Please enter your email address');
+      return;
+    }
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setFieldError(form.querySelector('[name="email"]'), 'Please enter a valid email address');
+      return;
+    }
+    if (!subject) {
+      setFieldError(form.querySelector('[name="subject"]'), 'Please enter a subject');
+      return;
+    }
+    if (!message || message.length < 10) {
+      setFieldError(form.querySelector('[name="message"]'), 'Please enter a message (at least 10 characters)');
+      return;
+    }
+
+    // Check Firestore availability
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      showFeedback('Unable to send — please try again later or email us at info@goldbottom-ent.com', true);
+      return;
+    }
+
+    // Disable button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+
+    // Build payload
+    var payload = {
+      formType: 'general',
+      source: 'gbe-public',
+      name: name,
+      email: email,
+      phone: phone,
+      inquiryType: inquiryType,
+      subject: subject,
+      message: message,
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Submit to Firestore
+    Auth._db.collection('contact_submissions').add(payload)
+      .then(function() {
+        showFeedback("Message sent! We'll get back to you within 24-48 hours.", false);
+        form.reset();
+      })
+      .catch(function(err) {
+        console.error('Contact form submission error:', err);
+        showFeedback('Unable to send — please try again or email us at info@goldbottom-ent.com', true);
+      })
+      .finally(function() {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Message';
+      });
+  });
+})();
+</script>

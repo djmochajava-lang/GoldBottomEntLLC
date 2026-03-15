@@ -1,0 +1,354 @@
+<!-- dashboard/quotes.html — Quote Pipeline Dashboard (Local Only) -->
+<div class="dashboard-page" id="dash-quotes">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>Quote Pipeline</h1><p class="text-muted">Monitor booking quote requests, processing status, and email delivery.</p></div>
+      <div style="display:flex;gap:var(--space-sm);" id="quote-actions">
+        <button class="btn btn-outline" id="quote-pull-btn"><i class="fa-solid fa-cloud-arrow-down"></i> Pull Staging</button>
+        <button class="btn btn-primary" id="quote-process-btn"><i class="fa-solid fa-gears"></i> Process Quotes</button>
+        <button class="btn btn-outline" id="quote-send-btn"><i class="fa-solid fa-paper-plane"></i> Send All Pending</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div id="quote-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+
+  <!-- Tab Bar -->
+  <div id="quote-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);">
+    <button class="quote-tab active" data-tab="pipeline" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;">
+      <i class="fa-solid fa-diagram-project"></i> Pipeline
+    </button>
+    <button class="quote-tab" data-tab="rates" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-sliders"></i> Rate Config
+    </button>
+    <button class="quote-tab" data-tab="logs" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-list-check"></i> Email Logs
+    </button>
+  </div>
+
+  <!-- Pipeline Tab -->
+  <div id="tab-pipeline" class="quote-tab-content">
+    <div id="quote-table-container">
+      <table class="data-table" id="quote-table">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th>Event</th>
+            <th>Format</th>
+            <th>Quote</th>
+            <th>Stage</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="quote-table-body"></tbody>
+      </table>
+      <p id="quote-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
+        No quote requests yet. Submissions from the public form will appear here after processing.
+      </p>
+    </div>
+  </div>
+
+  <!-- Rate Config Tab -->
+  <div id="tab-rates" class="quote-tab-content" style="display:none;">
+    <div style="max-width:700px;">
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-guitar"></i> Base Rates (per hour)</h3>
+        <div id="rate-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);"></div>
+      </div>
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-percent"></i> Multipliers & Fees</h3>
+        <p class="text-muted" style="font-size:var(--text-sm);">Event type, guest count, and sound system fees are applied automatically during quote calculation. Edit rate config via the API (<code>PUT /api/v1/quotes/rates</code>).</p>
+        <div id="multiplier-display"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Logs Tab -->
+  <div id="tab-logs" class="quote-tab-content" style="display:none;">
+    <div id="email-logs-container">
+      <table class="data-table" id="email-logs-table">
+        <thead>
+          <tr>
+            <th>To</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Sent At</th>
+          </tr>
+        </thead>
+        <tbody id="email-logs-body"></tbody>
+      </table>
+      <p id="email-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
+        No quote emails sent yet.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
+  if (!isLocal) {
+    document.getElementById('dash-quotes').innerHTML = '<p style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);">Quote Pipeline is only available on the local server.</p>';
+    return;
+  }
+
+  const API = `http://${window.location.hostname}:3000/api/v1`;
+  const token = localStorage.getItem('gbe-session-token') || '';
+  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  // Helpers
+  function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtDate(d) {
+    if (!d) return '—';
+    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(_) { return d; }
+  }
+  function stageBadge(stage) {
+    const colors = { lead: '#58a6ff', proposed: '#d29922', negotiating: '#bc8cff', confirmed: '#3fb950', contracted: '#3fb950', completed: '#238636', closed: '#8b949e' };
+    const c = colors[stage] || '#8b949e';
+    return `<span style="padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;background:${c}22;color:${c};font-weight:600;">${(stage || 'unknown').replace('_', ' ')}</span>`;
+  }
+
+  // Tab switching
+  document.querySelectorAll('.quote-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.quote-tab').forEach(t => { t.classList.remove('active'); t.style.color = 'var(--color-text-muted)'; t.style.borderBottomColor = 'transparent'; });
+      tab.classList.add('active'); tab.style.color = 'var(--color-text)'; tab.style.borderBottomColor = 'var(--color-gold)';
+      document.querySelectorAll('.quote-tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
+    });
+  });
+
+  // Load stats
+  async function loadStats() {
+    try {
+      const [intakeRes, emailRes, stagingRes] = await Promise.all([
+        fetch(`${API}/quotes/intake-stats`, { headers }).then(r => r.json()),
+        fetch(`${API}/email/stats`, { headers }).then(r => r.json()),
+        fetch(`${API}/staging/status`, { headers }).then(r => r.json())
+      ]);
+
+      const container = document.getElementById('quote-stats');
+      container.innerHTML = `
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">${intakeRes.pendingQuoteRequests || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Pending Quotes</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">${intakeRes.totalBookings || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Total Bookings</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">${intakeRes.totalQuotes || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Quotes Generated</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:#d29922;">${emailRes.sent || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Emails Sent</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:${stagingRes.configured ? '#3fb950' : '#f85149'};">${stagingRes.configured ? 'Active' : 'Off'}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Firestore Pull</div>
+        </div>
+      `;
+    } catch (err) {
+      console.error('[Quotes Dashboard] Stats load failed:', err);
+    }
+  }
+
+  // Load pipeline table
+  async function loadPipeline() {
+    try {
+      const res = await fetch(`${API}/bookings`, { headers });
+      const data = await res.json();
+      const bookings = (data.records || []).filter(b => {
+        const d = JSON.parse(b.data);
+        return d.source === 'quote_request';
+      });
+
+      const tbody = document.getElementById('quote-table-body');
+      const empty = document.getElementById('quote-empty');
+
+      if (bookings.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      tbody.innerHTML = bookings.map(b => {
+        const d = JSON.parse(b.data);
+        return `<tr>
+          <td>
+            <div style="font-weight:600;">${d.clientName || '—'}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted);">${d.clientEmail || ''}</div>
+          </td>
+          <td>
+            <div>${d.venue || '—'}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted);">${(d.eventType || '').replace(/-/g, ' ')}</div>
+          </td>
+          <td style="text-transform:capitalize;">${(d.performanceFormat || '—').replace(/-/g, ' ')}</td>
+          <td id="quote-val-${b.id}" style="font-weight:600;color:var(--color-gold);">—</td>
+          <td>${stageBadge(d.stage)}</td>
+          <td>${fmtDate(d.eventDate)}</td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="window._quoteSend('${b.id}')" title="Send quote email"><i class="fa-solid fa-paper-plane"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Load quote values
+      for (const b of bookings) {
+        try {
+          const qRes = await fetch(`${API}/quotes/${b.id}`, { headers });
+          if (qRes.ok) {
+            const q = await qRes.json();
+            const el = document.getElementById('quote-val-' + b.id);
+            if (el) el.textContent = fmt(q.total);
+          }
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.error('[Quotes Dashboard] Pipeline load failed:', err);
+    }
+  }
+
+  // Load rates
+  async function loadRates() {
+    try {
+      const res = await fetch(`${API}/quotes/rates`, { headers });
+      const data = await res.json();
+
+      const rateFields = document.getElementById('rate-fields');
+      rateFields.innerHTML = Object.entries(data.baseRates || {}).map(([k, v]) =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm);background:var(--color-bg-secondary);border-radius:var(--radius-sm);">
+          <span style="text-transform:capitalize;">${k.replace(/-/g, ' ')}</span>
+          <span style="font-weight:700;color:var(--color-gold);">${fmt(v)}/hr</span>
+        </div>`
+      ).join('');
+
+      const multiplierDisplay = document.getElementById('multiplier-display');
+      multiplierDisplay.innerHTML = `
+        <div style="margin-top:var(--space-md);">
+          <h4 style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Event Type Multipliers</h4>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-xs);">
+            ${Object.entries(data.eventTypeMultipliers || {}).map(([k, v]) =>
+              `<span style="padding:2px 10px;border-radius:var(--radius-full);font-size:0.75rem;background:var(--color-bg-secondary);color:var(--color-text-secondary);">${k.replace(/-/g, ' ')}: ${v}x</span>`
+            ).join('')}
+          </div>
+        </div>
+        <div style="margin-top:var(--space-md);">
+          <h4 style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Guest Count Factors</h4>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-xs);">
+            ${Object.entries(data.guestCountFactors || {}).map(([k, v]) =>
+              `<span style="padding:2px 10px;border-radius:var(--radius-full);font-size:0.75rem;background:var(--color-bg-secondary);color:var(--color-text-secondary);">${k.replace(/-/g, '–')}: ${v}x</span>`
+            ).join('')}
+          </div>
+        </div>
+        <div style="margin-top:var(--space-md);">
+          <h4 style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Sound System Fees</h4>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-xs);">
+            ${Object.entries(data.soundSystemFees || {}).map(([k, v]) =>
+              `<span style="padding:2px 10px;border-radius:var(--radius-full);font-size:0.75rem;background:var(--color-bg-secondary);color:var(--color-text-secondary);">${k.replace(/-/g, ' ')}: ${v === 0 ? 'Free' : fmt(v)}</span>`
+            ).join('')}
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      console.error('[Quotes Dashboard] Rates load failed:', err);
+    }
+  }
+
+  // Load email logs
+  async function loadEmailLogs() {
+    try {
+      const res = await fetch(`${API}/email/logs?limit=50`, { headers });
+      const data = await res.json();
+      const logs = (data.logs || []).filter(l => l.subject && l.subject.includes('Quote'));
+
+      const tbody = document.getElementById('email-logs-body');
+      const empty = document.getElementById('email-empty');
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      tbody.innerHTML = logs.map(l => {
+        const statusColor = l.status === 'sent' ? '#3fb950' : '#f85149';
+        return `<tr>
+          <td>${l.to_addr || '—'}</td>
+          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.subject || '—'}</td>
+          <td><span style="padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;background:${statusColor}22;color:${statusColor};">${l.status}</span></td>
+          <td>${fmtDate(l.created_at)}</td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      console.error('[Quotes Dashboard] Email logs load failed:', err);
+    }
+  }
+
+  // Action buttons
+  document.getElementById('quote-pull-btn').addEventListener('click', async () => {
+    try {
+      const res = await fetch(`${API}/staging/pull`, { method: 'POST', headers });
+      const data = await res.json();
+      if (typeof Toast !== 'undefined') Toast.success(`Staging pull: ${data.inserted || 0} new records`);
+      loadStats();
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Pull failed: ' + err.message);
+    }
+  });
+
+  document.getElementById('quote-process-btn').addEventListener('click', async () => {
+    try {
+      const res = await fetch(`${API}/quotes/process`, { method: 'POST', headers });
+      const data = await res.json();
+      if (typeof Toast !== 'undefined') Toast.success(`Processed ${data.processed || 0} quotes (${data.errors || 0} errors)`);
+      loadStats();
+      loadPipeline();
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Process failed: ' + err.message);
+    }
+  });
+
+  document.getElementById('quote-send-btn').addEventListener('click', async () => {
+    try {
+      const res = await fetch(`${API}/quotes/send-all-pending`, { method: 'POST', headers });
+      const data = await res.json();
+      if (typeof Toast !== 'undefined') Toast.success(`Sent ${data.sent || 0} emails (${data.failed || 0} failed)`);
+      loadStats();
+      loadPipeline();
+      loadEmailLogs();
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + err.message);
+    }
+  });
+
+  // Send single quote
+  window._quoteSend = async function(bookingId) {
+    try {
+      const res = await fetch(`${API}/quotes/send/${bookingId}`, { method: 'POST', headers });
+      const data = await res.json();
+      if (data.clientResult && data.clientResult.success) {
+        if (typeof Toast !== 'undefined') Toast.success('Quote email sent!');
+      } else {
+        if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + (data.clientResult?.error || 'Unknown'));
+      }
+      loadPipeline();
+      loadEmailLogs();
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + err.message);
+    }
+  };
+
+  // Initial load
+  loadStats();
+  loadPipeline();
+  loadRates();
+  loadEmailLogs();
+})();
+</script>

@@ -15,6 +15,7 @@ const Router = {
   routes: {
     // Root / Shared pages
     'home': 'pages/home.html',
+    'contact': 'pages/contact.html',
     'legal': 'pages/legal.html',
     '404': 'pages/404.html',
 
@@ -28,6 +29,7 @@ const Router = {
     'ent-contact': 'pages/entertainment/contact.html',
     'ent-promoter': 'pages/entertainment/promoter.html',
     'ent-inquiry': 'pages/entertainment/inquiry.html',
+    'ent-quote': 'pages/entertainment/quote.html',
 
     // Enterprise pages (biz-* prefix)
     'biz-home': 'pages/enterprise/home.html',
@@ -53,6 +55,7 @@ const Router = {
     'dashboard-integrations': 'dashboard/integrations.html',
     'dashboard-settings': 'dashboard/settings.html',
     'dashboard-team': 'dashboard/team.html',
+    'dashboard-quotes': 'dashboard/quotes.html',
 
     // IT Dept pages
     'dashboard-architecture': 'dashboard/architecture.html',
@@ -72,7 +75,6 @@ const Router = {
     'shop': 'ent-shop',
     'services': 'home',
     'about': 'home',
-    'contact': 'home',
   },
 
   /**
@@ -90,6 +92,7 @@ const Router = {
     'dashboard-servers',
     'dashboard-metrics',
     'dashboard-export',
+    'dashboard-quotes',
   ],
 
   currentPage: null,

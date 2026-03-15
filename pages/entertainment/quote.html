@@ -1,0 +1,361 @@
+<!-- pages/entertainment/quote.html — Booking Quote Request (FRD1) -->
+<section class="page-section" id="page-ent-quote">
+  <div class="container">
+    <h1 class="page-title reveal">Get a Booking Quote</h1>
+    <p class="page-subtitle reveal">Tell us about your event and we'll send you a custom quote within 24 hours.</p>
+
+    <div class="glass-card reveal" style="max-width: 800px; margin: 0 auto;">
+      <form id="quote-request-form" data-form="quote-request">
+
+        <!-- Section 1: Contact Information -->
+        <div class="form-section">
+          <h3><i class="fa-solid fa-user text-gold"></i> Contact Information</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="quote-name">Full Name *</label>
+              <input type="text" class="form-input" id="quote-name" name="name" required placeholder="Your name" minlength="2" maxlength="200" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quote-org">Organization / Venue</label>
+              <input type="text" class="form-input" id="quote-org" name="organization" placeholder="Company or venue name" maxlength="200" />
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="quote-email">Email *</label>
+              <input type="email" class="form-input" id="quote-email" name="email" required placeholder="you@example.com" maxlength="254" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quote-phone">Phone *</label>
+              <input type="tel" class="form-input" id="quote-phone" name="phone" required placeholder="(555) 123-4567" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Event Details -->
+        <div class="form-section" style="margin-top: var(--space-xl);">
+          <h3><i class="fa-solid fa-calendar-day text-gold"></i> Event Details</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="quote-date">Event Date *</label>
+              <input type="date" class="form-input" id="quote-date" name="eventDate" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quote-time">Event Time *</label>
+              <select class="form-select" id="quote-time" name="eventTime" required>
+                <option value="">Select time...</option>
+                <option value="morning">Morning (Before noon)</option>
+                <option value="afternoon">Afternoon (12 PM - 5 PM)</option>
+                <option value="evening">Evening (5 PM - 9 PM)</option>
+                <option value="late-night">Late Night (After 9 PM)</option>
+                <option value="flexible">Flexible</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="quote-venue">Venue / Location *</label>
+            <input type="text" class="form-input" id="quote-venue" name="venue" required placeholder="Venue name and city" maxlength="300" />
+          </div>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="quote-event-type">Event Type *</label>
+              <select class="form-select" id="quote-event-type" name="eventType" required>
+                <option value="">Select event type...</option>
+                <option value="concert">Concert / Live Show</option>
+                <option value="corporate">Corporate Event / Gala</option>
+                <option value="private-party">Private Event / Party</option>
+                <option value="wedding">Wedding / Reception</option>
+                <option value="fundraiser">Fundraiser / Charity</option>
+                <option value="festival">Festival</option>
+                <option value="club-lounge">Club / Lounge</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quote-guests">Estimated Guest Count *</label>
+              <select class="form-select" id="quote-guests" name="guestCount" required>
+                <option value="">Select range...</option>
+                <option value="under-50">Under 50</option>
+                <option value="50-100">50 - 100</option>
+                <option value="100-250">100 - 250</option>
+                <option value="250-500">250 - 500</option>
+                <option value="500-1000">500 - 1,000</option>
+                <option value="1000-plus">1,000+</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Performance Details -->
+        <div class="form-section" style="margin-top: var(--space-xl);">
+          <h3><i class="fa-solid fa-music text-gold"></i> Performance Details</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="quote-format">Performance Format *</label>
+              <select class="form-select" id="quote-format" name="performanceFormat" required>
+                <option value="">Select format...</option>
+                <option value="solo-vocal">Solo Vocal</option>
+                <option value="duo-trio">Duo / Trio</option>
+                <option value="full-band">Full Band</option>
+                <option value="dj-set">DJ Set</option>
+                <option value="flexible">Flexible / Discuss</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quote-hours">Duration (Hours) *</label>
+              <select class="form-select" id="quote-hours" name="hours" required>
+                <option value="">Select duration...</option>
+                <option value="1">1 hour</option>
+                <option value="2">2 hours</option>
+                <option value="3">3 hours</option>
+                <option value="4">4 hours</option>
+                <option value="5">5 hours</option>
+                <option value="6">6 hours</option>
+                <option value="8">8 hours</option>
+                <option value="custom">Custom / Discuss</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="quote-indoor">Indoor / Outdoor *</label>
+              <select class="form-select" id="quote-indoor" name="indoorOutdoor" required>
+                <option value="">Select...</option>
+                <option value="indoor">Indoor</option>
+                <option value="outdoor">Outdoor</option>
+                <option value="both">Both / Mixed</option>
+                <option value="tbd">TBD</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quote-sound">Sound System</label>
+              <select class="form-select" id="quote-sound" name="soundSystem">
+                <option value="">Select...</option>
+                <option value="venue-provides">Venue provides PA</option>
+                <option value="we-need">We need PA provided</option>
+                <option value="not-sure">Not sure yet</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Budget & Additional Info -->
+        <div class="form-section" style="margin-top: var(--space-xl);">
+          <h3><i class="fa-solid fa-circle-info text-gold"></i> Additional Information</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="quote-budget">Budget Range</label>
+              <select class="form-select" id="quote-budget" name="budgetRange">
+                <option value="">Select range (optional)...</option>
+                <option value="under-1000">Under $1,000</option>
+                <option value="1000-2500">$1,000 - $2,500</option>
+                <option value="2500-5000">$2,500 - $5,000</option>
+                <option value="5000-10000">$5,000 - $10,000</option>
+                <option value="10000-plus">$10,000+</option>
+                <option value="discuss">Prefer to Discuss</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="quote-referral">How did you hear about us?</label>
+              <select class="form-select" id="quote-referral" name="referralSource">
+                <option value="">Select (optional)...</option>
+                <option value="google">Google Search</option>
+                <option value="social-media">Social Media</option>
+                <option value="referral">Referral / Word of Mouth</option>
+                <option value="repeat-client">Repeat Client</option>
+                <option value="website">Website</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="quote-notes">Special Requirements / Notes</label>
+            <textarea class="form-textarea" id="quote-notes" name="notes" rows="4" placeholder="Any additional details about your event, special requests, or questions..." maxlength="2000"></textarea>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="form-status" id="quote-form-status" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block shimmer-sweep" id="quote-submit-btn" style="margin-top: var(--space-lg);">
+          <i class="fa-solid fa-paper-plane"></i> Request Quote
+        </button>
+        <p class="text-muted text-center" style="margin-top: var(--space-sm); font-size: var(--text-sm);">
+          We'll review your details and send a custom quote to your email within 24 hours.
+        </p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  var form = document.getElementById('quote-request-form');
+  if (!form) return;
+
+  var submitBtn = document.getElementById('quote-submit-btn');
+  var statusEl = document.getElementById('quote-form-status');
+
+  // Set min date to today
+  var dateInput = form.querySelector('[name="eventDate"]');
+  if (dateInput) {
+    var today = new Date().toISOString().split('T')[0];
+    dateInput.setAttribute('min', today);
+  }
+
+  function showFeedback(msg, isError) {
+    if (typeof Toast !== 'undefined') {
+      isError ? Toast.error(msg) : Toast.success(msg);
+    }
+    statusEl.textContent = msg;
+    statusEl.style.display = 'block';
+    statusEl.style.color = isError ? '#f85149' : '#3fb950';
+    statusEl.style.padding = 'var(--space-sm)';
+    statusEl.style.borderRadius = 'var(--radius-sm)';
+    statusEl.style.marginBottom = 'var(--space-sm)';
+  }
+
+  function clearFieldError(input) {
+    input.style.borderColor = '';
+  }
+
+  function setFieldError(input, msg) {
+    input.style.borderColor = '#f85149';
+    input.focus();
+    showFeedback(msg, true);
+  }
+
+  // Clear error styling on input
+  form.querySelectorAll('input, textarea, select').forEach(function(el) {
+    el.addEventListener('input', function() { clearFieldError(this); });
+    el.addEventListener('change', function() { clearFieldError(this); });
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    statusEl.style.display = 'none';
+
+    // Gather values
+    var name = form.querySelector('[name="name"]').value.trim();
+    var email = form.querySelector('[name="email"]').value.trim();
+    var phone = form.querySelector('[name="phone"]').value.trim();
+    var organization = form.querySelector('[name="organization"]').value.trim();
+    var eventDate = form.querySelector('[name="eventDate"]').value;
+    var eventTime = form.querySelector('[name="eventTime"]').value;
+    var venue = form.querySelector('[name="venue"]').value.trim();
+    var eventType = form.querySelector('[name="eventType"]').value;
+    var guestCount = form.querySelector('[name="guestCount"]').value;
+    var performanceFormat = form.querySelector('[name="performanceFormat"]').value;
+    var hours = form.querySelector('[name="hours"]').value;
+    var indoorOutdoor = form.querySelector('[name="indoorOutdoor"]').value;
+    var soundSystem = form.querySelector('[name="soundSystem"]').value;
+    var budgetRange = form.querySelector('[name="budgetRange"]').value;
+    var referralSource = form.querySelector('[name="referralSource"]').value;
+    var notes = form.querySelector('[name="notes"]').value.trim();
+
+    // Validation — Contact
+    if (!name || name.length < 2) {
+      setFieldError(form.querySelector('[name="name"]'), 'Please enter your name (at least 2 characters)');
+      return;
+    }
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      setFieldError(form.querySelector('[name="email"]'), 'Please enter your email address');
+      return;
+    }
+    if (!emailRegex.test(email)) {
+      setFieldError(form.querySelector('[name="email"]'), 'Please enter a valid email address');
+      return;
+    }
+    if (!phone) {
+      setFieldError(form.querySelector('[name="phone"]'), 'Please enter your phone number');
+      return;
+    }
+
+    // Validation — Event Details
+    if (!eventDate) {
+      setFieldError(form.querySelector('[name="eventDate"]'), 'Please select an event date');
+      return;
+    }
+    if (!eventTime) {
+      setFieldError(form.querySelector('[name="eventTime"]'), 'Please select an event time');
+      return;
+    }
+    if (!venue) {
+      setFieldError(form.querySelector('[name="venue"]'), 'Please enter a venue or location');
+      return;
+    }
+    if (!eventType) {
+      setFieldError(form.querySelector('[name="eventType"]'), 'Please select an event type');
+      return;
+    }
+    if (!guestCount) {
+      setFieldError(form.querySelector('[name="guestCount"]'), 'Please select a guest count range');
+      return;
+    }
+
+    // Validation — Performance
+    if (!performanceFormat) {
+      setFieldError(form.querySelector('[name="performanceFormat"]'), 'Please select a performance format');
+      return;
+    }
+    if (!hours) {
+      setFieldError(form.querySelector('[name="hours"]'), 'Please select a duration');
+      return;
+    }
+    if (!indoorOutdoor) {
+      setFieldError(form.querySelector('[name="indoorOutdoor"]'), 'Please select indoor or outdoor');
+      return;
+    }
+
+    // Check Firestore
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      showFeedback('Unable to submit — please try again later or email booking@layoungbandpage.com', true);
+      return;
+    }
+
+    // Disable button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+    // Build payload
+    var payload = {
+      formType: 'quote_request',
+      source: 'gbe-public',
+      name: name,
+      email: email,
+      phone: phone,
+      organization: organization,
+      eventDate: eventDate,
+      eventTime: eventTime,
+      venue: venue,
+      eventType: eventType,
+      guestCount: guestCount,
+      performanceFormat: performanceFormat,
+      hours: hours,
+      indoorOutdoor: indoorOutdoor,
+      soundSystem: soundSystem,
+      budgetRange: budgetRange,
+      referralSource: referralSource,
+      notes: notes,
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Submit to Firestore
+    Auth._db.collection('contact_submissions').add(payload)
+      .then(function() {
+        showFeedback("Quote request received! We'll send your estimate within 24 hours.", false);
+        form.reset();
+        // Re-set min date after reset
+        if (dateInput) dateInput.setAttribute('min', new Date().toISOString().split('T')[0]);
+      })
+      .catch(function(err) {
+        console.error('Quote form submission error:', err);
+        showFeedback('Unable to submit — please try again or email booking@layoungbandpage.com', true);
+      })
+      .finally(function() {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Request Quote';
+      });
+  });
+})();
+</script>
