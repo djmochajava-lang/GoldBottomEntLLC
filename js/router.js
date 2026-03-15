@@ -27,6 +27,7 @@ const Router = {
     'ent-about': 'pages/entertainment/about.html',
     'ent-contact': 'pages/entertainment/contact.html',
     'ent-promoter': 'pages/entertainment/promoter.html',
+    'ent-inquiry': 'pages/entertainment/inquiry.html',
 
     // Enterprise pages (biz-* prefix)
     'biz-home': 'pages/enterprise/home.html',

@@ -1,0 +1,252 @@
+<!-- pages/entertainment/inquiry.html — Booking Inquiry Form (FRD6-INQUIRY-001) -->
+<section class="page-section" id="page-ent-inquiry">
+  <div class="container" style="max-width: 800px;">
+    <h1 class="page-title reveal">Booking Inquiry</h1>
+    <p class="page-subtitle reveal">Tell us about your event and we'll get back to you within 24&ndash;48 hours.</p>
+
+    <div class="glass-card reveal" style="margin-top: var(--space-xl);">
+      <form id="frd6-inquiry-form" novalidate>
+
+        <!-- Contact Information -->
+        <h3 style="font-family: 'Montserrat', sans-serif; margin-bottom: var(--space-md); color: var(--color-gold);">
+          <i class="fa-solid fa-user"></i> Contact Information
+        </h3>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="inq-name">Contact Name *</label>
+            <input type="text" class="form-input" id="inq-name" name="name" required placeholder="Your full name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inq-org">Organization *</label>
+            <input type="text" class="form-input" id="inq-org" name="organization" required placeholder="Company or venue name" />
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="inq-email">Email *</label>
+            <input type="email" class="form-input" id="inq-email" name="email" required placeholder="you@example.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inq-phone">Phone *</label>
+            <input type="tel" class="form-input" id="inq-phone" name="phone" required placeholder="(555) 123-4567" />
+          </div>
+        </div>
+
+        <hr style="border-color: var(--color-border); margin: var(--space-xl) 0;" />
+
+        <!-- Event Details -->
+        <h3 style="font-family: 'Montserrat', sans-serif; margin-bottom: var(--space-md); color: var(--color-gold);">
+          <i class="fa-solid fa-calendar-star"></i> Event Details
+        </h3>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="inq-event-date">Event Date *</label>
+            <input type="date" class="form-input" id="inq-event-date" name="eventDate" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inq-event-time">Event Time *</label>
+            <input type="time" class="form-input" id="inq-event-time" name="eventTime" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inq-venue">Venue / Location *</label>
+          <input type="text" class="form-input" id="inq-venue" name="venue" required placeholder="Venue name and city/state" />
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="inq-event-type">Event Type *</label>
+            <select class="form-select" id="inq-event-type" name="eventType" required>
+              <option value="">Select event type...</option>
+              <option value="concert">Concert / Live Show</option>
+              <option value="festival">Festival</option>
+              <option value="corporate">Corporate Event / Gala</option>
+              <option value="private">Private Event / Party</option>
+              <option value="wedding">Wedding / Reception</option>
+              <option value="fundraiser">Fundraiser / Charity</option>
+              <option value="club">Club / Lounge</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inq-guest-count">Estimated Guest Count *</label>
+            <select class="form-select" id="inq-guest-count" name="guestCount" required>
+              <option value="">Select range...</option>
+              <option value="under-50">Under 50</option>
+              <option value="50-100">50 &ndash; 100</option>
+              <option value="100-250">100 &ndash; 250</option>
+              <option value="250-500">250 &ndash; 500</option>
+              <option value="500-1000">500 &ndash; 1,000</option>
+              <option value="1000+">1,000+</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="inq-format">Performance Format *</label>
+            <select class="form-select" id="inq-format" name="performanceFormat" required>
+              <option value="">Select format...</option>
+              <option value="solo">Solo Vocal</option>
+              <option value="duo-trio">Duo / Trio</option>
+              <option value="full-band">Full Band</option>
+              <option value="dj-set">DJ Set</option>
+              <option value="flexible">Flexible / Discuss</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inq-budget">Budget Range *</label>
+            <select class="form-select" id="inq-budget" name="budgetRange" required>
+              <option value="">Select range...</option>
+              <option value="under-1000">Under $1,000</option>
+              <option value="1000-2500">$1,000 &ndash; $2,500</option>
+              <option value="2500-5000">$2,500 &ndash; $5,000</option>
+              <option value="5000-10000">$5,000 &ndash; $10,000</option>
+              <option value="10000+">$10,000+</option>
+              <option value="discuss">Prefer to Discuss</option>
+            </select>
+          </div>
+        </div>
+
+        <hr style="border-color: var(--color-border); margin: var(--space-xl) 0;" />
+
+        <!-- Optional Details -->
+        <h3 style="font-family: 'Montserrat', sans-serif; margin-bottom: var(--space-md); color: var(--color-text-muted);">
+          <i class="fa-solid fa-circle-info"></i> Additional Details <span style="font-size: var(--text-sm); font-weight: normal;">(Optional)</span>
+        </h3>
+        <div class="form-group">
+          <label class="form-label" for="inq-production">Production Needs</label>
+          <textarea class="form-textarea" id="inq-production" name="productionNeeds" rows="3" placeholder="Sound system, lighting, staging requirements..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inq-loadin">Load-In Details</label>
+          <textarea class="form-textarea" id="inq-loadin" name="loadInDetails" rows="3" placeholder="Load-in time, parking, green room, equipment access..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inq-notes">Additional Notes</label>
+          <textarea class="form-textarea" id="inq-notes" name="additionalNotes" rows="3" placeholder="Anything else we should know about your event..."></textarea>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn-primary btn-lg btn-block shimmer-sweep" style="margin-top: var(--space-lg);">
+          <i class="fa-solid fa-paper-plane"></i> Submit Booking Inquiry
+        </button>
+        <p style="color: var(--color-text-muted); font-size: var(--text-sm); text-align: center; margin-top: var(--space-md);">
+          We respond to all inquiries within 24&ndash;48 business hours.
+        </p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  'use strict';
+  var form = document.getElementById('frd6-inquiry-form');
+  if (!form) return;
+
+  var FALLBACK_EMAIL = 'booking@layoungbandpage.com';
+
+  function showFeedback(msg, isError) {
+    if (typeof Toast !== 'undefined') {
+      isError ? Toast.error(msg) : Toast.success(msg);
+      return;
+    }
+    var el = form.querySelector('.form-status');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'form-status';
+      el.style.cssText = 'margin-top:12px;padding:10px 14px;border-radius:6px;font-size:14px;';
+      form.appendChild(el);
+    }
+    el.style.background = isError ? 'rgba(248,81,73,0.15)' : 'rgba(63,185,80,0.15)';
+    el.style.color = isError ? '#f85149' : '#3fb950';
+    el.textContent = msg;
+  }
+
+  function getVal(name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    return el ? (el.value || '').trim() : '';
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    // Firestore availability guard
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      showFeedback('Unable to send \u2014 please try again later or email us at ' + FALLBACK_EMAIL, true);
+      return;
+    }
+
+    // Required field validation
+    var required = ['name', 'organization', 'email', 'phone', 'eventDate', 'eventTime', 'venue', 'eventType', 'guestCount', 'performanceFormat', 'budgetRange'];
+    var missing = [];
+    for (var i = 0; i < required.length; i++) {
+      if (!getVal(required[i])) {
+        missing.push(required[i]);
+        var field = form.querySelector('[name="' + required[i] + '"]');
+        if (field) field.style.borderColor = '#f85149';
+      }
+    }
+    if (missing.length > 0) {
+      showFeedback('Please fill in all required fields (' + missing.length + ' missing).', true);
+      return;
+    }
+
+    // Clear error borders
+    var inputs = form.querySelectorAll('.form-input, .form-select');
+    for (var j = 0; j < inputs.length; j++) inputs[j].style.borderColor = '';
+
+    // Email format check
+    var emailVal = getVal('email');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+      showFeedback('Please enter a valid email address.', true);
+      return;
+    }
+
+    // Collect form data
+    var data = {
+      formType: 'booking_inquiry',
+      source: 'FRD6_INQUIRY',
+      name: getVal('name'),
+      organization: getVal('organization'),
+      email: emailVal,
+      phone: getVal('phone'),
+      eventDate: getVal('eventDate'),
+      eventTime: getVal('eventTime'),
+      venue: getVal('venue'),
+      eventType: getVal('eventType'),
+      guestCount: getVal('guestCount'),
+      performanceFormat: getVal('performanceFormat'),
+      budgetRange: getVal('budgetRange'),
+      productionNeeds: getVal('productionNeeds'),
+      loadInDetails: getVal('loadInDetails'),
+      additionalNotes: getVal('additionalNotes'),
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Disable submit button
+    var btn = form.querySelector('[type="submit"]');
+    var origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting\u2026';
+
+    // Write to Firestore
+    Auth._db.collection('contact_submissions').add(data)
+      .then(function() {
+        showFeedback('Inquiry submitted! We\u2019ll get back to you within 24\u201348 hours.', false);
+        form.reset();
+      })
+      .catch(function() {
+        showFeedback('Unable to submit \u2014 please try again or email us at ' + FALLBACK_EMAIL, true);
+      })
+      .then(function() {
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+      });
+  });
+
+  // Clear error border on input
+  form.addEventListener('input', function(e) {
+    if (e.target.style.borderColor) e.target.style.borderColor = '';
+  });
+})();
+</script>
