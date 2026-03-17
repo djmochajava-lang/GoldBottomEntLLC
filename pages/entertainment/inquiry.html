@@ -170,12 +170,6 @@
   form.addEventListener('submit', function(e) {
     e.preventDefault();
 
-    // Firestore availability guard
-    if (typeof Auth === 'undefined' || !Auth._db) {
-      showFeedback('Unable to send \u2014 please try again later or email us at ' + FALLBACK_EMAIL, true);
-      return;
-    }
-
     // Required field validation
     var required = ['name', 'organization', 'email', 'phone', 'eventDate', 'eventTime', 'venue', 'eventType', 'guestCount', 'performanceFormat', 'budgetRange'];
     var missing = [];
@@ -219,8 +213,7 @@
       budgetRange: getVal('budgetRange'),
       productionNeeds: getVal('productionNeeds'),
       loadInDetails: getVal('loadInDetails'),
-      additionalNotes: getVal('additionalNotes'),
-      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      additionalNotes: getVal('additionalNotes')
     };
 
     // Disable submit button
@@ -229,10 +222,14 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting\u2026';
 
-    // Write to Firestore
-    Auth._db.collection('contact_submissions').add(data)
-      .then(function() {
-        showFeedback('Inquiry submitted! We\u2019ll get back to you within 24\u201348 hours.', false);
+    // Submit via multi-strategy (server → Firestore → localStorage)
+    Forms.submitContact(data)
+      .then(function(result) {
+        if (result.method === 'local') {
+          showFeedback('Inquiry saved! We\'ll process it when our server is back online.', false);
+        } else {
+          showFeedback('Inquiry submitted! We\u2019ll get back to you within 24\u201348 hours.', false);
+        }
         form.reset();
       })
       .catch(function() {

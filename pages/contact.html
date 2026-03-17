@@ -172,12 +172,6 @@
       return;
     }
 
-    // Check Firestore availability
-    if (typeof Auth === 'undefined' || !Auth._db) {
-      showFeedback('Unable to send — please try again later or email us at info@goldbottom-ent.com', true);
-      return;
-    }
-
     // Disable button
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
@@ -191,14 +185,17 @@
       phone: phone,
       inquiryType: inquiryType,
       subject: subject,
-      message: message,
-      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      message: message
     };
 
-    // Submit to Firestore
-    Auth._db.collection('contact_submissions').add(payload)
-      .then(function() {
-        showFeedback("Message sent! We'll get back to you within 24-48 hours.", false);
+    // Submit via multi-strategy (server → Firestore → localStorage)
+    Forms.submitContact(payload)
+      .then(function(result) {
+        if (result.method === 'local') {
+          showFeedback("Message saved! We'll process it when our server is back online.", false);
+        } else {
+          showFeedback("Message sent! We'll get back to you within 24-48 hours.", false);
+        }
         form.reset();
       })
       .catch(function(err) {

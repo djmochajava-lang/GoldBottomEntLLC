@@ -307,12 +307,6 @@
       return;
     }
 
-    // Check Firestore
-    if (typeof Auth === 'undefined' || !Auth._db) {
-      showFeedback('Unable to submit — please try again later or email booking@layoungbandpage.com', true);
-      return;
-    }
-
     // Disable button
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
@@ -336,14 +330,17 @@
       soundSystem: soundSystem,
       budgetRange: budgetRange,
       referralSource: referralSource,
-      notes: notes,
-      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      notes: notes
     };
 
-    // Submit to Firestore
-    Auth._db.collection('contact_submissions').add(payload)
-      .then(function() {
-        showFeedback("Quote request received! We'll send your estimate within 24 hours.", false);
+    // Submit via multi-strategy (server → Firestore → localStorage)
+    Forms.submitContact(payload)
+      .then(function(result) {
+        if (result.method === 'local') {
+          showFeedback("Quote request saved! We'll process it when our server is back online.", false);
+        } else {
+          showFeedback("Quote request received! We'll send your estimate within 24 hours.", false);
+        }
         form.reset();
         // Re-set min date after reset
         if (dateInput) dateInput.setAttribute('min', new Date().toISOString().split('T')[0]);

@@ -149,13 +149,7 @@
   form.addEventListener('submit', function(e) {
     e.preventDefault();
 
-    // Safeguard 1: Firestore availability guard
-    if (typeof Auth === 'undefined' || !Auth._db) {
-      showFeedback(getFallbackMsg(), true);
-      return;
-    }
-
-    // Safeguard 3: Validate all required fields (inquiryType, name, email, subject, message)
+    // Validate all required fields
     var inquiryType = form.querySelector('[name="inquiryType"]').value;
     var name = form.querySelector('[name="name"]').value.trim();
     var email = form.querySelector('[name="email"]').value.trim();
@@ -181,8 +175,7 @@
       phone: form.querySelector('[name="phone"]').value.trim() || '',
       eventDate: form.querySelector('[name="eventDate"]').value || '',
       subject: subject,
-      message: message,
-      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      message: message
     };
 
     // Disable submit button to prevent double-submit
@@ -191,10 +184,14 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending\u2026';
 
-    // Safeguard 2: Write to Firestore with server timestamp
-    Auth._db.collection('contact_submissions').add(data)
-      .then(function() {
-        showFeedback('Message sent! Someone will get back to you soon.', false);
+    // Submit via multi-strategy (server → Firestore → localStorage)
+    Forms.submitContact(data)
+      .then(function(result) {
+        if (result.method === 'local') {
+          showFeedback('Message saved! We\'ll process it when our server is back online.', false);
+        } else {
+          showFeedback('Message sent! Someone will get back to you soon.', false);
+        }
         form.reset();
       })
       .catch(function() {

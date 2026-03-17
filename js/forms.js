@@ -331,6 +331,78 @@ const Forms = {
   },
 
   /**
+   * Submit a contact form payload with fallback strategy:
+   * 1. Server API (if on LAN) — writes to SQLite queue_records
+   * 2. Firestore (if Auth._db available) — writes to contact_submissions
+   * 3. localStorage queue (last resort) — preserves data for manual recovery
+   * @param {Object} payload - Form data with at least { formType, email }
+   * @returns {Promise<{ok: boolean, method: string}>}
+   */
+  submitContact: function (payload) {
+    var serverUrl = null;
+
+    // Detect LAN server
+    if (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard()) {
+      serverUrl = window.location.protocol + '//' + window.location.host + '/api/v1/contact';
+    }
+
+    // Strategy 1: Server API (LAN only)
+    function tryServer() {
+      if (!serverUrl) return Promise.reject('not on LAN');
+      // Strip Firestore-specific fields
+      var serverPayload = {};
+      for (var k in payload) {
+        if (payload.hasOwnProperty(k) && k !== 'submittedAt') {
+          serverPayload[k] = payload[k];
+        }
+      }
+      serverPayload.submittedAt = new Date().toISOString();
+      return fetch(serverUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(serverPayload)
+      }).then(function (res) {
+        if (!res.ok) throw new Error('Server returned ' + res.status);
+        return { ok: true, method: 'server' };
+      });
+    }
+
+    // Strategy 2: Firestore
+    function tryFirestore() {
+      if (typeof Auth === 'undefined' || !Auth._db || typeof firebase === 'undefined') {
+        return Promise.reject('Firestore not available');
+      }
+      var fsPayload = {};
+      for (var k in payload) {
+        if (payload.hasOwnProperty(k)) fsPayload[k] = payload[k];
+      }
+      fsPayload.submittedAt = firebase.firestore.FieldValue.serverTimestamp();
+      return Auth._db.collection('contact_submissions').add(fsPayload).then(function () {
+        return { ok: true, method: 'firestore' };
+      });
+    }
+
+    // Strategy 3: localStorage queue
+    function saveLocal() {
+      try {
+        var queue = JSON.parse(localStorage.getItem('gbe-contact-queue') || '[]');
+        payload.submittedAt = new Date().toISOString();
+        payload._savedLocally = true;
+        queue.push(payload);
+        localStorage.setItem('gbe-contact-queue', JSON.stringify(queue));
+        return Promise.resolve({ ok: true, method: 'local' });
+      } catch (e) {
+        return Promise.reject('localStorage not available');
+      }
+    }
+
+    // Try in order: server → firestore → localStorage
+    return tryServer()
+      .catch(function () { return tryFirestore(); })
+      .catch(function () { return saveLocal(); });
+  },
+
+  /**
    * Clear error indicators for a single field.
    * @param {HTMLElement} input
    */
