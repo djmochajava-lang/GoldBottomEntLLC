@@ -41,6 +41,11 @@ dashboard/settings.html
 dashboard/team.html
 dashboard/credentials.html
 
+# Local ecosystem symlinks (server infrastructure, not public site)
+ECOSYSTEM.html
+data
+health
+
 # Firebase config (deployed separately)
 .firebaserc
 firestore.rules
@@ -59,4 +64,5 @@ npm-debug.log*
 
 # OS files
 .DS_Store
+._*
 Desktop.ini
