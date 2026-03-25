@@ -790,6 +790,10 @@ const BandPlayer = {
   renderPlaylistDropdown: function() {
     var el = document.getElementById('bp-playlist-select');
     if (!el) return;
+    if (this._playlists.length === 0) {
+      el.innerHTML = '<option value="">No playlists — create one above</option>';
+      return;
+    }
     el.innerHTML = this._playlists.map(function(pl) {
       return '<option value="' + pl.id + '">' + BandPlayer._escHtml(pl.name) +
         (pl.description ? ' — ' + BandPlayer._escHtml(pl.description) : '') + '</option>';
