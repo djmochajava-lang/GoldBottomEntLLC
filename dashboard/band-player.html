@@ -259,8 +259,14 @@
   }
   updateManagerButtons();
 
-  // Listen for role switches and update buttons
-  document.addEventListener('gbe:role-switched', updateManagerButtons);
+  // Listen for role switches — reload the page to reflect new role
+  document.addEventListener('gbe:role-switched', function() {
+    updateManagerButtons();
+    // Re-render tracklist to show/hide edit controls
+    if (BandPlayer.initialized) {
+      BandPlayer.renderTrackList();
+    }
+  });
 
   // Update now-playing actions when song changes
   function updateNowActions() {
