@@ -40,6 +40,13 @@ dashboard/integrations.html
 dashboard/settings.html
 dashboard/team.html
 dashboard/credentials.html
+dashboard/architecture.html
+dashboard/servers.html
+dashboard/metrics.html
+dashboard/export.html
+dashboard/quotes.html
+dashboard/inbox.html
+dashboard/contacts.html
 
 # Local ecosystem symlinks (server infrastructure, not public site)
 ECOSYSTEM.html

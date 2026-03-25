@@ -476,13 +476,14 @@
           return;
         }
 
+        var _inboxLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
         el.innerHTML = msgs.slice(0, 3).map(function(m) {
           var data2 = m.data ? (typeof m.data === 'string' ? JSON.parse(m.data) : m.data) : m;
           var from  = escHtml(data2.fromName || data2.from_name || data2.sender || m.from_address || 'Unknown');
           var subj  = escHtml(data2.subject || m.subject || 'No subject');
           var isUnread = !m.read_at && m.status !== 'read';
 
-          return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-inbox\')" ' +
+          return '<div class="field-item"' + (_inboxLocal ? ' onclick="Router.navigateTo(\'dashboard-inbox\')"' : '') + ' ' +
                  'style="' + (isUnread ? 'border-left:3px solid #58a6ff;' : '') + '">' +
             '<div class="field-item-icon" style="background:rgba(88,166,255,' + (isUnread ? '0.18' : '0.08') + ');">' +
               '<i class="fa-solid fa-envelope' + (isUnread ? '' : '-open') + '" style="color:#58a6ff;font-size:12px;"></i>' +
@@ -662,8 +663,9 @@
           users.push({ uid: doc.id, name: d.displayName || 'Unknown', role: d.requestedRole || 'member', note: d.requestNote || '' });
         });
 
+        var _appLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
         body.innerHTML = users.slice(0, 3).map(function(u) {
-          return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-team\')" style="border-left:3px solid #d29922;">' +
+          return '<div class="field-item"' + (_appLocal ? ' onclick="Router.navigateTo(\'dashboard-team\')"' : '') + ' style="border-left:3px solid #d29922;">' +
             '<div class="field-item-icon" style="background:rgba(210,153,34,0.12);">' +
               '<i class="fa-solid fa-user-clock" style="color:#d29922;font-size:12px;"></i>' +
             '</div>' +
@@ -809,6 +811,7 @@
       badge.textContent = outstanding.length + ' · $' + total.toLocaleString('en-US', { minimumFractionDigits: 0 });
     }
 
+    var _invLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
     body.innerHTML = outstanding.slice(0, 3).map(function(inv) {
       var client  = inv.clientName || inv.client || inv.name || 'Client';
       var amount  = '$' + (parseFloat(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -816,7 +819,7 @@
       var isOver  = (inv.status || '').toLowerCase() === 'overdue';
       var color   = isOver ? '#f85149' : '#f0883e';
 
-      return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-finances\')" style="border-left:3px solid ' + color + ';">' +
+      return '<div class="field-item"' + (_invLocal ? ' onclick="Router.navigateTo(\'dashboard-finances\')"' : '') + ' style="border-left:3px solid ' + color + ';">' +
         '<div class="field-item-icon" style="background:rgba(240,136,62,0.10);">' +
           '<i class="fa-solid fa-file-invoice-dollar" style="color:' + color + ';font-size:12px;"></i>' +
         '</div>' +
@@ -1097,9 +1100,9 @@
   window.fieldInit = function() {
     // Environment badge — INTRANET (gold) vs REMOTE (blue)
     var envBadge = document.getElementById('field-env-badge');
+    var _isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
     if (envBadge) {
-      var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
-      if (isLocal) {
+      if (_isLocal) {
         envBadge.textContent = 'Intranet';
         envBadge.style.background = 'rgba(212,160,23,0.18)';
         envBadge.style.color = '#d4a017';
@@ -1108,6 +1111,16 @@
         envBadge.style.background = 'rgba(88,166,255,0.15)';
         envBadge.style.color = '#58a6ff';
       }
+    }
+
+    // Hide links to local-only routes when on remote
+    if (!_isLocal) {
+      // Inbox "View All" link → hide (inbox requires LAN server)
+      var inboxLink = document.querySelector('#field-inbox-card .field-card-header a[href="#dashboard-inbox"]');
+      if (inboxLink) inboxLink.style.display = 'none';
+      // Invoices "All Invoices" link → hide (finances is local-only)
+      var invoicesLink = document.querySelector('#field-invoices-card .field-card-header a[href="#dashboard-finances"]');
+      if (invoicesLink) invoicesLink.style.display = 'none';
     }
 
     // Role label — dynamic from Auth
@@ -1158,6 +1171,7 @@
     });
 
     // Quick actions — strictly role-owned, zero crossover
+    // On remote, swap local-only actions with accessible alternatives
     var qaGrid = document.getElementById('field-quickactions-grid');
     if (qaGrid) {
       function _fBtn(icon, color, label, action) {
@@ -1165,8 +1179,8 @@
           '<i class="fa-solid ' + icon + '" style="font-size:20px;color:' + color + ';margin-bottom:6px;"></i>' +
           label + '</button>';
       }
-      if (_isAdmin) {
-        // Admin: system controls only — no ops buttons
+      if (_isAdmin && _isLocal) {
+        // Admin on LAN: system controls
         qaGrid.innerHTML =
           _fBtn('fa-users-gear',     '#d29922', 'Team Mgmt',    "Router.navigateTo('dashboard-team')") +
           _fBtn('fa-gear',           '#8b949e', 'Settings',     "Router.navigateTo('dashboard-settings')") +
@@ -1174,8 +1188,17 @@
           _fBtn('fa-plug',           '#58a6ff', 'Integrations', "Router.navigateTo('dashboard-integrations')") +
           _fBtn('fa-diagram-project','#c778d9', 'Architecture', "Router.navigateTo('dashboard-architecture')") +
           _fBtn('fa-server',         '#3fb950', 'Servers',      "Router.navigateTo('dashboard-servers')");
-      } else {
-        // Band Manager: ops actions only — no admin/system buttons
+      } else if (_isAdmin && !_isLocal) {
+        // Admin on remote: accessible pages only
+        qaGrid.innerHTML =
+          _fBtn('fa-users',            '#d29922', 'Roster',      "Router.navigateTo('dashboard-roster')") +
+          _fBtn('fa-calendar',         '#58a6ff', 'Calendar',    "Router.navigateTo('dashboard-calendar')") +
+          _fBtn('fa-file-signature',   '#3fb950', 'Contracts',   "Router.navigateTo('dashboard-contracts')") +
+          _fBtn('fa-ticket',           '#f0883e', 'Bookings',    "Router.navigateTo('dashboard-booking')") +
+          _fBtn('fa-shield-halved',    '#c778d9', 'IP & Rights', "Router.navigateTo('dashboard-ip')") +
+          _fBtn('fa-compact-disc',     '#d4a017', 'Distribution', "Router.navigateTo('dashboard-distribution')");
+      } else if (!_isAdmin && _isLocal) {
+        // Band Manager on LAN: full ops actions
         qaGrid.innerHTML =
           _fBtn('fa-user-plus',        '#3fb950', 'Add Contact', 'fieldAddContact()') +
           _fBtn('fa-microphone-lines', '#c778d9', 'New Inquiry', 'fieldNewInquiry()') +
@@ -1183,6 +1206,15 @@
           _fBtn('fa-dollar-sign',      '#3fb950', 'Log Revenue', 'fieldLogRevenue()') +
           _fBtn('fa-calendar-xmark',   '#58a6ff', 'Block Date',  'fieldBlockDate()') +
           _fBtn('fa-book-open',        '#d4a017', 'Contracts',   "Router.navigateTo('dashboard-contracts')");
+      } else {
+        // Band Manager on remote: ops actions that work without LAN server
+        qaGrid.innerHTML =
+          _fBtn('fa-microphone-lines', '#c778d9', 'New Inquiry', 'fieldNewInquiry()') +
+          _fBtn('fa-calendar-xmark',   '#58a6ff', 'Block Date',  'fieldBlockDate()') +
+          _fBtn('fa-book-open',        '#d4a017', 'Contracts',   "Router.navigateTo('dashboard-contracts')") +
+          _fBtn('fa-calendar',         '#58a6ff', 'Calendar',    "Router.navigateTo('dashboard-calendar')") +
+          _fBtn('fa-ticket',           '#f0883e', 'Bookings',    "Router.navigateTo('dashboard-booking')") +
+          _fBtn('fa-users',            '#3fb950', 'Roster',      "Router.navigateTo('dashboard-roster')");
       }
     }
   };
