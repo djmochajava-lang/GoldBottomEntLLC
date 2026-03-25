@@ -14,6 +14,8 @@ const BandPlayer = {
   _currentIndex: -1,
   _isPlaying: false,
   _volume: 0.8,
+  _editMode: false,
+  _editDirty: false,
 
   init: function() {
     if (this.initialized) return;
@@ -287,6 +289,99 @@ const BandPlayer = {
     });
   },
 
+  // ── Edit Mode (band_manager / admin only) ─────────────
+
+  toggleEditMode: function() {
+    if (this._editMode) {
+      this._exitEditMode();
+    } else {
+      this._enterEditMode();
+    }
+  },
+
+  _enterEditMode: function() {
+    this._editMode = true;
+    this._editDirty = false;
+    // Pause playback when entering edit mode
+    if (this._isPlaying) {
+      this._audio.pause();
+      this._isPlaying = false;
+      this.updateNowPlaying();
+    }
+    // Update toggle button
+    var btn = document.getElementById('bp-edit-toggle');
+    if (btn) {
+      btn.style.background = 'rgba(88,166,255,0.15)';
+      btn.style.color = '#58a6ff';
+      btn.style.borderColor = 'rgba(88,166,255,0.3)';
+      btn.innerHTML = '<i class="fa-solid fa-check" style="margin-right:4px;"></i> Done';
+    }
+    // Hide now-playing bar in edit mode
+    var nowPlaying = document.getElementById('bp-now-playing');
+    if (nowPlaying) nowPlaying.style.display = 'none';
+    this.renderTrackList();
+  },
+
+  _exitEditMode: function() {
+    var self = this;
+    this._editMode = false;
+    // Update toggle button
+    var btn = document.getElementById('bp-edit-toggle');
+    if (btn) {
+      btn.style.background = 'rgba(255,255,255,0.06)';
+      btn.style.color = 'rgba(255,255,255,0.7)';
+      btn.style.borderColor = 'rgba(255,255,255,0.12)';
+      btn.innerHTML = '<i class="fa-solid fa-pen" style="margin-right:4px;"></i> Edit';
+    }
+    // Save order to Firestore if changed
+    if (this._editDirty && this._currentPlaylist) {
+      var newOrder = this._songs.map(function(s) { return s.id; });
+      this._db.collection('playlists').doc(this._currentPlaylist.id).update({
+        songOrder: newOrder,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function() {
+        self._currentPlaylist.songOrder = newOrder;
+        if (typeof Toast !== 'undefined') Toast.success('Playlist order saved');
+      }).catch(function(e) {
+        console.error('[BandPlayer] Failed to save order:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Failed to save order');
+      });
+    }
+    this._editDirty = false;
+    this.renderTrackList();
+  },
+
+  moveSong: function(fromIndex, direction) {
+    var toIndex = fromIndex + direction;
+    if (toIndex < 0 || toIndex >= this._songs.length) return;
+    var temp = this._songs[fromIndex];
+    this._songs[fromIndex] = this._songs[toIndex];
+    this._songs[toIndex] = temp;
+    this._editDirty = true;
+    this.renderTrackList();
+  },
+
+  removeSong: function(index) {
+    var song = this._songs[index];
+    if (!song) return;
+    if (typeof Modal !== 'undefined') {
+      var self = this;
+      Modal.open({
+        title: 'Remove Song',
+        size: 'sm',
+        content: '<p style="color:#e6edf3;font-size:15px;">Remove <strong>' + this._escHtml(song.title) + '</strong> from this playlist?</p>' +
+          '<p style="color:rgba(255,255,255,0.45);font-size:13px;margin-top:8px;">The song file won\'t be deleted — it can be added back later.</p>',
+        confirmText: 'Remove',
+        onConfirm: function() {
+          self._songs.splice(index, 1);
+          self._editDirty = true;
+          Modal.close();
+          self.renderTrackList();
+        }
+      });
+    }
+  },
+
   // ── Upload (band_manager / admin only) ────────────────
 
   showUploadSong: function() {
@@ -494,8 +589,42 @@ const BandPlayer = {
     }
 
     var self = this;
-    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
 
+    if (this._editMode) {
+      // Edit mode — reorder + remove controls
+      var editHtml = '<div class="bp-edit-banner">' +
+        '<span><i class="fa-solid fa-arrows-up-down" style="margin-right:6px;"></i>Editing — reorder or remove songs</span>' +
+        '<span style="color:rgba(255,255,255,0.4);font-weight:400;">' + this._songs.length + ' song' + (this._songs.length !== 1 ? 's' : '') + '</span>' +
+        '</div>';
+
+      editHtml += this._songs.map(function(song, i) {
+        var isFirst = (i === 0);
+        var isLast = (i === self._songs.length - 1);
+
+        return '<div class="bp-track" style="cursor:default;">' +
+          '<div class="bp-track-num"><span>' + (i + 1) + '</span></div>' +
+          '<div class="bp-track-info">' +
+            '<div class="bp-track-title">' + BandPlayer._escHtml(song.title) + '</div>' +
+            '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
+          '</div>' +
+          '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
+            '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + i + ',-1)" title="Move up"' +
+              (isFirst ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
+              '<i class="fa-solid fa-chevron-up"></i></button>' +
+            '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + i + ',1)" title="Move down"' +
+              (isLast ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
+              '<i class="fa-solid fa-chevron-down"></i></button>' +
+            '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.removeSong(' + i + ')" title="Remove">' +
+              '<i class="fa-solid fa-trash"></i></button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      el.innerHTML = editHtml;
+      return;
+    }
+
+    // Listen mode — normal playback view
     el.innerHTML = this._songs.map(function(song, i) {
       var isActive = (i === self._currentIndex);
       var hasLyrics = !!(song.lyrics);

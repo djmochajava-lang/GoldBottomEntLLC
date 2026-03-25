@@ -23,6 +23,10 @@
               style="background:rgba(212,160,23,0.12);color:#d4a017;border:1px solid rgba(212,160,23,0.2);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
         <i class="fa-solid fa-upload" style="margin-right:4px;"></i> Add Song
       </button>
+      <button id="bp-edit-toggle" onclick="BandPlayer.toggleEditMode()" class="btn btn-sm"
+              style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
+        <i class="fa-solid fa-pen" style="margin-right:4px;"></i> Edit
+      </button>
     </div>
   </div>
 
@@ -185,6 +189,50 @@
   @keyframes bp-eq-bar {
     0%, 100% { transform: scaleY(0.4); }
     50% { transform: scaleY(1); }
+  }
+  /* Edit mode styles */
+  .bp-edit-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 120ms, color 120ms;
+  }
+  .bp-edit-btn:hover {
+    background: rgba(88,166,255,0.12);
+    color: #58a6ff;
+  }
+  .bp-edit-btn:active {
+    background: rgba(88,166,255,0.2);
+  }
+  .bp-edit-btn-danger:hover {
+    background: rgba(248,81,73,0.12);
+    color: #f85149;
+  }
+  .bp-track-edit-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .bp-edit-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(88,166,255,0.08);
+    border: 1px solid rgba(88,166,255,0.2);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #58a6ff;
   }
 </style>
 
