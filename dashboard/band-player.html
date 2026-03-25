@@ -249,12 +249,18 @@
 (function() {
   'use strict';
 
-  // Show manager actions for admin/band_manager
-  var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
-  var mgrActions = document.getElementById('bp-mgr-actions');
-  if (mgrActions) {
-    mgrActions.style.display = (role === 'admin' || role === 'band_manager') ? 'flex' : 'none';
+  // Show/hide manager actions based on current role
+  function updateManagerButtons() {
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    var mgrActions = document.getElementById('bp-mgr-actions');
+    if (mgrActions) {
+      mgrActions.style.display = (role === 'admin' || role === 'band_manager') ? 'flex' : 'none';
+    }
   }
+  updateManagerButtons();
+
+  // Listen for role switches and update buttons
+  document.addEventListener('gbe:role-switched', updateManagerButtons);
 
   // Update now-playing actions when song changes
   function updateNowActions() {
@@ -288,28 +294,21 @@
 
   // Init the player — wait for Auth/Firestore if not ready yet
   function tryInit(attempts) {
-    if (typeof BandPlayer === 'undefined') {
-      updateDebug('BandPlayer not defined');
-      return;
-    }
-    var hasAuth = (typeof Auth !== 'undefined');
-    var hasDb = hasAuth && Auth._db;
-    var hasUser = hasAuth && Auth._user;
-    var role = hasAuth && Auth.getRole ? Auth.getRole() : 'none';
-    var uid = hasUser ? Auth._user.uid : 'none';
-
-    updateDebug('attempt ' + attempts + ' | Auth:' + hasAuth + ' | db:' + !!hasDb + ' | user:' + !!hasUser + ' | role:' + role + ' | uid:' + uid);
+    if (typeof BandPlayer === 'undefined') return;
+    var hasDb = (typeof Auth !== 'undefined') && Auth._db;
 
     if (hasDb) {
       BandPlayer.init();
+      updateManagerButtons();
     } else if (attempts < 20) {
       setTimeout(function() { tryInit(attempts + 1); }, 500);
     } else {
-      updateDebug('FAILED after 20 attempts | Auth:' + hasAuth + ' | db:' + !!hasDb + ' | user:' + !!hasUser);
       var el = document.getElementById('bp-tracklist');
       if (el) el.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(248,81,73,0.8);font-size:14px;">' +
         '<i class="fa-solid fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:10px;"></i>' +
         'Could not connect to database. Try refreshing the page.</div>';
+      var sel = document.getElementById('bp-playlist-select');
+      if (sel) sel.innerHTML = '<option value="">Connection failed</option>';
     }
   }
   tryInit(0);

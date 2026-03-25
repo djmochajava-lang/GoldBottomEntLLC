@@ -986,6 +986,7 @@ const Auth = {
       Toast.success('Switched to ' + this.getRoleLabel());
     }
     console.log('[Auth] Switched to role:', newRole);
+    document.dispatchEvent(new CustomEvent('gbe:role-switched', { detail: { role: newRole } }));
     return true;
   },
 
