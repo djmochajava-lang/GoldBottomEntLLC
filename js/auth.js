@@ -1728,8 +1728,8 @@ const Auth = {
         '</p>' +
         '<div style="padding:12px;border-radius:8px;background:rgba(255,255,255,0.04);' +
           'border:1px solid rgba(255,255,255,0.08);margin-bottom:16px;">' +
-          '<p style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;">' +
-            'You\'ll get immediate access once approved.<br>Just sign in again after approval.' +
+          '<p id="auth-pending-status" style="margin:0;color:rgba(255,255,255,0.4);font-size:12px;">' +
+            'Checking for approval automatically&hellip;' +
           '</p>' +
         '</div>' +
         '<button id="auth-pending-signout" type="button" style="' +
@@ -1747,14 +1747,81 @@ const Auth = {
       showFooter: false,
       onCancel: function() {
         Auth._pendingRoute = null;
+        stopPendingPoll();
       }
     });
+
+    // Auto-poll Firestore every 4s — resolves immediately when admin approves
+    var _pendingPollTimer = null;
+    var _pendingAttempts = 0;
+    var MAX_PENDING_ATTEMPTS = 75; // 5 min max
+
+    function stopPendingPoll() {
+      if (_pendingPollTimer) {
+        clearInterval(_pendingPollTimer);
+        _pendingPollTimer = null;
+      }
+    }
+
+    _pendingPollTimer = setInterval(function() {
+      _pendingAttempts++;
+      if (_pendingAttempts > MAX_PENDING_ATTEMPTS) {
+        stopPendingPoll();
+        var statusEl = document.getElementById('auth-pending-status');
+        if (statusEl) statusEl.textContent = 'You\'ll get immediate access once approved. Sign in again after approval.';
+        return;
+      }
+
+      if (!Auth._db) return;
+
+      Auth._db.collection('users').doc(user.uid).get().then(function(doc) {
+        if (!doc.exists) return;
+        var data = doc.data();
+        if (data.status === 'approved') {
+          stopPendingPoll();
+          var statusEl = document.getElementById('auth-pending-status');
+          if (statusEl) {
+            statusEl.style.color = '#3fb950';
+            statusEl.textContent = '✓ Approved! Loading dashboard…';
+          }
+          setTimeout(function() {
+            Auth._authorized = true;
+            Auth._registrationStatus = 'approved';
+            Auth._role = data.role || 'member';
+            Auth._linkedRoles = (data.linkedRoles && data.linkedRoles.length)
+              ? data.linkedRoles : [Auth._role];
+            Auth._activeRole = Auth._restoreActiveRole(user.uid);
+            if (typeof Modal !== 'undefined') Modal.close();
+            Auth._updateUI(user);
+            Auth._notifyListeners(user);
+            if (typeof Toast !== 'undefined') {
+              Toast.success('Welcome, ' + Auth.getUserDisplayName() + '!');
+            }
+            if (Auth._pendingRoute) {
+              var route = Auth._pendingRoute;
+              Auth._pendingRoute = null;
+              if (typeof Router !== 'undefined') Router.navigateTo(route, true);
+            } else {
+              if (typeof Router !== 'undefined') Router.navigateTo('dashboard-home');
+            }
+          }, 1200);
+        } else if (data.status === 'denied') {
+          stopPendingPoll();
+          if (typeof Modal !== 'undefined') Modal.close();
+          Auth._auth.signOut();
+          Auth._showLoginError('Your access request has been denied.');
+        }
+      }).catch(function(e) {
+        console.warn('[Auth] Pending poll error:', e);
+      });
+    }, 4000);
 
     // Bind sign-out button
     setTimeout(function() {
       var btn = document.getElementById('auth-pending-signout');
       if (btn) {
         btn.addEventListener('click', function() {
+          stopPendingPoll();
           Auth.logout().then(function() {
             Modal.close();
             if (typeof Toast !== 'undefined') Toast.success('Signed out');
