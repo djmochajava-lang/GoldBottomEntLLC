@@ -286,16 +286,40 @@
     updateNowActions();
   };
 
+  // Debug banner (temporary — remove after testing)
+  var debugEl = document.createElement('div');
+  debugEl.id = 'bp-debug';
+  debugEl.style.cssText = 'padding:10px 14px;margin-bottom:12px;border-radius:8px;background:rgba(255,200,0,0.1);border:1px solid rgba(255,200,0,0.3);font-size:12px;color:#e6edf3;font-family:monospace;word-break:break-all;';
+  debugEl.textContent = 'DEBUG: waiting for init...';
+  var pageEl = document.getElementById('dash-band-player');
+  if (pageEl) pageEl.insertBefore(debugEl, pageEl.firstChild);
+
+  function updateDebug(msg) {
+    var d = document.getElementById('bp-debug');
+    if (d) d.textContent = 'DEBUG: ' + msg;
+  }
+
   // Init the player — wait for Auth/Firestore if not ready yet
   function tryInit(attempts) {
-    if (typeof BandPlayer === 'undefined') return;
-    var dbReady = (typeof Auth !== 'undefined' && Auth._db);
-    if (dbReady) {
+    if (typeof BandPlayer === 'undefined') {
+      updateDebug('BandPlayer not defined');
+      return;
+    }
+    var hasAuth = (typeof Auth !== 'undefined');
+    var hasDb = hasAuth && Auth._db;
+    var hasUser = hasAuth && Auth._user;
+    var role = hasAuth && Auth.getRole ? Auth.getRole() : 'none';
+    var uid = hasUser ? Auth._user.uid : 'none';
+
+    updateDebug('attempt ' + attempts + ' | Auth:' + hasAuth + ' | db:' + !!hasDb + ' | user:' + !!hasUser + ' | role:' + role + ' | uid:' + uid);
+
+    if (hasDb) {
       BandPlayer.init();
+      updateDebug('INIT OK | db:' + !!BandPlayer._db + ' | storage:' + !!BandPlayer._storage + ' | initialized:' + BandPlayer.initialized + ' | role:' + role + ' | uid:' + uid);
     } else if (attempts < 20) {
       setTimeout(function() { tryInit(attempts + 1); }, 500);
     } else {
-      // Show error after 10 seconds
+      updateDebug('FAILED after 20 attempts | Auth:' + hasAuth + ' | db:' + !!hasDb + ' | user:' + !!hasUser);
       var el = document.getElementById('bp-tracklist');
       if (el) el.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(248,81,73,0.8);font-size:14px;">' +
         '<i class="fa-solid fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:10px;"></i>' +
