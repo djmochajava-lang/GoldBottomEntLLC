@@ -6,20 +6,24 @@
 
 <div id="field-view" style="max-width:600px;margin:0 auto;padding:0 0 80px;">
 
+  <!-- ── Role Theme Banner (injected by JS) ───────────────────── -->
+  <div id="field-theme-banner" style="display:none;padding:10px 16px;margin:0 -2px 4px;border-radius:0 0 14px 14px;
+       text-align:center;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;"></div>
+
   <!-- ── Page Header ─────────────────────────────────────────── -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 4px 16px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 4px 16px;">
     <div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-        <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;
-                     padding:3px 10px;border-radius:20px;
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span id="field-view-badge" style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;
+                     padding:4px 12px;border-radius:20px;
                      background:rgba(63,185,80,0.15);color:#3fb950;">
           <i class="fa-solid fa-signal" style="margin-right:4px;"></i>Field View
         </span>
         <span id="field-env-badge" style="font-size:13px;font-weight:700;text-transform:uppercase;
-                     letter-spacing:0.08em;padding:3px 10px;border-radius:20px;"></span>
+                     letter-spacing:0.08em;padding:4px 12px;border-radius:20px;"></span>
       </div>
-      <div id="field-date" style="font-size:18px;font-weight:700;color:#e6edf3;"></div>
-      <div id="field-role-label" style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:1px;">
+      <div id="field-date" style="font-size:20px;font-weight:700;color:#e6edf3;"></div>
+      <div id="field-role-label" style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:2px;">
         <i class="fa-solid fa-briefcase" style="margin-right:4px;color:#d4a017;"></i>
       </div>
     </div>
@@ -191,30 +195,32 @@
 
 <!-- ── Inline Styles ────────────────────────────────────────── -->
 <style>
+  /* ── Base field styles ──────────────────────────────────── */
   .field-card {
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 12px;
+    padding: 18px;
+    margin-bottom: 14px;
+    transition: border-color 200ms ease, background 200ms ease;
   }
   .field-card-header {
     display: flex;
     align-items: center;
-    gap: 7px;
-    font-size: 13px;
+    gap: 8px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    color: rgba(255,255,255,0.45);
-    margin-bottom: 12px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 14px;
   }
   .field-item {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
-    border-radius: 8px;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.07);
     margin-bottom: 8px;
@@ -225,18 +231,18 @@
   .field-item:hover { background: rgba(255,255,255,0.07); }
   .field-item:last-child { margin-bottom: 0; }
   .field-item-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 15px;
+    font-size: 16px;
   }
   .field-item-body { flex: 1; min-width: 0; }
   .field-item-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: #e6edf3;
     white-space: nowrap;
@@ -244,37 +250,37 @@
     text-overflow: ellipsis;
   }
   .field-item-sub {
-    font-size: 13px;
-    color: rgba(255,255,255,0.45);
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
     margin-top: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .field-item-meta {
-    font-size: 12px;
-    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    color: rgba(255,255,255,0.35);
     flex-shrink: 0;
     text-align: right;
   }
   .field-badge {
     display: inline-flex;
     align-items: center;
-    padding: 3px 9px;
+    padding: 4px 10px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
   }
   .field-empty {
     text-align: center;
-    padding: 18px 0 8px;
-    color: rgba(255,255,255,0.3);
-    font-size: 14px;
+    padding: 20px 0 10px;
+    color: rgba(255,255,255,0.35);
+    font-size: 15px;
   }
-  .field-empty i { font-size: 26px; display: block; margin-bottom: 6px; }
+  .field-empty i { font-size: 28px; display: block; margin-bottom: 8px; }
   .field-skeleton {
-    height: 56px;
-    border-radius: 8px;
+    height: 60px;
+    border-radius: 10px;
     background: linear-gradient(90deg,
       rgba(255,255,255,0.05) 25%,
       rgba(255,255,255,0.08) 50%,
@@ -287,16 +293,16 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 18px 12px;
-    border-radius: 10px;
+    padding: 20px 12px;
+    border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.10);
     background: rgba(255,255,255,0.04);
-    color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.85);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: background 150ms ease, transform 100ms ease;
-    min-height: 80px;
+    min-height: 88px;
     font-family: inherit;
   }
   .field-action-btn:hover { background: rgba(255,255,255,0.08); }
@@ -304,6 +310,64 @@
   @keyframes field-shimmer {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  /* ── Role Theme: Admin (technical / blue-steel) ─────────── */
+  #field-view.field-theme-admin {
+    --field-accent: #58a6ff;
+    --field-accent-dim: rgba(88,166,255,0.12);
+    --field-accent-border: rgba(88,166,255,0.20);
+    --field-header-bg: rgba(88,166,255,0.04);
+  }
+  #field-view.field-theme-admin .field-card {
+    background: rgba(88,166,255,0.03);
+    border-color: rgba(88,166,255,0.12);
+  }
+  #field-view.field-theme-admin .field-card-header {
+    color: rgba(88,166,255,0.65);
+  }
+  #field-view.field-theme-admin .field-item {
+    background: rgba(88,166,255,0.04);
+    border-color: rgba(88,166,255,0.10);
+  }
+  #field-view.field-theme-admin .field-item:hover {
+    background: rgba(88,166,255,0.08);
+  }
+  #field-view.field-theme-admin .field-action-btn {
+    background: rgba(88,166,255,0.05);
+    border-color: rgba(88,166,255,0.15);
+  }
+  #field-view.field-theme-admin .field-action-btn:hover {
+    background: rgba(88,166,255,0.10);
+  }
+
+  /* ── Role Theme: Band Manager (warm gold / creative) ────── */
+  #field-view.field-theme-band_manager {
+    --field-accent: #d4a017;
+    --field-accent-dim: rgba(212,160,23,0.12);
+    --field-accent-border: rgba(212,160,23,0.20);
+    --field-header-bg: rgba(212,160,23,0.04);
+  }
+  #field-view.field-theme-band_manager .field-card {
+    background: rgba(212,160,23,0.03);
+    border-color: rgba(212,160,23,0.12);
+  }
+  #field-view.field-theme-band_manager .field-card-header {
+    color: rgba(212,160,23,0.65);
+  }
+  #field-view.field-theme-band_manager .field-item {
+    background: rgba(212,160,23,0.04);
+    border-color: rgba(212,160,23,0.10);
+  }
+  #field-view.field-theme-band_manager .field-item:hover {
+    background: rgba(212,160,23,0.08);
+  }
+  #field-view.field-theme-band_manager .field-action-btn {
+    background: rgba(212,160,23,0.05);
+    border-color: rgba(212,160,23,0.15);
+  }
+  #field-view.field-theme-band_manager .field-action-btn:hover {
+    background: rgba(212,160,23,0.10);
   }
 </style>
 
@@ -1148,12 +1212,53 @@
 
     // Role label — dynamic from Auth
     var roleLabel = document.getElementById('field-role-label');
+    var roleRegistry = (typeof SiteConfig !== 'undefined' && SiteConfig.roles) || {};
+    var activeRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'band_manager';
+    var roleInfo = roleRegistry[activeRole] || { label: activeRole.replace(/_/g, ' '), icon: 'fa-user', color: '#8b949e' };
     if (roleLabel) {
-      var roleRegistry = (typeof SiteConfig !== 'undefined' && SiteConfig.roles) || {};
-      var activeRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'band_manager';
-      var roleInfo = roleRegistry[activeRole] || { label: activeRole.replace(/_/g, ' ') };
-      roleLabel.innerHTML = '<i class="fa-solid fa-briefcase" style="margin-right:4px;color:#d4a017;"></i>' +
+      roleLabel.innerHTML = '<i class="fa-solid ' + (roleInfo.icon || 'fa-user') + '" style="margin-right:5px;color:' + (roleInfo.color || '#8b949e') + ';"></i>' +
         roleInfo.label.charAt(0).toUpperCase() + roleInfo.label.slice(1);
+    }
+
+    // ── Apply role theme ──────────────────────────────────────
+    var fieldViewEl = document.getElementById('field-view');
+    var themeBanner = document.getElementById('field-theme-banner');
+    var viewBadge   = document.getElementById('field-view-badge');
+    if (fieldViewEl) {
+      // Clear previous theme classes
+      fieldViewEl.className = fieldViewEl.className.replace(/field-theme-\S+/g, '').trim();
+      // Apply current role theme
+      fieldViewEl.classList.add('field-theme-' + activeRole);
+    }
+    if (themeBanner) {
+      if (activeRole === 'admin') {
+        themeBanner.style.display = '';
+        themeBanner.style.background = 'linear-gradient(90deg, rgba(88,166,255,0.15), rgba(88,166,255,0.05))';
+        themeBanner.style.color = '#58a6ff';
+        themeBanner.style.borderBottom = '1px solid rgba(88,166,255,0.2)';
+        themeBanner.innerHTML = '<i class="fa-solid fa-shield-halved" style="margin-right:6px;"></i>Admin Control Mode';
+      } else if (activeRole === 'band_manager') {
+        themeBanner.style.display = '';
+        themeBanner.style.background = 'linear-gradient(90deg, rgba(212,160,23,0.15), rgba(199,120,217,0.08))';
+        themeBanner.style.color = '#d4a017';
+        themeBanner.style.borderBottom = '1px solid rgba(212,160,23,0.2)';
+        themeBanner.innerHTML = '<i class="fa-solid fa-music" style="margin-right:6px;"></i>Band Manager Mode';
+      } else {
+        themeBanner.style.display = 'none';
+      }
+    }
+    // Tint the "Field View" badge to match role theme
+    if (viewBadge) {
+      if (activeRole === 'admin') {
+        viewBadge.style.background = 'rgba(88,166,255,0.15)';
+        viewBadge.style.color = '#58a6ff';
+      } else if (activeRole === 'band_manager') {
+        viewBadge.style.background = 'rgba(212,160,23,0.15)';
+        viewBadge.style.color = '#d4a017';
+      } else {
+        viewBadge.style.background = 'rgba(63,185,80,0.15)';
+        viewBadge.style.color = '#3fb950';
+      }
     }
 
     // Page header date
