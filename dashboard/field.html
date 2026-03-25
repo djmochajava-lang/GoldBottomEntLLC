@@ -31,6 +31,24 @@
     </button>
   </div>
 
+  <!-- ── THIS WEEK ─────────────────────────────────────────── -->
+  <div class="field-card">
+    <div class="field-card-header">
+      <i class="fa-solid fa-calendar-week" style="color:#58a6ff;"></i>
+      <span>This Week</span>
+      <span id="field-week-badge" style="display:none;margin-left:6px;font-size:11px;
+             font-weight:700;background:rgba(88,166,255,0.15);color:#58a6ff;
+             border-radius:10px;padding:1px 8px;"></span>
+      <a href="#dashboard-calendar" style="margin-left:auto;font-size:11px;color:#58a6ff;
+         font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">
+        Calendar <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i>
+      </a>
+    </div>
+    <div id="field-week-body">
+      <div class="field-skeleton"></div>
+    </div>
+  </div>
+
   <!-- ── TODAY ──────────────────────────────────────────────── -->
   <div class="field-card">
     <div class="field-card-header">
@@ -78,6 +96,36 @@
     </div>
   </div>
 
+  <!-- ── CONTRACTS (outstanding signatures) ────────────────── -->
+  <div id="field-contracts-card" class="field-card" style="display:none;">
+    <div class="field-card-header">
+      <i class="fa-solid fa-file-signature" style="color:#3fb950;"></i>
+      <span>Contracts</span>
+      <span id="field-contracts-badge" style="margin-left:6px;font-size:11px;font-weight:700;
+             background:rgba(63,185,80,0.15);color:#3fb950;border-radius:10px;padding:1px 8px;"></span>
+      <a href="#dashboard-contracts" style="margin-left:auto;font-size:11px;color:#3fb950;
+         font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">
+        All Contracts <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i>
+      </a>
+    </div>
+    <div id="field-contracts-body"></div>
+  </div>
+
+  <!-- ── INVOICES (outstanding / unpaid) ────────────────────── -->
+  <div id="field-invoices-card" class="field-card" style="display:none;">
+    <div class="field-card-header">
+      <i class="fa-solid fa-file-invoice-dollar" style="color:#f0883e;"></i>
+      <span>Invoices</span>
+      <span id="field-invoices-badge" style="margin-left:6px;font-size:11px;font-weight:700;
+             background:rgba(240,136,62,0.15);color:#f0883e;border-radius:10px;padding:1px 8px;"></span>
+      <a href="#dashboard-finances" style="margin-left:auto;font-size:11px;color:#f0883e;
+         font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">
+        All Invoices <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i>
+      </a>
+    </div>
+    <div id="field-invoices-body"></div>
+  </div>
+
   <!-- ── FOLLOW-UPS ─────────────────────────────────────────── -->
   <div class="field-card">
     <div class="field-card-header">
@@ -118,13 +166,21 @@
         <i class="fa-solid fa-user-plus" style="font-size:20px;color:#3fb950;margin-bottom:6px;"></i>
         Add Contact
       </button>
-      <button class="field-action-btn" onclick="fieldBlockDate()">
-        <i class="fa-solid fa-calendar-xmark" style="font-size:20px;color:#58a6ff;margin-bottom:6px;"></i>
-        Block Date
+      <button class="field-action-btn" onclick="fieldNewInquiry()">
+        <i class="fa-solid fa-microphone-lines" style="font-size:20px;color:#c778d9;margin-bottom:6px;"></i>
+        New Inquiry
       </button>
       <button class="field-action-btn" onclick="fieldLogExpense()">
         <i class="fa-solid fa-receipt" style="font-size:20px;color:#f0883e;margin-bottom:6px;"></i>
         Log Expense
+      </button>
+      <button class="field-action-btn" onclick="fieldLogRevenue()">
+        <i class="fa-solid fa-dollar-sign" style="font-size:20px;color:#3fb950;margin-bottom:6px;"></i>
+        Log Revenue
+      </button>
+      <button class="field-action-btn" onclick="fieldBlockDate()">
+        <i class="fa-solid fa-calendar-xmark" style="font-size:20px;color:#58a6ff;margin-bottom:6px;"></i>
+        Block Date
       </button>
       <button class="field-action-btn" id="field-approve-btn" onclick="Router.navigateTo('dashboard-team')">
         <i class="fa-solid fa-user-check" style="font-size:20px;color:#d29922;margin-bottom:6px;"></i>
@@ -649,6 +705,158 @@
       });
   }
 
+  /* ── THIS WEEK section ───────────────────────────────────── */
+
+  function renderThisWeek() {
+    var el    = document.getElementById('field-week-body');
+    var badge = document.getElementById('field-week-badge');
+    if (!el) return;
+
+    var today = new Date();
+    var todayStr = today.toISOString().slice(0, 10);
+    var weekOut  = new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+
+    var bookings = (typeof DataStore !== 'undefined') ? DataStore.getBookings() : [];
+    var events   = (typeof DataStore !== 'undefined') ? DataStore.getEvents()   : [];
+
+    var weekBookings = bookings.filter(function(b) {
+      var d = (b.eventDate || b.date || '').slice(0, 10);
+      return d > todayStr && d <= weekOut &&
+             (b.stage === 'confirmed' || b.stage === 'contracted');
+    }).sort(function(a, b) {
+      return (a.eventDate || a.date || '') > (b.eventDate || b.date || '') ? 1 : -1;
+    });
+
+    var weekEvents = events.filter(function(e) {
+      var d = (e.date || '').slice(0, 10);
+      return d > todayStr && d <= weekOut;
+    }).sort(function(a, b) { return a.date > b.date ? 1 : -1; });
+
+    var allWeek = weekBookings.concat(weekEvents);
+
+    if (badge && allWeek.length > 0) {
+      badge.textContent = allWeek.length + ' gig' + (allWeek.length > 1 ? 's' : '');
+      badge.style.display = '';
+    }
+
+    if (allWeek.length === 0) {
+      el.innerHTML = '<div class="field-empty"><i class="fa-solid fa-calendar" style="color:rgba(88,166,255,0.3);"></i>No gigs this week</div>';
+      return;
+    }
+
+    el.innerHTML = allWeek.slice(0, 5).map(function(item) {
+      var isBooking = !!item.stage;
+      var title  = item.name || item.title || item.venue || 'Gig';
+      var venue  = item.venue || item.location || '';
+      var date   = fmtDate(item.eventDate || item.date);
+      var color  = isBooking ? stageColor(item.stage) : '#58a6ff';
+
+      return '<div class="field-item" onclick="Router.navigateTo(\'' + (isBooking ? 'dashboard-booking' : 'dashboard-calendar') + '\')" ' +
+             'style="border-left:3px solid ' + color + ';">' +
+        '<div class="field-item-icon" style="background:rgba(88,166,255,0.10);">' +
+          '<i class="fa-solid fa-' + (isBooking ? 'music' : 'calendar-day') + '" style="color:' + color + ';font-size:12px;"></i>' +
+        '</div>' +
+        '<div class="field-item-body">' +
+          '<div class="field-item-title">' + escHtml(title) + '</div>' +
+          '<div class="field-item-sub">' + date + (venue ? ' · ' + escHtml(venue) : '') + '</div>' +
+        '</div>' +
+        (isBooking
+          ? '<div class="field-item-meta"><span class="field-badge" style="background:rgba(' + hexToRgb(color) + ',0.15);color:' + color + ';">' + stageLabel(item.stage) + '</span></div>'
+          : ''
+        ) +
+      '</div>';
+    }).join('');
+  }
+
+  /* ── CONTRACTS section ───────────────────────────────────── */
+
+  function renderContracts() {
+    var card  = document.getElementById('field-contracts-card');
+    var body  = document.getElementById('field-contracts-body');
+    var badge = document.getElementById('field-contracts-badge');
+    if (!card || !body) return;
+
+    var contracts = (typeof DataStore !== 'undefined') ? DataStore.getContracts() : [];
+    var needsAction = contracts.filter(function(c) {
+      var s = (c.status || '').toLowerCase();
+      return s === 'pending' || s === 'pending-signature' || s === 'sent' || s === 'draft';
+    });
+
+    if (needsAction.length === 0) { card.style.display = 'none'; return; }
+
+    card.style.display = '';
+    if (badge) { badge.textContent = needsAction.length + ' pending'; }
+
+    body.innerHTML = needsAction.slice(0, 3).map(function(c) {
+      var artist  = c.artistName || c.artist || c.name || 'Unknown';
+      var venue   = c.venueName  || c.venue  || c.client || '';
+      var expires = c.endDate || c.expiresAt || c.date || '';
+      var status  = c.status || 'Pending';
+      var color   = status.toLowerCase().includes('draft') ? '#8b949e' : '#3fb950';
+
+      return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-contracts\')" style="border-left:3px solid ' + color + ';">' +
+        '<div class="field-item-icon" style="background:rgba(63,185,80,0.10);">' +
+          '<i class="fa-solid fa-file-signature" style="color:' + color + ';font-size:12px;"></i>' +
+        '</div>' +
+        '<div class="field-item-body">' +
+          '<div class="field-item-title">' + escHtml(artist) + (venue ? ' @ ' + escHtml(venue) : '') + '</div>' +
+          '<div class="field-item-sub">' + escHtml(status) + (expires ? ' · ' + fmtDate(expires) : '') + '</div>' +
+        '</div>' +
+        '<div class="field-item-meta"><i class="fa-solid fa-chevron-right" style="font-size:10px;color:rgba(255,255,255,0.3);"></i></div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* ── INVOICES section ────────────────────────────────────── */
+
+  function renderInvoices() {
+    var card  = document.getElementById('field-invoices-card');
+    var body  = document.getElementById('field-invoices-body');
+    var badge = document.getElementById('field-invoices-badge');
+    if (!card || !body) return;
+
+    var invoices = (typeof DataStore !== 'undefined' && DataStore.getInvoices) ? DataStore.getInvoices() : [];
+    var outstanding = invoices.filter(function(inv) {
+      var s = (inv.status || '').toLowerCase();
+      return s === 'sent' || s === 'overdue' || s === 'pending' || s === 'unpaid';
+    }).sort(function(a, b) {
+      // Overdue first
+      var aOver = (a.status || '').toLowerCase() === 'overdue';
+      var bOver = (b.status || '').toLowerCase() === 'overdue';
+      return bOver - aOver;
+    });
+
+    if (outstanding.length === 0) { card.style.display = 'none'; return; }
+
+    card.style.display = '';
+    var total = outstanding.reduce(function(sum, inv) { return sum + (parseFloat(inv.amount) || 0); }, 0);
+    if (badge) {
+      badge.textContent = outstanding.length + ' · $' + total.toLocaleString('en-US', { minimumFractionDigits: 0 });
+    }
+
+    body.innerHTML = outstanding.slice(0, 3).map(function(inv) {
+      var client  = inv.clientName || inv.client || inv.name || 'Client';
+      var amount  = '$' + (parseFloat(inv.amount) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      var due     = inv.dueDate || inv.date || '';
+      var isOver  = (inv.status || '').toLowerCase() === 'overdue';
+      var color   = isOver ? '#f85149' : '#f0883e';
+
+      return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-finances\')" style="border-left:3px solid ' + color + ';">' +
+        '<div class="field-item-icon" style="background:rgba(240,136,62,0.10);">' +
+          '<i class="fa-solid fa-file-invoice-dollar" style="color:' + color + ';font-size:12px;"></i>' +
+        '</div>' +
+        '<div class="field-item-body">' +
+          '<div class="field-item-title">' + escHtml(client) + '</div>' +
+          '<div class="field-item-sub">' + amount + (due ? ' · Due ' + fmtDate(due) : '') + '</div>' +
+        '</div>' +
+        '<div class="field-item-meta"><span class="field-badge" style="background:rgba(' + hexToRgb(color) + ',0.15);color:' + color + ';">' + escHtml(inv.status || 'Pending') + '</span></div>' +
+      '</div>';
+    }).join('') +
+    (outstanding.length > 3
+      ? '<div style="text-align:center;padding:8px 0 0;font-size:12px;color:rgba(255,255,255,0.35);">+' + (outstanding.length - 3) + ' more</div>'
+      : '');
+  }
+
   /* ── Hex to RGB helper for badge colors ──────────────────── */
 
   function hexToRgb(hex) {
@@ -792,6 +1000,107 @@
     }, 100);
   };
 
+  window.fieldNewInquiry = function() {
+    if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-booking'); return; }
+    var todayIso = new Date().toISOString().slice(0, 10);
+    Modal.open({
+      title: 'New Booking Inquiry',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div><label class="form-label">Client / Venue *</label><input id="fi-name" class="form-input" placeholder="Who is booking?" /></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<div><label class="form-label">Event Date</label><input id="fi-date" type="date" class="form-input" value="' + todayIso + '" /></div>' +
+            '<div><label class="form-label">Budget</label><input id="fi-budget" type="number" min="0" class="form-input" placeholder="0" /></div>' +
+          '</div>' +
+          '<div><label class="form-label">Event Type</label>' +
+            '<select id="fi-type" class="form-input">' +
+              '<option value="Concert">Concert</option>' +
+              '<option value="Private Event">Private Event</option>' +
+              '<option value="Corporate">Corporate</option>' +
+              '<option value="Festival">Festival</option>' +
+              '<option value="Other">Other</option>' +
+            '</select>' +
+          '</div>' +
+          '<div><label class="form-label">Notes</label><textarea id="fi-notes" class="form-input" rows="2" placeholder="Venue, details, how they found us..."></textarea></div>' +
+        '</div>',
+      confirmText: 'Add to Pipeline',
+      onConfirm: function() {
+        var name  = (document.getElementById('fi-name')   || {}).value || '';
+        var date  = (document.getElementById('fi-date')   || {}).value || '';
+        var budg  = (document.getElementById('fi-budget') || {}).value || '';
+        var type  = (document.getElementById('fi-type')   || {}).value || 'Concert';
+        var notes = (document.getElementById('fi-notes')  || {}).value || '';
+        if (!name.trim()) { if (typeof Toast !== 'undefined') Toast.error('Client / Venue is required'); return; }
+
+        if (typeof DataStore !== 'undefined') {
+          DataStore.addBooking({
+            clientName: name, eventDate: date, totalValue: parseFloat(budg) || 0,
+            eventType: type, notes: notes, stage: 'lead', source: 'field-view'
+          });
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Inquiry added to pipeline');
+          document.dispatchEvent(new CustomEvent('gbe:data-updated'));
+          renderPipeline();
+        }
+      }
+    });
+    setTimeout(function() {
+      var el = document.getElementById('fi-name');
+      if (el) el.focus();
+    }, 100);
+  };
+
+  window.fieldLogRevenue = function() {
+    if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-finances'); return; }
+    var todayIso = new Date().toISOString().slice(0, 10);
+    Modal.open({
+      title: 'Log Revenue',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<div><label class="form-label">Amount *</label><input id="fr-amount" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" /></div>' +
+            '<div><label class="form-label">Date</label><input id="fr-date" type="date" class="form-input" value="' + todayIso + '" /></div>' +
+          '</div>' +
+          '<div><label class="form-label">Type</label>' +
+            '<select id="fr-type" class="form-input">' +
+              '<option value="Show Payment">Show Payment</option>' +
+              '<option value="Deposit">Deposit</option>' +
+              '<option value="Merch Sales">Merch Sales</option>' +
+              '<option value="Streaming Royalty">Streaming Royalty</option>' +
+              '<option value="Sync License">Sync License</option>' +
+              '<option value="Other">Other</option>' +
+            '</select>' +
+          '</div>' +
+          '<div><label class="form-label">Source / Client</label><input id="fr-source" class="form-input" placeholder="Who paid?" /></div>' +
+        '</div>',
+      confirmText: 'Log Revenue',
+      onConfirm: function() {
+        var amount = parseFloat((document.getElementById('fr-amount') || {}).value || '0');
+        var date   = (document.getElementById('fr-date')   || {}).value || todayIso;
+        var type   = (document.getElementById('fr-type')   || {}).value || 'Show Payment';
+        var source = (document.getElementById('fr-source') || {}).value || '';
+        if (!amount || amount <= 0) { if (typeof Toast !== 'undefined') Toast.error('Enter a valid amount'); return; }
+
+        if (typeof DataStore !== 'undefined') {
+          DataStore.addRevenue({
+            amount: amount, date: date, category: type,
+            description: source ? type + ' — ' + source : type,
+            source: 'field-view', status: 'received'
+          });
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Revenue logged: $' + amount.toFixed(2));
+          document.dispatchEvent(new CustomEvent('gbe:data-updated'));
+        }
+      }
+    });
+    setTimeout(function() {
+      var el = document.getElementById('fr-amount');
+      if (el) el.focus();
+    }, 100);
+  };
+
   /* ── Refresh ─────────────────────────────────────────────── */
 
   window.fieldRefresh = function() {
@@ -800,7 +1109,7 @@
     setTimeout(function() { if (icon) icon.style.animation = ''; }, 700);
 
     // Reset skeletons
-    ['field-today-body','field-inbox-body','field-pipeline-body','field-followup-body'].forEach(function(id) {
+    ['field-week-body','field-today-body','field-inbox-body','field-pipeline-body','field-followup-body'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.innerHTML = '<div class="field-skeleton"></div>';
     });
@@ -844,9 +1153,12 @@
       });
     }
 
+    renderThisWeek();
     renderToday();
     renderInbox();
     renderPipeline();
+    renderContracts();
+    renderInvoices();
     renderFollowups();
     renderPendingApprovals();
   };
