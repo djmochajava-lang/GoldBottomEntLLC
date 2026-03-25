@@ -23,12 +23,35 @@
         <i class="fa-solid fa-briefcase" style="margin-right:4px;color:#d4a017;"></i>
       </div>
     </div>
-    <button id="field-refresh-btn" onclick="fieldRefresh()"
-            style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);
-                   background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7);
-                   cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
-      <i class="fa-solid fa-rotate-right" id="field-refresh-icon"></i> Refresh
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <!-- Role Switcher (only visible when user has 2+ roles) -->
+      <div id="field-role-switcher" style="display:none;position:relative;">
+        <button id="field-role-btn"
+                style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;
+                       border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);
+                       color:rgba(255,255,255,0.8);cursor:pointer;font-size:12px;font-weight:600;">
+          <i id="field-role-icon" class="fa-solid fa-briefcase" style="font-size:11px;"></i>
+          <span id="field-role-text">Role</span>
+          <i class="fa-solid fa-chevron-down" style="font-size:8px;color:rgba(255,255,255,0.4);margin-left:2px;"></i>
+        </button>
+        <div id="field-role-dropdown"
+             style="display:none;position:absolute;top:calc(100% + 6px);right:0;
+                    background:#161b22;border:1px solid rgba(255,255,255,0.1);
+                    border-radius:10px;padding:6px;min-width:190px;z-index:10000;
+                    box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+          <div style="padding:4px 12px 6px;font-size:10px;color:rgba(255,255,255,0.35);
+                      font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+                      border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">Switch Role</div>
+          <div id="field-role-options"></div>
+        </div>
+      </div>
+      <button id="field-refresh-btn" onclick="fieldRefresh()"
+              style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);
+                     background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7);
+                     cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
+        <i class="fa-solid fa-rotate-right" id="field-refresh-icon"></i> Refresh
+      </button>
+    </div>
   </div>
 
   <!-- ── THIS WEEK ─────────────────────────────────────────── -->
@@ -1140,6 +1163,72 @@
         weekday: 'long', month: 'long', day: 'numeric'
       });
     }
+
+    // ── Field View Role Switcher ──────────────────────────────
+    (function setupFieldRoleSwitcher() {
+      var switcher = document.getElementById('field-role-switcher');
+      var btn      = document.getElementById('field-role-btn');
+      var dropdown = document.getElementById('field-role-dropdown');
+      var options  = document.getElementById('field-role-options');
+      var iconEl   = document.getElementById('field-role-icon');
+      var textEl   = document.getElementById('field-role-text');
+      if (!switcher || !btn || !dropdown || !options) return;
+
+      var roleRegistry = (typeof SiteConfig !== 'undefined' && SiteConfig.roles) || {};
+      var linked = (typeof Auth !== 'undefined' && Auth.getLinkedRoles) ? Auth.getLinkedRoles() : [];
+      var validRoles = linked.filter(function(r) { return !!roleRegistry[r]; });
+
+      if (validRoles.length < 2) { switcher.style.display = 'none'; return; }
+
+      var active = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+      var activeInfo = roleRegistry[active] || { label: active, icon: 'fa-user', color: '#8b949e' };
+
+      // Update button appearance
+      switcher.style.display = '';
+      if (iconEl) { iconEl.className = 'fa-solid ' + activeInfo.icon; iconEl.style.color = activeInfo.color; }
+      if (textEl) { textEl.textContent = activeInfo.label; textEl.style.color = activeInfo.color; }
+      btn.style.borderColor = activeInfo.color.replace(')', ',0.3)').replace('rgb', 'rgba');
+
+      // Build options
+      options.innerHTML = validRoles.map(function(role) {
+        var info = roleRegistry[role];
+        var isCurrent = (role === active);
+        return '<button data-role="' + role + '" style="' +
+          'display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;' +
+          'background:' + (isCurrent ? 'rgba(255,255,255,0.06)' : 'transparent') + ';' +
+          'border:none;color:' + (isCurrent ? info.color : 'rgba(255,255,255,0.8)') + ';' +
+          'cursor:pointer;font-size:13px;font-weight:' + (isCurrent ? '700' : '500') + ';' +
+          'border-radius:6px;text-align:left;font-family:inherit;">' +
+          '<i class="fa-solid ' + info.icon + '" style="color:' + info.color + ';width:16px;"></i>' +
+          '<span>' + info.label + '</span>' +
+          (isCurrent ? '<i class="fa-solid fa-check" style="margin-left:auto;font-size:10px;"></i>' : '') +
+          '</button>';
+      }).join('');
+
+      // Toggle dropdown
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      };
+
+      // Role option clicks
+      options.querySelectorAll('button[data-role]').forEach(function(optBtn) {
+        optBtn.onclick = function(e) {
+          e.stopPropagation();
+          dropdown.style.display = 'none';
+          if (typeof Auth !== 'undefined' && Auth.switchRole) {
+            Auth.switchRole(optBtn.getAttribute('data-role'));
+          }
+        };
+      });
+
+      // Close on outside tap
+      document.addEventListener('click', function _closeFieldRole(e) {
+        if (dropdown && !switcher.contains(e.target)) {
+          dropdown.style.display = 'none';
+        }
+      });
+    })();
 
     renderThisWeek();
     renderToday();
