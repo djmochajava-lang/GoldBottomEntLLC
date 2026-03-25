@@ -454,7 +454,7 @@ const BandPlayer = {
           '</div>' +
         '</div>',
       saveText: 'Upload to Inventory',
-      onSave: function() { BandPlayer._handleUploadSong(); }
+      onSave: function() { return BandPlayer._handleUploadSong(); }
     });
     setTimeout(function() { var el = document.getElementById('bp-u-title'); if (el) el.focus(); }, 100);
   },
@@ -465,8 +465,8 @@ const BandPlayer = {
     var audioInput = document.getElementById('bp-u-audio');
     var lyrics = (document.getElementById('bp-u-lyrics') || {}).value || '';
 
-    if (!title.trim()) { Toast.error('Song title is required'); return; }
-    if (!audioInput || !audioInput.files || !audioInput.files[0]) { Toast.error('Please select an MP3 file'); return; }
+    if (!title.trim()) { Toast.error('Song title is required'); return Promise.resolve(); }
+    if (!audioInput || !audioInput.files || !audioInput.files[0]) { Toast.error('Please select an MP3 file'); return Promise.resolve(); }
 
     var audioFile = audioInput.files[0];
     var songId = 'song_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
@@ -488,68 +488,75 @@ const BandPlayer = {
     var self = this;
     var storage = this._storage;
 
-    // Step 1: Upload audio
-    var audioRef = storage.ref(audioPath);
-    var uploadTask = audioRef.put(audioFile);
+    if (!storage) {
+      Toast.error('Storage not available — try refreshing');
+      return Promise.resolve();
+    }
 
-    uploadTask.on('state_changed',
-      function(snapshot) {
-        var pct = (snapshot.bytesTransferred / snapshot.totalBytes * 70); // audio = 70% of progress
-        if (progBar) progBar.style.width = pct + '%';
-      },
-      function(error) {
-        Toast.error('Audio upload failed: ' + error.message);
-        if (progDiv) progDiv.style.display = 'none';
-      },
-      function() {
-        // Audio uploaded — now upload charts
-        if (progBar) progBar.style.width = '70%';
+    // Return a Promise so Modal stays open during upload
+    return new Promise(function(resolve) {
+      var audioRef = storage.ref(audioPath);
+      var uploadTask = audioRef.put(audioFile);
 
-        var chartPaths = {};
-        var chartKeys = Object.keys(chartFiles);
-        var chartPromises = chartKeys.map(function(inst, i) {
-          var chartPath = 'band-media/charts/' + songId + '/' + inst + '.' + chartFiles[inst].name.split('.').pop();
-          chartPaths[inst] = chartPath;
-          return storage.ref(chartPath).put(chartFiles[inst]).then(function() {
-            if (progBar) progBar.style.width = (70 + ((i + 1) / chartKeys.length * 20)) + '%';
-          });
-        });
-
-        Promise.all(chartPromises).then(function() {
-          if (progBar) progBar.style.width = '90%';
-
-          // Step 2: Save metadata to Firestore
-          var songData = {
-            title: title,
-            artist: artist,
-            audioPath: audioPath,
-            lyrics: lyrics || null,
-            charts: Object.keys(chartPaths).length > 0 ? chartPaths : null,
-            duration: null, // will be populated on first play
-            createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'pin',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          };
-
-          self._db.collection('songs').doc(songId).set(songData).then(function() {
-            if (progBar) progBar.style.width = '100%';
-            Modal.close();
-            var savedSong = Object.assign({ id: songId }, songData);
-            self._allSongsMap[songId] = savedSong;
-            self._inventory.push(savedSong);
-            Toast.success('Song uploaded to inventory: ' + title);
-          }).catch(function(e) {
-            console.error('[BandPlayer] Song metadata save failed:', e);
-            Toast.error('Song save failed: ' + e.message);
-            if (progDiv) progDiv.style.display = 'none';
-          });
-        }).catch(function(e) {
-          console.error('[BandPlayer] Chart upload failed:', e);
-          Toast.error('Chart upload failed: ' + e.message);
+      uploadTask.on('state_changed',
+        function(snapshot) {
+          var pct = (snapshot.bytesTransferred / snapshot.totalBytes * 70);
+          if (progBar) progBar.style.width = pct + '%';
+        },
+        function(error) {
+          Toast.error('Audio upload failed: ' + error.code + ' — ' + error.message);
           if (progDiv) progDiv.style.display = 'none';
-        });
-      }
-    );
+          resolve();
+        },
+        function() {
+          if (progBar) progBar.style.width = '70%';
+
+          var chartPaths = {};
+          var chartKeys = Object.keys(chartFiles);
+          var chartPromises = chartKeys.map(function(inst, i) {
+            var chartPath = 'band-media/charts/' + songId + '/' + inst + '.' + chartFiles[inst].name.split('.').pop();
+            chartPaths[inst] = chartPath;
+            return storage.ref(chartPath).put(chartFiles[inst]).then(function() {
+              if (progBar) progBar.style.width = (70 + ((i + 1) / chartKeys.length * 20)) + '%';
+            });
+          });
+
+          Promise.all(chartPromises).then(function() {
+            if (progBar) progBar.style.width = '90%';
+
+            var songData = {
+              title: title,
+              artist: artist,
+              audioPath: audioPath,
+              lyrics: lyrics || null,
+              charts: Object.keys(chartPaths).length > 0 ? chartPaths : null,
+              duration: null,
+              createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'pin',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            self._db.collection('songs').doc(songId).set(songData).then(function() {
+              if (progBar) progBar.style.width = '100%';
+              Modal.close();
+              var savedSong = Object.assign({ id: songId }, songData);
+              self._allSongsMap[songId] = savedSong;
+              self._inventory.push(savedSong);
+              Toast.success('Song uploaded to inventory: ' + title);
+              resolve();
+            }).catch(function(e) {
+              Toast.error('Song save failed: ' + e.code + ' — ' + e.message);
+              if (progDiv) progDiv.style.display = 'none';
+              resolve();
+            });
+          }).catch(function(e) {
+            Toast.error('Chart upload failed: ' + e.message);
+            if (progDiv) progDiv.style.display = 'none';
+            resolve();
+          });
+        }
+      );
+    });
   },
 
   showCreatePlaylist: function() {
