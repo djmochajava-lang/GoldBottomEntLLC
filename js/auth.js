@@ -810,16 +810,100 @@ const Auth = {
   },
 
   /**
-   * Check if the current user has admin role
+   * Check if the current user has admin-level access.
+   * True for both 'admin' (site admin) and 'band_manager' (CEO/band manager).
+   * Used to gate the dashboard and admin-only features.
    * @returns {boolean}
    */
   isAdmin: function() {
+    return this.isAuthenticated() && (this._role === 'admin' || this._role === 'band_manager');
+  },
+
+  /**
+   * Check if user is the technical site administrator.
+   * @returns {boolean}
+   */
+  isSiteAdmin: function() {
     return this.isAuthenticated() && this._role === 'admin';
   },
 
   /**
+   * Check if user is the band manager / CEO.
+   * @returns {boolean}
+   */
+  isBandManager: function() {
+    return this.isAuthenticated() && this._role === 'band_manager';
+  },
+
+  /**
+   * Check if user is internal staff (admin or band manager).
+   * Internal staff get the full operations dashboard.
+   * @returns {boolean}
+   */
+  isInternalStaff: function() {
+    return this.isAuthenticated() && (this._role === 'admin' || this._role === 'band_manager');
+  },
+
+  /**
+   * Check if user is the singer / principal artist.
+   * @returns {boolean}
+   */
+  isSinger: function() {
+    return this.isAuthenticated() && this._role === 'singer';
+  },
+
+  /**
+   * Check if user is a band member / musician.
+   * @returns {boolean}
+   */
+  isBandMember: function() {
+    return this.isAuthenticated() && this._role === 'band_member';
+  },
+
+  /**
+   * Check if user is a venue owner (confirmed booking).
+   * @returns {boolean}
+   */
+  isVenueOwner: function() {
+    return this.isAuthenticated() && this._role === 'venue_owner';
+  },
+
+  /**
+   * Check if user is a promoter (confirmed engagement).
+   * @returns {boolean}
+   */
+  isPromoter: function() {
+    return this.isAuthenticated() && this._role === 'promoter';
+  },
+
+  /**
+   * Check if user has any portal access (any approved, authenticated user).
+   * @returns {boolean}
+   */
+  hasPortalAccess: function() {
+    return this.isAuthenticated();
+  },
+
+  /**
+   * Get a human-readable label for the current user's role.
+   * @returns {string}
+   */
+  getRoleLabel: function() {
+    var labels = {
+      'admin':        'Site Admin',
+      'band_manager': 'Band Manager',
+      'singer':       'Artist',
+      'band_member':  'Band Member',
+      'venue_owner':  'Venue Owner',
+      'promoter':     'Promoter',
+      'member':       'Member'
+    };
+    return labels[this._role] || 'Member';
+  },
+
+  /**
    * Get the current user's role
-   * @returns {string|null} 'admin', 'member', or null
+   * @returns {string|null}
    */
   getRole: function() {
     return this._role;

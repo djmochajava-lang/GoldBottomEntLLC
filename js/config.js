@@ -68,6 +68,32 @@ const SiteConfig = {
     debugMode: false
   },
 
+  /**
+   * Role registry — single source of truth for all portal roles.
+   * Used by auth.js helpers, team.html, and the portal nav builder.
+   *
+   * Role hierarchy:
+   *   admin        — Site Admin (technical): user management, system settings
+   *   band_manager — CEO / Band Manager (business): bookings, contracts, calendar, content
+   *   singer       — Principal Artist: schedule view, content approval, contract review
+   *   band_member  — Musician: schedule view, rehearsal details, logistics
+   *   venue_owner  — Confirmed venue client: own booking details + contract
+   *   promoter     — Confirmed promotional client: own engagement + promo materials
+   *   member       — Default / unassigned (pending role assignment by admin)
+   *
+   * A single user account can be assigned multiple roles via the linkedRoles array
+   * in their Firestore document (see auth.js _switchRole / _activeRole).
+   */
+  roles: {
+    admin:        { label: 'Site Admin',   icon: 'fa-shield-halved', color: '#58a6ff',  description: 'User management, system settings, technical access' },
+    band_manager: { label: 'Band Manager', icon: 'fa-briefcase',     color: '#d4a017',  description: 'Bookings, contracts, calendar, content, artist management' },
+    singer:       { label: 'Artist',       icon: 'fa-microphone',    color: '#c778d9',  description: 'Schedule view, content approval, contract review' },
+    band_member:  { label: 'Band Member',  icon: 'fa-guitar',        color: '#3fb950',  description: 'Schedule, rehearsal details, set lists, logistics' },
+    venue_owner:  { label: 'Venue Owner',  icon: 'fa-building',      color: '#d29922',  description: 'Own booking details, contract, venue logistics' },
+    promoter:     { label: 'Promoter',     icon: 'fa-bullhorn',      color: '#f0883e',  description: 'Own engagement details, promo materials, contract' },
+    member:       { label: 'Member',       icon: 'fa-user',          color: '#8b949e',  description: 'Default — awaiting role assignment' }
+  },
+
   version: '1.0.0-prototype'
 };
 
