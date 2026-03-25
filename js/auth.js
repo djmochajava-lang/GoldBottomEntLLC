@@ -2321,17 +2321,17 @@ const Auth = {
   },
 
   /**
-   * Inject or refresh the role-switcher dropdown in the topbar.
-   * Only shown when the authenticated user has 2+ linked roles.
+   * Role-switcher removed — role views are automatic based on who signs in.
+   * Each user sees their own role's dashboard on login; no manual toggle needed.
+   * Kept as a no-op so existing call sites don't error.
    * @private
    */
   _updateRoleSwitcher: function() {
-    // Remove any existing switcher first (handles state changes / logout)
+    // Remove any lingering switcher element (cleanup only)
     var existing = document.getElementById('topbar-role-switcher');
     if (existing) existing.remove();
-
-    // Only render when logged in with multiple roles
-    if (!this.canSwitchRoles() || !this.isAuthenticated()) return;
+    // No-op — switcher UI is intentionally disabled
+    return;
 
     var topbarActions = document.querySelector('.topbar-actions');
     if (!topbarActions) return;
