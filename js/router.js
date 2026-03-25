@@ -185,12 +185,44 @@ const Router = {
         return; // Blocked — login modal shown, or auth still initializing
       }
 
-      // Admin guard — block non-admin access to admin-only routes
-      if (pageName === 'dashboard-team' && !Auth.isAdmin()) {
-        if (typeof Toast !== 'undefined') {
-          Toast.error('Access denied. Admin privileges required.');
+      // Role guard — block pages not accessible to current role
+      if (Auth.isAuthenticated && Auth.isAuthenticated()) {
+        var _rolePageAccess = {
+          'dashboard-roster':       ['admin', 'band_manager'],
+          'dashboard-booking':      ['admin', 'band_manager'],
+          'dashboard-quotes':       ['admin', 'band_manager'],
+          'dashboard-inbox':        ['admin', 'band_manager'],
+          'dashboard-contacts':     ['admin', 'band_manager'],
+          'dashboard-leads':        ['admin', 'band_manager'],
+          'dashboard-finances':     ['admin', 'band_manager'],
+          'dashboard-documents':    ['admin', 'band_manager'],
+          'dashboard-integrations': ['admin'],
+          'dashboard-metrics':      ['admin', 'band_manager'],
+          'dashboard-export':       ['admin'],
+          'dashboard-settings':     ['admin', 'band_manager'],
+          'dashboard-team':         ['admin', 'band_manager'],
+          'dashboard-field':        ['admin', 'band_manager'],
+          'dashboard-architecture': ['admin'],
+          'dashboard-credentials':  ['admin'],
+          'dashboard-servers':      ['admin'],
+          'dashboard-merch':        ['admin', 'band_manager', 'artist'],
+          'dashboard-ip':           ['admin', 'band_manager', 'artist'],
+          'dashboard-distribution': ['admin', 'band_manager', 'artist'],
+          'dashboard-calendar':     ['admin', 'band_manager', 'artist', 'band_member'],
+          'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
+          'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'venue_owner', 'promoter'],
+        };
+        var _allowedRoles = _rolePageAccess[pageName];
+        if (_allowedRoles) {
+          var _currentRole = Auth.getRole ? Auth.getRole() : 'member';
+          if (_allowedRoles.indexOf(_currentRole) === -1) {
+            if (typeof Toast !== 'undefined') {
+              Toast.error('Your role does not have access to this section.');
+            }
+            this.navigateTo('dashboard-home');
+            return;
+          }
         }
-        return;
       }
 
       // Environment guard — block local-only routes on remote dashboard

@@ -613,7 +613,7 @@ const Auth = {
     }
 
     // Show admin-only sidebar items (PIN auth = full admin)
-    Auth._updateAdminUI();
+    Auth._updateRoleUI();
 
     // Update role switcher (PIN auth always has single 'admin' role — will not show)
     Auth._updateRoleSwitcher();
@@ -828,6 +828,14 @@ const Auth = {
   isAdmin: function() {
     var role = this._activeRole || this._role;
     return this.isAuthenticated() && (role === 'admin' || role === 'band_manager');
+  },
+
+  /**
+   * Get the current active role.
+   * @returns {string} role key (e.g. 'admin', 'band_manager', 'artist', etc.)
+   */
+  getRole: function() {
+    return this._activeRole || this._role || 'member';
   },
 
   /**
@@ -2273,27 +2281,42 @@ const Auth = {
     }
 
     // Show/hide admin-only sidebar items
-    Auth._updateAdminUI();
+    Auth._updateRoleUI();
 
     // Update role switcher in topbar (only when user has multiple linked roles)
     Auth._updateRoleSwitcher();
   },
 
   /**
-   * Show or hide admin-only sidebar elements based on role
+   * Show/hide sidebar nav items based on the current user's role.
+   * Processes data-roles attributes on nav items and auto-hides empty section labels.
    * @private
    */
-  _updateAdminUI: function() {
-    // Team Management — admin + band_manager only
-    var teamLink = document.getElementById('sidebar-team-link');
-    if (teamLink) {
-      teamLink.style.display = this.isAdmin() ? '' : 'none';
+  _updateRoleUI: function() {
+    var role = this._activeRole || this._role || 'member';
+
+    // Show/hide each nav item that declares which roles can see it
+    var items = document.querySelectorAll('.sidebar-nav-item[data-roles]');
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var allowed = item.getAttribute('data-roles').split(',');
+      item.style.display = allowed.indexOf(role) !== -1 ? '' : 'none';
     }
 
-    // Field View — band_manager (and admin who also manages)
-    var fieldLink = document.getElementById('sidebar-field-link');
-    if (fieldLink) {
-      fieldLink.style.display = this.isAdmin() ? '' : 'none';
+    // Auto-hide group labels when all nav items in the group are hidden
+    var groups = document.querySelectorAll('.sidebar-nav-group');
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g];
+      var groupItems = group.querySelectorAll('.sidebar-nav-item');
+      var anyVisible = false;
+      for (var j = 0; j < groupItems.length; j++) {
+        if (groupItems[j].style.display !== 'none') {
+          anyVisible = true;
+          break;
+        }
+      }
+      var label = group.querySelector('.sidebar-nav-label');
+      if (label) label.style.display = anyVisible ? '' : 'none';
     }
   },
 
