@@ -718,7 +718,7 @@ const Auth = {
               return 'duplicate:' + (primaryData.primaryProvider || primaryData.provider || 'unknown');
             }
 
-            // No duplicate — create new registration with IDP-001 §5 unified profile
+            // No duplicate — show access request form, then create registration
             Auth._role = 'member';
             Auth._linkedRoles = ['member'];
             Auth._activeRole = 'member';
@@ -727,21 +727,7 @@ const Auth = {
             var displayName = user.displayName ||
               (user.email ? user.email.split('@')[0] : 'User');
 
-            return userRef.set({
-              displayName: displayName,
-              emailHash: emailHash,
-              photoURL: user.photoURL || '',
-              provider: currentProvider,
-              primaryProvider: currentProvider,
-              linkedProviders: [currentProvider],
-              status: 'pending',
-              role: 'member',
-              registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-              lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(function() {
-              console.log('[Auth] New registration created for:', displayName, '(' + currentProvider + ')');
-              return 'pending';
-            });
+            return Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider, displayName);
           });
         }
       });
@@ -878,7 +864,7 @@ const Auth = {
    * @returns {boolean}
    */
   isSinger: function() {
-    return this.isAuthenticated() && (this._activeRole || this._role) === 'singer';
+    return this.isAuthenticated() && (this._activeRole || this._role) === 'artist';
   },
 
   /**
@@ -1003,7 +989,7 @@ const Auth = {
     var labels = {
       'admin':        'Site Admin',
       'band_manager': 'Band Manager',
-      'singer':       'Artist',
+      'artist':       'Artist',
       'band_member':  'Band Member',
       'venue_owner':  'Venue Owner',
       'promoter':     'Promoter',
@@ -1697,6 +1683,126 @@ const Auth = {
   _hidePinError: function() {
     var el = document.getElementById('auth-pin-error');
     if (el) el.style.display = 'none';
+  },
+
+  /**
+   * Show "Tell us about yourself" form for brand-new users.
+   * Collects requestedRole + optional note before writing the Firestore doc.
+   * Returns a Promise that resolves to 'pending' after the doc is created.
+   * @private
+   */
+  _showAccessRequestForm: function(user, emailHash, userRef, currentProvider, displayName) {
+    return new Promise(function(resolve) {
+
+      // Fallback: if Modal is not ready, create doc silently without request info
+      if (typeof Modal === 'undefined') {
+        userRef.set({
+          displayName: displayName,
+          emailHash: emailHash,
+          photoURL: user.photoURL || '',
+          provider: currentProvider,
+          primaryProvider: currentProvider,
+          linkedProviders: [currentProvider],
+          status: 'pending',
+          role: 'member',
+          requestedRole: 'member',
+          requestNote: '',
+          registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(function() { resolve('pending'); });
+        return;
+      }
+
+      var photoHTML = user.photoURL
+        ? '<img src="' + user.photoURL + '" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #d4a017;margin-bottom:12px;" />'
+        : '<div style="width:56px;height:56px;border-radius:50%;background:rgba(212,160,23,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><i class="fa-solid fa-user" style="font-size:22px;color:#d4a017;"></i></div>';
+
+      var contentHTML =
+        '<div style="text-align:center;padding:8px 0 0;">' +
+          photoHTML +
+          '<h3 style="margin:0 0 4px;color:#e6edf3;font-size:17px;">Welcome, ' + displayName + '</h3>' +
+          '<p style="margin:0 0 20px;color:rgba(255,255,255,0.5);font-size:13px;">Tell us a bit about yourself so we can assign the right access.</p>' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+          '<label style="display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">What role are you requesting?</label>' +
+          '<select id="auth-req-role" style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#161b22;color:#e6edf3;font-size:13px;cursor:pointer;">' +
+            '<option value="band_member">Band Member — Musician or vocalist in the band</option>' +
+            '<option value="artist">Artist — Principal performing artist</option>' +
+            '<option value="venue_owner">Venue Owner — I run or own a venue</option>' +
+            '<option value="promoter">Promoter — I handle promotions and events</option>' +
+            '<option value="member">Not sure — just checking it out</option>' +
+          '</select>' +
+        '</div>' +
+        '<div style="margin-bottom:20px;">' +
+          '<label style="display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Note <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>' +
+          '<textarea id="auth-req-note" rows="2" maxlength="200" placeholder="e.g. I\'m the drummer, I run Venue X, etc." style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#161b22;color:#e6edf3;font-size:13px;resize:none;box-sizing:border-box;font-family:inherit;"></textarea>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+          '<button id="auth-req-cancel" type="button" style="padding:8px 18px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.6);cursor:pointer;font-size:13px;">Cancel</button>' +
+          '<button id="auth-req-submit" type="button" style="padding:8px 20px;border-radius:6px;border:none;background:#d4a017;color:#0d1117;font-size:13px;font-weight:600;cursor:pointer;">Request Access</button>' +
+        '</div>';
+
+      Modal.open({
+        title: 'Request Dashboard Access',
+        content: contentHTML,
+        size: 'sm',
+        showFooter: false,
+        onCancel: function() {
+          Auth.signOut();
+        }
+      });
+
+      // Wire up buttons after modal renders
+      setTimeout(function() {
+        var submitBtn = document.getElementById('auth-req-submit');
+        var cancelBtn = document.getElementById('auth-req-cancel');
+
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', function() {
+            Modal.close();
+            Auth.signOut();
+          });
+        }
+
+        if (submitBtn) {
+          submitBtn.addEventListener('click', function() {
+            var roleEl  = document.getElementById('auth-req-role');
+            var noteEl  = document.getElementById('auth-req-note');
+            var requestedRole = roleEl  ? roleEl.value  : 'member';
+            var requestNote   = noteEl  ? noteEl.value.trim().slice(0, 200) : '';
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting…';
+
+            userRef.set({
+              displayName: displayName,
+              emailHash: emailHash,
+              photoURL: user.photoURL || '',
+              provider: currentProvider,
+              primaryProvider: currentProvider,
+              linkedProviders: [currentProvider],
+              status: 'pending',
+              role: 'member',
+              requestedRole: requestedRole,
+              requestNote: requestNote,
+              registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+              lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(function() {
+              console.log('[Auth] New registration created for:', displayName,
+                '(' + currentProvider + ') — requested role:', requestedRole);
+              Modal.close();
+              resolve('pending');
+            }).catch(function(err) {
+              console.error('[Auth] Registration write failed:', err);
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Request Access';
+              var noteEl2 = document.getElementById('auth-req-note');
+              if (noteEl2) noteEl2.placeholder = 'Error saving — please try again.';
+            });
+          });
+        }
+      }, 50);
+    });
   },
 
   /**
