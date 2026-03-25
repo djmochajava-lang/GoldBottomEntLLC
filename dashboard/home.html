@@ -24,8 +24,10 @@
   var main = document.getElementById('dash-home-main');
   if (!main) return;
 
-  if (role === 'admin' || role === 'band_manager') {
-    renderOperationsDash();
+  if (role === 'admin') {
+    renderAdminDash();
+  } else if (role === 'band_manager') {
+    renderBandManagerDash();
   } else if (role === 'artist') {
     renderArtistDash();
   } else if (role === 'band_member') {
@@ -36,106 +38,240 @@
     renderPendingDash();
   }
 
-  /* ===== ADMIN / BAND MANAGER ===== */
-  function renderOperationsDash() {
-    function hexToRGB(hex){hex=hex.replace('#','');var r=parseInt(hex.substring(0,2),16),g=parseInt(hex.substring(2,4),16),b=parseInt(hex.substring(4,6),16);return r+','+g+','+b;}
+  /* ===== HELPER ===== */
+  function hexToRGB(hex){hex=hex.replace('#','');var r=parseInt(hex.substring(0,2),16),g=parseInt(hex.substring(2,4),16),b=parseInt(hex.substring(4,6),16);return r+','+g+','+b;}
+  function metricCard(icon,color,value,label,onclick){
+    return '<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);'+(onclick?'cursor:pointer;':'')+'" '+(onclick?'onclick="'+onclick+'"':'')+'>'+
+      '<div style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(color)+',0.15);color:'+color+';">'+
+      '<i class="fa-solid '+icon+'"></i></div>'+
+      '<div><div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+value+'</div>'+
+      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+label+'</div></div></div>';
+  }
+  function qaBtn(href,icon,color,label){
+    return '<a href="'+href+'" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);"><i class="fa-solid '+icon+'" style="font-size:var(--text-lg);color:'+color+';"></i><span>'+label+'</span></a>';
+  }
 
-    main.innerHTML =
-      '<div class="metrics-grid" id="metrics-container" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-lg);"></div>'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">'+
-        '<div class="card" id="activity-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>'+
-        '<div class="card" id="quick-actions-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
-          '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt text-gold"></i> Quick Actions</h3>'+
-          '<div id="qa-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm);"></div>'+
-        '</div>'+
-      '</div>'+
-      '<div class="card" id="upcoming-events-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>';
+  /* ===== ADMIN — System Control Panel ===== */
+  function renderAdminDash() {
+    var subtitle = document.getElementById('dash-home-subtitle');
+    if(subtitle) subtitle.textContent = 'Administrator · Full System Access';
 
     var m = DataStore.getMetrics();
-    var cards = [
-      {label:'Roster',              value:m.totalRoster,                              icon:'fa-users',              color:'#d4a017', sensitive:false},
-      {label:'Active Contracts',    value:m.activeContracts,                          icon:'fa-file-signature',     color:'#58a6ff', sensitive:false},
-      {label:'Revenue YTD',         value:Utils.formatCurrency(m.revenueYTD),         icon:'fa-chart-line',         color:'#3fb950', sensitive:true},
-      {label:'Upcoming Events',     value:m.upcomingEvents,                           icon:'fa-calendar-days',      color:'#d29922', sensitive:false},
-      {label:'Merch Sales',         value:Utils.formatCurrency(m.merchSales),         icon:'fa-bag-shopping',       color:'#d4a017', sensitive:true},
-      {label:'Outstanding Invoices',value:Utils.formatCurrency(m.outstandingInvoices),icon:'fa-file-invoice-dollar',color:'#f85149', sensitive:true}
-    ];
-    var mc = document.getElementById('metrics-container');
-    var mHtml = '';
-    cards.forEach(function(card){
-      if(card.sensitive && !isLocal) return;
-      mHtml += '<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);">'+
-        '<div style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(card.color)+',0.15);color:'+card.color+';">'+
-        '<i class="fa-solid '+card.icon+'"></i></div>'+
-        '<div><div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+card.value+'</div>'+
-        '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+card.label+'</div></div></div>';
+    var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
+
+    main.innerHTML =
+      /* Metrics row — all metrics including sensitive */
+      '<div id="admin-metrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-lg);"></div>'+
+
+      /* System status + User approvals */
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">'+
+        '<div class="card" id="admin-activity" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>'+
+        '<div class="card" id="admin-system" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
+          '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-shield-halved" style="color:#58a6ff;"></i> System Controls</h3>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);" id="admin-sys-grid"></div>'+
+        '</div>'+
+      '</div>'+
+
+      /* Pending approvals */
+      '<div class="card" id="admin-approvals" style="display:none;background:var(--color-bg-secondary);border:1px solid rgba(210,153,34,0.35);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>';
+
+    /* Metrics */
+    var mHtml =
+      metricCard('fa-users',              '#d4a017', m.totalRoster,                              'Roster') +
+      metricCard('fa-file-signature',     '#58a6ff', m.activeContracts,                          'Active Contracts') +
+      metricCard('fa-calendar-days',      '#d29922', m.upcomingEvents,                           'Upcoming Events');
+    if(isLocal){
+      mHtml +=
+        metricCard('fa-chart-line',         '#3fb950', Utils.formatCurrency(m.revenueYTD),         'Revenue YTD') +
+        metricCard('fa-file-invoice-dollar','#f85149', Utils.formatCurrency(m.outstandingInvoices),'Outstanding Invoices') +
+        metricCard('fa-bag-shopping',       '#d4a017', Utils.formatCurrency(m.merchSales),         'Merch Sales');
+      /* Inbox count */
+      mHtml += metricCard('fa-envelope','#d4a017','—','Unread Inquiries','if(typeof Router!==\'undefined\')Router.navigateTo(\'dashboard-inbox\')');
+      var sess=localStorage.getItem('gbe-session-token');
+      var hdr={'Content-Type':'application/json'};
+      if(sess) hdr['X-GBE-Session']=sess;
+      if(typeof SiteConfig!=='undefined'&&SiteConfig.server&&SiteConfig.server.apiKey) hdr['Authorization']='Bearer '+SiteConfig.server.apiKey;
+      fetch('/api/v1/inbox/stats',{headers:hdr})
+        .then(function(r){return r.ok?r.json():null;})
+        .then(function(s){var el=document.getElementById('inbox-metric-count');if(el&&s)el.textContent=s.unread;})
+        .catch(function(){});
+    }
+    var am = document.getElementById('admin-metrics');
+    if(am) am.innerHTML = mHtml;
+
+    /* Activity feed */
+    if(typeof DashboardWidgets!=='undefined') DashboardWidgets.renderActivityFeed('admin-activity');
+
+    /* System controls */
+    var sysGrid = document.getElementById('admin-sys-grid');
+    if(sysGrid){
+      var sysItems = [
+        {href:'#dashboard-team',         icon:'fa-users-gear',   color:'#d29922', label:'Team Mgmt'},
+        {href:'#dashboard-settings',     icon:'fa-gear',         color:'#8b949e', label:'Settings'},
+        {href:'#dashboard-integrations', icon:'fa-plug',         color:'#58a6ff', label:'Integrations'},
+        {href:'#dashboard-documents',    icon:'fa-folder-open',  color:'#d4a017', label:'Documents'},
+      ];
+      if(isLocal){
+        sysItems.push({href:'#dashboard-architecture',icon:'fa-diagram-project',color:'#c778d9',label:'Architecture'});
+        sysItems.push({href:'#dashboard-credentials', icon:'fa-key',            color:'#f0883e', label:'Credentials'});
+        sysItems.push({href:'#dashboard-servers',     icon:'fa-server',         color:'#3fb950', label:'Servers'});
+        sysItems.push({href:'#dashboard-finances',    icon:'fa-dollar-sign',    color:'#3fb950', label:'Finances'});
+      }
+      sysGrid.innerHTML = sysItems.map(function(a){return qaBtn(a.href,a.icon,a.color,a.label);}).join('');
+    }
+
+    /* Pending approvals widget */
+    if(db){
+      db.collection('users').where('status','==','pending').get()
+        .then(function(snap){
+          var card = document.getElementById('admin-approvals');
+          if(!card||snap.size===0) return;
+          card.style.display='';
+          var html='<h3 style="margin-bottom:var(--space-md);color:#d29922;"><i class="fa-solid fa-user-clock"></i> '+snap.size+' Pending Approval'+(snap.size>1?'s':'')+'</h3>'+
+            '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+          snap.forEach(function(doc){
+            var d=doc.data();
+            html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid rgba(210,153,34,0.2);">'+
+              '<div><div style="font-weight:600;">'+Utils.escapeHtml(d.displayName||'Unknown')+'</div>'+
+              '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+Utils.escapeHtml(d.email||'')+'</div></div>'+
+              '<a href="#dashboard-team" style="padding:6px 14px;border-radius:var(--radius-md);background:#d29922;color:#0d1117;font-size:var(--text-sm);font-weight:700;text-decoration:none;">Review</a></div>';
+          });
+          html+='</div>';
+          card.innerHTML=html;
+        }).catch(function(){});
+    }
+
+    document.addEventListener('gbe:data-updated', renderAdminDash);
+  }
+
+  /* ===== BAND MANAGER — Operations Dashboard ===== */
+  function renderBandManagerDash() {
+    var subtitle = document.getElementById('dash-home-subtitle');
+    if(subtitle) subtitle.textContent = 'Band Manager · Day-to-Day Operations';
+
+    var m        = DataStore.getMetrics();
+    var bookings = DataStore.getBookings ? DataStore.getBookings() : [];
+    var contracts= DataStore.getContracts ? DataStore.getContracts() : [];
+    var now      = new Date();
+    var todayStr = now.toISOString().slice(0,10);
+
+    /* Pipeline action items */
+    var actionStages = ['proposed','negotiating','confirmed'];
+    var pipelineItems = bookings.filter(function(b){return actionStages.indexOf(b.stage)!==-1;})
+      .sort(function(a,b){var p={negotiating:0,proposed:1,confirmed:2};return(p[a.stage]||9)-(p[b.stage]||9);});
+
+    /* Contracts needing action */
+    var pendingContracts = contracts.filter(function(c){
+      var s=(c.status||'').toLowerCase();
+      return s==='pending'||s==='pending-signature'||s==='sent'||s==='draft';
     });
-    if(mc) mc.innerHTML = mHtml;
 
-    if(typeof DashboardWidgets!=='undefined'){
-      DashboardWidgets.renderActivityFeed('activity-container');
-    }
+    /* Follow-ups: proposed bookings stale 3+ days */
+    var staleFollowups = bookings.filter(function(b){
+      if(b.stage!=='proposed') return false;
+      var diff=(Date.now()-new Date(b.updatedAt||b.createdAt||0).getTime())/86400000;
+      return diff>=3;
+    });
 
-    var qaItems = [
-      {href:'#dashboard-roster',   icon:'fa-user-plus',          color:'#d4a017', label:'Add Talent'},
-      {href:'#dashboard-contracts',icon:'fa-file-signature',      color:'#58a6ff', label:'New Contract'},
-      {href:'#dashboard-booking',  icon:'fa-ticket',              color:'#d4a017', label:'New Booking'},
-      {href:'#dashboard-calendar', icon:'fa-calendar-plus',       color:'#d29922', label:'Add Event'},
-    ];
+    main.innerHTML =
+      /* Ops metrics */
+      '<div id="bm-metrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--space-lg);"></div>'+
+
+      /* Pipeline + Quick Actions */
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">'+
+        '<div class="card" id="bm-pipeline" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>'+
+        '<div class="card" id="bm-qa-wrap" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
+          '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt text-gold"></i> Quick Actions</h3>'+
+          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm);" id="bm-qa-grid"></div>'+
+        '</div>'+
+      '</div>'+
+
+      /* Upcoming shows */
+      '<div class="card" id="bm-upcoming" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>';
+
+    /* Ops metrics */
+    var bmHtml =
+      metricCard('fa-filter',          '#f0883e', pipelineItems.length,    'Pipeline Actions') +
+      metricCard('fa-file-signature',  '#3fb950', m.activeContracts,       'Active Contracts') +
+      metricCard('fa-calendar-days',   '#d29922', m.upcomingEvents,        'Upcoming Shows') +
+      metricCard('fa-clock-rotate-left','#c778d9', staleFollowups.length,  'Follow-ups Due') +
+      metricCard('fa-users',           '#d4a017', m.totalRoster,           'Roster');
     if(isLocal){
-      qaItems.push({href:'#dashboard-finances',icon:'fa-dollar-sign',color:'#3fb950',label:'Log Revenue'});
-      qaItems.push({href:'#dashboard-ip',      icon:'fa-copyright',  color:'#58a6ff',label:'Register IP'});
+      bmHtml += metricCard('fa-chart-line','#3fb950',Utils.formatCurrency(m.revenueYTD),'Revenue YTD');
     }
-    var qaGrid = document.getElementById('qa-grid');
-    if(qaGrid){
-      var qaHtml = '';
-      qaItems.forEach(function(a){
-        qaHtml += '<a href="'+a.href+'" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);"><i class="fa-solid '+a.icon+'" style="font-size:var(--text-lg);color:'+a.color+';"></i><span>'+a.label+'</span></a>';
-      });
-      qaGrid.innerHTML = qaHtml;
-    }
+    var bmm = document.getElementById('bm-metrics');
+    if(bmm) bmm.innerHTML = bmHtml;
 
-    var uec = document.getElementById('upcoming-events-container');
-    if(uec){
-      var events = DataStore.getEvents ? DataStore.getEvents() : [];
-      var now = new Date();
-      var upcoming = events.filter(function(e){return new Date(e.date)>=now;}).slice(0,5);
-      var evHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days text-gold"></i> Upcoming Events</h3>';
-      if(!upcoming.length){ evHtml += '<p class="text-muted">No upcoming events.</p>'; }
-      else {
-        evHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
-        upcoming.forEach(function(e){
-          evHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);">'+
-            '<div><div style="font-weight:var(--fw-semibold);">'+Utils.escapeHtml(e.title||e.name||'Event')+'</div>'+
-            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+Utils.formatDate(e.date)+(e.venue?' · '+Utils.escapeHtml(e.venue):'')+'</div></div>'+
-            '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba(212,160,23,0.15);color:#d4a017;font-weight:600;">'+Utils.escapeHtml(e.type||'Event')+'</span></div>';
+    /* Pipeline card */
+    var bmp = document.getElementById('bm-pipeline');
+    if(bmp){
+      var pHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-filter" style="color:#f0883e;"></i> Pipeline — Needs Action</h3>';
+      if(!pipelineItems.length){
+        pHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i>Pipeline is clear</p>';
+      } else {
+        var stageColors={lead:'#8b949e',qualified:'#58a6ff',proposed:'#d4a017',negotiating:'#f0883e',confirmed:'#3fb950',contracted:'#3fb950',completed:'#3fb950',closed:'#f85149'};
+        var stageLabels={lead:'New Lead',qualified:'Qualified',proposed:'Proposed',negotiating:'Negotiating',confirmed:'Confirmed',contracted:'Contracted',completed:'Completed',closed:'Closed'};
+        pHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+        pipelineItems.slice(0,5).forEach(function(b){
+          var color = stageColors[b.stage]||'#8b949e';
+          pHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+color+';">'+
+            '<div><div style="font-weight:600;">'+Utils.escapeHtml(b.clientName||b.venue||'Client')+'</div>'+
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+(b.eventDate?Utils.formatDate(b.eventDate):'')+' '+Utils.escapeHtml(b.venue||'')+'</div></div>'+
+            '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba('+hexToRGB(color)+',0.15);color:'+color+';font-weight:600;white-space:nowrap;">'+stageLabels[b.stage]+'</span></div>';
         });
-        evHtml += '</div>';
+        pHtml += '</div>';
+        if(pipelineItems.length>5) pHtml += '<p style="margin-top:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">+' + (pipelineItems.length-5) + ' more</p>';
       }
-      uec.innerHTML = evHtml;
+      pHtml += '<a href="#dashboard-booking" style="display:inline-flex;align-items:center;gap:6px;margin-top:var(--space-md);font-size:var(--text-sm);color:#f0883e;text-decoration:none;font-weight:600;">Full Pipeline <i class="fa-solid fa-arrow-right"></i></a>';
+      bmp.innerHTML = pHtml;
     }
 
-    /* Inbox widget (local-only) */
-    if(isLocal){
-      var mc2 = document.getElementById('metrics-container');
-      if(mc2){
-        var placeholder='<div id="inbox-metric-card" class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);cursor:pointer;" onclick="if(typeof Router!==\'undefined\')Router.navigateTo(\'dashboard-inbox\');">'+
-          '<div style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba(212,160,23,0.15);color:#d4a017;"><i class="fa-solid fa-envelope"></i></div>'+
-          '<div><span id="inbox-metric-count" style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">—</span>'+
-          '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);">Unread Inquiries</div></div></div>';
-        mc2.insertAdjacentHTML('beforeend', placeholder);
-        var sess=localStorage.getItem('gbe-session-token');
-        var h={'Content-Type':'application/json'};
-        if(sess) h['X-GBE-Session']=sess;
-        if(typeof SiteConfig!=='undefined'&&SiteConfig.server&&SiteConfig.server.apiKey) h['Authorization']='Bearer '+SiteConfig.server.apiKey;
-        fetch('/api/v1/inbox/stats',{headers:h})
-          .then(function(r){ return r.ok?r.json():null; })
-          .then(function(s){ var el=document.getElementById('inbox-metric-count'); if(el&&s) el.textContent=s.unread; })
-          .catch(function(){ var el=document.getElementById('inbox-metric-count'); if(el) el.textContent='—'; });
-      }
+    /* Quick actions — booking operations only */
+    var qaGrid = document.getElementById('bm-qa-grid');
+    if(qaGrid){
+      var qaItems = [
+        {href:'#dashboard-booking',  icon:'fa-ticket',         color:'#f0883e', label:'New Booking'},
+        {href:'#dashboard-contracts',icon:'fa-file-signature', color:'#3fb950', label:'Contracts'},
+        {href:'#dashboard-roster',   icon:'fa-users',          color:'#d4a017', label:'Roster'},
+        {href:'#dashboard-calendar', icon:'fa-calendar-plus',  color:'#d29922', label:'Calendar'},
+        {href:'#dashboard-leads',    icon:'fa-binoculars',     color:'#c778d9', label:'Leads'},
+        {href:'#dashboard-contacts', icon:'fa-address-book',   color:'#58a6ff', label:'Contacts'},
+      ];
+      if(isLocal) qaItems.push({href:'#dashboard-finances',icon:'fa-dollar-sign',color:'#3fb950',label:'Finances'});
+      qaGrid.innerHTML = qaItems.map(function(a){return qaBtn(a.href,a.icon,a.color,a.label);}).join('');
     }
 
-    document.addEventListener('gbe:data-updated', renderOperationsDash);
+    /* Upcoming shows */
+    var upc = document.getElementById('bm-upcoming');
+    if(upc){
+      var events   = DataStore.getEvents ? DataStore.getEvents() : [];
+      var upcoming = events.filter(function(e){return new Date(e.date)>=now;}).slice(0,5);
+      var confirmedShows = bookings.filter(function(b){
+        return (b.stage==='confirmed'||b.stage==='contracted')&&(b.eventDate||b.date)>=todayStr;
+      }).sort(function(a,b){return(a.eventDate||a.date)>(b.eventDate||b.date)?1:-1;}).slice(0,5);
+
+      var uHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days text-gold"></i> Upcoming Shows & Events</h3>';
+      var allUp = confirmedShows.concat(upcoming).slice(0,6);
+      if(!allUp.length){ uHtml += '<p class="text-muted">No upcoming shows scheduled.</p>'; }
+      else {
+        uHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-sm);">';
+        allUp.forEach(function(item){
+          var isBooking = !!item.stage;
+          var title  = item.clientName||item.name||item.title||'Event';
+          var venue  = item.venue||item.location||'';
+          var date   = Utils.formatDate(item.eventDate||item.date);
+          var color  = isBooking ? '#3fb950' : '#d4a017';
+          uHtml += '<div style="padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+color+';">'+
+            '<div style="font-weight:600;">'+Utils.escapeHtml(title)+'</div>'+
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+date+(venue?' · '+Utils.escapeHtml(venue):'')+'</div>'+
+            (isBooking?'<span style="font-size:var(--text-xs);padding:2px 8px;border-radius:var(--radius-full);background:rgba(63,185,80,0.12);color:#3fb950;font-weight:600;">'+Utils.escapeHtml(item.stage)+'</span>':'')+'</div>';
+        });
+        uHtml += '</div>';
+      }
+      upc.innerHTML = uHtml;
+    }
+
+    document.addEventListener('gbe:data-updated', renderBandManagerDash);
   }
 
   /* ===== ARTIST ===== */
