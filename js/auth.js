@@ -2321,17 +2321,112 @@ const Auth = {
   },
 
   /**
-   * Role-switcher removed — role views are automatic based on who signs in.
-   * Each user sees their own role's dashboard on login; no manual toggle needed.
-   * Kept as a no-op so existing call sites don't error.
+   * Inject or refresh the role-switcher dropdown in the topbar.
+   * Only shown when the authenticated user has 2+ valid linked roles.
+   * Filters _linkedRoles against SiteConfig.roles — unknown/stale entries
+   * (e.g. typos from Firestore console) are silently ignored.
    * @private
    */
   _updateRoleSwitcher: function() {
-    // Remove any lingering switcher element (cleanup only)
+    // Remove any existing switcher first (handles state changes / logout)
     var existing = document.getElementById('topbar-role-switcher');
     if (existing) existing.remove();
-    // No-op — switcher UI is intentionally disabled
-    return;
+
+    if (!this.isAuthenticated()) return;
+
+    var roleRegistry = (typeof SiteConfig !== 'undefined' && SiteConfig.roles) || {};
+
+    // Only include roles that exist in the registry — filters out stale/junk Firestore data
+    var validRoles = (this._linkedRoles || []).filter(function(r) {
+      return !!roleRegistry[r];
+    });
+
+    // Only render when user has 2+ valid linked roles
+    if (validRoles.length < 2) return;
+
+    var topbarActions = document.querySelector('.topbar-actions');
+    if (!topbarActions) return;
+
+    var activeRole = this._activeRole || this._role;
+    var activeInfo = roleRegistry[activeRole] || { label: activeRole, icon: 'fa-user', color: '#8b949e' };
+
+    // Build option buttons for each valid linked role
+    var optionsHtml = validRoles.map(function(role) {
+      var info = roleRegistry[role];
+      var isActive = (role === activeRole);
+      return '<button class="gbe-role-opt" data-role="' + role + '" style="' +
+        'display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;' +
+        'background:' + (isActive ? 'rgba(255,255,255,0.06)' : 'transparent') + ';' +
+        'border:none;color:' + (isActive ? info.color : 'var(--color-text)') + ';' +
+        'cursor:pointer;font-size:13px;border-radius:4px;text-align:left;white-space:nowrap;">' +
+        '<i class="fa-solid ' + info.icon + '" style="color:' + info.color + ';width:16px;flex-shrink:0;"></i>' +
+        '<span>' + info.label + '</span>' +
+        (isActive ? '<i class="fa-solid fa-check" style="margin-left:auto;font-size:10px;padding-left:12px;"></i>' : '') +
+        '</button>';
+    }).join('');
+
+    // Build switcher container
+    var switcherEl = document.createElement('div');
+    switcherEl.id = 'topbar-role-switcher';
+    switcherEl.style.cssText = 'position:relative;display:flex;align-items:center;margin-right:8px;';
+    switcherEl.innerHTML =
+      '<button id="gbe-role-btn" title="Switch active role" style="' +
+        'display:flex;align-items:center;gap:6px;padding:4px 10px;' +
+        'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);' +
+        'border-radius:20px;cursor:pointer;color:' + activeInfo.color + ';' +
+        'font-size:12px;font-weight:600;line-height:1;white-space:nowrap;">' +
+        '<i class="fa-solid ' + activeInfo.icon + '" style="font-size:11px;"></i>' +
+        '<span>' + activeInfo.label + '</span>' +
+        '<i class="fa-solid fa-chevron-down" style="font-size:9px;color:var(--color-text-muted);margin-left:2px;"></i>' +
+      '</button>' +
+      '<div id="gbe-role-dropdown" style="' +
+        'display:none;position:absolute;top:calc(100% + 6px);right:0;' +
+        'background:var(--color-bg-secondary,#161b22);border:1px solid var(--color-border,rgba(255,255,255,0.1));' +
+        'border-radius:8px;padding:6px;min-width:180px;z-index:10000;' +
+        'box-shadow:0 4px 20px rgba(0,0,0,0.5);">' +
+        '<div style="padding:4px 12px 6px;font-size:10px;color:var(--color-text-muted);' +
+          'font-weight:700;letter-spacing:0.08em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">View As</div>' +
+        optionsHtml +
+      '</div>';
+
+    // Insert before the topbar-user element
+    var topbarUser = document.getElementById('topbar-user');
+    if (topbarUser) {
+      topbarActions.insertBefore(switcherEl, topbarUser);
+    } else {
+      topbarActions.appendChild(switcherEl);
+    }
+
+    // Toggle dropdown
+    var btn = document.getElementById('gbe-role-btn');
+    var dropdown = document.getElementById('gbe-role-dropdown');
+
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display !== 'none' ? 'none' : 'block';
+    });
+
+    // Role option click handler
+    dropdown.querySelectorAll('.gbe-role-opt').forEach(function(optBtn) {
+      optBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdown.style.display = 'none';
+        Auth.switchRole(optBtn.getAttribute('data-role'));
+      });
+    });
+
+    // Close on outside click
+    setTimeout(function() {
+      document.addEventListener('click', function closeDropdown(e) {
+        if (dropdown && !dropdown.contains(e.target) && e.target !== btn) {
+          dropdown.style.display = 'none';
+          document.removeEventListener('click', closeDropdown);
+        }
+      });
+    }, 0);
+  },
+
+  // INTERNAL: kept for call-site compatibility (no-op alias removed)
 
     var topbarActions = document.querySelector('.topbar-actions');
     if (!topbarActions) return;
