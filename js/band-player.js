@@ -10,6 +10,7 @@ const BandPlayer = {
   _playlists: [],
   _songs: [],         // songs for current playlist
   _allSongsMap: {},    // songId → song doc cache
+  _inventory: [],      // all songs in Firestore (full inventory)
   _currentPlaylist: null,
   _currentIndex: -1,
   _isPlaying: false,
@@ -35,6 +36,7 @@ const BandPlayer = {
 
     this._setupAudioEvents();
     this.loadPlaylists();
+    this.loadInventory();
     this.initialized = true;
     console.log('🎵 BandPlayer initialized');
   },
@@ -61,6 +63,23 @@ const BandPlayer = {
         console.error('[BandPlayer] Failed to load playlists:', e);
         var el = document.getElementById('bp-tracklist');
         if (el) el.innerHTML = '<div style="padding:24px;text-align:center;color:rgba(255,255,255,0.4);">Could not load playlists. Check your connection.</div>';
+      });
+  },
+
+  loadInventory: function() {
+    var self = this;
+    this._db.collection('songs').orderBy('createdAt', 'desc').get()
+      .then(function(snap) {
+        self._inventory = [];
+        snap.forEach(function(doc) {
+          var data = Object.assign({ id: doc.id }, doc.data());
+          self._inventory.push(data);
+          self._allSongsMap[doc.id] = data;
+        });
+        console.log('[BandPlayer] Inventory loaded: ' + self._inventory.length + ' songs');
+      })
+      .catch(function(e) {
+        console.error('[BandPlayer] Failed to load inventory:', e);
       });
   },
 
@@ -387,7 +406,7 @@ const BandPlayer = {
   showUploadSong: function() {
     if (typeof Modal === 'undefined') return;
     Modal.open({
-      title: 'Add Song',
+      title: 'Upload Song to Inventory',
       size: 'md',
       content:
         '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -414,7 +433,7 @@ const BandPlayer = {
             '</div>' +
           '</div>' +
         '</div>',
-      confirmText: 'Upload & Add',
+      confirmText: 'Upload to Inventory',
       onConfirm: function() { BandPlayer._handleUploadSong(); }
     });
     setTimeout(function() { var el = document.getElementById('bp-u-title'); if (el) el.focus(); }, 100);
@@ -493,29 +512,12 @@ const BandPlayer = {
           };
 
           self._db.collection('songs').doc(songId).set(songData).then(function() {
-            if (progBar) progBar.style.width = '95%';
-
-            // Step 3: Add to current playlist if one is selected
-            if (self._currentPlaylist) {
-              var newOrder = (self._currentPlaylist.songOrder || []).slice();
-              newOrder.push(songId);
-              self._db.collection('playlists').doc(self._currentPlaylist.id).update({
-                songOrder: newOrder,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-              }).then(function() {
-                if (progBar) progBar.style.width = '100%';
-                Modal.close();
-                Toast.success('Song added: ' + title);
-                self._currentPlaylist.songOrder = newOrder;
-                self._allSongsMap[songId] = Object.assign({ id: songId }, songData);
-                self._songs.push(self._allSongsMap[songId]);
-                self.renderTrackList();
-              });
-            } else {
-              if (progBar) progBar.style.width = '100%';
-              Modal.close();
-              Toast.success('Song uploaded: ' + title + ' (not added to a playlist yet)');
-            }
+            if (progBar) progBar.style.width = '100%';
+            Modal.close();
+            var savedSong = Object.assign({ id: songId }, songData);
+            self._allSongsMap[songId] = savedSong;
+            self._inventory.push(savedSong);
+            Toast.success('Song uploaded to inventory: ' + title);
           });
         }).catch(function(e) {
           Toast.error('Chart upload failed: ' + e.message);
@@ -563,6 +565,199 @@ const BandPlayer = {
       }
     });
     setTimeout(function() { var el = document.getElementById('bp-pl-name'); if (el) el.focus(); }, 100);
+  },
+
+  // ── Inventory & Add to Playlist ──────────────────────
+
+  showInventory: function() {
+    if (typeof Modal === 'undefined') return;
+    var self = this;
+    var songs = this._inventory;
+
+    if (songs.length === 0) {
+      Modal.open({
+        title: 'Song Inventory',
+        size: 'md',
+        content: '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);">' +
+          '<i class="fa-solid fa-box-open" style="font-size:32px;display:block;margin-bottom:10px;"></i>' +
+          'No songs uploaded yet. Use "Upload Song" to add to inventory.</div>',
+        confirmText: 'Close',
+        onConfirm: function() { Modal.close(); }
+      });
+      return;
+    }
+
+    var html = '<div style="max-height:60vh;overflow-y:auto;">';
+    songs.forEach(function(song) {
+      var hasLyrics = !!(song.lyrics);
+      var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
+      var chartList = hasCharts ? Object.keys(song.charts).join(', ') : '';
+
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:rgba(212,160,23,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+          '<i class="fa-solid fa-music" style="color:#d4a017;font-size:14px;"></i></div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:14px;font-weight:600;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + self._escHtml(song.title) + '</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">' + self._escHtml(song.artist || 'Unknown') +
+            (hasLyrics ? ' · <i class="fa-solid fa-align-left"></i> lyrics' : '') +
+            (hasCharts ? ' · <i class="fa-solid fa-file-pdf"></i> ' + chartList : '') +
+          '</div>' +
+        '</div>' +
+        '<button onclick="BandPlayer.deleteSongFromInventory(\'' + song.id + '\')" title="Delete from inventory" ' +
+          'style="width:32px;height:32px;border-radius:6px;border:1px solid rgba(248,81,73,0.15);background:rgba(248,81,73,0.06);color:rgba(248,81,73,0.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">' +
+          '<i class="fa-solid fa-trash"></i></button>' +
+      '</div>';
+    });
+    html += '</div>';
+
+    Modal.open({
+      title: 'Song Inventory (' + songs.length + ')',
+      size: 'md',
+      content: html,
+      confirmText: 'Close',
+      onConfirm: function() { Modal.close(); }
+    });
+  },
+
+  deleteSongFromInventory: function(songId) {
+    var self = this;
+    var song = this._allSongsMap[songId];
+    if (!song) return;
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Delete Song',
+        size: 'sm',
+        content: '<p style="color:#e6edf3;font-size:15px;">Permanently delete <strong>' + this._escHtml(song.title) + '</strong>?</p>' +
+          '<p style="color:rgba(255,255,255,0.45);font-size:13px;margin-top:8px;">This removes the song record and its files from storage. It will be removed from all playlists.</p>',
+        confirmText: 'Delete',
+        onConfirm: function() {
+          // Delete Firestore doc
+          self._db.collection('songs').doc(songId).delete().then(function() {
+            // Remove from local state
+            self._inventory = self._inventory.filter(function(s) { return s.id !== songId; });
+            delete self._allSongsMap[songId];
+            // Remove from current playlist songs if present
+            self._songs = self._songs.filter(function(s) { return s.id !== songId; });
+            Modal.close();
+            Toast.success('Song deleted');
+            // Clean up storage files in background (best-effort)
+            if (song.audioPath && self._storage) {
+              self._storage.ref(song.audioPath).delete().catch(function() {});
+            }
+            if (song.charts && self._storage) {
+              Object.keys(song.charts).forEach(function(inst) {
+                self._storage.ref(song.charts[inst]).delete().catch(function() {});
+              });
+            }
+            self.renderTrackList();
+          }).catch(function(e) {
+            Toast.error('Failed to delete: ' + e.message);
+          });
+        }
+      });
+    }
+  },
+
+  showAddFromInventory: function() {
+    if (typeof Modal === 'undefined') return;
+    if (!this._currentPlaylist) {
+      Toast.info('Select or create a playlist first');
+      return;
+    }
+
+    var self = this;
+    var currentIds = (this._currentPlaylist.songOrder || []);
+
+    // Filter to songs not already in this playlist
+    var available = this._inventory.filter(function(song) {
+      return currentIds.indexOf(song.id) === -1;
+    });
+
+    if (available.length === 0) {
+      Modal.open({
+        title: 'Add to Playlist',
+        size: 'sm',
+        content: '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);">' +
+          (this._inventory.length === 0
+            ? '<i class="fa-solid fa-box-open" style="font-size:28px;display:block;margin-bottom:8px;"></i>No songs in inventory. Upload songs first.'
+            : '<i class="fa-solid fa-check-circle" style="font-size:28px;display:block;margin-bottom:8px;color:#3fb950;"></i>All inventory songs are already in this playlist.') +
+          '</div>',
+        confirmText: 'Close',
+        onConfirm: function() { Modal.close(); }
+      });
+      return;
+    }
+
+    var html = '<div style="max-height:60vh;overflow-y:auto;">';
+    available.forEach(function(song) {
+      var hasLyrics = !!(song.lyrics);
+      var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
+
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:rgba(212,160,23,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+          '<i class="fa-solid fa-music" style="color:#d4a017;font-size:14px;"></i></div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:14px;font-weight:600;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + self._escHtml(song.title) + '</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">' + self._escHtml(song.artist || 'Unknown') +
+            (hasLyrics ? ' · lyrics' : '') +
+            (hasCharts ? ' · charts' : '') +
+          '</div>' +
+        '</div>' +
+        '<button onclick="BandPlayer._addSongToPlaylist(\'' + song.id + '\', this)" ' +
+          'style="padding:6px 14px;border-radius:6px;border:1px solid rgba(63,185,80,0.25);background:rgba(63,185,80,0.1);color:#3fb950;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap;">' +
+          '<i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add</button>' +
+      '</div>';
+    });
+    html += '</div>';
+
+    Modal.open({
+      title: 'Add to: ' + this._escHtml(this._currentPlaylist.name),
+      size: 'md',
+      content: html,
+      confirmText: 'Done',
+      onConfirm: function() { Modal.close(); }
+    });
+  },
+
+  _addSongToPlaylist: function(songId, btnEl) {
+    var self = this;
+    if (!this._currentPlaylist) return;
+
+    var newOrder = (this._currentPlaylist.songOrder || []).slice();
+    if (newOrder.indexOf(songId) !== -1) return; // already there
+    newOrder.push(songId);
+
+    // Disable button immediately
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.innerHTML = '<i class="fa-solid fa-check"></i> Added';
+      btnEl.style.color = 'rgba(255,255,255,0.35)';
+      btnEl.style.borderColor = 'rgba(255,255,255,0.08)';
+      btnEl.style.background = 'rgba(255,255,255,0.03)';
+      btnEl.style.cursor = 'default';
+    }
+
+    this._db.collection('playlists').doc(this._currentPlaylist.id).update({
+      songOrder: newOrder,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+      self._currentPlaylist.songOrder = newOrder;
+      var song = self._allSongsMap[songId];
+      if (song) self._songs.push(song);
+      self.renderTrackList();
+    }).catch(function(e) {
+      if (typeof Toast !== 'undefined') Toast.error('Failed to add song: ' + e.message);
+      // Re-enable button on failure
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add';
+        btnEl.style.color = '#3fb950';
+        btnEl.style.borderColor = 'rgba(63,185,80,0.25)';
+        btnEl.style.background = 'rgba(63,185,80,0.1)';
+        btnEl.style.cursor = 'pointer';
+      }
+    });
   },
 
   // ── Rendering ─────────────────────────────────────────

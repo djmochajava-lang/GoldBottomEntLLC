@@ -21,7 +21,15 @@
       </button>
       <button onclick="BandPlayer.showUploadSong()" class="btn btn-sm"
               style="background:rgba(212,160,23,0.12);color:#d4a017;border:1px solid rgba(212,160,23,0.2);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
-        <i class="fa-solid fa-upload" style="margin-right:4px;"></i> Add Song
+        <i class="fa-solid fa-upload" style="margin-right:4px;"></i> Upload Song
+      </button>
+      <button onclick="BandPlayer.showAddFromInventory()" class="btn btn-sm"
+              style="background:rgba(63,185,80,0.12);color:#3fb950;border:1px solid rgba(63,185,80,0.2);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
+        <i class="fa-solid fa-plus" style="margin-right:4px;"></i> Add to Playlist
+      </button>
+      <button onclick="BandPlayer.showInventory()" class="btn btn-sm"
+              style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
+        <i class="fa-solid fa-box-archive" style="margin-right:4px;"></i> Inventory
       </button>
       <button id="bp-edit-toggle" onclick="BandPlayer.toggleEditMode()" class="btn btn-sm"
               style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
