@@ -174,6 +174,15 @@ const Router = {
       pageName = this.legacyRedirects[pageName];
     }
 
+    // Mobile auto-redirect — send mobile users straight to Field View
+    // (mirrors how LA Young auto-serves mobile layout without a nudge banner)
+    if (pageName === 'dashboard-home' && window.innerWidth <= 768) {
+      var _mobileRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+      if (_mobileRole === 'admin' || _mobileRole === 'band_manager') {
+        pageName = 'dashboard-field';
+      }
+    }
+
     // Validate route — show 404 for unknown routes
     if (!this.routes[pageName]) {
       console.warn(`Route "${pageName}" not found, loading 404`);

@@ -1,23 +1,6 @@
 <!-- dashboard/home.html — Dashboard Overview -->
 <div class="dashboard-page" id="dash-home">
 
-  <!-- Field View nudge — shown for band_manager / admin by JS -->
-  <div id="field-view-nudge" style="display:none;
-       margin-bottom:var(--space-lg);padding:12px 16px;border-radius:10px;
-       background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.25);
-       align-items:center;gap:12px;">
-    <i class="fa-solid fa-signal" style="color:#3fb950;font-size:18px;flex-shrink:0;"></i>
-    <div style="flex:1;min-width:0;">
-      <div style="font-size:13px;font-weight:600;color:#e6edf3;">You're on mobile</div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;">Switch to Field View for your on-the-road dashboard</div>
-    </div>
-    <a href="#dashboard-field"
-       style="padding:7px 14px;border-radius:7px;background:#3fb950;color:#0d1117;
-              font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;">
-      Go <i class="fa-solid fa-arrow-right" style="font-size:10px;"></i>
-    </a>
-  </div>
-
   <div class="dashboard-page-header">
     <div>
       <h1>Dashboard</h1>
@@ -36,13 +19,6 @@
 
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
   var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
-
-  /* -------- Field View nudge (mobile only) -------- */
-  var nudge = document.getElementById('field-view-nudge');
-  var isMobile = window.innerWidth <= 768;
-  if (nudge && isMobile && (role === 'admin' || role === 'band_manager')) {
-    nudge.style.display = 'flex';
-  }
 
   /* -------- Role-specific rendering -------- */
   var main = document.getElementById('dash-home-main');
