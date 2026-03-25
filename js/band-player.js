@@ -17,6 +17,9 @@ const BandPlayer = {
   _volume: 0.8,
   _editMode: false,
   _editDirty: false,
+  _cacheName: 'bp-offline-audio',
+  _cacheMaxSongs: 20,
+  _cacheIndex: null, // { songId: { savedAt, title } }
 
   init: function() {
     if (this.initialized) return;
@@ -35,6 +38,7 @@ const BandPlayer = {
     }
 
     this._setupAudioEvents();
+    this._loadCacheIndex();
     this.loadPlaylists();
     this.loadInventory();
     this.initialized = true;
@@ -139,24 +143,36 @@ const BandPlayer = {
     var self = this;
     this._currentIndex = index;
 
-    // Get download URL from Firebase Storage
-    var ref = this._storage.refFromURL ? this._storage.refFromURL(song.audioPath) : this._storage.ref(song.audioPath);
-    ref.getDownloadURL().then(function(url) {
-      self._audio.src = url;
-      self._audio.play().catch(function() {
-        // Mobile may need user gesture — retry on canplay
-        self._audio.addEventListener('canplay', function retry() {
-          self._audio.play();
-          self._audio.removeEventListener('canplay', retry);
+    // Try cache first, then fall back to network
+    this._getCachedAudioUrl(song.id).then(function(cachedUrl) {
+      if (cachedUrl) {
+        console.log('[BandPlayer] Playing from offline cache: ' + song.title);
+        self._playUrl(cachedUrl);
+      } else {
+        // Get download URL from Firebase Storage
+        var ref = self._storage.refFromURL ? self._storage.refFromURL(song.audioPath) : self._storage.ref(song.audioPath);
+        ref.getDownloadURL().then(function(url) {
+          self._playUrl(url);
+        }).catch(function(e) {
+          console.error('[BandPlayer] Failed to get audio URL:', e);
+          if (typeof Toast !== 'undefined') Toast.error('Could not load audio file');
         });
-      });
-      self._isPlaying = true;
-      self.updateNowPlaying();
-      self.renderTrackList();
-    }).catch(function(e) {
-      console.error('[BandPlayer] Failed to get audio URL:', e);
-      if (typeof Toast !== 'undefined') Toast.error('Could not load audio file');
+      }
     });
+  },
+
+  _playUrl: function(url) {
+    var self = this;
+    this._audio.src = url;
+    this._audio.play().catch(function() {
+      self._audio.addEventListener('canplay', function retry() {
+        self._audio.play();
+        self._audio.removeEventListener('canplay', retry);
+      });
+    });
+    this._isPlaying = true;
+    this.updateNowPlaying();
+    this.renderTrackList();
   },
 
   togglePlay: function() {
@@ -824,6 +840,7 @@ const BandPlayer = {
       var isActive = (i === self._currentIndex);
       var hasLyrics = !!(song.lyrics);
       var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
+      var cached = self.isCached(song.id);
 
       return '<div class="bp-track' + (isActive ? ' bp-track-active' : '') + '" onclick="BandPlayer.play(' + i + ')">' +
         '<div class="bp-track-num">' +
@@ -832,12 +849,17 @@ const BandPlayer = {
             : '<span>' + (i + 1) + '</span>') +
         '</div>' +
         '<div class="bp-track-info">' +
-          '<div class="bp-track-title">' + BandPlayer._escHtml(song.title) + '</div>' +
+          '<div class="bp-track-title">' + BandPlayer._escHtml(song.title) +
+            (cached ? ' <i class="fa-solid fa-cloud-arrow-down" style="font-size:10px;color:#3fb950;margin-left:4px;" title="Saved offline"></i>' : '') +
+          '</div>' +
           '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
         '</div>' +
         '<div class="bp-track-actions" onclick="event.stopPropagation()">' +
           (hasLyrics ? '<button class="bp-action-btn" onclick="BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>' : '') +
           (hasCharts ? '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="Chart"><i class="fa-solid fa-file-pdf"></i></button>' : '') +
+          (cached
+            ? '<button class="bp-action-btn" onclick="BandPlayer.removeOffline(\'' + song.id + '\')" title="Remove offline" style="color:#3fb950;border-color:rgba(63,185,80,0.2);"><i class="fa-solid fa-cloud-arrow-down"></i></button>'
+            : '<button class="bp-action-btn" onclick="BandPlayer.saveOffline(\'' + song.id + '\')" title="Save offline"><i class="fa-regular fa-cloud-arrow-down"></i></button>') +
         '</div>' +
       '</div>';
     }).join('');
@@ -874,6 +896,127 @@ const BandPlayer = {
           : '<div style="font-size:14px;">Your band manager hasn\'t set up any playlists yet.</div>') +
         '</div>';
     }
+  },
+
+  // ── Offline Cache ────────────────────────────────────
+
+  _loadCacheIndex: function() {
+    try {
+      var raw = localStorage.getItem('bp-cache-index');
+      this._cacheIndex = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      this._cacheIndex = {};
+    }
+  },
+
+  _saveCacheIndex: function() {
+    try {
+      localStorage.setItem('bp-cache-index', JSON.stringify(this._cacheIndex));
+    } catch (e) {
+      console.warn('[BandPlayer] Could not save cache index');
+    }
+  },
+
+  isCached: function(songId) {
+    return !!(this._cacheIndex && this._cacheIndex[songId]);
+  },
+
+  _getCachedAudioUrl: function(songId) {
+    if (!('caches' in window) || !this.isCached(songId)) {
+      return Promise.resolve(null);
+    }
+    return caches.open(this._cacheName).then(function(cache) {
+      return cache.match('audio/' + songId);
+    }).then(function(response) {
+      if (!response) return null;
+      return response.blob().then(function(blob) {
+        return URL.createObjectURL(blob);
+      });
+    }).catch(function() {
+      return null;
+    });
+  },
+
+  saveOffline: function(songId) {
+    if (!('caches' in window)) {
+      Toast.info('Offline storage not supported on this browser');
+      return;
+    }
+    var song = this._allSongsMap[songId];
+    if (!song || !song.audioPath) return;
+    if (this.isCached(songId)) {
+      Toast.info(song.title + ' is already saved offline');
+      return;
+    }
+
+    var self = this;
+
+    // Evict oldest if at limit
+    var ids = Object.keys(this._cacheIndex);
+    if (ids.length >= this._cacheMaxSongs) {
+      // Find oldest by savedAt
+      var oldest = ids.sort(function(a, b) {
+        return (self._cacheIndex[a].savedAt || 0) - (self._cacheIndex[b].savedAt || 0);
+      })[0];
+      var oldTitle = self._cacheIndex[oldest].title || 'Unknown';
+      self._removeCachedSong(oldest).then(function() {
+        console.log('[BandPlayer] Evicted oldest cached song: ' + oldTitle);
+        self._doSaveOffline(song);
+      });
+    } else {
+      this._doSaveOffline(song);
+    }
+  },
+
+  _doSaveOffline: function(song) {
+    var self = this;
+    Toast.info('Saving "' + song.title + '" for offline...');
+
+    // Get download URL then fetch the blob
+    var ref = this._storage.refFromURL ? this._storage.refFromURL(song.audioPath) : this._storage.ref(song.audioPath);
+    ref.getDownloadURL().then(function(url) {
+      return fetch(url);
+    }).then(function(response) {
+      if (!response.ok) throw new Error('Download failed');
+      return caches.open(self._cacheName).then(function(cache) {
+        return cache.put('audio/' + song.id, response);
+      });
+    }).then(function() {
+      self._cacheIndex[song.id] = {
+        title: song.title,
+        savedAt: Date.now()
+      };
+      self._saveCacheIndex();
+      self.renderTrackList();
+      Toast.success('"' + song.title + '" saved offline');
+    }).catch(function(e) {
+      console.error('[BandPlayer] Offline save failed:', e);
+      Toast.error('Could not save offline: ' + e.message);
+    });
+  },
+
+  removeOffline: function(songId) {
+    var self = this;
+    var song = this._allSongsMap[songId];
+    var title = song ? song.title : 'song';
+    this._removeCachedSong(songId).then(function() {
+      self.renderTrackList();
+      Toast.success('"' + title + '" removed from offline');
+    });
+  },
+
+  _removeCachedSong: function(songId) {
+    var self = this;
+    delete this._cacheIndex[songId];
+    this._saveCacheIndex();
+    if (!('caches' in window)) return Promise.resolve();
+    return caches.open(this._cacheName).then(function(cache) {
+      return cache.delete('audio/' + songId);
+    }).catch(function() {});
+  },
+
+  getCacheCount: function() {
+    return this._cacheIndex ? Object.keys(this._cacheIndex).length : 0;
   },
 
   // ── Helpers ───────────────────────────────────────────
