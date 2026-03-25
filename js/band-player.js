@@ -42,7 +42,11 @@ const BandPlayer = {
     this.loadPlaylists();
     this.loadInventory();
     this.initialized = true;
-    console.log('🎵 Soul Society initialized');
+
+    // Debug: log auth state for troubleshooting
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'unknown';
+    console.log('🎵 Soul Society initialized | uid:', user ? user.uid : 'none', '| role:', role, '| db:', !!this._db, '| storage:', !!this._storage);
   },
 
   // ── Data Loading ──────────────────────────────────────
@@ -534,8 +538,13 @@ const BandPlayer = {
             self._allSongsMap[songId] = savedSong;
             self._inventory.push(savedSong);
             Toast.success('Song uploaded to inventory: ' + title);
+          }).catch(function(e) {
+            console.error('[BandPlayer] Song metadata save failed:', e);
+            Toast.error('Song save failed: ' + e.message);
+            if (progDiv) progDiv.style.display = 'none';
           });
         }).catch(function(e) {
+          console.error('[BandPlayer] Chart upload failed:', e);
           Toast.error('Chart upload failed: ' + e.message);
           if (progDiv) progDiv.style.display = 'none';
         });
