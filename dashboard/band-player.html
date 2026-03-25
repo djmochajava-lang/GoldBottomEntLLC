@@ -290,13 +290,30 @@
   var debugEl = document.createElement('div');
   debugEl.id = 'bp-debug';
   debugEl.style.cssText = 'padding:10px 14px;margin-bottom:12px;border-radius:8px;background:rgba(255,200,0,0.1);border:1px solid rgba(255,200,0,0.3);font-size:12px;color:#e6edf3;font-family:monospace;word-break:break-all;';
-  debugEl.textContent = 'DEBUG: waiting for init...';
+  debugEl.innerHTML = 'DEBUG: waiting for init... <button id="bp-test-write" style="margin-left:8px;padding:4px 10px;background:#d4a017;color:#000;border:none;border-radius:4px;font-weight:bold;font-size:12px;cursor:pointer;">TEST WRITE</button>';
   var pageEl = document.getElementById('dash-band-player');
   if (pageEl) pageEl.insertBefore(debugEl, pageEl.firstChild);
 
+  document.getElementById('bp-test-write').addEventListener('click', function() {
+    updateDebug('Writing test playlist...');
+    var db = BandPlayer._db;
+    if (!db) { updateDebug('ERROR: _db is null'); return; }
+    db.collection('playlists').add({
+      name: 'Test ' + Date.now(),
+      songOrder: [],
+      createdBy: 'debug-test',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function(ref) {
+      updateDebug('WRITE SUCCESS! docId=' + ref.id);
+    }).catch(function(e) {
+      updateDebug('WRITE FAILED: ' + e.code + ' — ' + e.message);
+    });
+  });
+
   function updateDebug(msg) {
     var d = document.getElementById('bp-debug');
-    if (d) d.textContent = 'DEBUG: ' + msg;
+    if (d) d.innerHTML = 'DEBUG: ' + msg + ' <button id="bp-test-write" onclick="document.getElementById(\'bp-test-write\').click()" style="margin-left:8px;padding:4px 10px;background:#d4a017;color:#000;border:none;border-radius:4px;font-weight:bold;font-size:12px;cursor:pointer;">TEST WRITE</button>';
   }
 
   // Init the player — wait for Auth/Firestore if not ready yet
