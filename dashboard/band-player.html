@@ -286,9 +286,22 @@
     updateNowActions();
   };
 
-  // Init the player
-  if (typeof BandPlayer !== 'undefined') {
-    BandPlayer.init();
+  // Init the player — wait for Auth/Firestore if not ready yet
+  function tryInit(attempts) {
+    if (typeof BandPlayer === 'undefined') return;
+    var dbReady = (typeof Auth !== 'undefined' && Auth._db);
+    if (dbReady) {
+      BandPlayer.init();
+    } else if (attempts < 20) {
+      setTimeout(function() { tryInit(attempts + 1); }, 500);
+    } else {
+      // Show error after 10 seconds
+      var el = document.getElementById('bp-tracklist');
+      if (el) el.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(248,81,73,0.8);font-size:14px;">' +
+        '<i class="fa-solid fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:10px;"></i>' +
+        'Could not connect to database. Try refreshing the page.</div>';
+    }
   }
+  tryInit(0);
 })();
 </script>

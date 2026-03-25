@@ -27,7 +27,11 @@ const BandPlayer = {
     this._storage = (typeof Auth !== 'undefined' && Auth.getStorage) ? Auth.getStorage() : null;
 
     if (!this._db) {
-      console.warn('[BandPlayer] Firestore not available');
+      console.warn('[BandPlayer] Firestore not available yet — will retry');
+      return;
+    }
+    if (!this._storage) {
+      console.warn('[BandPlayer] Storage not available yet — will retry');
       return;
     }
 
