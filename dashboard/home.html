@@ -18,24 +18,29 @@
   if(typeof DataStore==='undefined')return;
 
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
-  var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
 
   /* -------- Role-specific rendering -------- */
   var main = document.getElementById('dash-home-main');
   if (!main) return;
 
-  if (role === 'admin') {
-    renderAdminDash();
-  } else if (role === 'band_manager') {
-    renderBandManagerDash();
-  } else if (role === 'artist') {
-    renderArtistDash();
-  } else if (role === 'band_member') {
-    renderBandMemberDash();
-  } else if (role === 'venue_owner' || role === 'promoter') {
-    renderClientPortal(role);
-  } else {
-    renderPendingDash();
+  var _lastRole = null;
+  function renderDash() {
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    if (role === _lastRole) return; // no change — skip re-render
+    _lastRole = role;
+    if (role === 'admin') {
+      renderAdminDash();
+    } else if (role === 'band_manager') {
+      renderBandManagerDash();
+    } else if (role === 'artist') {
+      renderArtistDash();
+    } else if (role === 'band_member') {
+      renderBandMemberDash();
+    } else if (role === 'venue_owner' || role === 'promoter') {
+      renderClientPortal(role);
+    } else {
+      renderPendingDash();
+    }
   }
 
   /* ===== HELPER ===== */
@@ -417,5 +422,12 @@
           '<i class="fa-solid fa-circle-info" style="color:#58a6ff;margin-right:8px;"></i>Contact <strong style="color:var(--color-text);">info@goldbottom-ent.com</strong> if you need access sooner.</div>'+
       '</div>';
   }
+
+  /* ── Initial render + re-render on role switch ────────────── */
+  renderDash();
+  if (typeof Auth !== 'undefined' && Auth.onAuthStateChanged) {
+    Auth.onAuthStateChanged(function() { renderDash(); });
+  }
+
 })();
 </script>

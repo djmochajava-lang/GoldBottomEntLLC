@@ -1174,5 +1174,17 @@
   // Init on load
   fieldInit();
 
+  // Re-render when user switches roles (role label + any role-gated content)
+  var _fieldLastRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : null;
+  if (typeof Auth !== 'undefined' && Auth.onAuthStateChanged) {
+    Auth.onAuthStateChanged(function() {
+      var newRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : null;
+      if (newRole !== _fieldLastRole) {
+        _fieldLastRole = newRole;
+        fieldInit();
+      }
+    });
+  }
+
 })();
 </script>
