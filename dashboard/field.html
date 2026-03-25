@@ -1137,18 +1137,27 @@
     renderFollowups();
     renderPendingApprovals();
 
-    // ── Role-based card visibility & quick actions ──────────
+    // ── Strict role separation — no overlap unless duty is shared ──
     var _fRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'band_manager';
     var _isAdmin = (_fRole === 'admin');
 
-    // Cards visible to band_manager only — hidden for admin
-    ['field-week-card','field-inbox-card','field-followups-card',
-     'field-contracts-card','field-invoices-card'].forEach(function(id) {
+    // Admin-only cards (hidden for band_manager)
+    var adminOnlyCards = ['field-approvals-card'];
+    // Band-manager-only cards (hidden for admin)
+    var bmOnlyCards = ['field-week-card','field-today-card','field-inbox-card',
+                       'field-pipeline-card','field-followups-card',
+                       'field-contracts-card','field-invoices-card'];
+
+    adminOnlyCards.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = _isAdmin ? '' : 'none';
+    });
+    bmOnlyCards.forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.style.display = _isAdmin ? 'none' : '';
     });
 
-    // Quick actions — role-specific buttons
+    // Quick actions — strictly role-owned, zero crossover
     var qaGrid = document.getElementById('field-quickactions-grid');
     if (qaGrid) {
       function _fBtn(icon, color, label, action) {
@@ -1157,21 +1166,23 @@
           label + '</button>';
       }
       if (_isAdmin) {
+        // Admin: system controls only — no ops buttons
         qaGrid.innerHTML =
-          _fBtn('fa-users-gear',    '#d29922', 'Team Mgmt',    "Router.navigateTo('dashboard-team')") +
-          _fBtn('fa-gear',          '#8b949e', 'Settings',     "Router.navigateTo('dashboard-settings')") +
-          _fBtn('fa-folder-open',   '#d4a017', 'Documents',    "Router.navigateTo('dashboard-documents')") +
-          _fBtn('fa-users',         '#3fb950', 'Roster',       "Router.navigateTo('dashboard-roster')") +
-          _fBtn('fa-plug',          '#58a6ff', 'Integrations', "Router.navigateTo('dashboard-integrations')") +
-          _fBtn('fa-diagram-project','#c778d9','Architecture', "Router.navigateTo('dashboard-architecture')");
+          _fBtn('fa-users-gear',     '#d29922', 'Team Mgmt',    "Router.navigateTo('dashboard-team')") +
+          _fBtn('fa-gear',           '#8b949e', 'Settings',     "Router.navigateTo('dashboard-settings')") +
+          _fBtn('fa-folder-open',    '#d4a017', 'Documents',    "Router.navigateTo('dashboard-documents')") +
+          _fBtn('fa-plug',           '#58a6ff', 'Integrations', "Router.navigateTo('dashboard-integrations')") +
+          _fBtn('fa-diagram-project','#c778d9', 'Architecture', "Router.navigateTo('dashboard-architecture')") +
+          _fBtn('fa-server',         '#3fb950', 'Servers',      "Router.navigateTo('dashboard-servers')");
       } else {
+        // Band Manager: ops actions only — no admin/system buttons
         qaGrid.innerHTML =
-          _fBtn('fa-user-plus',       '#3fb950', 'Add Contact',  'fieldAddContact()') +
-          _fBtn('fa-microphone-lines', '#c778d9', 'New Inquiry',  'fieldNewInquiry()') +
-          _fBtn('fa-receipt',         '#f0883e', 'Log Expense',  'fieldLogExpense()') +
-          _fBtn('fa-dollar-sign',     '#3fb950', 'Log Revenue',  'fieldLogRevenue()') +
-          _fBtn('fa-calendar-xmark',  '#58a6ff', 'Block Date',   'fieldBlockDate()') +
-          _fBtn('fa-user-check',      '#d29922', 'Approve Users',"Router.navigateTo('dashboard-team')");
+          _fBtn('fa-user-plus',        '#3fb950', 'Add Contact', 'fieldAddContact()') +
+          _fBtn('fa-microphone-lines', '#c778d9', 'New Inquiry', 'fieldNewInquiry()') +
+          _fBtn('fa-receipt',          '#f0883e', 'Log Expense', 'fieldLogExpense()') +
+          _fBtn('fa-dollar-sign',      '#3fb950', 'Log Revenue', 'fieldLogRevenue()') +
+          _fBtn('fa-calendar-xmark',   '#58a6ff', 'Block Date',  'fieldBlockDate()') +
+          _fBtn('fa-book-open',        '#d4a017', 'Contracts',   "Router.navigateTo('dashboard-contracts')");
       }
     }
   };
