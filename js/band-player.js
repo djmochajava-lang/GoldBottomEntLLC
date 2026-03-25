@@ -30,10 +30,6 @@ const BandPlayer = {
       console.warn('[BandPlayer] Firestore not available yet — will retry');
       return;
     }
-    if (!this._storage) {
-      console.warn('[BandPlayer] Storage not available yet — will retry');
-      return;
-    }
 
     // Create audio element (Chrome-safe pattern from LA Young player)
     if (!this._audio) {
