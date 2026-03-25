@@ -260,8 +260,8 @@ const BandPlayer = {
         size: 'md',
         content: '<pre style="white-space:pre-wrap;font-family:inherit;font-size:15px;line-height:1.8;color:#e6edf3;max-height:60vh;overflow-y:auto;padding:8px 0;">' +
           BandPlayer._escHtml(song.lyrics) + '</pre>',
-        confirmText: 'Close',
-        onConfirm: function() { Modal.close(); }
+        saveText: 'Close',
+        onSave: function() { Modal.close(); }
       });
     }
   },
@@ -309,8 +309,8 @@ const BandPlayer = {
         title: song.title + ' — Charts',
         size: 'sm',
         content: html,
-        confirmText: 'Close',
-        onConfirm: function() { Modal.close(); }
+        saveText: 'Close',
+        onSave: function() { Modal.close(); }
       });
     }
   },
@@ -410,8 +410,8 @@ const BandPlayer = {
         size: 'sm',
         content: '<p style="color:#e6edf3;font-size:15px;">Remove <strong>' + this._escHtml(song.title) + '</strong> from this playlist?</p>' +
           '<p style="color:rgba(255,255,255,0.45);font-size:13px;margin-top:8px;">The song file won\'t be deleted — it can be added back later.</p>',
-        confirmText: 'Remove',
-        onConfirm: function() {
+        saveText: 'Remove',
+        onSave: function() {
           self._songs.splice(index, 1);
           self._editDirty = true;
           Modal.close();
@@ -453,8 +453,8 @@ const BandPlayer = {
             '</div>' +
           '</div>' +
         '</div>',
-      confirmText: 'Upload to Inventory',
-      onConfirm: function() { BandPlayer._handleUploadSong(); }
+      saveText: 'Upload to Inventory',
+      onSave: function() { BandPlayer._handleUploadSong(); }
     });
     setTimeout(function() { var el = document.getElementById('bp-u-title'); if (el) el.focus(); }, 100);
   },
@@ -562,8 +562,8 @@ const BandPlayer = {
           '<div><label class="form-label">Playlist Name *</label><input id="bp-pl-name" class="form-input" placeholder="e.g. Friday Night Set" /></div>' +
           '<div><label class="form-label">Description</label><input id="bp-pl-desc" class="form-input" placeholder="e.g. Blues Alley show — 90 min set" /></div>' +
         '</div>',
-      confirmText: 'Create',
-      onConfirm: function() {
+      saveText: 'Create',
+      onSave: function() {
         var name = (document.getElementById('bp-pl-name') || {}).value || '';
         var desc = (document.getElementById('bp-pl-desc') || {}).value || '';
         if (!name.trim()) { Toast.error('Playlist name is required'); return; }
@@ -606,8 +606,8 @@ const BandPlayer = {
         content: '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);">' +
           '<i class="fa-solid fa-box-open" style="font-size:32px;display:block;margin-bottom:10px;"></i>' +
           'No songs uploaded yet. Use "Upload Song" to add to inventory.</div>',
-        confirmText: 'Close',
-        onConfirm: function() { Modal.close(); }
+        saveText: 'Close',
+        onSave: function() { Modal.close(); }
       });
       return;
     }
@@ -639,8 +639,8 @@ const BandPlayer = {
       title: 'Song Inventory (' + songs.length + ')',
       size: 'md',
       content: html,
-      confirmText: 'Close',
-      onConfirm: function() { Modal.close(); }
+      saveText: 'Close',
+      onSave: function() { Modal.close(); }
     });
   },
 
@@ -655,8 +655,8 @@ const BandPlayer = {
         size: 'sm',
         content: '<p style="color:#e6edf3;font-size:15px;">Permanently delete <strong>' + this._escHtml(song.title) + '</strong>?</p>' +
           '<p style="color:rgba(255,255,255,0.45);font-size:13px;margin-top:8px;">This removes the song record and its files from storage. It will be removed from all playlists.</p>',
-        confirmText: 'Delete',
-        onConfirm: function() {
+        saveText: 'Delete',
+        onSave: function() {
           // Delete Firestore doc
           self._db.collection('songs').doc(songId).delete().then(function() {
             // Remove from local state
@@ -708,8 +708,8 @@ const BandPlayer = {
             ? '<i class="fa-solid fa-box-open" style="font-size:28px;display:block;margin-bottom:8px;"></i>No songs in inventory. Upload songs first.'
             : '<i class="fa-solid fa-check-circle" style="font-size:28px;display:block;margin-bottom:8px;color:#3fb950;"></i>All inventory songs are already in this playlist.') +
           '</div>',
-        confirmText: 'Close',
-        onConfirm: function() { Modal.close(); }
+        saveText: 'Close',
+        onSave: function() { Modal.close(); }
       });
       return;
     }
@@ -740,8 +740,8 @@ const BandPlayer = {
       title: 'Add to: ' + this._escHtml(this._currentPlaylist.name),
       size: 'md',
       content: html,
-      confirmText: 'Done',
-      onConfirm: function() { Modal.close(); }
+      saveText: 'Done',
+      onSave: function() { Modal.close(); }
     });
   },
 
