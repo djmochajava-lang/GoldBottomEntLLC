@@ -44,8 +44,14 @@ const Auth = {
   /** @type {string|null} Registration status: null, 'pending', 'approved', 'denied' */
   _registrationStatus: null,
 
-  /** @type {string|null} User's role: 'admin' or 'member' */
+  /** @type {string|null} User's primary role from Firestore (never changes within a session) */
   _role: null,
+
+  /** @type {Array<string>} All roles this user is allowed to switch between */
+  _linkedRoles: [],
+
+  /** @type {string|null} The role the user is currently acting as (may differ from _role) */
+  _activeRole: null,
 
   /** @type {string|null} PIN session token (stored in localStorage) */
   _sessionToken: null,
@@ -88,6 +94,8 @@ const Auth = {
             Auth._authorized = true;
             Auth._registrationStatus = 'approved';
             Auth._role = 'admin';
+            Auth._linkedRoles = ['admin'];
+            Auth._activeRole = 'admin';
 
             // Still initialize Firestore so contact forms can write submissions
             Auth._initFirestoreOnly();
@@ -284,6 +292,8 @@ const Auth = {
           Auth._authorized = true;
           Auth._registrationStatus = 'approved';
           Auth._role = 'admin';
+          Auth._linkedRoles = ['admin'];
+          Auth._activeRole = 'admin';
           Auth._updateUI(user);
           Auth._notifyListeners(user);
         });
@@ -291,6 +301,9 @@ const Auth = {
         Auth._authorized = false;
         Auth._registrationStatus = null;
         Auth._role = null;
+        Auth._linkedRoles = [];
+        Auth._activeRole = null;
+        Auth._clearActiveRoleStorage();
         Auth._updateUI(user);
         Auth._notifyListeners(user);
         console.log('[Auth] Signed out');
@@ -438,6 +451,8 @@ const Auth = {
         Auth._authorized = true;
         Auth._registrationStatus = 'approved';
         Auth._role = 'admin';
+        Auth._linkedRoles = ['admin'];
+        Auth._activeRole = 'admin';
         Auth.initialized = true;
 
         localStorage.setItem('gbe-session-token', data.token);
@@ -508,6 +523,9 @@ const Auth = {
     this._authorized = false;
     this._registrationStatus = null;
     this._role = null;
+    this._linkedRoles = [];
+    this._activeRole = null;
+    this._clearActiveRoleStorage();
     localStorage.removeItem('gbe-session-token');
 
     // Verify it's actually gone
@@ -599,6 +617,9 @@ const Auth = {
     if (teamLink) {
       teamLink.style.display = '';
     }
+
+    // Update role switcher (PIN auth always has single 'admin' role — will not show)
+    Auth._updateRoleSwitcher();
   },
 
   /* ------------------------------------------
@@ -649,6 +670,10 @@ const Auth = {
           // Existing user — update last login, ensure current provider is tracked
           var data = doc.data();
           Auth._role = data.role || 'member';
+          Auth._linkedRoles = (data.linkedRoles && data.linkedRoles.length)
+            ? data.linkedRoles
+            : [Auth._role];
+          Auth._activeRole = Auth._restoreActiveRole(user.uid);
 
           // Build linkedProviders array, adding current provider if not yet listed
           var linked = data.linkedProviders || [data.provider || currentProvider];
@@ -695,6 +720,8 @@ const Auth = {
 
             // No duplicate — create new registration with IDP-001 §5 unified profile
             Auth._role = 'member';
+            Auth._linkedRoles = ['member'];
+            Auth._activeRole = 'member';
 
             // Normalize displayName per IDP-001 §5.4
             var displayName = user.displayName ||
@@ -812,11 +839,12 @@ const Auth = {
   /**
    * Check if the current user has admin-level access.
    * True for both 'admin' (site admin) and 'band_manager' (CEO/band manager).
-   * Used to gate the dashboard and admin-only features.
+   * Checks the active role (which may differ from primary role when switching).
    * @returns {boolean}
    */
   isAdmin: function() {
-    return this.isAuthenticated() && (this._role === 'admin' || this._role === 'band_manager');
+    var role = this._activeRole || this._role;
+    return this.isAuthenticated() && (role === 'admin' || role === 'band_manager');
   },
 
   /**
@@ -824,7 +852,7 @@ const Auth = {
    * @returns {boolean}
    */
   isSiteAdmin: function() {
-    return this.isAuthenticated() && this._role === 'admin';
+    return this.isAuthenticated() && (this._activeRole || this._role) === 'admin';
   },
 
   /**
@@ -832,7 +860,7 @@ const Auth = {
    * @returns {boolean}
    */
   isBandManager: function() {
-    return this.isAuthenticated() && this._role === 'band_manager';
+    return this.isAuthenticated() && (this._activeRole || this._role) === 'band_manager';
   },
 
   /**
@@ -841,7 +869,8 @@ const Auth = {
    * @returns {boolean}
    */
   isInternalStaff: function() {
-    return this.isAuthenticated() && (this._role === 'admin' || this._role === 'band_manager');
+    var role = this._activeRole || this._role;
+    return this.isAuthenticated() && (role === 'admin' || role === 'band_manager');
   },
 
   /**
@@ -849,7 +878,7 @@ const Auth = {
    * @returns {boolean}
    */
   isSinger: function() {
-    return this.isAuthenticated() && this._role === 'singer';
+    return this.isAuthenticated() && (this._activeRole || this._role) === 'singer';
   },
 
   /**
@@ -857,7 +886,7 @@ const Auth = {
    * @returns {boolean}
    */
   isBandMember: function() {
-    return this.isAuthenticated() && this._role === 'band_member';
+    return this.isAuthenticated() && (this._activeRole || this._role) === 'band_member';
   },
 
   /**
@@ -865,7 +894,7 @@ const Auth = {
    * @returns {boolean}
    */
   isVenueOwner: function() {
-    return this.isAuthenticated() && this._role === 'venue_owner';
+    return this.isAuthenticated() && (this._activeRole || this._role) === 'venue_owner';
   },
 
   /**
@@ -873,7 +902,7 @@ const Auth = {
    * @returns {boolean}
    */
   isPromoter: function() {
-    return this.isAuthenticated() && this._role === 'promoter';
+    return this.isAuthenticated() && (this._activeRole || this._role) === 'promoter';
   },
 
   /**
@@ -885,10 +914,92 @@ const Auth = {
   },
 
   /**
-   * Get a human-readable label for the current user's role.
+   * Get all roles available to the current user for switching.
+   * @returns {Array<string>}
+   */
+  getLinkedRoles: function() {
+    return this._linkedRoles || [];
+  },
+
+  /**
+   * Check if the current user can switch roles (has more than one linked role).
+   * @returns {boolean}
+   */
+  canSwitchRoles: function() {
+    return this._linkedRoles && this._linkedRoles.length > 1;
+  },
+
+  /**
+   * Switch the active role to a different role in the user's linkedRoles.
+   * Persists the selection in sessionStorage so it survives page refreshes.
+   * @param {string} newRole
+   * @returns {boolean} true if switch succeeded
+   */
+  switchRole: function(newRole) {
+    if (!this.isAuthenticated()) return false;
+    if (this._linkedRoles.indexOf(newRole) === -1) {
+      console.warn('[Auth] Role not available for switching:', newRole);
+      return false;
+    }
+    this._activeRole = newRole;
+    // Persist for this session (cleared on logout)
+    try {
+      var uid = this._user ? this._user.uid : 'pin';
+      sessionStorage.setItem('gbe-active-role-' + uid, newRole);
+    } catch(e) {}
+    // Update UI and notify listeners so page content can react
+    this._updateUI(this._user);
+    this._notifyListeners(this._user);
+    if (typeof Toast !== 'undefined') {
+      Toast.success('Switched to ' + this.getRoleLabel());
+    }
+    console.log('[Auth] Switched to role:', newRole);
+    return true;
+  },
+
+  /**
+   * Restore the active role from sessionStorage (survives page refreshes within a session).
+   * Only restores if the stored role is still in the user's linkedRoles.
+   * @param {string} uid
+   * @returns {string} The role to use as active role
+   * @private
+   */
+  _restoreActiveRole: function(uid) {
+    try {
+      var stored = sessionStorage.getItem('gbe-active-role-' + uid);
+      if (stored && this._linkedRoles.indexOf(stored) !== -1) {
+        console.log('[Auth] Restored active role from session:', stored);
+        return stored;
+      }
+    } catch(e) {}
+    return this._role;
+  },
+
+  /**
+   * Clear active role from sessionStorage for the current user.
+   * Called on logout.
+   * @private
+   */
+  _clearActiveRoleStorage: function() {
+    try {
+      var uid = this._user ? this._user.uid : 'pin';
+      sessionStorage.removeItem('gbe-active-role-' + uid);
+      // Also clear all gbe-active-role-* keys in case of multiple sessions
+      var toRemove = [];
+      for (var i = 0; i < sessionStorage.length; i++) {
+        var key = sessionStorage.key(i);
+        if (key && key.indexOf('gbe-active-role-') === 0) toRemove.push(key);
+      }
+      toRemove.forEach(function(k) { sessionStorage.removeItem(k); });
+    } catch(e) {}
+  },
+
+  /**
+   * Get a human-readable label for the current user's active role.
    * @returns {string}
    */
   getRoleLabel: function() {
+    var role = this._activeRole || this._role;
     var labels = {
       'admin':        'Site Admin',
       'band_manager': 'Band Manager',
@@ -898,14 +1009,22 @@ const Auth = {
       'promoter':     'Promoter',
       'member':       'Member'
     };
-    return labels[this._role] || 'Member';
+    return labels[role] || 'Member';
   },
 
   /**
-   * Get the current user's role
+   * Get the current user's active role (may differ from primary role when switching).
    * @returns {string|null}
    */
   getRole: function() {
+    return this._activeRole || this._role;
+  },
+
+  /**
+   * Get the current user's primary role (as assigned in Firestore, never changes in-session).
+   * @returns {string|null}
+   */
+  getPrimaryRole: function() {
     return this._role;
   },
 
@@ -1031,6 +1150,9 @@ const Auth = {
         Auth._authorized = false;
         Auth._registrationStatus = null;
         Auth._role = null;
+        Auth._linkedRoles = [];
+        Auth._activeRole = null;
+        Auth._clearActiveRoleStorage();
         Auth._sessionToken = null;
 
         Auth._updateUI(null);
@@ -1923,6 +2045,9 @@ const Auth = {
 
     // Show/hide admin-only sidebar items
     Auth._updateAdminUI();
+
+    // Update role switcher in topbar (only when user has multiple linked roles)
+    Auth._updateRoleSwitcher();
   },
 
   /**
@@ -1934,6 +2059,104 @@ const Auth = {
     if (teamLink) {
       teamLink.style.display = this.isAdmin() ? '' : 'none';
     }
+  },
+
+  /**
+   * Inject or refresh the role-switcher dropdown in the topbar.
+   * Only shown when the authenticated user has 2+ linked roles.
+   * @private
+   */
+  _updateRoleSwitcher: function() {
+    // Remove any existing switcher first (handles state changes / logout)
+    var existing = document.getElementById('topbar-role-switcher');
+    if (existing) existing.remove();
+
+    // Only render when logged in with multiple roles
+    if (!this.canSwitchRoles() || !this.isAuthenticated()) return;
+
+    var topbarActions = document.querySelector('.topbar-actions');
+    if (!topbarActions) return;
+
+    var roleRegistry = (typeof SiteConfig !== 'undefined' && SiteConfig.roles) || {};
+    var activeRole = this._activeRole || this._role;
+    var activeInfo = roleRegistry[activeRole] || { label: activeRole, icon: 'fa-user', color: '#8b949e' };
+
+    // Build option buttons for each linked role
+    var optionsHtml = this._linkedRoles.map(function(role) {
+      var info = roleRegistry[role] || { label: role, icon: 'fa-user', color: '#8b949e' };
+      var isActive = (role === activeRole);
+      return '<button class="gbe-role-opt" data-role="' + role + '" style="' +
+        'display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;' +
+        'background:' + (isActive ? 'rgba(255,255,255,0.06)' : 'transparent') + ';' +
+        'border:none;color:' + (isActive ? info.color : 'var(--color-text)') + ';' +
+        'cursor:pointer;font-size:13px;border-radius:4px;text-align:left;white-space:nowrap;">' +
+        '<i class="fa-solid ' + info.icon + '" style="color:' + info.color + ';width:16px;flex-shrink:0;"></i>' +
+        '<span>' + info.label + '</span>' +
+        (isActive ? '<i class="fa-solid fa-check" style="margin-left:auto;font-size:10px;padding-left:12px;"></i>' : '') +
+        '</button>';
+    }).join('');
+
+    // Build switcher container
+    var switcherEl = document.createElement('div');
+    switcherEl.id = 'topbar-role-switcher';
+    switcherEl.style.cssText = 'position:relative;display:flex;align-items:center;margin-right:8px;';
+    switcherEl.innerHTML =
+      '<button id="gbe-role-btn" title="Switch active role" style="' +
+        'display:flex;align-items:center;gap:6px;padding:4px 10px;' +
+        'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);' +
+        'border-radius:20px;cursor:pointer;color:' + activeInfo.color + ';' +
+        'font-size:12px;font-weight:600;line-height:1;white-space:nowrap;">' +
+        '<i class="fa-solid ' + activeInfo.icon + '" style="font-size:11px;"></i>' +
+        '<span>' + activeInfo.label + '</span>' +
+        '<i class="fa-solid fa-chevron-down" style="font-size:9px;color:var(--color-text-muted);margin-left:2px;"></i>' +
+      '</button>' +
+      '<div id="gbe-role-dropdown" style="' +
+        'display:none;position:absolute;top:calc(100% + 6px);right:0;' +
+        'background:var(--color-bg-secondary,#161b22);border:1px solid var(--color-border,rgba(255,255,255,0.1));' +
+        'border-radius:8px;padding:6px;min-width:180px;z-index:10000;' +
+        'box-shadow:0 4px 20px rgba(0,0,0,0.5);">' +
+        '<div style="padding:4px 12px 6px;font-size:10px;color:var(--color-text-muted);' +
+          'font-weight:700;letter-spacing:0.08em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:4px;">Active Role</div>' +
+        optionsHtml +
+      '</div>';
+
+    // Insert before the topbar-user element
+    var topbarUser = document.getElementById('topbar-user');
+    if (topbarUser) {
+      topbarActions.insertBefore(switcherEl, topbarUser);
+    } else {
+      topbarActions.appendChild(switcherEl);
+    }
+
+    // Toggle dropdown
+    var btn = document.getElementById('gbe-role-btn');
+    var dropdown = document.getElementById('gbe-role-dropdown');
+
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = dropdown.style.display !== 'none';
+      dropdown.style.display = isOpen ? 'none' : 'block';
+    });
+
+    // Role option click handler
+    dropdown.querySelectorAll('.gbe-role-opt').forEach(function(optBtn) {
+      optBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdown.style.display = 'none';
+        var role = this.getAttribute('data-role');
+        Auth.switchRole(role);
+      });
+    });
+
+    // Close on any outside click
+    setTimeout(function() {
+      document.addEventListener('click', function closeDropdown(e) {
+        if (dropdown && !dropdown.contains(e.target) && e.target !== btn) {
+          dropdown.style.display = 'none';
+          document.removeEventListener('click', closeDropdown);
+        }
+      });
+    }, 0);
   },
 
   /**
