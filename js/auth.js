@@ -1853,13 +1853,71 @@ const Auth = {
               'Sign Out' +
             '</button>' +
           '</div>' +
-          '<p style="margin:16px 0 0;color:rgba(255,255,255,0.3);font-size:11px;">' +
-            'After verifying, sign in again. Admin approval is also required.' +
+          '<p id="auth-verify-status" style="margin:16px 0 0;color:rgba(255,255,255,0.3);font-size:11px;">' +
+            'Checking automatically every few seconds&hellip;' +
           '</p>' +
         '</div>',
       size: 'sm',
       showFooter: false
     });
+
+    // Auto-poll: reload the Firebase user every 3s — resolves automatically
+    // when the user clicks the link in a different browser/device.
+    var _verifyPollTimer = null;
+    var _verifyAttempts = 0;
+    var MAX_VERIFY_ATTEMPTS = 60; // 3 min max
+
+    function stopVerifyPoll() {
+      if (_verifyPollTimer) {
+        clearInterval(_verifyPollTimer);
+        _verifyPollTimer = null;
+      }
+    }
+
+    _verifyPollTimer = setInterval(function() {
+      _verifyAttempts++;
+      if (_verifyAttempts > MAX_VERIFY_ATTEMPTS) {
+        stopVerifyPoll();
+        var statusEl = document.getElementById('auth-verify-status');
+        if (statusEl) statusEl.textContent = 'Tap "Resend Verification" then sign in again after clicking the link.';
+        return;
+      }
+
+      user.reload().then(function() {
+        if (user.emailVerified) {
+          stopVerifyPoll();
+          console.log('[Auth] Email verified — proceeding automatically');
+          var statusEl = document.getElementById('auth-verify-status');
+          if (statusEl) {
+            statusEl.style.color = '#3fb950';
+            statusEl.textContent = '✓ Email verified! Loading dashboard…';
+          }
+          // Small delay so user sees the success message, then re-trigger auth flow
+          setTimeout(function() {
+            if (typeof Modal !== 'undefined') Modal.close();
+            // Re-run registration check now that email is verified
+            Auth._checkRegistration(user).then(function(status) {
+              Auth._registrationStatus = status;
+              Auth._authorized = (status === 'approved');
+              Auth._updateUI(user);
+              Auth._notifyListeners(user);
+              if (Auth._authorized && Auth._pendingRoute) {
+                var route = Auth._pendingRoute;
+                Auth._pendingRoute = null;
+                if (typeof Router !== 'undefined') Router.navigateTo(route);
+              } else if (Auth._authorized) {
+                if (typeof Router !== 'undefined') Router.navigateTo('dashboard-home');
+              }
+            }).catch(function() {
+              Auth._updateUI(user);
+              Auth._notifyListeners(user);
+            });
+          }, 1200);
+        }
+      }).catch(function(e) {
+        console.warn('[Auth] Verify poll reload error:', e);
+      });
+    }, 3000);
 
     setTimeout(function() {
       var resendBtn = document.getElementById('auth-verify-resend');
@@ -1891,6 +1949,7 @@ const Auth = {
 
       if (signoutBtn) {
         signoutBtn.addEventListener('click', function() {
+          stopVerifyPoll();
           Auth.logout().then(function() {
             Modal.close();
             if (typeof Toast !== 'undefined') Toast.success('Signed out');
