@@ -7,8 +7,8 @@
 <div id="field-view" style="max-width:600px;margin:0 auto;padding:0 0 80px;">
 
   <!-- ── Role Theme Banner (injected by JS) ───────────────────── -->
-  <div id="field-theme-banner" style="display:none;padding:10px 16px;margin:0 -2px 4px;border-radius:0 0 14px 14px;
-       text-align:center;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;"></div>
+  <div id="field-theme-banner" style="display:none;padding:14px 16px;margin:0 -2px 8px;border-radius:0 0 14px 14px;
+       text-align:center;font-size:14px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;"></div>
 
   <!-- ── Page Header ─────────────────────────────────────────── -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 4px 16px;">
@@ -1239,16 +1239,18 @@
     if (themeBanner) {
       if (activeRole === 'admin') {
         themeBanner.style.display = '';
-        themeBanner.style.background = 'linear-gradient(90deg, rgba(88,166,255,0.15), rgba(88,166,255,0.05))';
-        themeBanner.style.color = '#58a6ff';
-        themeBanner.style.borderBottom = '1px solid rgba(88,166,255,0.2)';
-        themeBanner.innerHTML = '<i class="fa-solid fa-shield-halved" style="margin-right:6px;"></i>Admin Control Mode';
+        themeBanner.style.background = 'linear-gradient(90deg, rgba(88,166,255,0.25), rgba(88,166,255,0.10))';
+        themeBanner.style.color = '#79bbff';
+        themeBanner.style.borderBottom = '2px solid rgba(88,166,255,0.35)';
+        themeBanner.style.textShadow = '0 0 12px rgba(88,166,255,0.4)';
+        themeBanner.innerHTML = '<i class="fa-solid fa-shield-halved" style="margin-right:8px;font-size:15px;"></i>Admin Control Mode';
       } else if (activeRole === 'band_manager') {
         themeBanner.style.display = '';
-        themeBanner.style.background = 'linear-gradient(90deg, rgba(212,160,23,0.15), rgba(199,120,217,0.08))';
-        themeBanner.style.color = '#d4a017';
-        themeBanner.style.borderBottom = '1px solid rgba(212,160,23,0.2)';
-        themeBanner.innerHTML = '<i class="fa-solid fa-music" style="margin-right:6px;"></i>Band Manager Mode';
+        themeBanner.style.background = 'linear-gradient(90deg, rgba(212,160,23,0.25), rgba(199,120,217,0.12))';
+        themeBanner.style.color = '#e8b82a';
+        themeBanner.style.borderBottom = '2px solid rgba(212,160,23,0.35)';
+        themeBanner.style.textShadow = '0 0 12px rgba(212,160,23,0.4)';
+        themeBanner.innerHTML = '<i class="fa-solid fa-music" style="margin-right:8px;font-size:15px;"></i>Band Manager Mode';
       } else {
         themeBanner.style.display = 'none';
       }
