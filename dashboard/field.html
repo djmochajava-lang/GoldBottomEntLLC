@@ -1,0 +1,866 @@
+<!-- ============================================================
+     dashboard/field.html — Band Manager Field View
+     Mobile-optimized dashboard for on-the-road management.
+     Covers the 26 "field" tasks from the Band Manager Duty Matrix.
+     ============================================================ -->
+
+<div id="field-view" style="max-width:600px;margin:0 auto;padding:0 0 80px;">
+
+  <!-- ── Page Header ─────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 4px 16px;">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;
+                     padding:3px 10px;border-radius:20px;
+                     background:rgba(63,185,80,0.15);color:#3fb950;">
+          <i class="fa-solid fa-signal" style="margin-right:4px;"></i>Field View
+        </span>
+        <span id="field-env-badge" style="font-size:11px;font-weight:700;text-transform:uppercase;
+                     letter-spacing:0.08em;padding:3px 10px;border-radius:20px;"></span>
+      </div>
+      <div id="field-date" style="font-size:18px;font-weight:700;color:#e6edf3;"></div>
+      <div id="field-role-label" style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:1px;">
+        <i class="fa-solid fa-briefcase" style="margin-right:4px;color:#d4a017;"></i>
+      </div>
+    </div>
+    <button id="field-refresh-btn" onclick="fieldRefresh()"
+            style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);
+                   background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.7);
+                   cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
+      <i class="fa-solid fa-rotate-right" id="field-refresh-icon"></i> Refresh
+    </button>
+  </div>
+
+  <!-- ── TODAY ──────────────────────────────────────────────── -->
+  <div class="field-card">
+    <div class="field-card-header">
+      <i class="fa-solid fa-calendar-day" style="color:#d4a017;"></i>
+      <span>Today</span>
+      <span id="field-today-date" style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.35);font-weight:500;text-transform:none;letter-spacing:0;"></span>
+    </div>
+    <div id="field-today-body">
+      <div class="field-skeleton"></div>
+    </div>
+  </div>
+
+  <!-- ── INBOX ──────────────────────────────────────────────── -->
+  <div class="field-card">
+    <div class="field-card-header">
+      <i class="fa-solid fa-inbox" style="color:#58a6ff;"></i>
+      <span>Inbox</span>
+      <span id="field-inbox-badge" style="display:none;margin-left:6px;background:#d4a017;color:#0d1117;
+             border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;"></span>
+      <a href="#dashboard-inbox" style="margin-left:auto;font-size:11px;color:#58a6ff;
+         font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">
+        View All <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i>
+      </a>
+    </div>
+    <div id="field-inbox-body">
+      <div class="field-skeleton"></div>
+    </div>
+  </div>
+
+  <!-- ── PIPELINE — NEEDS ACTION ────────────────────────────── -->
+  <div class="field-card">
+    <div class="field-card-header">
+      <i class="fa-solid fa-filter" style="color:#f0883e;"></i>
+      <span>Pipeline</span>
+      <span id="field-pipeline-badge" style="display:none;margin-left:6px;font-size:11px;
+             font-weight:700;background:rgba(240,136,62,0.18);color:#f0883e;
+             border-radius:10px;padding:1px 8px;"></span>
+      <a href="#dashboard-booking" style="margin-left:auto;font-size:11px;color:#f0883e;
+         font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">
+        Full Pipeline <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i>
+      </a>
+    </div>
+    <div id="field-pipeline-body">
+      <div class="field-skeleton"></div>
+    </div>
+  </div>
+
+  <!-- ── FOLLOW-UPS ─────────────────────────────────────────── -->
+  <div class="field-card">
+    <div class="field-card-header">
+      <i class="fa-solid fa-clock-rotate-left" style="color:#c778d9;"></i>
+      <span>Follow-Ups</span>
+      <span id="field-followup-badge" style="display:none;margin-left:6px;font-size:11px;
+             font-weight:700;background:rgba(199,120,217,0.18);color:#c778d9;
+             border-radius:10px;padding:1px 8px;"></span>
+      <a href="#dashboard-leads" style="margin-left:auto;font-size:11px;color:#c778d9;
+         font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;">
+        All Leads <i class="fa-solid fa-chevron-right" style="font-size:9px;"></i>
+      </a>
+    </div>
+    <div id="field-followup-body">
+      <div class="field-skeleton"></div>
+    </div>
+  </div>
+
+  <!-- ── PENDING APPROVALS (shown only when count > 0) ──────── -->
+  <div id="field-approvals-card" class="field-card" style="display:none;">
+    <div class="field-card-header">
+      <i class="fa-solid fa-user-clock" style="color:#d29922;"></i>
+      <span>Pending Approvals</span>
+      <span id="field-approvals-badge" style="margin-left:6px;font-size:11px;font-weight:700;
+             background:rgba(210,153,34,0.18);color:#d29922;border-radius:10px;padding:1px 8px;"></span>
+    </div>
+    <div id="field-approvals-body"></div>
+  </div>
+
+  <!-- ── QUICK ACTIONS ──────────────────────────────────────── -->
+  <div class="field-card">
+    <div class="field-card-header">
+      <i class="fa-solid fa-bolt" style="color:#d4a017;"></i>
+      <span>Quick Actions</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="field-action-btn" onclick="fieldAddContact()">
+        <i class="fa-solid fa-user-plus" style="font-size:20px;color:#3fb950;margin-bottom:6px;"></i>
+        Add Contact
+      </button>
+      <button class="field-action-btn" onclick="fieldBlockDate()">
+        <i class="fa-solid fa-calendar-xmark" style="font-size:20px;color:#58a6ff;margin-bottom:6px;"></i>
+        Block Date
+      </button>
+      <button class="field-action-btn" onclick="fieldLogExpense()">
+        <i class="fa-solid fa-receipt" style="font-size:20px;color:#f0883e;margin-bottom:6px;"></i>
+        Log Expense
+      </button>
+      <button class="field-action-btn" id="field-approve-btn" onclick="Router.navigateTo('dashboard-team')">
+        <i class="fa-solid fa-user-check" style="font-size:20px;color:#d29922;margin-bottom:6px;"></i>
+        <span id="field-approve-label">Approve Users</span>
+      </button>
+    </div>
+  </div>
+
+</div><!-- /field-view -->
+
+<!-- ── Inline Styles ────────────────────────────────────────── -->
+<style>
+  .field-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .field-card-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 12px;
+  }
+  .field-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    margin-bottom: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 150ms ease;
+  }
+  .field-item:hover { background: rgba(255,255,255,0.07); }
+  .field-item:last-child { margin-bottom: 0; }
+  .field-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+  }
+  .field-item-body { flex: 1; min-width: 0; }
+  .field-item-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e6edf3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .field-item-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .field-item-meta {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .field-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .field-empty {
+    text-align: center;
+    padding: 18px 0 8px;
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+  }
+  .field-empty i { font-size: 24px; display: block; margin-bottom: 6px; }
+  .field-skeleton {
+    height: 52px;
+    border-radius: 8px;
+    background: linear-gradient(90deg,
+      rgba(255,255,255,0.05) 25%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(255,255,255,0.05) 75%);
+    background-size: 200% 100%;
+    animation: field-shimmer 1.4s infinite;
+  }
+  .field-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.8);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms ease, transform 100ms ease;
+    min-height: 72px;
+    font-family: inherit;
+  }
+  .field-action-btn:hover { background: rgba(255,255,255,0.08); }
+  .field-action-btn:active { transform: scale(0.97); }
+  @keyframes field-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+</style>
+
+<!-- ── Page Script ───────────────────────────────────────────── -->
+<script>
+(function() {
+
+  /* ── Helpers ─────────────────────────────────────────────── */
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return isNaN(d) ? '' : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    var diff = Date.now() - new Date(iso).getTime();
+    var m = Math.floor(diff / 60000);
+    if (m < 1)  return 'Just now';
+    if (m < 60) return m + 'm ago';
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+
+  function daysSince(iso) {
+    if (!iso) return 0;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+  }
+
+  function fieldFetch(url) {
+    var token = localStorage.getItem('gbe-session-token') || '';
+    var headers = {};
+    if (token) headers['X-GBE-Session'] = token;
+    return fetch(url, { headers: headers });
+  }
+
+  function stageLabel(stage) {
+    var map = {
+      lead: 'New Lead', qualified: 'Qualified', proposed: 'Proposed',
+      negotiating: 'Negotiating', confirmed: 'Confirmed',
+      contracted: 'Contracted', completed: 'Completed', closed: 'Closed'
+    };
+    return map[stage] || stage || '—';
+  }
+
+  function stageColor(stage) {
+    var map = {
+      lead:        '#8b949e',
+      qualified:   '#58a6ff',
+      proposed:    '#d4a017',
+      negotiating: '#f0883e',
+      confirmed:   '#3fb950',
+      contracted:  '#3fb950',
+      completed:   '#3fb950',
+      closed:      '#f85149'
+    };
+    return map[stage] || '#8b949e';
+  }
+
+  /* ── TODAY section ───────────────────────────────────────── */
+
+  function renderToday() {
+    var el = document.getElementById('field-today-body');
+    var dateEl = document.getElementById('field-today-date');
+    var today = new Date();
+    var todayStr = today.toISOString().slice(0, 10);
+
+    // Set date sub-label
+    if (dateEl) {
+      dateEl.textContent = today.toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric'
+      });
+    }
+
+    if (!el) return;
+
+    var events   = (typeof DataStore !== 'undefined') ? DataStore.getEvents()   : [];
+    var bookings = (typeof DataStore !== 'undefined') ? DataStore.getBookings() : [];
+
+    // Filter to today
+    var todayEvents = events.filter(function(e) {
+      return (e.date || '').slice(0, 10) === todayStr;
+    });
+    var todayBookings = bookings.filter(function(b) {
+      var d = (b.eventDate || b.date || '').slice(0, 10);
+      return d === todayStr && (b.stage === 'contracted' || b.stage === 'confirmed');
+    });
+
+    var allToday = todayBookings.concat(todayEvents);
+
+    if (allToday.length === 0) {
+      // Find next upcoming
+      var upcoming = bookings
+        .filter(function(b) {
+          var d = (b.eventDate || b.date || '');
+          return d > todayStr && (b.stage === 'contracted' || b.stage === 'confirmed');
+        })
+        .sort(function(a, b) {
+          return (a.eventDate || a.date || '') > (b.eventDate || b.date || '') ? 1 : -1;
+        })[0];
+
+      var upcomingEvent = events
+        .filter(function(e) { return (e.date || '') > todayStr; })
+        .sort(function(a, b) { return a.date > b.date ? 1 : -1; })[0];
+
+      var next = upcoming || upcomingEvent;
+
+      el.innerHTML =
+        '<div class="field-empty">' +
+          '<i class="fa-regular fa-calendar-check" style="color:rgba(63,185,80,0.4);"></i>' +
+          'No gigs today — you\'re free' +
+        '</div>' +
+        (next
+          ? '<div class="field-item" onclick="Router.navigateTo(\'dashboard-booking\')" style="border-left:3px solid #58a6ff;">' +
+              '<div class="field-item-icon" style="background:rgba(88,166,255,0.12);">' +
+                '<i class="fa-solid fa-forward" style="color:#58a6ff;"></i>' +
+              '</div>' +
+              '<div class="field-item-body">' +
+                '<div class="field-item-title">Next: ' + escHtml(next.name || next.title || next.venue || 'Upcoming Gig') + '</div>' +
+                '<div class="field-item-sub">' + fmtDate(next.eventDate || next.date) + (next.venue ? ' · ' + escHtml(next.venue) : '') + '</div>' +
+              '</div>' +
+            '</div>'
+          : ''
+        );
+      return;
+    }
+
+    el.innerHTML = allToday.map(function(item) {
+      var isBooking = !!item.stage;
+      var title   = item.name || item.title || item.venue || 'Gig';
+      var venue   = item.venue || item.location || '';
+      var time    = item.time || item.eventTime || fmtTime(item.eventDate) || '';
+      var loadIn  = item.loadInTime || item.loadIn || '';
+
+      return '<div class="field-item" onclick="Router.navigateTo(\'' + (isBooking ? 'dashboard-booking' : 'dashboard-calendar') + '\')" style="border-left:3px solid #3fb950;">' +
+        '<div class="field-item-icon" style="background:rgba(63,185,80,0.12);">' +
+          '<i class="fa-solid fa-music" style="color:#3fb950;"></i>' +
+        '</div>' +
+        '<div class="field-item-body">' +
+          '<div class="field-item-title">' + escHtml(title) + '</div>' +
+          '<div class="field-item-sub">' +
+            (time ? time + ' · ' : '') +
+            (venue ? escHtml(venue) : 'No venue set') +
+            (loadIn ? ' · Load-in: ' + loadIn : '') +
+          '</div>' +
+        '</div>' +
+        (isBooking
+          ? '<div class="field-item-meta"><span class="field-badge" style="background:rgba(63,185,80,0.15);color:#3fb950;">' + stageLabel(item.stage) + '</span></div>'
+          : ''
+        ) +
+      '</div>';
+    }).join('');
+  }
+
+  /* ── INBOX section ───────────────────────────────────────── */
+
+  function renderInbox() {
+    var el    = document.getElementById('field-inbox-body');
+    var badge = document.getElementById('field-inbox-badge');
+    if (!el) return;
+
+    fieldFetch('/api/v1/inbox?limit=3')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var msgs = data.messages || data || [];
+        var unread = msgs.filter(function(m) { return !m.read_at && m.status !== 'read'; });
+
+        // Update badge
+        if (badge && unread.length > 0) {
+          badge.textContent = unread.length;
+          badge.style.display = '';
+          // Also update sidebar badge
+          var sb = document.getElementById('sidebar-inbox-badge');
+          if (sb) { sb.textContent = unread.length; sb.style.display = ''; }
+        }
+
+        if (msgs.length === 0) {
+          el.innerHTML = '<div class="field-empty"><i class="fa-solid fa-inbox" style="color:rgba(88,166,255,0.3);"></i>Inbox is clear</div>';
+          return;
+        }
+
+        el.innerHTML = msgs.slice(0, 3).map(function(m) {
+          var data2 = m.data ? (typeof m.data === 'string' ? JSON.parse(m.data) : m.data) : m;
+          var from  = escHtml(data2.fromName || data2.from_name || data2.sender || m.from_address || 'Unknown');
+          var subj  = escHtml(data2.subject || m.subject || 'No subject');
+          var isUnread = !m.read_at && m.status !== 'read';
+
+          return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-inbox\')" ' +
+                 'style="' + (isUnread ? 'border-left:3px solid #58a6ff;' : '') + '">' +
+            '<div class="field-item-icon" style="background:rgba(88,166,255,' + (isUnread ? '0.18' : '0.08') + ');">' +
+              '<i class="fa-solid fa-envelope' + (isUnread ? '' : '-open') + '" style="color:#58a6ff;font-size:12px;"></i>' +
+            '</div>' +
+            '<div class="field-item-body">' +
+              '<div class="field-item-title" style="' + (isUnread ? 'font-weight:700;' : '') + '">' + from + '</div>' +
+              '<div class="field-item-sub">' + subj + '</div>' +
+            '</div>' +
+            '<div class="field-item-meta">' + timeAgo(m.received_at || m.created_at) + '</div>' +
+          '</div>';
+        }).join('');
+      })
+      .catch(function() {
+        el.innerHTML =
+          '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;' +
+               'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">' +
+            '<i class="fa-solid fa-wifi" style="color:rgba(255,255,255,0.2);font-size:16px;"></i>' +
+            '<div>' +
+              '<div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);">Connect to home network</div>' +
+              '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:2px;">Inbox requires LAN connection</div>' +
+            '</div>' +
+          '</div>';
+      });
+  }
+
+  /* ── PIPELINE section ────────────────────────────────────── */
+
+  function renderPipeline() {
+    var el    = document.getElementById('field-pipeline-body');
+    var badge = document.getElementById('field-pipeline-badge');
+    if (!el) return;
+
+    var bookings = (typeof DataStore !== 'undefined') ? DataStore.getBookings() : [];
+
+    // Action-needed stages: proposed, negotiating, confirmed (awaiting contract)
+    var actionStages = ['proposed', 'negotiating', 'confirmed'];
+    var actionItems = bookings.filter(function(b) {
+      return actionStages.indexOf(b.stage) !== -1;
+    }).sort(function(a, b) {
+      // Priority: negotiating first, then proposed, then confirmed
+      var priority = { negotiating: 0, proposed: 1, confirmed: 2 };
+      return (priority[a.stage] || 9) - (priority[b.stage] || 9);
+    });
+
+    if (badge) {
+      if (actionItems.length > 0) {
+        badge.textContent = actionItems.length + ' need action';
+        badge.style.display = '';
+      }
+    }
+
+    if (actionItems.length === 0) {
+      el.innerHTML = '<div class="field-empty"><i class="fa-solid fa-check-circle" style="color:rgba(63,185,80,0.3);"></i>Pipeline is clear</div>';
+      return;
+    }
+
+    el.innerHTML = actionItems.slice(0, 4).map(function(b) {
+      var client  = b.clientName || b.name || b.venue || 'Unknown Client';
+      var evDate  = fmtDate(b.eventDate || b.date);
+      var value   = b.totalValue || b.value || b.budget || 0;
+      var color   = stageColor(b.stage);
+
+      return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-booking\')" ' +
+             'style="border-left:3px solid ' + color + ';">' +
+        '<div class="field-item-icon" style="background:rgba(255,255,255,0.05);">' +
+          '<i class="fa-solid fa-ticket" style="color:' + color + ';font-size:12px;"></i>' +
+        '</div>' +
+        '<div class="field-item-body">' +
+          '<div class="field-item-title">' + escHtml(client) + '</div>' +
+          '<div class="field-item-sub">' + (evDate || 'No date set') + (value ? ' · $' + Number(value).toLocaleString() : '') + '</div>' +
+        '</div>' +
+        '<div class="field-item-meta">' +
+          '<span class="field-badge" style="background:rgba(' + hexToRgb(color) + ',0.15);color:' + color + ';">' + stageLabel(b.stage) + '</span>' +
+        '</div>' +
+      '</div>';
+    }).join('') +
+    (actionItems.length > 4
+      ? '<div style="text-align:center;padding:8px 0 0;font-size:12px;color:rgba(255,255,255,0.35);">+' + (actionItems.length - 4) + ' more</div>'
+      : '');
+  }
+
+  /* ── FOLLOW-UPS section ──────────────────────────────────── */
+
+  function renderFollowups() {
+    var el    = document.getElementById('field-followup-body');
+    var badge = document.getElementById('field-followup-badge');
+    if (!el) return;
+
+    // Try server follow-up queue first, fall back to DataStore
+    fieldFetch('/api/v1/followups/queued')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var items = Array.isArray(data) ? data : (data.followups || []);
+        renderFollowupItems(el, badge, items, 'server');
+      })
+      .catch(function() {
+        // Fall back: DataStore bookings in 'proposed' stage older than 3 days
+        var bookings = (typeof DataStore !== 'undefined') ? DataStore.getBookings() : [];
+        var stale = bookings.filter(function(b) {
+          return b.stage === 'proposed' && daysSince(b.updatedAt || b.createdAt) >= 3;
+        });
+        renderFollowupItems(el, badge, stale, 'local');
+      });
+  }
+
+  function renderFollowupItems(el, badge, items, source) {
+    if (badge) {
+      if (items.length > 0) {
+        badge.textContent = items.length + ' due';
+        badge.style.display = '';
+      }
+    }
+
+    if (items.length === 0) {
+      el.innerHTML = '<div class="field-empty"><i class="fa-solid fa-circle-check" style="color:rgba(199,120,217,0.3);"></i>No follow-ups pending</div>';
+      return;
+    }
+
+    el.innerHTML = items.slice(0, 4).map(function(item) {
+      var isServer = source === 'server';
+      var client   = isServer
+        ? (item.recipient_name || 'Client')
+        : (item.clientName || item.name || 'Client');
+      var subj     = isServer
+        ? (item.subject || 'Follow-up')
+        : ('Quote · ' + stageLabel(item.stage));
+      var attempt  = isServer
+        ? (item.attempt_number ? 'Attempt ' + item.attempt_number + ' of 3' : '')
+        : ('Proposed · ' + daysSince(item.updatedAt || item.createdAt) + ' days since update');
+      var since    = isServer
+        ? fmtDate(item.scheduled_for || item.created_at)
+        : fmtDate(item.updatedAt || item.createdAt);
+
+      return '<div class="field-item" onclick="Router.navigateTo(\'' + (isServer ? 'dashboard-leads' : 'dashboard-booking') + '\')" style="border-left:3px solid #c778d9;">' +
+        '<div class="field-item-icon" style="background:rgba(199,120,217,0.12);">' +
+          '<i class="fa-solid fa-clock-rotate-left" style="color:#c778d9;font-size:12px;"></i>' +
+        '</div>' +
+        '<div class="field-item-body">' +
+          '<div class="field-item-title">' + escHtml(client) + '</div>' +
+          '<div class="field-item-sub">' + escHtml(subj) + (attempt ? ' · ' + attempt : '') + '</div>' +
+        '</div>' +
+        '<div class="field-item-meta">' + since + '</div>' +
+      '</div>';
+    }).join('') +
+    (items.length > 4
+      ? '<div style="text-align:center;padding:8px 0 0;font-size:12px;color:rgba(255,255,255,0.35);">+' + (items.length - 4) + ' more</div>'
+      : '');
+  }
+
+  /* ── PENDING APPROVALS section ───────────────────────────── */
+
+  function renderPendingApprovals() {
+    var card  = document.getElementById('field-approvals-card');
+    var body  = document.getElementById('field-approvals-body');
+    var badge = document.getElementById('field-approvals-badge');
+    var approveLbl = document.getElementById('field-approve-label');
+    if (!card || !body) return;
+
+    var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
+    if (!db) return;
+
+    db.collection('users').where('status', '==', 'pending').get()
+      .then(function(snap) {
+        var count = snap.size;
+        if (count === 0) {
+          card.style.display = 'none';
+          return;
+        }
+
+        card.style.display = '';
+        if (badge) badge.textContent = count + ' pending';
+        if (approveLbl) approveLbl.textContent = 'Approve (' + count + ')';
+
+        var users = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          users.push({ uid: doc.id, name: d.displayName || 'Unknown', role: d.requestedRole || 'member', note: d.requestNote || '' });
+        });
+
+        body.innerHTML = users.slice(0, 3).map(function(u) {
+          return '<div class="field-item" onclick="Router.navigateTo(\'dashboard-team\')" style="border-left:3px solid #d29922;">' +
+            '<div class="field-item-icon" style="background:rgba(210,153,34,0.12);">' +
+              '<i class="fa-solid fa-user-clock" style="color:#d29922;font-size:12px;"></i>' +
+            '</div>' +
+            '<div class="field-item-body">' +
+              '<div class="field-item-title">' + escHtml(u.name) + '</div>' +
+              '<div class="field-item-sub">Wants: ' + escHtml(u.role) + (u.note ? ' · "' + escHtml(u.note) + '"' : '') + '</div>' +
+            '</div>' +
+            '<div class="field-item-meta"><i class="fa-solid fa-chevron-right" style="font-size:10px;color:rgba(255,255,255,0.3);"></i></div>' +
+          '</div>';
+        }).join('');
+      })
+      .catch(function() {
+        card.style.display = 'none';
+      });
+  }
+
+  /* ── Hex to RGB helper for badge colors ──────────────────── */
+
+  function hexToRgb(hex) {
+    var r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return r ? parseInt(r[1],16) + ',' + parseInt(r[2],16) + ',' + parseInt(r[3],16) : '255,255,255';
+  }
+
+  /* ── Quick Action Modals ─────────────────────────────────── */
+
+  window.fieldAddContact = function() {
+    if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-contacts'); return; }
+    Modal.open({
+      title: 'Add Contact',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div><label class="form-label">Name *</label><input id="fc-name" class="form-input" placeholder="Full name" /></div>' +
+          '<div><label class="form-label">Email</label><input id="fc-email" type="email" class="form-input" placeholder="email@example.com" /></div>' +
+          '<div><label class="form-label">Phone</label><input id="fc-phone" class="form-input" placeholder="(555) 000-0000" /></div>' +
+          '<div><label class="form-label">Company / Venue</label><input id="fc-company" class="form-input" placeholder="Venue or company name" /></div>' +
+          '<div><label class="form-label">Note</label><textarea id="fc-note" class="form-input" rows="2" placeholder="How you met, context..."></textarea></div>' +
+        '</div>',
+      confirmText: 'Add Contact',
+      onConfirm: function() {
+        var name    = (document.getElementById('fc-name')    || {}).value || '';
+        var email   = (document.getElementById('fc-email')   || {}).value || '';
+        var phone   = (document.getElementById('fc-phone')   || {}).value || '';
+        var company = (document.getElementById('fc-company') || {}).value || '';
+        var note    = (document.getElementById('fc-note')    || {}).value || '';
+        if (!name.trim()) { Toast.error('Name is required'); return; }
+
+        var token = localStorage.getItem('gbe-session-token') || '';
+        var headers = { 'Content-Type': 'application/json' };
+        if (token) headers['X-GBE-Session'] = token;
+
+        fetch('/api/v1/contacts', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({ name: name, email: email, phone: phone, company: company, notes: note, source: 'field-view' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function() {
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Contact added');
+        })
+        .catch(function() {
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.error('Could not save — check network connection');
+        });
+      }
+    });
+    setTimeout(function() {
+      var el = document.getElementById('fc-name');
+      if (el) el.focus();
+    }, 100);
+  };
+
+  window.fieldBlockDate = function() {
+    if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-calendar'); return; }
+    var todayIso = new Date().toISOString().slice(0, 10);
+    Modal.open({
+      title: 'Block a Date',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div><label class="form-label">Date *</label><input id="fb-date" type="date" class="form-input" value="' + todayIso + '" /></div>' +
+          '<div><label class="form-label">Reason</label><input id="fb-reason" class="form-input" placeholder="e.g. Recording session, Travel day" /></div>' +
+        '</div>',
+      confirmText: 'Block Date',
+      onConfirm: function() {
+        var date   = (document.getElementById('fb-date')   || {}).value || '';
+        var reason = (document.getElementById('fb-reason') || {}).value || 'Blocked';
+        if (!date) { if (typeof Toast !== 'undefined') Toast.error('Date is required'); return; }
+
+        if (typeof DataStore !== 'undefined') {
+          DataStore.addEvent({
+            name: reason,
+            date: date,
+            type: 'blocked',
+            color: '#f85149',
+            notes: 'Blocked via Field View'
+          });
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Date blocked: ' + date);
+          document.dispatchEvent(new CustomEvent('gbe:data-updated'));
+        }
+      }
+    });
+  };
+
+  window.fieldLogExpense = function() {
+    if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-finances'); return; }
+    var todayIso = new Date().toISOString().slice(0, 10);
+    Modal.open({
+      title: 'Log Expense',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<div><label class="form-label">Amount *</label><input id="fe-amount" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" /></div>' +
+            '<div><label class="form-label">Date</label><input id="fe-date" type="date" class="form-input" value="' + todayIso + '" /></div>' +
+          '</div>' +
+          '<div><label class="form-label">Category</label>' +
+            '<select id="fe-cat" class="form-input">' +
+              '<option value="Travel">Travel</option>' +
+              '<option value="Meals">Meals</option>' +
+              '<option value="Equipment">Equipment</option>' +
+              '<option value="Lodging">Lodging</option>' +
+              '<option value="Marketing">Marketing</option>' +
+              '<option value="Miscellaneous">Miscellaneous</option>' +
+            '</select>' +
+          '</div>' +
+          '<div><label class="form-label">Description</label><input id="fe-desc" class="form-input" placeholder="What was this for?" /></div>' +
+        '</div>',
+      confirmText: 'Log Expense',
+      onConfirm: function() {
+        var amount = parseFloat((document.getElementById('fe-amount') || {}).value || '0');
+        var date   = (document.getElementById('fe-date')   || {}).value || todayIso;
+        var cat    = (document.getElementById('fe-cat')    || {}).value || 'Miscellaneous';
+        var desc   = (document.getElementById('fe-desc')   || {}).value || '';
+        if (!amount || amount <= 0) { if (typeof Toast !== 'undefined') Toast.error('Enter a valid amount'); return; }
+
+        if (typeof DataStore !== 'undefined') {
+          DataStore.addExpense({
+            amount: amount,
+            date: date,
+            category: cat,
+            description: desc || cat,
+            source: 'field-view',
+            status: 'paid'
+          });
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Expense logged: $' + amount.toFixed(2));
+          document.dispatchEvent(new CustomEvent('gbe:data-updated'));
+        }
+      }
+    });
+    setTimeout(function() {
+      var el = document.getElementById('fe-amount');
+      if (el) el.focus();
+    }, 100);
+  };
+
+  /* ── Refresh ─────────────────────────────────────────────── */
+
+  window.fieldRefresh = function() {
+    var icon = document.getElementById('field-refresh-icon');
+    if (icon) icon.style.animation = 'spin 0.6s linear';
+    setTimeout(function() { if (icon) icon.style.animation = ''; }, 700);
+
+    // Reset skeletons
+    ['field-today-body','field-inbox-body','field-pipeline-body','field-followup-body'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="field-skeleton"></div>';
+    });
+
+    fieldInit();
+  };
+
+  /* ── Init ────────────────────────────────────────────────── */
+
+  window.fieldInit = function() {
+    // Environment badge — INTRANET (gold) vs REMOTE (blue)
+    var envBadge = document.getElementById('field-env-badge');
+    if (envBadge) {
+      var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+      if (isLocal) {
+        envBadge.textContent = 'Intranet';
+        envBadge.style.background = 'rgba(212,160,23,0.18)';
+        envBadge.style.color = '#d4a017';
+      } else {
+        envBadge.textContent = 'Remote';
+        envBadge.style.background = 'rgba(88,166,255,0.15)';
+        envBadge.style.color = '#58a6ff';
+      }
+    }
+
+    // Role label — dynamic from Auth
+    var roleLabel = document.getElementById('field-role-label');
+    if (roleLabel) {
+      var roleRegistry = (typeof SiteConfig !== 'undefined' && SiteConfig.roles) || {};
+      var activeRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'band_manager';
+      var roleInfo = roleRegistry[activeRole] || { label: activeRole.replace(/_/g, ' ') };
+      roleLabel.innerHTML = '<i class="fa-solid fa-briefcase" style="margin-right:4px;color:#d4a017;"></i>' +
+        roleInfo.label.charAt(0).toUpperCase() + roleInfo.label.slice(1);
+    }
+
+    // Page header date
+    var dateEl = document.getElementById('field-date');
+    if (dateEl) {
+      dateEl.textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric'
+      });
+    }
+
+    renderToday();
+    renderInbox();
+    renderPipeline();
+    renderFollowups();
+    renderPendingApprovals();
+  };
+
+  // Add spin keyframe if needed
+  if (!document.getElementById('field-spin-style')) {
+    var s = document.createElement('style');
+    s.id = 'field-spin-style';
+    s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+  }
+
+  // Init on load
+  fieldInit();
+
+})();
+</script>
