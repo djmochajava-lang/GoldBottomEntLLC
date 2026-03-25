@@ -353,18 +353,19 @@ body.sidebar-mobile-open {
 
   /* --- Sidebar nav: larger tap targets on mobile --- */
   .sidebar-nav-item {
-    font-size: var(--text-base);
-    padding: 10px var(--space-md);
+    font-size: var(--text-lg);
+    padding: 14px var(--space-md);
   }
 
   .sidebar-nav-item .nav-icon {
-    font-size: var(--text-base);
-    width: 22px;
-    height: 22px;
+    font-size: var(--text-lg);
+    width: 26px;
+    height: 26px;
   }
 
   .sidebar-nav-group-label {
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
+    padding: var(--space-sm) var(--space-md);
   }
 
   /* --- Mobile nav overlay links --- */
@@ -649,6 +650,22 @@ body.sidebar-mobile-open {
 
   .cta-premium .cta-actions .btn {
     width: 100%;
+  }
+
+  /* --- Sidebar nav: even bigger on small phones --- */
+  .sidebar-nav-item {
+    font-size: 1.35rem;  /* ~21.6px */
+    padding: 16px var(--space-md);
+  }
+
+  .sidebar-nav-item .nav-icon {
+    font-size: 1.35rem;
+    width: 28px;
+    height: 28px;
+  }
+
+  .sidebar-nav-group-label {
+    font-size: var(--text-base);
   }
 
   /* --- Metrics grid: single column --- */

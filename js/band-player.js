@@ -1,4 +1,4 @@
-// js/band-player.js — Band Member Music Player
+// js/band-player.js — Soul Society Music Player
 // Firebase-backed: Firestore for metadata, Storage for audio/charts.
 // Role-gated: admin, band_manager, artist, band_member only.
 
@@ -42,7 +42,7 @@ const BandPlayer = {
     this.loadPlaylists();
     this.loadInventory();
     this.initialized = true;
-    console.log('🎵 BandPlayer initialized');
+    console.log('🎵 Soul Society initialized');
   },
 
   // ── Data Loading ──────────────────────────────────────
