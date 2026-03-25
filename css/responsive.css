@@ -34,9 +34,10 @@
     display: block;
   }
 
-  /* Reset main wrapper margin */
+  /* Reset main wrapper margin + fill full width (sidebar is fixed/off-screen on mobile) */
   .dashboard-main-wrapper {
     margin-left: 0;
+    width: 100%;
   }
 
   .dashboard-topbar {
