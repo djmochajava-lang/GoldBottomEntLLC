@@ -101,7 +101,8 @@ const Router = {
     'dashboard-quotes',
     'dashboard-inbox',
     'dashboard-contacts',
-    'dashboard-field',
+    // dashboard-field is intentionally NOT local-only — it has offline fallbacks
+    // and should be accessible on remote mobile for band managers on the road
   ],
 
   currentPage: null,
@@ -443,6 +444,7 @@ const Router = {
       'dashboard-servers': 'Servers & Costs',
       'dashboard-metrics': 'Metrics & Analytics',
       'dashboard-export': 'Evidence Export',
+      'dashboard-field': 'Field View',
     };
 
     const label = labels[pageName] || 'Dashboard';
