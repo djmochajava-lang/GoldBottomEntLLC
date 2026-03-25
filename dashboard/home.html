@@ -37,9 +37,10 @@
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
   var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
 
-  /* -------- Field View nudge -------- */
+  /* -------- Field View nudge (mobile only) -------- */
   var nudge = document.getElementById('field-view-nudge');
-  if (nudge && (role === 'admin' || role === 'band_manager')) {
+  var isMobile = window.innerWidth <= 768;
+  if (nudge && isMobile && (role === 'admin' || role === 'band_manager')) {
     nudge.style.display = 'flex';
   }
 
