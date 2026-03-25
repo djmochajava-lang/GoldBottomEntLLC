@@ -612,11 +612,8 @@ const Auth = {
       topbarUser.title = 'Authenticated via local PIN';
     }
 
-    // Show admin-only items (PIN auth = admin)
-    var teamLink = document.getElementById('sidebar-team-link');
-    if (teamLink) {
-      teamLink.style.display = '';
-    }
+    // Show admin-only sidebar items (PIN auth = full admin)
+    Auth._updateAdminUI();
 
     // Update role switcher (PIN auth always has single 'admin' role — will not show)
     Auth._updateRoleSwitcher();
