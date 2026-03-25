@@ -1019,6 +1019,165 @@
     });
   };
 
+  window.fieldAddVenue = function() {
+    if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-leads'); return; }
+    Modal.open({
+      title: 'Add Venue',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div><label class="form-label">Venue Name *</label><input id="fv-name" class="form-input" placeholder="e.g. Blues Alley" /></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<div><label class="form-label">City</label><input id="fv-city" class="form-input" placeholder="Washington" /></div>' +
+            '<div><label class="form-label">State</label><input id="fv-state" class="form-input" placeholder="DC" maxlength="2" style="text-transform:uppercase;" /></div>' +
+          '</div>' +
+          '<div><label class="form-label">Category</label>' +
+            '<select id="fv-cat" class="form-input">' +
+              '<option value="restaurant">Restaurant / Bar</option>' +
+              '<option value="theater">Theater / Concert Hall</option>' +
+              '<option value="hotel">Hotel / Resort</option>' +
+              '<option value="corporate">Corporate / Event Space</option>' +
+              '<option value="wedding">Wedding Venue</option>' +
+              '<option value="festival">Festival / Outdoor</option>' +
+              '<option value="church">Church / Community</option>' +
+              '<option value="other">Other</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<div><label class="form-label">Capacity</label><input id="fv-cap" type="number" class="form-input" placeholder="200" /></div>' +
+            '<div><label class="form-label">Priority</label>' +
+              '<select id="fv-pri" class="form-input">' +
+                '<option value="high">High</option>' +
+                '<option value="medium" selected>Medium</option>' +
+                '<option value="low">Low</option>' +
+              '</select>' +
+            '</div>' +
+          '</div>' +
+          '<div><label class="form-label">Contact Name</label><input id="fv-contact" class="form-input" placeholder="Booking manager name" /></div>' +
+          '<div><label class="form-label">Contact Email / Phone</label><input id="fv-cemail" class="form-input" placeholder="email or phone" /></div>' +
+          '<div><label class="form-label">Notes</label><textarea id="fv-notes" class="form-input" rows="2" placeholder="How you found them, vibe, notes..."></textarea></div>' +
+        '</div>',
+      confirmText: 'Add Venue',
+      onConfirm: function() {
+        var name = (document.getElementById('fv-name') || {}).value || '';
+        if (!name.trim()) { if (typeof Toast !== 'undefined') Toast.error('Venue name is required'); return; }
+        if (typeof DataStore !== 'undefined') {
+          DataStore.addVenueLead({
+            name: name,
+            city: (document.getElementById('fv-city') || {}).value || '',
+            state: ((document.getElementById('fv-state') || {}).value || '').toUpperCase(),
+            category: (document.getElementById('fv-cat') || {}).value || 'other',
+            capacity: (document.getElementById('fv-cap') || {}).value || '',
+            priority: (document.getElementById('fv-pri') || {}).value || 'medium',
+            contactName: (document.getElementById('fv-contact') || {}).value || '',
+            contactEmail: (document.getElementById('fv-cemail') || {}).value || '',
+            contactPhone: '',
+            website: '',
+            outreachStatus: 'not-contacted',
+            lastContact: '',
+            notes: ((document.getElementById('fv-notes') || {}).value || '') + ' [Added from Field View]',
+            source: 'field-view'
+          });
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Venue added: ' + name);
+          document.dispatchEvent(new CustomEvent('gbe:data-updated'));
+        }
+      }
+    });
+    setTimeout(function() { var el = document.getElementById('fv-name'); if (el) el.focus(); }, 100);
+  };
+
+  window.fieldScheduleRehearsal = function() {
+    if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-calendar'); return; }
+    var todayIso = new Date().toISOString().slice(0, 10);
+
+    // Build band member options from roster
+    var members = [];
+    if (typeof DataStore !== 'undefined') {
+      var roster = DataStore.getRoster ? DataStore.getRoster() : [];
+      members = roster.filter(function(r) {
+        return r.status === 'active' && (r.category === 'artist' || r.category === 'creative' || r.genre || r.instrument);
+      });
+    }
+    var memberCheckboxes = members.length > 0
+      ? members.map(function(m) {
+          return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;">' +
+            '<input type="checkbox" class="fr-member" value="' + (m.id || '') + '" data-name="' + escHtml(m.name) + '" checked />' +
+            '<span style="font-size:14px;">' + escHtml(m.name) + (m.instrument || m.genre ? ' <span style="color:rgba(255,255,255,0.4);">(' + escHtml(m.instrument || m.genre) + ')</span>' : '') + '</span>' +
+          '</label>';
+        }).join('')
+      : '<div style="font-size:13px;color:rgba(255,255,255,0.4);padding:8px 0;">No active members in roster. Add them on the Roster page.</div>';
+
+    Modal.open({
+      title: 'Schedule Rehearsal',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+            '<div><label class="form-label">Date *</label><input id="fr-rdate" type="date" class="form-input" value="' + todayIso + '" /></div>' +
+            '<div><label class="form-label">Time</label><input id="fr-rtime" type="time" class="form-input" value="18:00" /></div>' +
+          '</div>' +
+          '<div><label class="form-label">Location</label><input id="fr-rloc" class="form-input" placeholder="e.g. Studio, garage, venue name" /></div>' +
+          '<div><label class="form-label">Duration</label>' +
+            '<select id="fr-rdur" class="form-input">' +
+              '<option value="1">1 hour</option>' +
+              '<option value="1.5">1.5 hours</option>' +
+              '<option value="2" selected>2 hours</option>' +
+              '<option value="3">3 hours</option>' +
+              '<option value="4">4 hours</option>' +
+            '</select>' +
+          '</div>' +
+          '<div><label class="form-label">Band Members</label>' +
+            '<div style="max-height:150px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:4px 12px;">' +
+              memberCheckboxes +
+            '</div>' +
+          '</div>' +
+          '<div><label class="form-label">Focus / Set List</label><textarea id="fr-rfocus" class="form-input" rows="2" placeholder="What to work on — songs, transitions, new material..."></textarea></div>' +
+        '</div>',
+      confirmText: 'Schedule',
+      onConfirm: function() {
+        var date  = (document.getElementById('fr-rdate') || {}).value || '';
+        var time  = (document.getElementById('fr-rtime') || {}).value || '18:00';
+        var loc   = (document.getElementById('fr-rloc') || {}).value || '';
+        var dur   = (document.getElementById('fr-rdur') || {}).value || '2';
+        var focus = (document.getElementById('fr-rfocus') || {}).value || '';
+        if (!date) { if (typeof Toast !== 'undefined') Toast.error('Date is required'); return; }
+
+        // Gather selected members
+        var selected = [];
+        document.querySelectorAll('.fr-member:checked').forEach(function(cb) {
+          selected.push({ id: cb.value, name: cb.getAttribute('data-name') });
+        });
+
+        var dateTime = date + 'T' + time + ':00';
+        var durHours = parseFloat(dur) || 2;
+        var endDate = new Date(new Date(dateTime).getTime() + durHours * 3600000);
+        var endIso = endDate.toISOString().slice(0, 19);
+
+        if (typeof DataStore !== 'undefined') {
+          DataStore.addEvent({
+            title: 'Rehearsal' + (loc ? ' @ ' + loc : ''),
+            date: dateTime,
+            endDate: endIso,
+            type: 'rehearsal',
+            venue: loc,
+            color: '#c778d9',
+            attendees: selected,
+            duration: durHours,
+            notes: (focus ? 'Focus: ' + focus + '\n' : '') +
+                   'Members: ' + (selected.length > 0 ? selected.map(function(s) { return s.name; }).join(', ') : 'TBD') +
+                   '\n[Scheduled from Field View]'
+          });
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Rehearsal scheduled: ' + date + ' at ' + time);
+          document.dispatchEvent(new CustomEvent('gbe:data-updated'));
+          renderThisWeek();
+          renderToday();
+        }
+      }
+    });
+  };
+
   window.fieldLogExpense = function() {
     if (typeof Modal === 'undefined') { Router.navigateTo('dashboard-finances'); return; }
     var todayIso = new Date().toISOString().slice(0, 10);
@@ -1403,21 +1562,21 @@
       } else if (!_isAdmin && _isLocal) {
         // Band Manager on LAN: full ops actions
         qaGrid.innerHTML =
-          _fBtn('fa-user-plus',        '#3fb950', 'Add Contact', 'fieldAddContact()') +
-          _fBtn('fa-microphone-lines', '#c778d9', 'New Inquiry', 'fieldNewInquiry()') +
-          _fBtn('fa-receipt',          '#f0883e', 'Log Expense', 'fieldLogExpense()') +
-          _fBtn('fa-dollar-sign',      '#3fb950', 'Log Revenue', 'fieldLogRevenue()') +
-          _fBtn('fa-calendar-xmark',   '#58a6ff', 'Block Date',  'fieldBlockDate()') +
-          _fBtn('fa-book-open',        '#d4a017', 'Contracts',   "Router.navigateTo('dashboard-contracts')");
+          _fBtn('fa-building',         '#d29922', 'Add Venue',    'fieldAddVenue()') +
+          _fBtn('fa-drum',             '#c778d9', 'Rehearsal',    'fieldScheduleRehearsal()') +
+          _fBtn('fa-microphone-lines', '#f0883e', 'New Inquiry',  'fieldNewInquiry()') +
+          _fBtn('fa-user-plus',        '#3fb950', 'Add Contact',  'fieldAddContact()') +
+          _fBtn('fa-receipt',          '#58a6ff', 'Log Expense',  'fieldLogExpense()') +
+          _fBtn('fa-calendar-xmark',   '#8b949e', 'Block Date',   'fieldBlockDate()');
       } else {
         // Band Manager on remote: ops actions that work without LAN server
         qaGrid.innerHTML =
-          _fBtn('fa-microphone-lines', '#c778d9', 'New Inquiry', 'fieldNewInquiry()') +
-          _fBtn('fa-calendar-xmark',   '#58a6ff', 'Block Date',  'fieldBlockDate()') +
-          _fBtn('fa-book-open',        '#d4a017', 'Contracts',   "Router.navigateTo('dashboard-contracts')") +
-          _fBtn('fa-calendar',         '#58a6ff', 'Calendar',    "Router.navigateTo('dashboard-calendar')") +
-          _fBtn('fa-ticket',           '#f0883e', 'Bookings',    "Router.navigateTo('dashboard-booking')") +
-          _fBtn('fa-users',            '#3fb950', 'Roster',      "Router.navigateTo('dashboard-roster')");
+          _fBtn('fa-building',         '#d29922', 'Add Venue',    'fieldAddVenue()') +
+          _fBtn('fa-drum',             '#c778d9', 'Rehearsal',    'fieldScheduleRehearsal()') +
+          _fBtn('fa-microphone-lines', '#f0883e', 'New Inquiry',  'fieldNewInquiry()') +
+          _fBtn('fa-calendar-xmark',   '#58a6ff', 'Block Date',   'fieldBlockDate()') +
+          _fBtn('fa-ticket',           '#d4a017', 'Bookings',     "Router.navigateTo('dashboard-booking')") +
+          _fBtn('fa-calendar',         '#3fb950', 'Calendar',     "Router.navigateTo('dashboard-calendar')");
       }
     }
   };
