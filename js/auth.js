@@ -53,6 +53,12 @@ const Auth = {
   /** @type {string|null} The role the user is currently acting as (may differ from _role) */
   _activeRole: null,
 
+  /** @type {string|null} Band member's instrument role (drums, guitar, keys, bass, vocals, etc.) */
+  _instrument: null,
+
+  /** @type {Object|null} Firebase Storage instance */
+  _storage: null,
+
   /** @type {string|null} PIN session token (stored in localStorage) */
   _sessionToken: null,
 
@@ -191,6 +197,12 @@ const Auth = {
         console.log('[Auth] Firestore connected');
       } else {
         console.warn('[Auth] Firestore SDK not loaded — registration disabled');
+      }
+
+      // Initialize Firebase Storage
+      if (typeof firebase.storage === 'function') {
+        this._storage = firebase.storage();
+        console.log('[Auth] Firebase Storage connected');
       }
 
       // Set up federated providers
@@ -357,6 +369,9 @@ const Auth = {
       if (typeof firebase.firestore === 'function') {
         this._db = firebase.firestore();
         console.log('[Auth] Firestore connected (PIN auth path)');
+      }
+      if (typeof firebase.storage === 'function') {
+        this._storage = firebase.storage();
       }
     } catch (e) {
       console.warn('[Auth] Firestore init failed in PIN path:', e);
@@ -667,6 +682,7 @@ const Auth = {
           // Existing user — update last login, ensure current provider is tracked
           var data = doc.data();
           Auth._role = data.role || 'member';
+          Auth._instrument = data.instrument || null;
           Auth._linkedRoles = (data.linkedRoles && data.linkedRoles.length)
             ? data.linkedRoles
             : [Auth._role];
@@ -894,6 +910,31 @@ const Auth = {
    */
   isPromoter: function() {
     return this.isAuthenticated() && (this._activeRole || this._role) === 'promoter';
+  },
+
+  /**
+   * Check if user is part of the band team (internal music access).
+   * @returns {boolean}
+   */
+  isBandTeam: function() {
+    var role = this._activeRole || this._role;
+    return this.isAuthenticated() && ['admin', 'band_manager', 'artist', 'band_member'].indexOf(role) !== -1;
+  },
+
+  /**
+   * Get the band member's instrument role.
+   * @returns {string|null} e.g. 'drums', 'guitar', 'keys', 'bass', 'vocals', 'saxophone', or null
+   */
+  getInstrument: function() {
+    return this._instrument || null;
+  },
+
+  /**
+   * Get Firebase Storage instance.
+   * @returns {Object|null}
+   */
+  getStorage: function() {
+    return this._storage || null;
   },
 
   /**

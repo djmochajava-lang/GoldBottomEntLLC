@@ -69,8 +69,11 @@ const Router = {
     // Booking Inbox + CRM
     'dashboard-contacts': 'dashboard/contacts.html',
 
-    // Band Manager Field View (mobile-optimized, local-only)
+    // Band Manager Field View (mobile-optimized)
     'dashboard-field': 'dashboard/field.html',
+
+    // Band Music Player (rehearsal tracks, charts, lyrics)
+    'dashboard-band-player': 'dashboard/band-player.html',
   },
 
   /**
@@ -219,6 +222,7 @@ const Router = {
           'dashboard-ip':           ['admin', 'band_manager', 'artist'],
           'dashboard-distribution': ['admin', 'band_manager', 'artist'],
           'dashboard-calendar':     ['admin', 'band_manager', 'artist', 'band_member'],
+          'dashboard-band-player': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'venue_owner', 'promoter'],
         };
@@ -454,6 +458,7 @@ const Router = {
       'dashboard-metrics': 'Metrics & Analytics',
       'dashboard-export': 'Evidence Export',
       'dashboard-field': 'Field View',
+      'dashboard-band-player': 'Band Player',
     };
 
     const label = labels[pageName] || 'Dashboard';
