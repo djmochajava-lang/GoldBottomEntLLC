@@ -2287,9 +2287,16 @@ const Auth = {
    * @private
    */
   _updateAdminUI: function() {
+    // Team Management — admin + band_manager only
     var teamLink = document.getElementById('sidebar-team-link');
     if (teamLink) {
       teamLink.style.display = this.isAdmin() ? '' : 'none';
+    }
+
+    // Field View — band_manager (and admin who also manages)
+    var fieldLink = document.getElementById('sidebar-field-link');
+    if (fieldLink) {
+      fieldLink.style.display = this.isAdmin() ? '' : 'none';
     }
   },
 

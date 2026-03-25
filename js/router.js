@@ -65,6 +65,12 @@ const Router = {
     // Analytics & Export (OPS-METRICS-001)
     'dashboard-metrics': 'dashboard/metrics.html',
     'dashboard-export': 'dashboard/export.html',
+
+    // Booking Inbox + CRM
+    'dashboard-contacts': 'dashboard/contacts.html',
+
+    // Band Manager Field View (mobile-optimized, local-only)
+    'dashboard-field': 'dashboard/field.html',
   },
 
   /**
@@ -93,6 +99,9 @@ const Router = {
     'dashboard-metrics',
     'dashboard-export',
     'dashboard-quotes',
+    'dashboard-inbox',
+    'dashboard-contacts',
+    'dashboard-field',
   ],
 
   currentPage: null,
