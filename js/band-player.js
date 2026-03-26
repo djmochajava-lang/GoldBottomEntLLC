@@ -770,7 +770,7 @@ const BandPlayer = {
         '<div style="width:36px;height:36px;border-radius:8px;background:rgba(212,160,23,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
           '<i class="fa-solid fa-music" style="color:#d4a017;font-size:14px;"></i></div>' +
         '<div style="flex:1;min-width:0;">' +
-          '<div style="font-size:14px;font-weight:600;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + self._escHtml(song.title) + '</div>' +
+          '<div style="font-size:14px;font-weight:600;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + self._escHtml(self._titleCase(song.title)) + '</div>' +
           '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">' + self._escHtml(song.artist || 'Unknown') +
             (hasLyrics ? ' · <i class="fa-solid fa-align-left"></i> lyrics' : '') +
             (hasCharts ? ' · <i class="fa-solid fa-file-pdf"></i> ' + chartList : '') +
@@ -871,7 +871,7 @@ const BandPlayer = {
         '<div style="width:36px;height:36px;border-radius:8px;background:rgba(212,160,23,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
           '<i class="fa-solid fa-music" style="color:#d4a017;font-size:14px;"></i></div>' +
         '<div style="flex:1;min-width:0;">' +
-          '<div style="font-size:14px;font-weight:600;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + self._escHtml(song.title) + '</div>' +
+          '<div style="font-size:14px;font-weight:600;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + self._escHtml(self._titleCase(song.title)) + '</div>' +
           '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">' + self._escHtml(song.artist || 'Unknown') +
             (hasLyrics ? ' · lyrics' : '') +
             (hasCharts ? ' · charts' : '') +
@@ -943,8 +943,8 @@ const BandPlayer = {
       return;
     }
     el.innerHTML = this._playlists.map(function(pl) {
-      return '<option value="' + pl.id + '">' + BandPlayer._escHtml(pl.name) +
-        (pl.description ? ' — ' + BandPlayer._escHtml(pl.description) : '') + '</option>';
+      return '<option value="' + pl.id + '">' + BandPlayer._escHtml(BandPlayer._titleCase(pl.name)) +
+        (pl.description ? ' — ' + BandPlayer._escHtml(BandPlayer._titleCase(pl.description)) : '') + '</option>';
     }).join('');
   },
 
@@ -976,7 +976,7 @@ const BandPlayer = {
         return '<div class="bp-track" style="cursor:default;">' +
           '<div class="bp-track-num"><span>' + (i + 1) + '</span></div>' +
           '<div class="bp-track-info">' +
-            '<div class="bp-track-title">' + BandPlayer._escHtml(song.title) + '</div>' +
+            '<div class="bp-track-title">' + BandPlayer._escHtml(BandPlayer._titleCase(song.title)) + '</div>' +
             '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
           '</div>' +
           '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
@@ -1012,7 +1012,7 @@ const BandPlayer = {
             : '<span>' + (i + 1) + '</span>') +
         '</div>' +
         '<div class="bp-track-info">' +
-          '<div class="bp-track-title">' + BandPlayer._escHtml(song.title) +
+          '<div class="bp-track-title">' + BandPlayer._escHtml(BandPlayer._titleCase(song.title)) +
             (cached ? ' <i class="fa-solid fa-cloud-arrow-down" style="font-size:10px;color:#3fb950;margin-left:4px;" title="Saved offline"></i>' : '') +
           '</div>' +
           '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
@@ -1196,6 +1196,13 @@ const BandPlayer = {
     var d = document.createElement('div');
     d.textContent = str || '';
     return d.innerHTML;
+  },
+
+  _titleCase: function(str) {
+    if (!str) return '';
+    return str.replace(/\b\w+/g, function(w) {
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    });
   }
 };
 
