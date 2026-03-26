@@ -78,7 +78,16 @@
          style="font-size:13px;color:rgba(255,255,255,0.35);cursor:pointer;"></i>
       <input type="range" min="0" max="100" value="80" id="bp-vol-slider"
              oninput="BandPlayer.setVolume(this.value/100)"
-             style="width:55px;accent-color:#d4a017;cursor:pointer;">
+             class="bp-vol-knob">
+      <style>
+      .bp-vol-knob{-webkit-appearance:none;appearance:none;width:55px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;outline:none;cursor:pointer;transition:background 0.2s ease;}
+      .bp-vol-knob:hover{background:rgba(255,255,255,0.25);}
+      .bp-vol-knob::-webkit-slider-runnable-track{height:4px;border-radius:2px;}
+      .bp-vol-knob::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#ffd700,#c9a227);border:2px solid rgba(255,215,0,0.8);box-shadow:0 0 6px rgba(255,215,0,0.3);cursor:pointer;margin-top:-5px;transition:transform 0.15s ease,box-shadow 0.15s ease;}
+      .bp-vol-knob::-webkit-slider-thumb:hover{transform:scale(1.2);box-shadow:0 0 10px rgba(255,215,0,0.5);}
+      .bp-vol-knob::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#ffd700,#c9a227);border:2px solid rgba(255,215,0,0.8);box-shadow:0 0 6px rgba(255,215,0,0.3);cursor:pointer;}
+      .bp-vol-knob::-moz-range-track{height:4px;background:rgba(255,255,255,0.15);border-radius:2px;}
+      </style>
     </div>
   </div>
 
