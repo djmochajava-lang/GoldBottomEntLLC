@@ -709,35 +709,170 @@ const BandPlayer = {
         '<div style="display:flex;flex-direction:column;gap:12px;">' +
           '<div><label class="form-label">Playlist Name *</label><input id="bp-pl-name" class="form-input" placeholder="e.g. Friday Night Set" /></div>' +
           '<div><label class="form-label">Description</label><input id="bp-pl-desc" class="form-input" placeholder="e.g. Blues Alley show — 90 min set" /></div>' +
+          '<div><label class="form-label">Album Art</label>' +
+            '<div style="display:flex;gap:8px;align-items:center;">' +
+              '<div id="bp-pl-art-preview" style="width:60px;height:60px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">' +
+                '<i class="fa-solid fa-image" style="color:rgba(255,255,255,0.2);font-size:20px;"></i></div>' +
+              '<div style="flex:1;display:flex;flex-direction:column;gap:6px;">' +
+                '<input id="bp-pl-art-url" class="form-input" placeholder="Paste image URL" style="font-size:12px;" />' +
+                '<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;border:1px dashed rgba(255,255,255,0.15);cursor:pointer;font-size:12px;color:rgba(255,255,255,0.4);">' +
+                  '<i class="fa-solid fa-upload"></i> or upload' +
+                  '<input type="file" id="bp-pl-art-file" accept="image/*" style="display:none;" />' +
+                '</label>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
         '</div>',
       saveText: 'Create',
       onSave: function() {
         var name = (document.getElementById('bp-pl-name') || {}).value || '';
         var desc = (document.getElementById('bp-pl-desc') || {}).value || '';
+        var artUrl = (document.getElementById('bp-pl-art-url') || {}).value || '';
         if (!name.trim()) { Toast.error('Playlist name is required'); return; }
 
-        var plData = {
-          name: name,
-          description: desc,
-          songOrder: [],
-          createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'pin',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+        function createPlaylist(albumArt) {
+          var plData = {
+            name: name,
+            description: desc,
+            albumArt: albumArt || '',
+            songOrder: [],
+            createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'pin',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+          BandPlayer._db.collection('playlists').add(plData).then(function(ref) {
+            Modal.close();
+            Toast.success('Playlist created: ' + name);
+            plData.id = ref.id;
+            BandPlayer._playlists.unshift(plData);
+            BandPlayer.renderPlaylistDropdown();
+            BandPlayer.selectPlaylist(ref.id);
+          }).catch(function(e) {
+            Toast.error('Failed to create playlist: ' + e.message);
+          });
+        }
 
-        BandPlayer._db.collection('playlists').add(plData).then(function(ref) {
-          Modal.close();
-          Toast.success('Playlist created: ' + name);
-          plData.id = ref.id;
-          BandPlayer._playlists.unshift(plData);
-          BandPlayer.renderPlaylistDropdown();
-          BandPlayer.selectPlaylist(ref.id);
-        }).catch(function(e) {
-          Toast.error('Failed to create playlist: ' + e.message);
-        });
+        // If a file was selected, upload to Firebase Storage first
+        var fileInput = document.getElementById('bp-pl-art-file');
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+          var file = fileInput.files[0];
+          var path = 'band-media/album-art/' + Date.now() + '-' + file.name;
+          var ref = firebase.storage().ref(path);
+          Toast.info('Uploading album art...');
+          ref.put(file).then(function(snap) {
+            return snap.ref.getDownloadURL();
+          }).then(function(url) {
+            createPlaylist(url);
+          }).catch(function(e) {
+            Toast.error('Art upload failed: ' + e.message);
+          });
+        } else {
+          createPlaylist(artUrl);
+        }
       }
     });
-    setTimeout(function() { var el = document.getElementById('bp-pl-name'); if (el) el.focus(); }, 100);
+    setTimeout(function() {
+      var el = document.getElementById('bp-pl-name');
+      if (el) el.focus();
+      // Art preview handlers
+      var artUrl = document.getElementById('bp-pl-art-url');
+      var artFile = document.getElementById('bp-pl-art-file');
+      var artPreview = document.getElementById('bp-pl-art-preview');
+      if (artUrl) {
+        artUrl.addEventListener('input', function() {
+          if (this.value) artPreview.innerHTML = '<img src="' + BandPlayer._escHtml(this.value) + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML=\'<i class=\\\'fa-solid fa-image\\\' style=\\\'color:rgba(255,255,255,0.2);font-size:20px;\\\'></i>\'" />';
+          else artPreview.innerHTML = '<i class="fa-solid fa-image" style="color:rgba(255,255,255,0.2);font-size:20px;"></i>';
+        });
+      }
+      if (artFile) {
+        artFile.addEventListener('change', function() {
+          if (this.files && this.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+              artPreview.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;" />';
+              if (artUrl) artUrl.value = '';
+            };
+            reader.readAsDataURL(this.files[0]);
+          }
+        });
+      }
+    }, 100);
+  },
+
+  // ── Album Art Management ─────────────────────────────
+
+  showSetAlbumArt: function() {
+    if (!this._currentPlaylist || typeof Modal === 'undefined') return;
+    var self = this;
+    var current = this._currentPlaylist.albumArt || '';
+    Modal.open({
+      title: 'Set Album Art',
+      size: 'sm',
+      content:
+        '<div style="display:flex;flex-direction:column;gap:12px;align-items:center;">' +
+          '<div id="bp-art-edit-preview" style="width:120px;height:120px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;overflow:hidden;">' +
+            (current ? '<img src="' + this._escHtml(current) + '" style="width:100%;height:100%;object-fit:cover;" />' : '<i class="fa-solid fa-image" style="color:rgba(255,255,255,0.2);font-size:32px;"></i>') +
+          '</div>' +
+          '<input id="bp-art-edit-url" class="form-input" placeholder="Paste image URL" value="' + this._escHtml(current) + '" style="width:100%;font-size:13px;" />' +
+          '<label style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;border:1px dashed rgba(255,255,255,0.15);cursor:pointer;font-size:13px;color:rgba(255,255,255,0.4);">' +
+            '<i class="fa-solid fa-upload"></i> Upload image' +
+            '<input type="file" id="bp-art-edit-file" accept="image/*" style="display:none;" />' +
+          '</label>' +
+          (current ? '<button onclick="document.getElementById(\'bp-art-edit-url\').value=\'\';document.getElementById(\'bp-art-edit-preview\').innerHTML=\'<i class=\\\'fa-solid fa-image\\\' style=\\\'color:rgba(255,255,255,0.2);font-size:32px;\\\'></i>\'" style="background:none;border:none;color:rgba(248,81,73,0.7);font-size:12px;cursor:pointer;">Remove art</button>' : '') +
+        '</div>',
+      saveText: 'Save',
+      onSave: function() {
+        var url = (document.getElementById('bp-art-edit-url') || {}).value || '';
+        var fileInput = document.getElementById('bp-art-edit-file');
+
+        function saveArt(artUrl) {
+          self._db.collection('playlists').doc(self._currentPlaylist.id).update({
+            albumArt: artUrl,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            self._currentPlaylist.albumArt = artUrl;
+            Modal.close();
+            Toast.success('Album art updated');
+            self.renderTrackList();
+          }).catch(function(e) { Toast.error('Failed: ' + e.message); });
+        }
+
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+          var file = fileInput.files[0];
+          var path = 'band-media/album-art/' + Date.now() + '-' + file.name;
+          Toast.info('Uploading...');
+          firebase.storage().ref(path).put(file).then(function(snap) {
+            return snap.ref.getDownloadURL();
+          }).then(function(dlUrl) { saveArt(dlUrl); })
+          .catch(function(e) { Toast.error('Upload failed: ' + e.message); });
+        } else {
+          saveArt(url);
+        }
+      }
+    });
+    setTimeout(function() {
+      var urlInput = document.getElementById('bp-art-edit-url');
+      var fileInput = document.getElementById('bp-art-edit-file');
+      var preview = document.getElementById('bp-art-edit-preview');
+      if (urlInput) {
+        urlInput.addEventListener('input', function() {
+          if (this.value) preview.innerHTML = '<img src="' + BandPlayer._escHtml(this.value) + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML=\'<i class=\\\'fa-solid fa-image\\\' style=\\\'color:rgba(255,255,255,0.2);font-size:32px;\\\'></i>\'" />';
+          else preview.innerHTML = '<i class="fa-solid fa-image" style="color:rgba(255,255,255,0.2);font-size:32px;"></i>';
+        });
+      }
+      if (fileInput) {
+        fileInput.addEventListener('change', function() {
+          if (this.files && this.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+              preview.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;" />';
+              if (urlInput) urlInput.value = '';
+            };
+            reader.readAsDataURL(this.files[0]);
+          }
+        });
+      }
+    }, 100);
   },
 
   // ── Inventory & Add to Playlist ──────────────────────
@@ -961,6 +1096,10 @@ const BandPlayer = {
     }
 
     var self = this;
+    var plArt = (this._currentPlaylist && this._currentPlaylist.albumArt) || '';
+    var artThumb = plArt
+      ? '<div class="bp-track-art"><img src="' + this._escHtml(plArt) + '" alt="" style="width:100%;height:100%;object-fit:cover;" /></div>'
+      : '<div class="bp-track-art"><img src="images/logo/gbe-logo.svg" alt="GBE" style="width:60%;height:60%;object-fit:contain;opacity:0.5;" /></div>';
 
     if (this._editMode) {
       // Edit mode — reorder + remove controls
@@ -975,6 +1114,7 @@ const BandPlayer = {
 
         return '<div class="bp-track" style="cursor:default;">' +
           '<div class="bp-track-num"><span>' + (i + 1) + '</span></div>' +
+          artThumb +
           '<div class="bp-track-info">' +
             '<div class="bp-track-title">' + BandPlayer._escHtml(BandPlayer._titleCase(song.title)) + '</div>' +
             '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
@@ -1011,6 +1151,7 @@ const BandPlayer = {
             ? '<div class="bp-eq"><span></span><span></span><span></span><span></span></div>'
             : '<span>' + (i + 1) + '</span>') +
         '</div>' +
+        artThumb +
         '<div class="bp-track-info">' +
           '<div class="bp-track-title">' + BandPlayer._escHtml(BandPlayer._titleCase(song.title)) +
             (cached ? ' <i class="fa-solid fa-cloud-arrow-down" style="font-size:10px;color:#3fb950;margin-left:4px;" title="Saved offline"></i>' : '') +
