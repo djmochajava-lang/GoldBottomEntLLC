@@ -26,11 +26,14 @@
 
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
 
-  /* ---- Role-based CRUD permissions ---- */
+  /* ---- Role-based permissions ---- */
   var _isAdmin = (typeof Auth !== 'undefined') && Auth.isAdmin && Auth.isAdmin();
   var _isBandMgr = (typeof Auth !== 'undefined') && Auth.isBandManager && Auth.isBandManager();
-  var canManageAll = _isAdmin;                   // admin can CRUD any category
-  var canManageBand = _isBandMgr || _isAdmin;    // band_manager can CRUD band members
+  var _isBandMember = (typeof Auth !== 'undefined') && Auth.isBandMember && Auth.isBandMember();
+  var _isArtist = (typeof Auth !== 'undefined') && Auth.isSinger && Auth.isSinger();
+  var canManageAll = _isAdmin;                   // admin: CRUD any category
+  var canManageBand = _isBandMgr || _isAdmin;    // band_manager: CRUD band members
+  var bandViewOnly = _isBandMgr || _isBandMember || _isArtist; // these roles only see artist + band
 
   /* ---- Inject Soul Society band members if missing (migration) ---- */
   (function migrateBandMembers(){
@@ -49,11 +52,10 @@
     }
   })();
 
-  /* ---- Band manager: hide Creatives & Developers filters ---- */
-  if(_isBandMgr && !_isAdmin){
-    var hideFilters=['creative','developer'];
-    hideFilters.forEach(function(f){
-      var btn=filterBar=document.querySelector('#roster-filters .filter-btn[data-filter="'+f+'"]');
+  /* ---- Non-admin roles: hide Creatives & Developers filters ---- */
+  if(bandViewOnly && !_isAdmin){
+    ['creative','developer'].forEach(function(f){
+      var btn=document.querySelector('#roster-filters .filter-btn[data-filter="'+f+'"]');
       if(btn) btn.style.display='none';
     });
   }
@@ -81,8 +83,8 @@
     if(!c)return;
     var data=DataStore.getRoster();
 
-    /* Band manager only sees artists and band members */
-    if(_isBandMgr && !_isAdmin){
+    /* Non-admin roles only see artists and band members */
+    if(bandViewOnly && !_isAdmin){
       data=data.filter(function(t){return t.category==='artist'||t.category==='band_member';});
     }
 
