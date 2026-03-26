@@ -41,7 +41,7 @@
     var hasBandMembers = roster.some(function(t){ return t.category === 'band_member'; });
     if(!hasBandMembers){
       var members = [
-        { id:'talent-005', name:'DJ Mocha Java', category:'band_member', genre:'MC / DJ / Production / Rap Vocals', status:'active', email:'[EMAIL]', phone:'[PHONE]', bio:'Owner of Gold Bottom Productions & Studios in Washington, D.C. The energy behind the booth, the mic, and the stage. Band manager for Soul Society.', website:'', contractStart:'', contractEnd:'', commission:0, image:'', rateType:'flat', standardRate:0, minimumRate:0, depositPercent:0, travelRadius:'National', availabilityStatus:'available', riderNeeds:'', noGoZones:'', createdAt:'2026-03-26T00:00:00Z', updatedAt:'2026-03-26T00:00:00Z' },
+        { id:'talent-005', name:'DJ Mocha Java', category:'band_manager', genre:'MC / DJ / Production / Rap Vocals', status:'active', email:'[EMAIL]', phone:'[PHONE]', bio:'Owner of Gold Bottom Productions & Studios in Washington, D.C. The energy behind the booth, the mic, and the stage. Band manager for Soul Society.', website:'', contractStart:'', contractEnd:'', commission:0, image:'', rateType:'flat', standardRate:0, minimumRate:0, depositPercent:0, travelRadius:'National', availabilityStatus:'available', riderNeeds:'', noGoZones:'', createdAt:'2026-03-26T00:00:00Z', updatedAt:'2026-03-26T00:00:00Z' },
         { id:'talent-006', name:'Eugene Chapman', category:'band_member', genre:'Saxophone', status:'active', email:'[EMAIL]', phone:'[PHONE]', bio:'Morgan State alum who has shared stages with P-Funk, The Temptations, and Erykah Badu. Eight NAACP Theatre Award nominations.', website:'', contractStart:'', contractEnd:'', commission:0, image:'', rateType:'flat', standardRate:0, minimumRate:0, depositPercent:0, travelRadius:'', availabilityStatus:'available', riderNeeds:'', noGoZones:'', createdAt:'2026-03-26T00:00:00Z', updatedAt:'2026-03-26T00:00:00Z' },
         { id:'talent-007', name:'Kevin Robinson', category:'band_member', genre:'Lead Guitar', status:'active', email:'[EMAIL]', phone:'[PHONE]', bio:'Maryland Entertainment Hall of Fame inductee (2017). Sheffield Institute trained, known as "The Maestro" for his commanding fretwork.', website:'', contractStart:'', contractEnd:'', commission:0, image:'', rateType:'flat', standardRate:0, minimumRate:0, depositPercent:0, travelRadius:'', availabilityStatus:'available', riderNeeds:'', noGoZones:'', createdAt:'2026-03-26T00:00:00Z', updatedAt:'2026-03-26T00:00:00Z' },
         { id:'talent-008', name:'Jimmy Carney', category:'band_member', genre:'Drums & Percussion', status:'active', email:'[EMAIL]', phone:'[PHONE]', bio:'Camp Springs, MD percussionist who also plays with We Are One (Maze & Frankie Beverly tribute) and The Positive Force.', website:'', contractStart:'', contractEnd:'', commission:0, image:'', rateType:'flat', standardRate:0, minimumRate:0, depositPercent:0, travelRadius:'', availabilityStatus:'available', riderNeeds:'', noGoZones:'', createdAt:'2026-03-26T00:00:00Z', updatedAt:'2026-03-26T00:00:00Z' },
@@ -49,6 +49,11 @@
       ];
       members.forEach(function(m){ DataStore.addTalent(m); });
       console.log('🎸 Roster: injected Soul Society band members');
+    }
+    /* Fix DJ Mocha Java category if already saved as band_member */
+    var mocha = DataStore.getTalent('talent-005');
+    if(mocha && mocha.category==='band_member'){
+      DataStore.updateTalent('talent-005',{category:'band_manager'});
     }
   })();
 
@@ -67,7 +72,8 @@
     artist:  {label:'Artist',   bg:'rgba(184,134,11,0.15)',  color:'#d4a017'},
     creative:{label:'Creative', bg:'rgba(88,166,255,0.15)', color:'#58a6ff'},
     developer:{label:'Developer',bg:'rgba(63,185,80,0.15)', color:'#3fb950'},
-    band_member:{label:'Band',bg:'rgba(210,153,34,0.15)',color:'#d29922'}
+    band_member:{label:'Band',bg:'rgba(210,153,34,0.15)',color:'#d29922'},
+    band_manager:{label:'Manager',bg:'rgba(184,134,11,0.15)',color:'#d4a017'}
   };
 
   /* ---- Status pill colors ---- */
@@ -85,7 +91,7 @@
 
     /* Non-admin roles only see artists and band members */
     if(bandViewOnly && !_isAdmin){
-      data=data.filter(function(t){return t.category==='artist'||t.category==='band_member';});
+      data=data.filter(function(t){return t.category==='artist'||t.category==='band_member'||t.category==='band_manager';});
     }
 
     /* Apply filter */
@@ -172,6 +178,7 @@
         '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Name *</label><input type="text" class="form-input" name="name" required placeholder="Full name" value="'+esc(d.name||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
         '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Category *</label><select class="form-select" name="category" required style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);">'+
           (canManageAll?'<option value="artist"'+(d.category==='artist'?' selected':'')+'>Artist</option>'+
+          '<option value="band_manager"'+(d.category==='band_manager'?' selected':'')+'>Band Manager</option>'+
           '<option value="band_member"'+(d.category==='band_member'?' selected':'')+'>Band Member</option>'+
           '<option value="creative"'+(d.category==='creative'?' selected':'')+'>Creative</option>'+
           '<option value="developer"'+(d.category==='developer'?' selected':'')+'>Developer</option>'

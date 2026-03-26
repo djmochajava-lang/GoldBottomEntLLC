@@ -629,7 +629,7 @@ const DataStore = {
       {
         id: 'talent-005',
         name: 'DJ Mocha Java',
-        category: 'band_member',
+        category: 'band_manager',
         genre: 'MC / DJ / Production / Rap Vocals',
         status: 'active',
         email: '[EMAIL]',
