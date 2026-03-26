@@ -316,7 +316,7 @@ const Modal = {
       '}' +
       '.modal-body {' +
       '  padding: 24px; font-size: 14px; line-height: 1.6;' +
-      '  max-height: 60vh; overflow-y: auto;' +
+      '  max-height: 75vh; overflow-y: auto;' +
       '}' +
       '.modal-footer {' +
       '  display: flex; justify-content: flex-end; gap: 10px;' +
@@ -347,7 +347,7 @@ const Modal = {
       '  .modal-overlay { padding: 10px; }' +
       '  .modal-content { border-radius: 10px; }' +
       '  .modal-header { padding: 16px 18px; }' +
-      '  .modal-body { padding: 18px; max-height: 50vh; }' +
+      '  .modal-body { padding: 18px; max-height: 75vh; }' +
       '  .modal-footer { padding: 12px 18px; }' +
       '}';
   },
