@@ -1086,17 +1086,16 @@ const BandPlayer = {
     var el = document.getElementById('bp-tracklist');
     if (!el) return;
 
-    // Update playlist header
+    // Update playlist description (name already in dropdown)
     var plHeader = document.getElementById('bp-playlist-header');
-    var plNameEl = document.getElementById('bp-playlist-header-name');
     var plDescEl = document.getElementById('bp-playlist-header-desc');
     if (plHeader && this._currentPlaylist) {
-      plHeader.style.display = '';
-      if (plNameEl) plNameEl.textContent = this._titleCase(this._currentPlaylist.name || '');
-      if (plDescEl) {
-        var desc = this._currentPlaylist.description || '';
-        plDescEl.textContent = desc;
-        plDescEl.style.display = desc ? '' : 'none';
+      var desc = this._currentPlaylist.description || '';
+      if (desc) {
+        plHeader.style.display = '';
+        if (plDescEl) plDescEl.textContent = desc;
+      } else {
+        plHeader.style.display = 'none';
       }
     } else if (plHeader) {
       plHeader.style.display = 'none';
