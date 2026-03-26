@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#111111"/>
+  <!-- MANAGEMENT SERVICES -->
+  <text x="200" y="120" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600" fill="#c9a227" letter-spacing="6" font-style="italic">MANAGEMENT SERVICES</text>
+  <!-- GBE -->
+  <text x="200" y="230" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="130" font-weight="900">
+    <tspan fill="#ffffff">G</tspan><tspan fill="#c9a227">B</tspan><tspan fill="#ffffff">E</tspan>
+  </text>
+  <!-- Gold underline -->
+  <rect x="70" y="248" width="100" height="4" rx="2" fill="#c9a227"/>
+  <!-- GOLD BOTTOM ENT. LLC -->
+  <text x="200" y="290" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="16" fill="rgba(255,255,255,0.85)" letter-spacing="4" font-weight="400">GOLD BOTTOM ENT. LLC</text>
+</svg>
