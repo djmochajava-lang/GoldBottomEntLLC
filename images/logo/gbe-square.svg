@@ -1,59 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
   <defs>
-    <!-- Gold gradient for B and accents -->
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f5d670"/>
       <stop offset="50%" stop-color="#c9a227"/>
       <stop offset="100%" stop-color="#a67c00"/>
     </linearGradient>
-    <!-- Subtle radial glow behind text -->
-    <radialGradient id="glow" cx="50%" cy="45%" r="50%">
-      <stop offset="0%" stop-color="rgba(201,162,39,0.12)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
-    </radialGradient>
-    <!-- Border gradient -->
     <linearGradient id="border-gold" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f5d670"/>
       <stop offset="40%" stop-color="#c9a227"/>
       <stop offset="70%" stop-color="#a67c00"/>
       <stop offset="100%" stop-color="#f5d670"/>
     </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="45%">
+      <stop offset="0%" stop-color="rgba(201,162,39,0.1)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+    </radialGradient>
   </defs>
 
   <!-- Background -->
   <rect width="200" height="200" rx="12" fill="#0d0d0d"/>
 
   <!-- Gold border -->
-  <rect x="3" y="3" width="194" height="194" rx="10" fill="none" stroke="url(#border-gold)" stroke-width="2.5"/>
+  <rect x="3" y="3" width="194" height="194" rx="10" fill="none" stroke="url(#border-gold)" stroke-width="2"/>
 
   <!-- Inner subtle border -->
-  <rect x="8" y="8" width="184" height="184" rx="7" fill="none" stroke="rgba(201,162,39,0.15)" stroke-width="0.5"/>
+  <rect x="8" y="8" width="184" height="184" rx="7" fill="none" stroke="rgba(201,162,39,0.12)" stroke-width="0.5"/>
 
   <!-- Warm glow -->
   <rect x="8" y="8" width="184" height="184" rx="7" fill="url(#glow)"/>
 
   <!-- Corner accents -->
-  <line x1="16" y1="20" x2="16" y2="36" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="16" y1="20" x2="32" y2="20" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="184" y1="20" x2="184" y2="36" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="184" y1="20" x2="168" y2="20" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="16" y1="180" x2="16" y2="164" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="16" y1="180" x2="32" y2="180" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="184" y1="180" x2="184" y2="164" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="184" y1="180" x2="168" y2="180" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="18" y1="22" x2="18" y2="36" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="18" y1="22" x2="32" y2="22" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="182" y1="22" x2="182" y2="36" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="182" y1="22" x2="168" y2="22" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="18" y1="178" x2="18" y2="164" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="18" y1="178" x2="32" y2="178" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="182" y1="178" x2="182" y2="164" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="182" y1="178" x2="168" y2="178" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"/>
 
-  <!-- GBE letters -->
-  <text x="100" y="122" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="82" font-weight="900" letter-spacing="-1">
-    <tspan fill="#ffffff">G</tspan><tspan fill="url(#gold)">B</tspan><tspan fill="#ffffff">E</tspan>
-  </text>
+  <!-- GBE letters — all light gold, smaller with breathing room -->
+  <text x="100" y="118" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-weight="900" fill="#e8cc6e" letter-spacing="4">GBE</text>
 
-  <!-- Gold accent line under G -->
-  <rect x="34" y="134" width="46" height="3" rx="1.5" fill="url(#gold)"/>
+  <!-- Gold accent line -->
+  <rect x="60" y="130" width="80" height="2.5" rx="1.25" fill="url(#gold)"/>
 
-  <!-- Divider line -->
-  <line x1="40" y1="150" x2="160" y2="150" stroke="rgba(201,162,39,0.2)" stroke-width="0.5"/>
+  <!-- Thin divider -->
+  <line x1="50" y1="145" x2="150" y2="145" stroke="rgba(201,162,39,0.15)" stroke-width="0.5"/>
 
   <!-- GOLD BOTTOM ENT. LLC -->
-  <text x="100" y="166" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="10.5" fill="rgba(255,255,255,0.55)" letter-spacing="2.5" font-weight="400">GOLD BOTTOM</text>
-  <text x="100" y="179" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="8" fill="rgba(201,162,39,0.45)" letter-spacing="2">ENT. LLC</text>
+  <text x="100" y="160" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="10" fill="rgba(255,255,255,0.5)" letter-spacing="2.5">GOLD BOTTOM</text>
+  <text x="100" y="173" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="8" fill="rgba(201,162,39,0.4)" letter-spacing="2">ENT. LLC</text>
 </svg>
