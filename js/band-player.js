@@ -1099,7 +1099,7 @@ const BandPlayer = {
     var plArt = (this._currentPlaylist && this._currentPlaylist.albumArt) || '';
     var artThumb = plArt
       ? '<div class="bp-track-art"><img src="' + this._escHtml(plArt) + '" alt="" style="width:100%;height:100%;object-fit:cover;" /></div>'
-      : '<div class="bp-track-art"><img src="images/logo/gbe-logo.svg" alt="GBE" style="width:60%;height:60%;object-fit:contain;opacity:0.5;" /></div>';
+      : '<div class="bp-track-art"><img src="images/gbe-og-image.png" alt="GBE" style="width:100%;height:100%;object-fit:cover;" /></div>';
 
     if (this._editMode) {
       // Edit mode — reorder + remove controls
