@@ -15,6 +15,8 @@ const BandPlayer = {
   _currentIndex: -1,
   _isPlaying: false,
   _volume: 0.8,
+  _prevVolume: 0.8,
+  _repeatMode: 'off', // off, all, one
   _editMode: false,
   _editDirty: false,
   _cacheName: 'bp-offline-audio',
@@ -220,9 +222,34 @@ const BandPlayer = {
 
   setVolume: function(val) {
     this._volume = Math.max(0, Math.min(1, val));
+    if (this._volume > 0) this._prevVolume = this._volume;
     this._audio.volume = this._volume;
-    var volEl = document.getElementById('bp-volume-val');
-    if (volEl) volEl.textContent = Math.round(this._volume * 100) + '%';
+    var slider = document.getElementById('bp-vol-slider');
+    if (slider) slider.value = Math.round(this._volume * 100);
+    var icon = document.getElementById('bp-vol-icon');
+    if (icon) icon.className = 'fa-solid ' + (this._volume === 0 ? 'fa-volume-xmark' : this._volume < 0.5 ? 'fa-volume-low' : 'fa-volume-high');
+  },
+
+  toggleMute: function() {
+    if (this._volume > 0) {
+      this._prevVolume = this._volume;
+      this.setVolume(0);
+    } else {
+      this.setVolume(this._prevVolume || 0.8);
+    }
+  },
+
+  toggleRepeat: function() {
+    var modes = ['off', 'all', 'one'];
+    var idx = modes.indexOf(this._repeatMode);
+    this._repeatMode = modes[(idx + 1) % 3];
+    var btn = document.getElementById('bp-repeat-btn');
+    var badge = document.getElementById('bp-repeat-badge');
+    if (btn) {
+      btn.className = this._repeatMode !== 'off' ? 'bp-ctrl-active' : '';
+      btn.style.color = this._repeatMode !== 'off' ? '#d4a017' : 'rgba(255,255,255,0.45)';
+    }
+    if (badge) badge.style.display = this._repeatMode === 'one' ? '' : 'none';
   },
 
   _setupAudioEvents: function() {
@@ -240,7 +267,21 @@ const BandPlayer = {
       if (durEl) durEl.textContent = self._formatTime(self._audio.duration);
     });
     this._audio.addEventListener('ended', function() {
-      self.next();
+      if (self._repeatMode === 'one') {
+        self._audio.currentTime = 0;
+        self._audio.play();
+      } else if (self._repeatMode === 'all') {
+        self.next();
+      } else {
+        // off — stop at end of playlist
+        if (self._currentIndex < self._songs.length - 1) {
+          self.next();
+        } else {
+          self._isPlaying = false;
+          self.updateNowPlaying();
+          self.renderTrackList();
+        }
+      }
     });
     this._audio.volume = this._volume;
   },
@@ -861,11 +902,12 @@ const BandPlayer = {
       var hasLyrics = !!(song.lyrics);
       var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
       var cached = self.isCached(song.id);
+      var duration = song.duration ? self._formatTime(song.duration) : '';
 
       return '<div class="bp-track' + (isActive ? ' bp-track-active' : '') + '" onclick="BandPlayer.play(' + i + ')">' +
         '<div class="bp-track-num">' +
           (isActive && self._isPlaying
-            ? '<div class="bp-eq"><span></span><span></span><span></span></div>'
+            ? '<div class="bp-eq"><span></span><span></span><span></span><span></span></div>'
             : '<span>' + (i + 1) + '</span>') +
         '</div>' +
         '<div class="bp-track-info">' +
@@ -874,6 +916,7 @@ const BandPlayer = {
           '</div>' +
           '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
         '</div>' +
+        (duration ? '<span class="bp-track-duration">' + duration + '</span>' : '') +
         '<div class="bp-track-actions" onclick="event.stopPropagation()">' +
           (hasLyrics ? '<button class="bp-action-btn" onclick="BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>' : '') +
           (hasCharts ? '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="Chart"><i class="fa-solid fa-file-pdf"></i></button>' : '') +

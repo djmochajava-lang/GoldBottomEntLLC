@@ -1,5 +1,5 @@
 <!-- ============================================================
-     dashboard/band-player.html — Band Member Music Player
+     dashboard/band-player.html — Soul Society Music Player
      Firebase-backed: Firestore metadata, Storage audio/charts.
      Roles: admin, band_manager, artist, band_member
      ============================================================ -->
@@ -7,7 +7,7 @@
 <div class="dashboard-page" id="dash-band-player">
 
   <!-- ── Page Header ──────────────────────────────────── -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
     <div>
       <h1 style="font-size:22px;font-weight:700;color:#e6edf3;margin:0;">
         <i class="fa-solid fa-headphones" style="color:#d4a017;margin-right:8px;"></i>Soul Society – Music Player
@@ -39,7 +39,7 @@
   </div>
 
   <!-- ── Playlist Selector ────────────────────────────── -->
-  <div style="margin-bottom:16px;">
+  <div style="margin-bottom:12px;">
     <select id="bp-playlist-select" onchange="BandPlayer.selectPlaylist(this.value)"
             style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);
                    background:rgba(255,255,255,0.04);color:#e6edf3;font-size:15px;font-weight:600;
@@ -48,61 +48,76 @@
     </select>
   </div>
 
-  <!-- ── Now Playing Bar ──────────────────────────────── -->
-  <div id="bp-now-playing" style="display:none;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
-       border-radius:14px;padding:18px;margin-bottom:16px;">
-    <!-- Song info -->
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-      <div style="width:50px;height:50px;border-radius:10px;background:rgba(212,160,23,0.12);
+  <!-- ── Sticky Action Bar (LA Young style) ─────────── -->
+  <div id="bp-action-bar" style="position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:center;
+       gap:16px;padding:14px 20px;margin-bottom:12px;border-radius:12px;
+       background:rgba(0,0,0,0.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+       border:1px solid rgba(212,160,23,0.08);">
+
+    <!-- Previous -->
+    <button onclick="BandPlayer.prev()" title="Previous"
+            style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:20px;padding:8px;">
+      <i class="fa-solid fa-backward-step"></i>
+    </button>
+
+    <!-- Main Play/Pause -->
+    <button onclick="BandPlayer.togglePlay()" title="Play/Pause"
+            style="width:52px;height:52px;border-radius:50%;border:none;
+                   background:linear-gradient(135deg,#d4a017,#b8860b);color:#0d1117;
+                   cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;
+                   box-shadow:0 4px 16px rgba(212,160,23,0.3);transition:transform 80ms,box-shadow 200ms;"
+            onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'"
+            ontouchstart="this.style.transform='scale(0.95)'" ontouchend="this.style.transform='scale(1)'">
+      <i id="bp-play-icon" class="fa-solid fa-play"></i>
+    </button>
+
+    <!-- Next -->
+    <button onclick="BandPlayer.next()" title="Next"
+            style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:20px;padding:8px;">
+      <i class="fa-solid fa-forward-step"></i>
+    </button>
+
+    <!-- Repeat -->
+    <button id="bp-repeat-btn" onclick="BandPlayer.toggleRepeat()" title="Repeat"
+            style="background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:16px;padding:8px;position:relative;">
+      <i class="fa-solid fa-repeat"></i>
+      <span id="bp-repeat-badge" style="display:none;position:absolute;top:4px;right:2px;font-size:8px;font-weight:700;color:#d4a017;">1</span>
+    </button>
+
+    <!-- Volume (right side) -->
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+      <i id="bp-vol-icon" class="fa-solid fa-volume-high" onclick="BandPlayer.toggleMute()"
+         style="font-size:14px;color:rgba(255,255,255,0.45);cursor:pointer;"></i>
+      <input type="range" min="0" max="100" value="80" id="bp-vol-slider"
+             oninput="BandPlayer.setVolume(this.value/100)"
+             style="width:60px;accent-color:#d4a017;cursor:pointer;">
+    </div>
+  </div>
+
+  <!-- ── Now Playing Info (compact) ─────────────────── -->
+  <div id="bp-now-playing" style="display:none;padding:10px 16px;margin-bottom:12px;border-radius:10px;
+       background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.12);">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:40px;height:40px;border-radius:8px;background:rgba(212,160,23,0.15);
                   display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <i class="fa-solid fa-music" style="color:#d4a017;font-size:20px;"></i>
+        <i class="fa-solid fa-music" style="color:#d4a017;font-size:16px;"></i>
       </div>
       <div style="flex:1;min-width:0;">
-        <div id="bp-now-title" style="font-size:17px;font-weight:700;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-        <div id="bp-now-artist" style="font-size:14px;color:rgba(255,255,255,0.45);margin-top:2px;"></div>
+        <div id="bp-now-title" style="font-size:15px;font-weight:700;color:#d4a017;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+        <div id="bp-now-artist" style="font-size:13px;color:rgba(255,255,255,0.45);margin-top:1px;"></div>
       </div>
+      <div id="bp-now-actions" style="display:flex;gap:6px;flex-shrink:0;"></div>
     </div>
-
-    <!-- Progress bar -->
-    <div style="margin-bottom:12px;">
+    <!-- Progress under now-playing -->
+    <div style="margin-top:10px;">
       <div id="bp-progress-bar" onclick="BandPlayer.seek(event.offsetX / this.offsetWidth)"
-           style="height:6px;border-radius:3px;background:rgba(255,255,255,0.08);cursor:pointer;position:relative;overflow:hidden;">
-        <div id="bp-progress-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#d4a017,#e8b82a);border-radius:3px;transition:width 100ms linear;"></div>
+           style="height:4px;border-radius:2px;background:rgba(255,255,255,0.12);cursor:pointer;overflow:hidden;">
+        <div id="bp-progress-fill" style="height:100%;width:0%;background:#d4a017;border-radius:2px;transition:width 100ms linear;"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:12px;color:rgba(255,255,255,0.35);">
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;font-family:monospace;color:rgba(255,255,255,0.4);">
         <span id="bp-time-current">0:00</span>
         <span id="bp-time-duration">0:00</span>
       </div>
-    </div>
-
-    <!-- Controls -->
-    <div style="display:flex;align-items:center;justify-content:center;gap:20px;">
-      <button onclick="BandPlayer.prev()" title="Previous"
-              style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:18px;padding:8px;">
-        <i class="fa-solid fa-backward-step"></i>
-      </button>
-      <button onclick="BandPlayer.togglePlay()" title="Play/Pause"
-              style="width:52px;height:52px;border-radius:50%;border:none;
-                     background:linear-gradient(135deg,#d4a017,#b8860b);color:#0d1117;
-                     cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;
-                     box-shadow:0 2px 12px rgba(212,160,23,0.3);">
-        <i id="bp-play-icon" class="fa-solid fa-play"></i>
-      </button>
-      <button onclick="BandPlayer.next()" title="Next"
-              style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:18px;padding:8px;">
-        <i class="fa-solid fa-forward-step"></i>
-      </button>
-      <div style="display:flex;align-items:center;gap:6px;margin-left:12px;">
-        <i class="fa-solid fa-volume-high" style="font-size:13px;color:rgba(255,255,255,0.35);"></i>
-        <input type="range" min="0" max="100" value="80"
-               oninput="BandPlayer.setVolume(this.value/100)"
-               style="width:70px;accent-color:#d4a017;">
-        <span id="bp-volume-val" style="font-size:12px;color:rgba(255,255,255,0.35);min-width:30px;">80%</span>
-      </div>
-    </div>
-
-    <!-- Now-playing song actions -->
-    <div id="bp-now-actions" style="display:flex;justify-content:center;gap:10px;margin-top:14px;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;">
     </div>
   </div>
 
@@ -120,22 +135,22 @@
   .bp-track {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 14px 18px;
+    gap: 12px;
+    padding: 12px 16px;
     cursor: pointer;
     transition: background 120ms ease;
     border-bottom: 1px solid rgba(255,255,255,0.04);
+    min-height: 56px;
   }
   .bp-track:last-child { border-bottom: none; }
-  .bp-track:hover { background: rgba(255,255,255,0.04); }
-  .bp-track-active { background: rgba(212,160,23,0.06); }
-  .bp-track-active:hover { background: rgba(212,160,23,0.10); }
+  .bp-track:hover { background: rgba(255,255,255,0.06); }
+  .bp-track-active { background: rgba(212,160,23,0.08) !important; }
   .bp-track-num {
-    width: 28px;
+    width: 24px;
     text-align: center;
     font-size: 14px;
     font-weight: 600;
-    color: rgba(255,255,255,0.35);
+    color: rgba(255,255,255,0.4);
     flex-shrink: 0;
   }
   .bp-track-active .bp-track-num { color: #d4a017; }
@@ -151,29 +166,37 @@
   .bp-track-active .bp-track-title { color: #d4a017; }
   .bp-track-artist {
     font-size: 13px;
-    color: rgba(255,255,255,0.4);
+    color: rgba(255,255,255,0.45);
     margin-top: 2px;
+  }
+  .bp-track-duration {
+    font-size: 13px;
+    font-family: monospace;
+    color: rgba(255,255,255,0.4);
+    flex-shrink: 0;
+    min-width: 36px;
+    text-align: right;
   }
   .bp-track-actions {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     flex-shrink: 0;
   }
   .bp-action-btn {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.08);
     background: rgba(255,255,255,0.03);
     color: rgba(255,255,255,0.5);
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background 120ms, color 120ms;
   }
-  .bp-action-btn:hover {
+  .bp-action-btn:hover, .bp-action-btn:active {
     background: rgba(212,160,23,0.12);
     color: #d4a017;
   }
@@ -183,19 +206,20 @@
     align-items: flex-end;
     gap: 2px;
     height: 16px;
+    width: 24px;
     justify-content: center;
   }
   .bp-eq span {
     width: 3px;
     background: #d4a017;
     border-radius: 1px;
-    animation: bp-eq-bar 0.8s ease infinite;
   }
-  .bp-eq span:nth-child(1) { height: 6px; animation-delay: 0s; }
-  .bp-eq span:nth-child(2) { height: 12px; animation-delay: 0.2s; }
-  .bp-eq span:nth-child(3) { height: 8px; animation-delay: 0.4s; }
+  .bp-eq span:nth-child(1) { height: 60%; animation: bp-eq-bar 0.6s ease infinite 0s; }
+  .bp-eq span:nth-child(2) { height: 100%; animation: bp-eq-bar 0.6s ease infinite 0.15s; }
+  .bp-eq span:nth-child(3) { height: 40%; animation: bp-eq-bar 0.6s ease infinite 0.3s; }
+  .bp-eq span:nth-child(4) { height: 80%; animation: bp-eq-bar 0.6s ease infinite 0.1s; }
   @keyframes bp-eq-bar {
-    0%, 100% { transform: scaleY(0.4); }
+    0%, 100% { transform: scaleY(0.3); }
     50% { transform: scaleY(1); }
   }
   /* Edit mode styles */
@@ -213,34 +237,28 @@
     justify-content: center;
     transition: background 120ms, color 120ms;
   }
-  .bp-edit-btn:hover {
-    background: rgba(88,166,255,0.12);
-    color: #58a6ff;
-  }
-  .bp-edit-btn:active {
-    background: rgba(88,166,255,0.2);
-  }
-  .bp-edit-btn-danger:hover {
-    background: rgba(248,81,73,0.12);
-    color: #f85149;
-  }
-  .bp-track-edit-actions {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-  }
+  .bp-edit-btn:hover { background: rgba(88,166,255,0.12); color: #58a6ff; }
+  .bp-edit-btn:active { background: rgba(88,166,255,0.2); }
+  .bp-edit-btn-danger:hover { background: rgba(248,81,73,0.12); color: #f85149; }
+  .bp-track-edit-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .bp-edit-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    background: rgba(88,166,255,0.08);
-    border: 1px solid rgba(88,166,255,0.2);
-    border-radius: 10px;
-    margin-bottom: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #58a6ff;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: rgba(88,166,255,0.08);
+    border: 1px solid rgba(88,166,255,0.2); border-radius: 10px;
+    margin-bottom: 12px; font-size: 13px; font-weight: 600; color: #58a6ff;
+  }
+  /* Active state for shuffle/repeat buttons */
+  .bp-ctrl-active { color: #d4a017 !important; }
+  .bp-ctrl-active::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #d4a017;
   }
 </style>
 
@@ -259,13 +277,10 @@
   }
   updateManagerButtons();
 
-  // Listen for role switches — reload the page to reflect new role
+  // Listen for role switches
   document.addEventListener('gbe:role-switched', function() {
     updateManagerButtons();
-    // Re-render tracklist to show/hide edit controls
-    if (BandPlayer.initialized) {
-      BandPlayer.renderTrackList();
-    }
+    if (BandPlayer.initialized) BandPlayer.renderTrackList();
   });
 
   // Update now-playing actions when song changes
@@ -277,18 +292,12 @@
 
     var html = '';
     if (song.lyrics) {
-      html += '<button onclick="BandPlayer.showLyrics(\'' + song.id + '\')" ' +
-        'style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);' +
-        'background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.7);cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">' +
-        '<i class="fa-solid fa-align-left"></i> Lyrics</button>';
+      html += '<button class="bp-action-btn" onclick="event.stopPropagation();BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>';
     }
     if (song.charts && Object.keys(song.charts).length > 0) {
-      html += '<button onclick="BandPlayer.showChart(\'' + song.id + '\')" ' +
-        'style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);' +
-        'background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.7);cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">' +
-        '<i class="fa-solid fa-file-pdf"></i> Chart</button>';
+      html += '<button class="bp-action-btn" onclick="event.stopPropagation();BandPlayer.showChart(\'' + song.id + '\')" title="Chart"><i class="fa-solid fa-file-pdf"></i></button>';
     }
-    el.innerHTML = html || '<span style="font-size:12px;color:rgba(255,255,255,0.25);">No lyrics or charts for this track</span>';
+    el.innerHTML = html;
   }
 
   // Monkey-patch updateNowPlaying to also update actions
