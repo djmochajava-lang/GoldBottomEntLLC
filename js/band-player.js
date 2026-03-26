@@ -332,72 +332,132 @@ const BandPlayer = {
 
   // ── Lyrics & Charts ──────────────────────────────────
 
+  // Template lyrics for new songs
+  _templateLyrics: '[Verse 1]\nPlaceholder lyrics line one\nPlaceholder lyrics line two\nPlaceholder lyrics line three\nPlaceholder lyrics line four\n\n[Chorus]\nPlaceholder chorus line one\nPlaceholder chorus line two\nPlaceholder chorus line three\n\n[Verse 2]\nPlaceholder lyrics line five\nPlaceholder lyrics line six\nPlaceholder lyrics line seven\nPlaceholder lyrics line eight\n\n[Chorus]\nPlaceholder chorus line one\nPlaceholder chorus line two\nPlaceholder chorus line three\n\n[Bridge]\nPlaceholder bridge line one\nPlaceholder bridge line two\n\n[Outro]\nPlaceholder outro line',
+
   showLyrics: function(songId) {
     var song = this._allSongsMap[songId];
     if (!song) return;
-    if (!song.lyrics) {
-      if (typeof Toast !== 'undefined') Toast.info('No lyrics available for this song');
-      return;
-    }
-    if (typeof Modal !== 'undefined') {
-      Modal.open({
-        title: song.title + ' — Lyrics',
-        size: 'md',
-        content: '<pre style="white-space:pre-wrap;font-family:inherit;font-size:15px;line-height:1.8;color:#e6edf3;max-height:60vh;overflow-y:auto;padding:8px 0;">' +
-          BandPlayer._escHtml(song.lyrics) + '</pre>',
-        saveText: 'Close',
-        onSave: function() { Modal.close(); }
-      });
-    }
+    var lyrics = song.lyrics || this._templateLyrics;
+    var self = this;
+
+    // Build lyrics paper lines from text
+    var lines = lyrics.split('\n');
+    var bodyHtml = lines.map(function(line) {
+      var trimmed = line.trim();
+      if (!trimmed) return '<p class="bp-lyric-line bp-verse-gap">&nbsp;</p>';
+      if (/^\[.*\]$/.test(trimmed)) {
+        return '<p class="bp-lyric-line bp-section-label">' + self._escHtml(trimmed.replace(/[\[\]]/g, '')) + '</p>';
+      }
+      if (/chorus/i.test(lyrics.substring(0, lyrics.indexOf(line)).split('\n').pop())) {
+        return '<p class="bp-lyric-line bp-chorus">' + self._escHtml(trimmed) + '</p>';
+      }
+      return '<p class="bp-lyric-line">' + self._escHtml(trimmed) + '</p>';
+    }).join('');
+
+    // Create overlay (LA Young paper style)
+    var overlay = document.createElement('div');
+    overlay.id = 'bp-lyrics-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(2,2,5,0.96);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);display:flex;align-items:center;justify-content:center;padding:40px 20px;overflow-y:auto;';
+    overlay.innerHTML =
+      '<div style="position:relative;width:100%;max-width:720px;background:#f9f6f0;padding:50px 55px 60px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.4);margin:auto 0;">' +
+        '<button onclick="document.getElementById(\'bp-lyrics-overlay\').remove()" style="position:absolute;top:16px;right:20px;width:40px;height:40px;border:1px solid rgba(0,0,0,0.1);background:#f9f6f0;color:#2a2a2a;font-size:1.8rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>' +
+        '<div style="text-align:center;margin-bottom:30px;">' +
+          '<img src="images/logo/gbe-logo.svg" style="width:60px;height:60px;margin-bottom:12px;opacity:0.15;" onerror="this.style.display=\'none\'">' +
+          '<h2 style="font-family:\'Times New Roman\',Georgia,serif;font-size:22px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#2a2a2a;margin-bottom:8px;">' + this._escHtml(song.title) + '</h2>' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:13px;font-style:italic;color:#888;letter-spacing:1px;">Written by ' + this._escHtml(song.artist || 'L.A. Young') + '</p>' +
+          '<div style="width:80px;height:1px;background:#ccc;margin:20px auto;"></div>' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:10px;color:#bbb;letter-spacing:1px;text-transform:uppercase;">Gold Bottom Ent. LLC</p>' +
+        '</div>' +
+        '<div style="text-align:center;">' + bodyHtml + '</div>' +
+      '</div>';
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   },
 
   showChart: function(songId) {
     var song = this._allSongsMap[songId];
-    if (!song || !song.charts) {
-      if (typeof Toast !== 'undefined') Toast.info('No charts available for this song');
-      return;
+    if (!song) return;
+    var self = this;
+
+    // If song has uploaded chart files, check for instrument-specific
+    if (song.charts && Object.keys(song.charts).length > 0) {
+      var instrument = (typeof Auth !== 'undefined' && Auth.getInstrument) ? Auth.getInstrument() : null;
+      var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+      var isManager = (role === 'admin' || role === 'band_manager');
+      var charts = song.charts;
+      var chartKeys = Object.keys(charts);
+
+      if (instrument && charts[instrument] && !isManager) {
+        this._openChartFile(charts[instrument], song.title + ' — ' + instrument.charAt(0).toUpperCase() + instrument.slice(1));
+        return;
+      }
+      if (chartKeys.length > 0 && !isManager) {
+        this._openChartFile(charts[chartKeys[0]], song.title + ' — ' + chartKeys[0]);
+        return;
+      }
     }
 
-    var instrument = (typeof Auth !== 'undefined' && Auth.getInstrument) ? Auth.getInstrument() : null;
-    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
-    var isManager = (role === 'admin' || role === 'band_manager');
+    // Show template chart (paper style matching lyrics)
+    this._showTemplateChart(song);
+  },
 
-    // If manager or no specific instrument, show picker
-    var charts = song.charts;
-    var chartKeys = Object.keys(charts);
-    if (chartKeys.length === 0) {
-      if (typeof Toast !== 'undefined') Toast.info('No charts uploaded for this song');
-      return;
-    }
-
-    // If user has a specific instrument and chart exists for it, open directly
-    if (instrument && charts[instrument] && !isManager) {
-      this._openChartFile(charts[instrument], song.title + ' — ' + instrument.charAt(0).toUpperCase() + instrument.slice(1) + ' Chart');
-      return;
-    }
-
-    // Show picker for managers or when instrument chart not available
-    var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
-    chartKeys.forEach(function(key) {
-      html += '<button onclick="BandPlayer._openChartFile(\'' + BandPlayer._escHtml(charts[key]) + '\', \'' +
-        BandPlayer._escHtml(song.title + ' — ' + key) + '\')" ' +
-        'style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:10px;' +
-        'border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);' +
-        'color:#e6edf3;cursor:pointer;font-size:15px;font-weight:600;font-family:inherit;text-align:left;">' +
-        '<i class="fa-solid fa-file-pdf" style="color:#f0883e;font-size:18px;"></i>' +
-        key.charAt(0).toUpperCase() + key.slice(1) + ' Chart</button>';
-    });
-    html += '</div>';
-
-    if (typeof Modal !== 'undefined') {
-      Modal.open({
-        title: song.title + ' — Charts',
-        size: 'sm',
-        content: html,
-        saveText: 'Close',
-        onSave: function() { Modal.close(); }
+  _showTemplateChart: function(song) {
+    var self = this;
+    // SVG music staff with notes (placeholder chart)
+    var staffSvg = '';
+    for (var s = 0; s < 4; s++) {
+      var yOff = s * 80;
+      // 5 staff lines
+      staffSvg += '<g transform="translate(0,' + yOff + ')">';
+      for (var l = 0; l < 5; l++) {
+        staffSvg += '<line x1="0" y1="' + (l * 10) + '" x2="580" y2="' + (l * 10) + '" stroke="#999" stroke-width="0.7"/>';
+      }
+      // Treble clef
+      staffSvg += '<text x="4" y="32" font-size="42" font-family="serif" fill="#2a2a2a">&#119070;</text>';
+      // Time signature
+      staffSvg += '<text x="40" y="18" font-size="20" font-family="serif" font-weight="bold" fill="#2a2a2a">4</text>';
+      staffSvg += '<text x="40" y="36" font-size="20" font-family="serif" font-weight="bold" fill="#2a2a2a">4</text>';
+      // Notes (quarter + eighth notes placed on staff)
+      var notePositions = [
+        {x:80,y:30},{x:130,y:20},{x:180,y:25},{x:230,y:10},
+        {x:290,y:35},{x:340,y:15},{x:390,y:20},{x:440,y:30},
+        {x:500,y:25},{x:540,y:10}
+      ];
+      notePositions.forEach(function(n) {
+        // Note head (filled oval)
+        staffSvg += '<ellipse cx="' + n.x + '" cy="' + n.y + '" rx="6" ry="4.5" fill="#2a2a2a" transform="rotate(-15,' + n.x + ',' + n.y + ')"/>';
+        // Stem
+        staffSvg += '<line x1="' + (n.x + 5) + '" y1="' + n.y + '" x2="' + (n.x + 5) + '" y2="' + (n.y - 28) + '" stroke="#2a2a2a" stroke-width="1.2"/>';
       });
+      // Bar lines
+      staffSvg += '<line x1="270" y1="0" x2="270" y2="40" stroke="#2a2a2a" stroke-width="1"/>';
+      staffSvg += '<line x1="480" y1="0" x2="480" y2="40" stroke="#2a2a2a" stroke-width="1"/>';
+      staffSvg += '<line x1="580" y1="0" x2="580" y2="40" stroke="#2a2a2a" stroke-width="1.5"/>';
+      staffSvg += '</g>';
     }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'bp-chart-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(2,2,5,0.96);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);display:flex;align-items:center;justify-content:center;padding:40px 20px;overflow-y:auto;';
+    overlay.innerHTML =
+      '<div style="position:relative;width:100%;max-width:720px;background:#f9f6f0;padding:50px 40px 60px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.4);margin:auto 0;">' +
+        '<button onclick="document.getElementById(\'bp-chart-overlay\').remove()" style="position:absolute;top:16px;right:20px;width:40px;height:40px;border:1px solid rgba(0,0,0,0.1);background:#f9f6f0;color:#2a2a2a;font-size:1.8rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>' +
+        '<div style="text-align:center;margin-bottom:30px;">' +
+          '<h2 style="font-family:\'Times New Roman\',Georgia,serif;font-size:22px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#2a2a2a;margin-bottom:8px;">' + this._escHtml(song.title) + '</h2>' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:14px;font-style:italic;color:#888;">Keys / Guitar Chart</p>' +
+          '<div style="width:80px;height:1px;background:#ccc;margin:16px auto;"></div>' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:10px;color:#bbb;letter-spacing:1px;text-transform:uppercase;">Gold Bottom Ent. LLC &mdash; Confidential</p>' +
+        '</div>' +
+        '<div style="overflow-x:auto;padding:10px 0;">' +
+          '<svg viewBox="0 0 590 320" style="width:100%;max-width:590px;margin:0 auto;display:block;">' + staffSvg + '</svg>' +
+        '</div>' +
+        '<div style="margin-top:24px;padding-top:16px;border-top:1px solid #ddd;text-align:center;">' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:11px;color:#aaa;font-style:italic;">Tempo: &#9833; = 120 BPM &nbsp;&bull;&nbsp; Key: C Major &nbsp;&bull;&nbsp; Time: 4/4</p>' +
+        '</div>' +
+      '</div>';
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
   },
 
   _openChartFile: function(storagePath, title) {
@@ -959,8 +1019,8 @@ const BandPlayer = {
         '</div>' +
         (duration ? '<span class="bp-track-duration">' + duration + '</span>' : '') +
         '<div class="bp-track-actions" onclick="event.stopPropagation()">' +
-          (hasLyrics ? '<button class="bp-action-btn" onclick="BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>' : '') +
-          (hasCharts ? '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="Chart"><i class="fa-solid fa-file-pdf"></i></button>' : '') +
+          '<button class="bp-action-btn" onclick="BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>' +
+          '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="Chart"><i class="fa-solid fa-music"></i></button>' +
           (cached
             ? '<button class="bp-action-btn" onclick="BandPlayer.removeOffline(\'' + song.id + '\')" title="Remove offline" style="color:#3fb950;border-color:rgba(63,185,80,0.2);"><i class="fa-solid fa-cloud-arrow-down"></i></button>'
             : '<button class="bp-action-btn" onclick="BandPlayer.saveOffline(\'' + song.id + '\')" title="Save offline"><i class="fa-regular fa-cloud-arrow-down"></i></button>') +
