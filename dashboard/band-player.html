@@ -44,16 +44,6 @@
     </div>
   </div>
 
-  <!-- ── Playlist Selector ──────────── -->
-  <div style="padding:0 24px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-    <select id="bp-playlist-select" onchange="BandPlayer.selectPlaylist(this.value)"
-            style="flex:1;min-width:160px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);
-                   background:rgba(255,255,255,0.04);color:#e6edf3;font-size:14px;font-weight:600;
-                   font-family:inherit;cursor:pointer;appearance:auto;">
-      <option value="">Loading playlists...</option>
-    </select>
-  </div>
-
   <!-- ── Action Bar (sticky controls) ─────────────────── -->
   <div id="bp-action-bar" style="position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:center;
        gap:16px;padding:12px 24px;background:rgba(0,0,0,0.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
@@ -90,6 +80,16 @@
              oninput="BandPlayer.setVolume(this.value/100)"
              style="width:55px;accent-color:#d4a017;cursor:pointer;">
     </div>
+  </div>
+
+  <!-- ── Playlist Selector ──────────── -->
+  <div style="padding:8px 24px 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <select id="bp-playlist-select" onchange="BandPlayer.selectPlaylist(this.value)"
+            style="flex:1;min-width:160px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);
+                   background:rgba(255,255,255,0.04);color:#e6edf3;font-size:14px;font-weight:600;
+                   font-family:inherit;cursor:pointer;appearance:auto;">
+      <option value="">Loading playlists...</option>
+    </select>
   </div>
 
   <!-- ── Track List ───────────────────────────────────── -->
