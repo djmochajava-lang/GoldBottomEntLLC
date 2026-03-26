@@ -26,6 +26,12 @@
 
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
 
+  /* ---- Role-based CRUD permissions ---- */
+  var _isAdmin = (typeof Auth !== 'undefined') && Auth.isAdmin && Auth.isAdmin();
+  var _isBandMgr = (typeof Auth !== 'undefined') && Auth.isBandManager && Auth.isBandManager();
+  var canManageAll = _isAdmin;                   // admin can CRUD any category
+  var canManageBand = _isBandMgr || _isAdmin;    // band_manager can CRUD band members
+
   /* ---- Inject Soul Society band members if missing (migration) ---- */
   (function migrateBandMembers(){
     var roster = DataStore.getRoster();
@@ -42,6 +48,15 @@
       console.log('🎸 Roster: injected Soul Society band members');
     }
   })();
+
+  /* ---- Band manager: hide Creatives & Developers filters ---- */
+  if(_isBandMgr && !_isAdmin){
+    var hideFilters=['creative','developer'];
+    hideFilters.forEach(function(f){
+      var btn=filterBar=document.querySelector('#roster-filters .filter-btn[data-filter="'+f+'"]');
+      if(btn) btn.style.display='none';
+    });
+  }
 
   var currentFilter='all';
 
@@ -66,6 +81,11 @@
     if(!c)return;
     var data=DataStore.getRoster();
 
+    /* Band manager only sees artists and band members */
+    if(_isBandMgr && !_isAdmin){
+      data=data.filter(function(t){return t.category==='artist'||t.category==='band_member';});
+    }
+
     /* Apply filter */
     if(currentFilter!=='all'){
       data=data.filter(function(t){return t.category===currentFilter;});
@@ -80,7 +100,7 @@
     var headers=['Name','Category','Genre / Skill','Status','Contract End'];
     if(isLocal) headers.push('Commission');
     headers.push('Contact');
-    if(isLocal) headers.push('Actions');
+    if(canManageAll || canManageBand) headers.push('Actions');
 
     var html='<div style="overflow-x:auto;"><table class="data-table" style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:2px solid var(--color-border);">';
     headers.forEach(function(h){
@@ -102,10 +122,10 @@
         '<td data-label="Contract End" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+contractEnd+'</td>'+
         (isLocal?'<td data-label="Commission" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">'+(t.commission?Utils.escapeHtml(t.commission)+'%':'\u2014')+'</td>':'')+
         '<td data-label="Contact" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+contact+'</td>'+
-        (isLocal?'<td data-label="Actions" style="padding:var(--space-sm);"><div class="data-table-actions" style="display:flex;gap:var(--space-xs);">'+
+        ((canManageAll || (canManageBand && t.category==='band_member'))?'<td data-label="Actions" style="padding:var(--space-sm);"><div class="data-table-actions" style="display:flex;gap:var(--space-xs);">'+
           '<button class="btn btn-ghost btn-sm" onclick="editTalent(\''+t.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-text-secondary);background:none;border:none;cursor:pointer;" title="Edit"><i class="fa-solid fa-pen"></i></button>'+
           '<button class="btn btn-ghost btn-sm text-danger" onclick="deleteTalent(\''+t.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-danger);background:none;border:none;cursor:pointer;" title="Delete"><i class="fa-solid fa-trash"></i></button>'+
-        '</div></td>':'')+
+        '</div></td>':((canManageAll || canManageBand)?'<td></td>':''))+
       '</tr>';
     });
     html+='</tbody></table></div>';
@@ -149,10 +169,11 @@
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">'+
         '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Name *</label><input type="text" class="form-input" name="name" required placeholder="Full name" value="'+esc(d.name||'')+'" style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);" /></div>'+
         '<div class="form-group"><label class="form-label" style="display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Category *</label><select class="form-select" name="category" required style="width:100%;padding:var(--space-sm);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);font-size:var(--text-sm);">'+
-          '<option value="artist"'+(d.category==='artist'?' selected':'')+'>Artist</option>'+
-          '<option value="creative"'+(d.category==='creative'?' selected':'')+'>Creative</option>'+
-          '<option value="developer"'+(d.category==='developer'?' selected':'')+'>Developer</option>'+
+          (canManageAll?'<option value="artist"'+(d.category==='artist'?' selected':'')+'>Artist</option>'+
           '<option value="band_member"'+(d.category==='band_member'?' selected':'')+'>Band Member</option>'+
+          '<option value="creative"'+(d.category==='creative'?' selected':'')+'>Creative</option>'+
+          '<option value="developer"'+(d.category==='developer'?' selected':'')+'>Developer</option>'
+          :'<option value="band_member" selected>Band Member</option>')+
         '</select></div>'+
       '</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-top:var(--space-md);">'+
@@ -207,8 +228,8 @@
     return d;
   }
 
-  /* ---- Hide Add Talent button when not local ---- */
-  if(!isLocal){
+  /* ---- Hide Add Talent button if no CRUD permission ---- */
+  if(!canManageAll && !canManageBand){
     var addTalentBtn=document.getElementById('add-talent-btn');
     if(addTalentBtn) addTalentBtn.style.display='none';
   }
