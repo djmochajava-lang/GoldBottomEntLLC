@@ -97,6 +97,13 @@ const BandPlayer = {
     var self = this;
     var pl = this._playlists.find(function(p) { return p.id === playlistId; });
     if (!pl) return;
+
+    // Stop playback when switching playlists
+    if (this._audio) {
+      this._audio.pause();
+      this._audio.currentTime = 0;
+    }
+    this._isPlaying = false;
     this._currentPlaylist = pl;
     this._currentIndex = -1;
     this._songs = [];
@@ -126,8 +133,13 @@ const BandPlayer = {
           self._allSongsMap[doc.id] = data;
         });
       });
-      // Maintain playlist order
-      self._songs = songOrder.map(function(id) { return songMap[id]; }).filter(Boolean);
+      // Maintain playlist order (dedup in case of duplicate IDs)
+      var seen = {};
+      self._songs = songOrder.map(function(id) { return songMap[id]; }).filter(function(s) {
+        if (!s || seen[s.id]) return false;
+        seen[s.id] = true;
+        return true;
+      });
       self.renderTrackList();
     })
     .catch(function(e) {
@@ -139,7 +151,7 @@ const BandPlayer = {
     if (sel) sel.value = playlistId;
   },
 
-  // ── Playback ──────────────────────────────────────────
+  // ── Playback (matches LA Young pattern) ──────────────
 
   play: function(index) {
     if (index < 0 || index >= this._songs.length) return;
@@ -147,27 +159,35 @@ const BandPlayer = {
     if (!song || !song.audioPath) return;
 
     var self = this;
+
+    // Stop completely before loading new track
+    this._audio.pause();
+    this._audio.currentTime = 0;
+    this._isPlaying = false;
     this._currentIndex = index;
+    this.updateNowPlaying();
+    this.renderTrackList();
 
     // Try cache first, then fall back to network
     this._getCachedAudioUrl(song.id).then(function(cachedUrl) {
       if (cachedUrl) {
-        console.log('[BandPlayer] Playing from offline cache: ' + song.title);
-        self._playUrl(cachedUrl);
-      } else {
-        // Get download URL from Firebase Storage
-        var ref = self._storage.refFromURL ? self._storage.refFromURL(song.audioPath) : self._storage.ref(song.audioPath);
+        console.log('[BandPlayer] Playing from cache: ' + song.title);
+        self._loadAndPlay(cachedUrl);
+      } else if (self._storage) {
+        var ref = self._storage.ref(song.audioPath);
         ref.getDownloadURL().then(function(url) {
-          self._playUrl(url);
+          self._loadAndPlay(url);
         }).catch(function(e) {
           console.error('[BandPlayer] Failed to get audio URL:', e);
           if (typeof Toast !== 'undefined') Toast.error('Could not load audio file');
         });
+      } else {
+        if (typeof Toast !== 'undefined') Toast.error('Storage not available');
       }
     });
   },
 
-  _playUrl: function(url) {
+  _loadAndPlay: function(url) {
     var self = this;
     this._audio.src = url;
     this._audio.load();
@@ -185,15 +205,11 @@ const BandPlayer = {
           self.updateNowPlaying();
           self.renderTrackList();
         }).catch(function(e) {
-          console.warn('[BandPlayer] Retry play failed:', e.name);
+          console.warn('[BandPlayer] Retry failed:', e.name);
           if (typeof Toast !== 'undefined') Toast.error('Tap play to start audio');
         });
       });
     });
-
-    // Update UI immediately to show intent (track highlight)
-    this.updateNowPlaying();
-    this.renderTrackList();
   },
 
   togglePlay: function() {
@@ -201,32 +217,41 @@ const BandPlayer = {
       this.play(0);
       return;
     }
+    var self = this;
     if (this._isPlaying) {
       this._audio.pause();
       this._isPlaying = false;
+      this.updateNowPlaying();
+      this.renderTrackList();
     } else {
-      this._audio.play();
-      this._isPlaying = true;
+      this._audio.play().then(function() {
+        self._isPlaying = true;
+        self.updateNowPlaying();
+        self.renderTrackList();
+      }).catch(function(err) {
+        console.warn('[BandPlayer] Resume blocked:', err.name);
+      });
     }
-    this.updateNowPlaying();
-    this.renderTrackList();
   },
 
   next: function() {
     if (this._songs.length === 0) return;
-    var nextIdx = (this._currentIndex + 1) % this._songs.length;
-    this.play(nextIdx);
+    if (this._currentIndex < this._songs.length - 1) {
+      this.play(this._currentIndex + 1);
+    } else if (this._repeatMode === 'all') {
+      this.play(0);
+    }
   },
 
   prev: function() {
     if (this._songs.length === 0) return;
-    // If more than 3 seconds in, restart current; else go prev
     if (this._audio.currentTime > 3) {
       this._audio.currentTime = 0;
       return;
     }
-    var prevIdx = (this._currentIndex - 1 + this._songs.length) % this._songs.length;
-    this.play(prevIdx);
+    if (this._currentIndex > 0) {
+      this.play(this._currentIndex - 1);
+    }
   },
 
   seek: function(pct) {
