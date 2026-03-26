@@ -170,13 +170,28 @@ const BandPlayer = {
   _playUrl: function(url) {
     var self = this;
     this._audio.src = url;
-    this._audio.play().catch(function() {
+    this._audio.load();
+
+    this._audio.play().then(function() {
+      self._isPlaying = true;
+      self.updateNowPlaying();
+      self.renderTrackList();
+    }).catch(function(err) {
+      console.warn('[BandPlayer] Play blocked:', err.name, '— waiting for canplay');
       self._audio.addEventListener('canplay', function retry() {
-        self._audio.play();
         self._audio.removeEventListener('canplay', retry);
+        self._audio.play().then(function() {
+          self._isPlaying = true;
+          self.updateNowPlaying();
+          self.renderTrackList();
+        }).catch(function(e) {
+          console.warn('[BandPlayer] Retry play failed:', e.name);
+          if (typeof Toast !== 'undefined') Toast.error('Tap play to start audio');
+        });
       });
     });
-    this._isPlaying = true;
+
+    // Update UI immediately to show intent (track highlight)
     this.updateNowPlaying();
     this.renderTrackList();
   },
