@@ -1078,14 +1078,29 @@ const BandPlayer = {
       return;
     }
     el.innerHTML = this._playlists.map(function(pl) {
-      return '<option value="' + pl.id + '">' + BandPlayer._escHtml(BandPlayer._titleCase(pl.name)) +
-        (pl.description ? ' — ' + BandPlayer._escHtml(BandPlayer._titleCase(pl.description)) : '') + '</option>';
+      return '<option value="' + pl.id + '">' + BandPlayer._escHtml(BandPlayer._titleCase(pl.name)) + '</option>';
     }).join('');
   },
 
   renderTrackList: function() {
     var el = document.getElementById('bp-tracklist');
     if (!el) return;
+
+    // Update playlist header
+    var plHeader = document.getElementById('bp-playlist-header');
+    var plNameEl = document.getElementById('bp-playlist-header-name');
+    var plDescEl = document.getElementById('bp-playlist-header-desc');
+    if (plHeader && this._currentPlaylist) {
+      plHeader.style.display = '';
+      if (plNameEl) plNameEl.textContent = this._titleCase(this._currentPlaylist.name || '');
+      if (plDescEl) {
+        var desc = this._currentPlaylist.description || '';
+        plDescEl.textContent = desc;
+        plDescEl.style.display = desc ? '' : 'none';
+      }
+    } else if (plHeader) {
+      plHeader.style.display = 'none';
+    }
 
     if (this._songs.length === 0) {
       el.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(255,255,255,0.35);font-size:15px;">' +
