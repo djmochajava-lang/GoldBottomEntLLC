@@ -295,16 +295,20 @@ const BandPlayer = {
   _setupAudioEvents: function() {
     var self = this;
     this._audio.addEventListener('timeupdate', function() {
-      var prog = document.getElementById('bp-progress-fill');
-      var timeEl = document.getElementById('bp-time-current');
+      var prog = document.getElementById('bp-prog-fill');
+      var timeEl = document.getElementById('bp-prog-current');
       if (prog && self._audio.duration) {
         prog.style.width = (self._audio.currentTime / self._audio.duration * 100) + '%';
       }
       if (timeEl) timeEl.textContent = self._formatTime(self._audio.currentTime);
     });
     this._audio.addEventListener('loadedmetadata', function() {
-      var durEl = document.getElementById('bp-time-duration');
+      var durEl = document.getElementById('bp-prog-total');
       if (durEl) durEl.textContent = self._formatTime(self._audio.duration);
+      // Save duration to song data
+      if (self._songs[self._currentIndex]) {
+        self._songs[self._currentIndex].duration = self._audio.duration;
+      }
     });
     this._audio.addEventListener('ended', function() {
       if (self._repeatMode === 'one') {
@@ -428,17 +432,13 @@ const BandPlayer = {
       this._isPlaying = false;
       this.updateNowPlaying();
     }
-    // Update toggle button
     var btn = document.getElementById('bp-edit-toggle');
     if (btn) {
       btn.style.background = 'rgba(88,166,255,0.15)';
       btn.style.color = '#58a6ff';
       btn.style.borderColor = 'rgba(88,166,255,0.3)';
-      btn.innerHTML = '<i class="fa-solid fa-check" style="margin-right:4px;"></i> Done';
+      btn.innerHTML = '<i class="fa-solid fa-check"></i>';
     }
-    // Hide now-playing bar in edit mode
-    var nowPlaying = document.getElementById('bp-now-playing');
-    if (nowPlaying) nowPlaying.style.display = 'none';
     this.renderTrackList();
   },
 
@@ -448,10 +448,10 @@ const BandPlayer = {
     // Update toggle button
     var btn = document.getElementById('bp-edit-toggle');
     if (btn) {
-      btn.style.background = 'rgba(255,255,255,0.06)';
-      btn.style.color = 'rgba(255,255,255,0.7)';
-      btn.style.borderColor = 'rgba(255,255,255,0.12)';
-      btn.innerHTML = '<i class="fa-solid fa-pen" style="margin-right:4px;"></i> Edit';
+      btn.style.background = 'rgba(255,255,255,0.04)';
+      btn.style.color = 'rgba(255,255,255,0.5)';
+      btn.style.borderColor = 'rgba(255,255,255,0.1)';
+      btn.innerHTML = '<i class="fa-solid fa-pen"></i>';
     }
     // Save order to Firestore if changed
     if (this._editDirty && this._currentPlaylist) {
@@ -936,15 +936,16 @@ const BandPlayer = {
       return;
     }
 
-    // Listen mode — normal playback view
-    el.innerHTML = this._songs.map(function(song, i) {
+    // Listen mode — track list with inline progress under active track
+    var html = '';
+    this._songs.forEach(function(song, i) {
       var isActive = (i === self._currentIndex);
       var hasLyrics = !!(song.lyrics);
       var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
       var cached = self.isCached(song.id);
       var duration = song.duration ? self._formatTime(song.duration) : '';
 
-      return '<div class="bp-track' + (isActive ? ' bp-track-active' : '') + '" onclick="BandPlayer.play(' + i + ')">' +
+      html += '<div class="bp-track' + (isActive ? ' bp-track-active' : '') + '" onclick="BandPlayer.play(' + i + ')">' +
         '<div class="bp-track-num">' +
           (isActive && self._isPlaying
             ? '<div class="bp-eq"><span></span><span></span><span></span><span></span></div>'
@@ -965,24 +966,24 @@ const BandPlayer = {
             : '<button class="bp-action-btn" onclick="BandPlayer.saveOffline(\'' + song.id + '\')" title="Save offline"><i class="fa-regular fa-cloud-arrow-down"></i></button>') +
         '</div>' +
       '</div>';
-    }).join('');
+
+      // Inline progress bar after active track (like LA Young)
+      if (isActive) {
+        html += '<div class="bp-progress-row">' +
+          '<span id="bp-prog-current" style="min-width:32px;">0:00</span>' +
+          '<div class="bp-prog-bar" onclick="event.stopPropagation();BandPlayer.seek(event.offsetX/this.offsetWidth)">' +
+            '<div class="bp-prog-fill" id="bp-prog-fill"></div>' +
+          '</div>' +
+          '<span id="bp-prog-total" style="min-width:32px;text-align:right;">' + (duration || '0:00') + '</span>' +
+        '</div>';
+      }
+    });
+
+    el.innerHTML = html;
   },
 
   updateNowPlaying: function() {
-    var song = this._songs[this._currentIndex];
-    var titleEl = document.getElementById('bp-now-title');
-    var artistEl = document.getElementById('bp-now-artist');
     var playBtn = document.getElementById('bp-play-icon');
-    var nowSection = document.getElementById('bp-now-playing');
-
-    if (!song) {
-      if (nowSection) nowSection.style.display = 'none';
-      return;
-    }
-
-    if (nowSection) nowSection.style.display = '';
-    if (titleEl) titleEl.textContent = song.title;
-    if (artistEl) artistEl.textContent = song.artist || 'Unknown';
     if (playBtn) playBtn.className = 'fa-solid ' + (this._isPlaying ? 'fa-pause' : 'fa-play');
   },
 

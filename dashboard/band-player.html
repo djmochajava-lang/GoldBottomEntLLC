@@ -1,129 +1,93 @@
 <!-- ============================================================
      dashboard/band-player.html — Soul Society Music Player
+     Spotify-style artist page layout matching LA Young player.
      Firebase-backed: Firestore metadata, Storage audio/charts.
-     Roles: admin, band_manager, artist, band_member
      ============================================================ -->
 
-<div class="dashboard-page" id="dash-band-player">
+<div class="dashboard-page" id="dash-band-player" style="padding:0;max-width:900px;margin:0 auto;">
 
-  <!-- ── Page Header ──────────────────────────────────── -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-    <div>
-      <h1 style="font-size:22px;font-weight:700;color:#e6edf3;margin:0;">
-        <i class="fa-solid fa-headphones" style="color:#d4a017;margin-right:8px;"></i>Soul Society – Music Player
-      </h1>
-      <p style="font-size:14px;color:rgba(255,255,255,0.45);margin:4px 0 0;">Rehearsal tracks, lyrics &amp; charts</p>
+  <!-- ── Hero Header (like Spotify artist page) ───────── -->
+  <div id="bp-hero" style="padding:40px 24px 20px;background:linear-gradient(180deg,rgba(212,160,23,0.15) 0%,rgba(0,0,0,0) 100%);">
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.5);margin-bottom:6px;">
+      <i class="fa-solid fa-headphones" style="margin-right:4px;"></i> Playlist
     </div>
-    <div id="bp-mgr-actions" style="display:none;gap:8px;flex-wrap:wrap;">
-      <button onclick="BandPlayer.showCreatePlaylist()" class="btn btn-sm"
-              style="background:rgba(88,166,255,0.12);color:#58a6ff;border:1px solid rgba(88,166,255,0.2);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
-        <i class="fa-solid fa-plus" style="margin-right:4px;"></i> New Playlist
-      </button>
-      <button onclick="BandPlayer.showUploadSong()" class="btn btn-sm"
-              style="background:rgba(212,160,23,0.12);color:#d4a017;border:1px solid rgba(212,160,23,0.2);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
-        <i class="fa-solid fa-upload" style="margin-right:4px;"></i> Upload Song
-      </button>
-      <button onclick="BandPlayer.showAddFromInventory()" class="btn btn-sm"
-              style="background:rgba(63,185,80,0.12);color:#3fb950;border:1px solid rgba(63,185,80,0.2);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
-        <i class="fa-solid fa-plus" style="margin-right:4px;"></i> Add to Playlist
-      </button>
-      <button onclick="BandPlayer.showInventory()" class="btn btn-sm"
-              style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
-        <i class="fa-solid fa-box-archive" style="margin-right:4px;"></i> Inventory
-      </button>
-      <button id="bp-edit-toggle" onclick="BandPlayer.toggleEditMode()" class="btn btn-sm"
-              style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;">
-        <i class="fa-solid fa-pen" style="margin-right:4px;"></i> Edit
-      </button>
-    </div>
+    <h1 id="bp-hero-title" style="font-size:2rem;font-weight:900;color:#e6edf3;margin:0;line-height:1.1;">Soul Society</h1>
+    <p style="font-size:14px;color:rgba(255,255,255,0.45);margin:6px 0 0;">Music Player</p>
   </div>
 
-  <!-- ── Playlist Selector ────────────────────────────── -->
-  <div style="margin-bottom:12px;">
+  <!-- ── Playlist Selector + Manager Actions ──────────── -->
+  <div style="padding:0 24px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <select id="bp-playlist-select" onchange="BandPlayer.selectPlaylist(this.value)"
-            style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);
-                   background:rgba(255,255,255,0.04);color:#e6edf3;font-size:15px;font-weight:600;
+            style="flex:1;min-width:160px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);
+                   background:rgba(255,255,255,0.04);color:#e6edf3;font-size:14px;font-weight:600;
                    font-family:inherit;cursor:pointer;appearance:auto;">
       <option value="">Loading playlists...</option>
     </select>
+    <div id="bp-mgr-actions" style="display:none;gap:6px;flex-wrap:wrap;">
+      <button onclick="BandPlayer.showCreatePlaylist()" title="New Playlist"
+              style="width:36px;height:36px;border-radius:8px;border:1px solid rgba(88,166,255,0.2);background:rgba(88,166,255,0.1);color:#58a6ff;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+      <button onclick="BandPlayer.showUploadSong()" title="Upload Song"
+              style="width:36px;height:36px;border-radius:8px;border:1px solid rgba(212,160,23,0.2);background:rgba(212,160,23,0.1);color:#d4a017;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa-solid fa-upload"></i>
+      </button>
+      <button onclick="BandPlayer.showAddFromInventory()" title="Add from Inventory"
+              style="width:36px;height:36px;border-radius:8px;border:1px solid rgba(63,185,80,0.2);background:rgba(63,185,80,0.1);color:#3fb950;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa-solid fa-folder-plus"></i>
+      </button>
+      <button onclick="BandPlayer.showInventory()" title="Song Inventory"
+              style="width:36px;height:36px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa-solid fa-box-archive"></i>
+      </button>
+      <button id="bp-edit-toggle" onclick="BandPlayer.toggleEditMode()" title="Edit Playlist"
+              style="width:36px;height:36px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa-solid fa-pen"></i>
+      </button>
+    </div>
   </div>
 
-  <!-- ── Sticky Action Bar (LA Young style) ─────────── -->
+  <!-- ── Action Bar (sticky controls) ─────────────────── -->
   <div id="bp-action-bar" style="position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:center;
-       gap:16px;padding:14px 20px;margin-bottom:12px;border-radius:12px;
-       background:rgba(0,0,0,0.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-       border:1px solid rgba(212,160,23,0.08);">
+       gap:16px;padding:12px 24px;background:rgba(0,0,0,0.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+       border-top:1px solid rgba(255,255,255,0.04);border-bottom:1px solid rgba(212,160,23,0.08);">
 
-    <!-- Previous -->
     <button onclick="BandPlayer.prev()" title="Previous"
-            style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:20px;padding:8px;">
+            style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:20px;padding:8px;">
       <i class="fa-solid fa-backward-step"></i>
     </button>
 
-    <!-- Main Play/Pause -->
-    <button onclick="BandPlayer.togglePlay()" title="Play/Pause"
-            style="width:52px;height:52px;border-radius:50%;border:none;
+    <button onclick="BandPlayer.togglePlay()" title="Play/Pause" id="bp-play-btn"
+            style="width:48px;height:48px;border-radius:50%;border:none;
                    background:linear-gradient(135deg,#d4a017,#b8860b);color:#0d1117;
-                   cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;
-                   box-shadow:0 4px 16px rgba(212,160,23,0.3);transition:transform 80ms,box-shadow 200ms;"
-            onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'"
-            ontouchstart="this.style.transform='scale(0.95)'" ontouchend="this.style.transform='scale(1)'">
+                   cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;
+                   box-shadow:0 4px 16px rgba(212,160,23,0.3);">
       <i id="bp-play-icon" class="fa-solid fa-play"></i>
     </button>
 
-    <!-- Next -->
     <button onclick="BandPlayer.next()" title="Next"
-            style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:20px;padding:8px;">
+            style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:20px;padding:8px;">
       <i class="fa-solid fa-forward-step"></i>
     </button>
 
-    <!-- Repeat -->
     <button id="bp-repeat-btn" onclick="BandPlayer.toggleRepeat()" title="Repeat"
-            style="background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;font-size:16px;padding:8px;position:relative;">
+            style="background:none;border:none;color:rgba(255,255,255,0.35);cursor:pointer;font-size:15px;padding:8px;position:relative;">
       <i class="fa-solid fa-repeat"></i>
-      <span id="bp-repeat-badge" style="display:none;position:absolute;top:4px;right:2px;font-size:8px;font-weight:700;color:#d4a017;">1</span>
+      <span id="bp-repeat-badge" style="display:none;position:absolute;top:3px;right:1px;font-size:8px;font-weight:700;color:#d4a017;">1</span>
     </button>
 
-    <!-- Volume (right side) -->
-    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+    <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
       <i id="bp-vol-icon" class="fa-solid fa-volume-high" onclick="BandPlayer.toggleMute()"
-         style="font-size:14px;color:rgba(255,255,255,0.45);cursor:pointer;"></i>
+         style="font-size:13px;color:rgba(255,255,255,0.35);cursor:pointer;"></i>
       <input type="range" min="0" max="100" value="80" id="bp-vol-slider"
              oninput="BandPlayer.setVolume(this.value/100)"
-             style="width:60px;accent-color:#d4a017;cursor:pointer;">
-    </div>
-  </div>
-
-  <!-- ── Now Playing Info (compact) ─────────────────── -->
-  <div id="bp-now-playing" style="display:none;padding:10px 16px;margin-bottom:12px;border-radius:10px;
-       background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.12);">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="width:40px;height:40px;border-radius:8px;background:rgba(212,160,23,0.15);
-                  display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <i class="fa-solid fa-music" style="color:#d4a017;font-size:16px;"></i>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div id="bp-now-title" style="font-size:15px;font-weight:700;color:#d4a017;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-        <div id="bp-now-artist" style="font-size:13px;color:rgba(255,255,255,0.45);margin-top:1px;"></div>
-      </div>
-      <div id="bp-now-actions" style="display:flex;gap:6px;flex-shrink:0;"></div>
-    </div>
-    <!-- Progress under now-playing -->
-    <div style="margin-top:10px;">
-      <div id="bp-progress-bar" onclick="BandPlayer.seek(event.offsetX / this.offsetWidth)"
-           style="height:4px;border-radius:2px;background:rgba(255,255,255,0.12);cursor:pointer;overflow:hidden;">
-        <div id="bp-progress-fill" style="height:100%;width:0%;background:#d4a017;border-radius:2px;transition:width 100ms linear;"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;font-family:monospace;color:rgba(255,255,255,0.4);">
-        <span id="bp-time-current">0:00</span>
-        <span id="bp-time-duration">0:00</span>
-      </div>
+             style="width:55px;accent-color:#d4a017;cursor:pointer;">
     </div>
   </div>
 
   <!-- ── Track List ───────────────────────────────────── -->
-  <div id="bp-tracklist" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;overflow:hidden;">
-    <div style="padding:30px;text-align:center;color:rgba(255,255,255,0.3);">
+  <div id="bp-tracklist" style="padding:8px 0;">
+    <div style="padding:40px 24px;text-align:center;color:rgba(255,255,255,0.3);">
       <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;"></i>
     </div>
   </div>
@@ -132,133 +96,82 @@
 
 <!-- ── Inline Styles ──────────────────────────────────── -->
 <style>
+  /* Track rows */
   .bp-track {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    cursor: pointer;
-    transition: background 120ms ease;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    min-height: 56px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 24px; cursor: pointer;
+    transition: background 120ms; border-radius: 0;
   }
-  .bp-track:last-child { border-bottom: none; }
-  .bp-track:hover { background: rgba(255,255,255,0.06); }
-  .bp-track-active { background: rgba(212,160,23,0.08) !important; }
+  .bp-track:hover { background: rgba(255,255,255,0.05); }
+  .bp-track-active { background: rgba(212,160,23,0.06) !important; }
   .bp-track-num {
-    width: 24px;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.4);
-    flex-shrink: 0;
+    width: 22px; text-align: center; font-size: 14px; font-weight: 600;
+    color: rgba(255,255,255,0.4); flex-shrink: 0;
   }
   .bp-track-active .bp-track-num { color: #d4a017; }
   .bp-track-info { flex: 1; min-width: 0; }
   .bp-track-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #e6edf3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 15px; font-weight: 500; color: #e6edf3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .bp-track-active .bp-track-title { color: #d4a017; }
-  .bp-track-artist {
-    font-size: 13px;
-    color: rgba(255,255,255,0.45);
-    margin-top: 2px;
-  }
+  .bp-track-artist { font-size: 13px; color: rgba(255,255,255,0.45); margin-top: 1px; }
   .bp-track-duration {
-    font-size: 13px;
-    font-family: monospace;
-    color: rgba(255,255,255,0.4);
-    flex-shrink: 0;
-    min-width: 36px;
-    text-align: right;
+    font-size: 13px; font-family: monospace; color: rgba(255,255,255,0.35);
+    flex-shrink: 0; min-width: 36px; text-align: right;
   }
-  .bp-track-actions {
-    display: flex;
-    gap: 5px;
-    flex-shrink: 0;
-  }
+  .bp-track-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .bp-action-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.03);
-    color: rgba(255,255,255,0.5);
-    cursor: pointer;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 32px; height: 32px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06); background: transparent;
+    color: rgba(255,255,255,0.4); cursor: pointer; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
     transition: background 120ms, color 120ms;
   }
-  .bp-action-btn:hover, .bp-action-btn:active {
-    background: rgba(212,160,23,0.12);
-    color: #d4a017;
-  }
-  /* EQ bars animation for active track */
+  .bp-action-btn:hover, .bp-action-btn:active { background: rgba(212,160,23,0.1); color: #d4a017; }
+
+  /* EQ bars — 4 bars like LA Young */
   .bp-eq {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 16px;
-    width: 24px;
-    justify-content: center;
+    display: flex; align-items: flex-end; gap: 2px;
+    height: 16px; width: 22px; justify-content: center;
   }
-  .bp-eq span {
-    width: 3px;
-    background: #d4a017;
-    border-radius: 1px;
+  .bp-eq span { width: 3px; background: #d4a017; border-radius: 1px; }
+  .bp-eq span:nth-child(1) { height: 60%; animation: bp-eq 0.6s ease infinite 0s; }
+  .bp-eq span:nth-child(2) { height: 100%; animation: bp-eq 0.6s ease infinite 0.15s; }
+  .bp-eq span:nth-child(3) { height: 40%; animation: bp-eq 0.6s ease infinite 0.3s; }
+  .bp-eq span:nth-child(4) { height: 80%; animation: bp-eq 0.6s ease infinite 0.1s; }
+  @keyframes bp-eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+
+  /* Inline progress bar (inserted after active track) */
+  .bp-progress-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 24px 12px; font-size: 11px; font-family: monospace;
+    color: rgba(255,255,255,0.4);
   }
-  .bp-eq span:nth-child(1) { height: 60%; animation: bp-eq-bar 0.6s ease infinite 0s; }
-  .bp-eq span:nth-child(2) { height: 100%; animation: bp-eq-bar 0.6s ease infinite 0.15s; }
-  .bp-eq span:nth-child(3) { height: 40%; animation: bp-eq-bar 0.6s ease infinite 0.3s; }
-  .bp-eq span:nth-child(4) { height: 80%; animation: bp-eq-bar 0.6s ease infinite 0.1s; }
-  @keyframes bp-eq-bar {
-    0%, 100% { transform: scaleY(0.3); }
-    50% { transform: scaleY(1); }
+  .bp-progress-row .bp-prog-bar {
+    flex: 1; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.1); cursor: pointer; overflow: hidden;
   }
-  /* Edit mode styles */
+  .bp-progress-row .bp-prog-fill {
+    height: 100%; width: 0%; background: #d4a017; border-radius: 2px;
+    transition: width 100ms linear;
+  }
+
+  /* Edit mode */
   .bp-edit-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.03);
-    color: rgba(255,255,255,0.5);
-    cursor: pointer;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 120ms, color 120ms;
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
   }
   .bp-edit-btn:hover { background: rgba(88,166,255,0.12); color: #58a6ff; }
-  .bp-edit-btn:active { background: rgba(88,166,255,0.2); }
   .bp-edit-btn-danger:hover { background: rgba(248,81,73,0.12); color: #f85149; }
   .bp-track-edit-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .bp-edit-banner {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px; background: rgba(88,166,255,0.08);
-    border: 1px solid rgba(88,166,255,0.2); border-radius: 10px;
-    margin-bottom: 12px; font-size: 13px; font-weight: 600; color: #58a6ff;
-  }
-  /* Active state for shuffle/repeat buttons */
-  .bp-ctrl-active { color: #d4a017 !important; }
-  .bp-ctrl-active::after {
-    content: '';
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: #d4a017;
+    padding: 10px 24px; background: rgba(88,166,255,0.06);
+    border-bottom: 1px solid rgba(88,166,255,0.15);
+    font-size: 13px; font-weight: 600; color: #58a6ff;
   }
 </style>
 
@@ -267,7 +180,6 @@
 (function() {
   'use strict';
 
-  // Show/hide manager actions based on current role
   function updateManagerButtons() {
     var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
     var mgrActions = document.getElementById('bp-mgr-actions');
@@ -277,41 +189,15 @@
   }
   updateManagerButtons();
 
-  // Listen for role switches
   document.addEventListener('gbe:role-switched', function() {
     updateManagerButtons();
     if (BandPlayer.initialized) BandPlayer.renderTrackList();
   });
 
-  // Update now-playing actions when song changes
-  function updateNowActions() {
-    var el = document.getElementById('bp-now-actions');
-    if (!el || !BandPlayer._songs || BandPlayer._currentIndex < 0) return;
-    var song = BandPlayer._songs[BandPlayer._currentIndex];
-    if (!song) return;
-
-    var html = '';
-    if (song.lyrics) {
-      html += '<button class="bp-action-btn" onclick="event.stopPropagation();BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>';
-    }
-    if (song.charts && Object.keys(song.charts).length > 0) {
-      html += '<button class="bp-action-btn" onclick="event.stopPropagation();BandPlayer.showChart(\'' + song.id + '\')" title="Chart"><i class="fa-solid fa-file-pdf"></i></button>';
-    }
-    el.innerHTML = html;
-  }
-
-  // Monkey-patch updateNowPlaying to also update actions
-  var origUpdate = BandPlayer.updateNowPlaying.bind(BandPlayer);
-  BandPlayer.updateNowPlaying = function() {
-    origUpdate();
-    updateNowActions();
-  };
-
-  // Init the player — wait for Auth/Firestore if not ready yet
+  // Init — wait for Auth/Firestore
   function tryInit(attempts) {
     if (typeof BandPlayer === 'undefined') return;
     var hasDb = (typeof Auth !== 'undefined') && Auth._db;
-
     if (hasDb) {
       BandPlayer.init();
       updateManagerButtons();
@@ -319,11 +205,9 @@
       setTimeout(function() { tryInit(attempts + 1); }, 500);
     } else {
       var el = document.getElementById('bp-tracklist');
-      if (el) el.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(248,81,73,0.8);font-size:14px;">' +
+      if (el) el.innerHTML = '<div style="padding:40px 24px;text-align:center;color:rgba(248,81,73,0.7);font-size:14px;">' +
         '<i class="fa-solid fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:10px;"></i>' +
-        'Could not connect to database. Try refreshing the page.</div>';
-      var sel = document.getElementById('bp-playlist-select');
-      if (sel) sel.innerHTML = '<option value="">Connection failed</option>';
+        'Could not connect. Try refreshing.</div>';
     }
   }
   tryInit(0);
