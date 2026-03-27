@@ -8,32 +8,24 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     // ── Band Media: Audio Files ──────────────────
-    // MP3 rehearsal tracks — read for band team, upload for admin/band_manager
     match /band-media/audio/{allPaths=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
-           in ['admin', 'band_manager']
-        && request.resource.size < 50 * 1024 * 1024;  // 50MB max per audio file
+        && request.resource.size < 50 * 1024 * 1024;
     }
 
     // ── Band Media: Instrument Charts ────────────
-    // PDF/image charts per instrument per song
     match /band-media/charts/{allPaths=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
-           in ['admin', 'band_manager']
-        && request.resource.size < 10 * 1024 * 1024;  // 10MB max per chart
+        && request.resource.size < 10 * 1024 * 1024;
     }
 
     // ── Band Media: Playlist Artwork ─────────────
     match /band-media/artwork/{allPaths=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
-           in ['admin', 'band_manager']
-        && request.resource.size < 5 * 1024 * 1024;   // 5MB max per image
+        && request.resource.size < 5 * 1024 * 1024;
     }
 
     // ── Default: Deny Everything Else ────────────
