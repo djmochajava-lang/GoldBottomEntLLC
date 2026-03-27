@@ -19,6 +19,7 @@ const BandPlayer = {
   _repeatMode: 'off', // off, all, one
   _editMode: false,
   _editDirty: false,
+  _stemStatuses: {}, // songId → { status, projectId, stems }
   _cacheName: 'bp-offline-audio',
   _cacheMaxSongs: 20,
   _cacheIndex: null, // { songId: { savedAt, title } }
@@ -380,26 +381,74 @@ const BandPlayer = {
     if (!song) return;
     var self = this;
 
-    // If song has uploaded chart files, check for instrument-specific
-    if (song.charts && Object.keys(song.charts).length > 0) {
-      var instrument = (typeof Auth !== 'undefined' && Auth.getInstrument) ? Auth.getInstrument() : null;
-      var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    // Always re-fetch from Firestore so we get the latest charts field
+    // (song may have been cached before charts were generated)
+    var fetchAndShow = function(latestSong) {
+      var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'band_member';
       var isManager = (role === 'admin' || role === 'band_manager');
-      var charts = song.charts;
-      var chartKeys = Object.keys(charts);
+      var instrument = (typeof Auth !== 'undefined' && Auth.getInstrument) ? Auth.getInstrument() : null;
+      var charts = (latestSong.charts && Object.keys(latestSong.charts).length > 0) ? latestSong.charts : null;
 
-      if (instrument && charts[instrument] && !isManager) {
-        this._openChartFile(charts[instrument], song.title + ' — ' + instrument.charAt(0).toUpperCase() + instrument.slice(1));
+      if (charts) {
+        var chartKeys = Object.keys(charts);
+
+        if (isManager) {
+          // Managers see a picker for all instrument charts
+          self._showChartPicker(latestSong, charts);
+          return;
+        }
+        // Members: open their specific instrument chart, or first available
+        var targetKey = (instrument && charts[instrument]) ? instrument : chartKeys[0];
+        self._openChartFile(charts[targetKey], latestSong.title + ' — ' + targetKey.charAt(0).toUpperCase() + targetKey.slice(1));
         return;
       }
-      if (chartKeys.length > 0 && !isManager) {
-        this._openChartFile(charts[chartKeys[0]], song.title + ' — ' + chartKeys[0]);
-        return;
-      }
+
+      // No charts yet — show placeholder
+      self._showTemplateChart(latestSong);
+    };
+
+    // Re-fetch song from Firestore to get latest charts
+    if (this._db) {
+      this._db.collection('songs').doc(songId).get().then(function(doc) {
+        var latestSong = doc.exists ? Object.assign({ id: songId }, doc.data()) : song;
+        // Update local cache
+        self._allSongsMap[songId] = latestSong;
+        fetchAndShow(latestSong);
+      }).catch(function() {
+        // Fall back to cached song on error
+        fetchAndShow(song);
+      });
+    } else {
+      fetchAndShow(song);
     }
+  },
 
-    // Show template chart (paper style matching lyrics)
-    this._showTemplateChart(song);
+  _showChartPicker: function(song, charts) {
+    var self = this;
+    var LABELS = { drums: 'Drums', bass: 'Bass', other: 'Keys / Guitar', vocals: 'Vocals' };
+    var ICONS  = { drums: 'fa-drum', bass: 'fa-guitar-electric', other: 'fa-piano-keyboard', vocals: 'fa-microphone' };
+
+    var html = '<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
+    Object.keys(charts).forEach(function(key) {
+      var label = LABELS[key] || (key.charAt(0).toUpperCase() + key.slice(1));
+      var icon  = ICONS[key] || 'fa-music';
+      html += '<button onclick="BandPlayer._openChartFile(\'' + BandPlayer._escHtml(charts[key]) + '\',\'' + BandPlayer._escHtml(song.title + ' \u2014 ' + label) + '\');Modal.close();" ' +
+        'style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.85);font-size:15px;cursor:pointer;text-align:left;width:100%;transition:background 0.15s;" ' +
+        'onmouseover="this.style.background=\'rgba(255,255,255,0.08)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.04)\'">' +
+        '<i class="fa-solid ' + icon + '" style="width:20px;text-align:center;color:rgba(255,255,255,0.4);"></i>' +
+        label + '<span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,0.3);">PDF &rarr;</span></button>';
+    });
+    html += '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: '\u266A ' + this._escHtml(this._titleCase(song.title)),
+        size: 'sm',
+        content: html,
+        saveText: null,
+        cancelText: 'Close'
+      });
+    }
   },
 
   _showTemplateChart: function(song) {
@@ -463,7 +512,13 @@ const BandPlayer = {
   _openChartFile: function(storagePath, title) {
     var storage = (typeof Auth !== 'undefined' && Auth.getStorage) ? Auth.getStorage() : null;
     if (!storage) return;
-    var ref = storage.refFromURL ? storage.refFromURL(storagePath) : storage.ref(storagePath);
+    // storagePath may be a relative path like 'band-media/charts/...' or a full gs:// URL
+    var ref;
+    if (storagePath.startsWith('gs://') || storagePath.startsWith('https://')) {
+      ref = storage.refFromURL(storagePath);
+    } else {
+      ref = storage.ref(storagePath);
+    }
     ref.getDownloadURL().then(function(url) {
       window.open(url, '_blank');
       if (typeof Modal !== 'undefined') Modal.close();
@@ -560,6 +615,106 @@ const BandPlayer = {
         }
       });
     }
+  },
+
+  // ── Stem Separation (band_manager / admin only) ───────
+
+  /**
+   * Write a stem-request to Firestore. The home server picks it up within seconds.
+   * Works from anywhere — no direct LAN connection required.
+   */
+  requestStems: function(songId) {
+    var self = this;
+    if (!this._db) { if (typeof Toast !== 'undefined') Toast.error('Not connected'); return; }
+
+    var song = this._allSongsMap[songId];
+    if (!song) { if (typeof Toast !== 'undefined') Toast.error('Song not found'); return; }
+    if (!song.audioPath) { if (typeof Toast !== 'undefined') Toast.error('Song has no audio file yet'); return; }
+
+    var existing = this._stemStatuses[songId];
+    if (existing && existing.status === 'processing') {
+      if (typeof Toast !== 'undefined') Toast.info('Stem separation already in progress');
+      return;
+    }
+    if (existing && existing.status === 'complete') {
+      if (typeof Toast !== 'undefined') Toast.info('Stems already generated for this song');
+      return;
+    }
+
+    var uid = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'band_manager';
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'unknown';
+
+    this._db.collection('stem-requests').doc(songId).set({
+      status: 'pending',
+      songId: songId,
+      audioPath: song.audioPath,
+      title: song.title || '',
+      requestedBy: uid,
+      requestedByRole: role,
+      requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+      self._stemStatuses[songId] = { status: 'queued' };
+      self.renderTrackList();
+      if (typeof Toast !== 'undefined') Toast.success('Stem request sent — processing will begin shortly');
+      self._pollStemStatus(songId);
+    }).catch(function(e) {
+      console.error('[BandPlayer] Failed to write stem-request:', e);
+      if (typeof Toast !== 'undefined') Toast.error('Failed to send stem request');
+    });
+  },
+
+  /**
+   * Poll a stem-request doc every 10s until complete or error.
+   */
+  _pollStemStatus: function(songId) {
+    var self = this;
+    var maxAttempts = 60; // 10 minutes max
+    var attempts = 0;
+
+    var timer = setInterval(function() {
+      attempts++;
+      if (attempts > maxAttempts) { clearInterval(timer); return; }
+
+      self._db.collection('stem-requests').doc(songId).get().then(function(doc) {
+        if (!doc.exists) { clearInterval(timer); return; }
+        var data = doc.data();
+        self._stemStatuses[songId] = {
+          status: data.status,
+          projectId: data.projectId,
+          stems: data.stems,
+          progress: data.progress,
+          error: data.error
+        };
+        self.renderTrackList();
+
+        if (data.status === 'complete' || data.status === 'error') {
+          clearInterval(timer);
+          if (data.status === 'complete' && typeof Toast !== 'undefined') {
+            Toast.success('Stems ready for: ' + (data.title || songId));
+          }
+          if (data.status === 'error' && typeof Toast !== 'undefined') {
+            Toast.error('Stem separation failed: ' + (data.error || 'unknown error'));
+          }
+        }
+      }).catch(function() { /* ignore transient errors */ });
+    }, 10000);
+  },
+
+  /**
+   * Get a display label for stem status on a song.
+   */
+  _stemStatusLabel: function(songId) {
+    var s = this._stemStatuses[songId];
+    if (!s) return null;
+    var map = {
+      pending: { icon: 'fa-clock', color: 'rgba(255,255,255,0.4)', label: 'Queued' },
+      processing: { icon: 'fa-spinner fa-spin', color: '#58a6ff', label: 'Requesting...' },
+      queued: { icon: 'fa-hourglass-half', color: '#d4a017', label: 'In queue' },
+      separating: { icon: 'fa-waveform-lines fa-spin', color: '#58a6ff', label: 'Separating...' },
+      complete: { icon: 'fa-check-circle', color: '#3fb950', label: 'Stems ready' },
+      error: { icon: 'fa-circle-exclamation', color: '#f85149', label: 'Failed' }
+    };
+    return map[s.status] || null;
   },
 
   // ── Upload (band_manager / admin only) ────────────────
@@ -1125,6 +1280,14 @@ const BandPlayer = {
       editHtml += this._songs.map(function(song, i) {
         var isFirst = (i === 0);
         var isLast = (i === self._songs.length - 1);
+        var stemInfo = self._stemStatusLabel(song.id);
+        var stemBtn = song.audioPath
+          ? (stemInfo
+            ? '<button class="bp-edit-btn" onclick="BandPlayer.requestStems(\'' + song.id + '\')" title="Stems: ' + stemInfo.label + '" style="color:' + stemInfo.color + ';border-color:' + stemInfo.color.replace(')', ',0.25)').replace('rgb', 'rgba') + ';">' +
+                '<i class="fa-solid ' + stemInfo.icon + '"></i></button>'
+            : '<button class="bp-edit-btn" onclick="BandPlayer.requestStems(\'' + song.id + '\')" title="Separate stems">' +
+                '<i class="fa-solid fa-code-branch"></i></button>')
+          : '';
 
         return '<div class="bp-track" style="cursor:default;">' +
           '<div class="bp-track-num"><span>' + (i + 1) + '</span></div>' +
@@ -1134,6 +1297,7 @@ const BandPlayer = {
             '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
           '</div>' +
           '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
+            stemBtn +
             '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + i + ',-1)" title="Move up"' +
               (isFirst ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
               '<i class="fa-solid fa-chevron-up"></i></button>' +
