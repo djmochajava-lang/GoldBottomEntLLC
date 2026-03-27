@@ -90,6 +90,14 @@ const Router = {
    * Routes only available on the local (LAN) dashboard.
    * On remote (GitHub Pages), these routes are blocked and redirect to dashboard-home.
    */
+  /**
+   * Routes blocked on the local (private) dashboard — public-site only features.
+   * On local (port 3000/4000), these redirect to dashboard-home.
+   */
+  localBlockedRoutes: [
+    'dashboard-band-player', // Music Player lives on the public site only
+  ],
+
   localOnlyRoutes: [
     'dashboard-finances',
     'dashboard-documents',
@@ -244,6 +252,12 @@ const Router = {
         if (typeof Toast !== 'undefined') {
           Toast.error('This section is only available on the local dashboard.');
         }
+        this.navigateTo('dashboard-home');
+        return;
+      }
+
+      // Environment guard — block public-only routes on local (private) dashboard
+      if (this.localBlockedRoutes.includes(pageName) && Auth.isLocalDashboard()) {
         this.navigateTo('dashboard-home');
         return;
       }

@@ -194,6 +194,12 @@ const Auth = {
       // Initialize Firestore
       if (typeof firebase.firestore === 'function') {
         this._db = firebase.firestore();
+        // Enable offline persistence so Music Player works in airplane mode
+        this._db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+          if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+            console.warn('[Auth] Firestore offline persistence error:', err.code);
+          }
+        });
         console.log('[Auth] Firestore connected');
       } else {
         console.warn('[Auth] Firestore SDK not loaded — registration disabled');
@@ -368,6 +374,7 @@ const Auth = {
 
       if (typeof firebase.firestore === 'function') {
         this._db = firebase.firestore();
+        this._db.enablePersistence({ synchronizeTabs: true }).catch(function() {});
         console.log('[Auth] Firestore connected (PIN auth path)');
       }
       if (typeof firebase.storage === 'function') {
