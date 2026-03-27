@@ -1268,6 +1268,15 @@ const BandPlayer = {
       return;
     }
 
+    // Lazy re-acquire storage if it wasn't available at init time
+    if (!this._storage && typeof Auth !== 'undefined' && Auth.getStorage) {
+      this._storage = Auth.getStorage();
+    }
+    if (!this._storage) {
+      Toast.error('Storage not available — sign in and try again');
+      return;
+    }
+
     var self = this;
 
     // Evict oldest if at limit
@@ -1292,7 +1301,8 @@ const BandPlayer = {
     Toast.info('Saving "' + song.title + '" for offline...');
 
     // Get download URL then fetch the blob
-    var ref = this._storage.refFromURL ? this._storage.refFromURL(song.audioPath) : this._storage.ref(song.audioPath);
+    // audioPath is always a relative storage path — use ref(), not refFromURL()
+    var ref = this._storage.ref(song.audioPath);
     ref.getDownloadURL().then(function(url) {
       return fetch(url);
     }).then(function(response) {
