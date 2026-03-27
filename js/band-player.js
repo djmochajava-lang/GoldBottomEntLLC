@@ -445,7 +445,7 @@ const BandPlayer = {
         title: '\u266A ' + this._escHtml(this._titleCase(song.title)),
         size: 'sm',
         content: html,
-        saveText: null,
+        saveText: '',
         cancelText: 'Close'
       });
     }
@@ -1339,7 +1339,7 @@ const BandPlayer = {
         (duration ? '<span class="bp-track-duration">' + duration + '</span>' : '') +
         '<div class="bp-track-actions" onclick="event.stopPropagation()">' +
           '<button class="bp-action-btn" onclick="BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>' +
-          '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="Chart"><i class="fa-solid fa-music"></i></button>' +
+          '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="' + (hasCharts ? 'View Charts' : 'Chart') + '"' + (hasCharts ? ' style="color:#d4a017;border-color:rgba(212,160,23,0.25);"' : '') + '><i class="fa-solid fa-music"></i></button>' +
           (cached
             ? '<button class="bp-action-btn" onclick="BandPlayer.removeOffline(\'' + song.id + '\')" title="Remove offline" style="color:#3fb950;border-color:rgba(63,185,80,0.2);"><i class="fa-solid fa-cloud-arrow-down"></i></button>'
             : '<button class="bp-action-btn" onclick="BandPlayer.saveOffline(\'' + song.id + '\')" title="Save offline"><i class="fa-regular fa-cloud-arrow-down"></i></button>') +

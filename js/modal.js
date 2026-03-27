@@ -40,7 +40,7 @@ const Modal = {
     var title = options.title || '';
     var content = options.content || '';
     var size = options.size || 'md';
-    var saveText = options.saveText || 'Save';
+    var saveText = options.saveText !== undefined ? options.saveText : 'Save';
     var cancelText = options.cancelText || 'Cancel';
     var showFooter = options.showFooter !== undefined ? options.showFooter : true;
     var maxWidth = this.sizes[size] || this.sizes.md;
@@ -97,23 +97,25 @@ const Modal = {
         if (options.onCancel) options.onCancel();
       });
 
-      var saveBtn = document.createElement('button');
-      saveBtn.className = 'modal-btn modal-btn-save';
-      saveBtn.type = 'button';
-      saveBtn.textContent = saveText;
-      saveBtn.addEventListener('click', function() {
-        if (options.onSave) {
-          var result = options.onSave();
-          // If onSave returns a Promise, caller controls modal close
-          if (result && typeof result.then === 'function') {
-            return;
-          }
-        }
-        Modal.close();
-      });
-
       footer.appendChild(cancelBtn);
-      footer.appendChild(saveBtn);
+
+      if (saveText) {
+        var saveBtn = document.createElement('button');
+        saveBtn.className = 'modal-btn modal-btn-save';
+        saveBtn.type = 'button';
+        saveBtn.textContent = saveText;
+        saveBtn.addEventListener('click', function() {
+          if (options.onSave) {
+            var result = options.onSave();
+            // If onSave returns a Promise, caller controls modal close
+            if (result && typeof result.then === 'function') {
+              return;
+            }
+          }
+          Modal.close();
+        });
+        footer.appendChild(saveBtn);
+      }
     }
 
     // Assemble modal
