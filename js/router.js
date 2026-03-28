@@ -130,6 +130,7 @@ const Router = {
   currentPage: null,
   currentLayout: null,
   currentVertical: null,
+  currentQueryParams: null,
   defaultPage: 'home',
 
   initialized: false,
@@ -171,6 +172,27 @@ const Router = {
   },
 
   /**
+   * Parse a hash string into route name and query params.
+   * e.g. 'sign?id=abc123' → { route: 'sign', query: 'id=abc123' }
+   * e.g. 'dashboard-home' → { route: 'dashboard-home', query: '' }
+   */
+  _parseHash(hash) {
+    const qIndex = hash.indexOf('?');
+    if (qIndex === -1) {
+      return { route: hash, query: '' };
+    }
+    return { route: hash.substring(0, qIndex), query: hash.substring(qIndex + 1) };
+  },
+
+  /**
+   * Get current query parameters as a URLSearchParams object.
+   * Pages can call Router.getQueryParams().get('id') to read params.
+   */
+  getQueryParams() {
+    return new URLSearchParams(this.currentQueryParams || '');
+  },
+
+  /**
    * Setup click delegation for navigation links
    */
   setupNavigation() {
@@ -182,8 +204,10 @@ const Router = {
       if (!href || href === '#') return;
 
       e.preventDefault();
-      const pageName = href.substring(1);
-      this.navigateTo(pageName);
+      const raw = href.substring(1);
+      const { route, query } = this._parseHash(raw);
+      this.currentQueryParams = query;
+      this.navigateTo(route);
     });
   },
 
@@ -394,7 +418,10 @@ const Router = {
    * Handle initial page load from URL hash
    */
   handleInitialRoute() {
-    let hash = window.location.hash.substring(1);
+    const rawHash = window.location.hash.substring(1);
+    const { route, query } = this._parseHash(rawHash);
+    let hash = route;
+    this.currentQueryParams = query;
 
     // Apply legacy redirects to initial route too
     if (this.legacyRedirects[hash]) {
@@ -414,7 +441,10 @@ const Router = {
    */
   handleBrowserNavigation() {
     window.addEventListener('popstate', () => {
-      let hash = window.location.hash.substring(1);
+      const rawHash = window.location.hash.substring(1);
+      const { route, query } = this._parseHash(rawHash);
+      let hash = route;
+      this.currentQueryParams = query;
 
       // Apply legacy redirects
       if (this.legacyRedirects[hash]) {
@@ -430,7 +460,8 @@ const Router = {
    * Update URL hash without triggering popstate
    */
   updateURL(pageName) {
-    const url = `#${pageName}`;
+    const queryStr = this.currentQueryParams ? `?${this.currentQueryParams}` : '';
+    const url = `#${pageName}${queryStr}`;
     if (window.location.hash !== url) {
       window.history.pushState({ page: pageName }, '', url);
     }
