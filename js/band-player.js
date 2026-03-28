@@ -42,13 +42,19 @@ const BandPlayer = {
       this._audio.preload = 'metadata';
     }
 
-    // NDA gate — check before loading music (FRD-4 onboarding)
+    // NDA gate — only challenge once, then cache acceptance locally
     var self = this;
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
-    if (user && this._db) {
+    var ndaCacheKey = 'gbe-nda-accepted';
+
+    // Check local cache first — skip Firestore round-trip if already accepted
+    if (localStorage.getItem(ndaCacheKey) === 'true') {
+      this._initPlayer();
+    } else if (user && this._db) {
       this._db.collection('users').doc(user.uid).get().then(function(doc) {
         var data = doc.exists ? doc.data() : {};
         if (data.ndaAcceptedAt) {
+          localStorage.setItem(ndaCacheKey, 'true');
           self._initPlayer();
         } else {
           self._showNdaGate();
@@ -128,6 +134,7 @@ const BandPlayer = {
           self._db.collection('users').doc(user.uid).update({
             ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
           }).then(function() {
+            localStorage.setItem('gbe-nda-accepted', 'true');
             if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society');
             self._initPlayer();
           }).catch(function(err) {
