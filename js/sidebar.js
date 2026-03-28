@@ -25,6 +25,7 @@ const Sidebar = {
     this.setupMobileToggle();
     this.setupNavClicks();
     this.restoreState();
+    this.startInboxBadge();
 
     this.initialized = true;
     console.log('✅ Sidebar initialized');
@@ -157,6 +158,41 @@ const Sidebar = {
       const itemPage = item.getAttribute('data-page');
       item.classList.toggle('active', itemPage === pageName);
     });
+  },
+
+  // ── Inbox Unread Badge ──────────────────────────────
+
+  _inboxPollTimer: null,
+
+  startInboxBadge() {
+    // Only poll on LAN (where the server API is reachable)
+    if (typeof Auth !== 'undefined' && Auth.isLocalDashboard && !Auth.isLocalDashboard()) return;
+
+    this.refreshInboxBadge();
+    this._inboxPollTimer = setInterval(() => this.refreshInboxBadge(), 60000);
+  },
+
+  refreshInboxBadge() {
+    const badge = document.getElementById('inbox-unread-badge');
+    if (!badge) return;
+
+    const headers = {};
+    const token = localStorage.getItem('gbe-session-token');
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    fetch(window.location.origin + '/api/v1/inbox/stats', { headers })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) { badge.style.display = 'none'; return; }
+        const count = data.unread || 0;
+        if (count > 0) {
+          badge.textContent = count > 99 ? '99+' : count;
+          badge.style.display = 'block';
+        } else {
+          badge.style.display = 'none';
+        }
+      })
+      .catch(() => { badge.style.display = 'none'; });
   },
 };
 
