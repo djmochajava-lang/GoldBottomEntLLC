@@ -1443,3 +1443,326 @@
   font-size: var(--text-sm);
   padding: var(--space-xs) var(--space-sm);
 }
+
+/* ==========================================================================
+   Musician Portal
+   ========================================================================== */
+
+.musician-portal-header {
+  margin-bottom: var(--space-lg);
+}
+.musician-welcome h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-xs);
+}
+.musician-welcome p {
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+/* Stats Row */
+.musician-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+}
+.musician-stat-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-align: center;
+}
+.musician-stat-card .stat-value {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-gold);
+  margin-bottom: var(--space-xs);
+}
+.musician-stat-card .stat-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Sections */
+.musician-section {
+  margin-bottom: var(--space-xl);
+}
+.musician-section h2 {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  margin: 0 0 var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.musician-section h2 i {
+  color: var(--color-gold);
+}
+
+.musician-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Empty State */
+.musician-empty-state {
+  background: var(--color-bg-secondary);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.musician-empty-state i {
+  font-size: 2rem;
+  margin-bottom: var(--space-sm);
+  opacity: 0.4;
+}
+.musician-empty-state p {
+  margin: var(--space-xs) 0 0;
+}
+
+/* Gig Card */
+.gig-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  display: flex;
+  gap: var(--space-lg);
+  align-items: flex-start;
+  transition: border-color 0.2s;
+}
+.gig-card:hover {
+  border-color: var(--color-gold);
+}
+.gig-date-badge {
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  text-align: center;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+.gig-date-month {
+  display: block;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  color: var(--color-gold);
+  font-weight: var(--fw-semibold);
+}
+.gig-date-day {
+  display: block;
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  line-height: 1;
+}
+.gig-info {
+  flex: 1;
+  min-width: 0;
+}
+.gig-title {
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  margin: 0 0 var(--space-xs);
+}
+.gig-venue, .gig-time, .gig-notes {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: var(--space-xs) 0 0;
+}
+.gig-venue i, .gig-time i {
+  width: 16px;
+  color: var(--color-text-muted);
+}
+.gig-notes {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+.gig-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+/* Checkpoint Bar */
+.checkpoint-bar {
+  display: flex;
+  gap: 3px;
+  width: 90px;
+}
+.cp-segment {
+  height: 6px;
+  flex: 1;
+  border-radius: 3px;
+  background: var(--color-bg-tertiary);
+  transition: background 0.3s;
+}
+.cp-segment.cp-ready { background: var(--color-success); }
+.cp-setlist.cp-ready { background: #3fb950; }
+.cp-gear.cp-ready { background: #58a6ff; }
+.cp-travel.cp-ready { background: #d29922; }
+
+/* Buttons */
+.btn-checkpoint, .btn-practice, .btn-sign {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+.btn-checkpoint {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+.btn-checkpoint:hover { background: var(--color-success); color: #fff; }
+.btn-practice {
+  background: var(--color-gold);
+  color: #000;
+}
+.btn-practice:hover { filter: brightness(1.1); }
+.btn-sign {
+  background: #d29922;
+  color: #000;
+  font-weight: var(--fw-semibold);
+}
+.btn-sign:hover { filter: brightness(1.1); }
+
+/* Agreement Card */
+.agreement-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.agreement-card.status-pending { border-left: 3px solid #d29922; }
+.agreement-card.status-signed { border-left: 3px solid var(--color-success); }
+.agreement-info h3 {
+  font-size: var(--text-base);
+  margin: 0 0 var(--space-xs);
+}
+.agreement-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+}
+.agreement-status-badge.status-pending { background: rgba(210, 153, 34, 0.2); color: #d29922; }
+.agreement-status-badge.status-signed { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+
+/* Quick Actions */
+.musician-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+.musician-action-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  text-align: center;
+  text-decoration: none;
+  color: var(--color-text);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.musician-action-card:hover {
+  border-color: var(--color-gold);
+  transform: translateY(-2px);
+}
+.musician-action-card i {
+  font-size: 1.5rem;
+  color: var(--color-gold);
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+.musician-action-card span {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+}
+
+/* Checkpoint Form (in modal) */
+.checkpoint-form h3 { margin: 0 0 var(--space-md); }
+.checkpoint-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+.cp-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.cp-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-gold);
+}
+.cp-rating {
+  margin-bottom: var(--space-md);
+}
+.cp-rating label {
+  display: block;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-xs);
+}
+.cp-rating input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-gold);
+}
+#cp-rating-display {
+  font-weight: var(--fw-bold);
+  color: var(--color-gold);
+  margin-left: var(--space-xs);
+}
+.cp-notes label {
+  display: block;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-xs);
+}
+.cp-notes textarea {
+  width: 100%;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: var(--space-sm);
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .musician-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .musician-actions-grid { grid-template-columns: repeat(2, 1fr); }
+  .gig-card { flex-direction: column; }
+  .gig-actions { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  .musician-stats-row { grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+  .musician-stat-card { padding: var(--space-md); }
+  .musician-actions-grid { grid-template-columns: 1fr; }
+}

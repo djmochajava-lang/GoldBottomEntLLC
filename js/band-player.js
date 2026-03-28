@@ -23,6 +23,8 @@ const BandPlayer = {
   _cacheName: 'bp-offline-audio',
   _cacheMaxSongs: 20,
   _cacheIndex: null, // { songId: { savedAt, title } }
+  _completedTracks: {}, // trackId → true (practiced to >=80%)
+  _loggedThisSession: {}, // trackId → true (debounce: one log per track per session)
 
   init: function() {
     if (this.initialized) return;
@@ -195,6 +197,8 @@ const BandPlayer = {
     this._currentPlaylist = pl;
     this._currentIndex = -1;
     this._songs = [];
+    this._loggedThisSession = {};
+    this._completedTracks = {};
 
     var songOrder = pl.songOrder || [];
     if (songOrder.length === 0) {
@@ -229,6 +233,7 @@ const BandPlayer = {
         return true;
       });
       self.renderTrackList();
+      self._loadCompletedTracks(playlistId);
     })
     .catch(function(e) {
       console.error('[BandPlayer] Failed to load songs:', e);
@@ -398,7 +403,29 @@ const BandPlayer = {
         self._songs[self._currentIndex].duration = self._audio.duration;
       }
     });
+    // Track 80% completion threshold for practice logging
+    this._audio.addEventListener('timeupdate', function() {
+      if (self._audio.duration && self._currentIndex >= 0) {
+        var pct = self._audio.currentTime / self._audio.duration;
+        if (pct >= 0.80) {
+          var song = self._songs[self._currentIndex];
+          if (song && !self._loggedThisSession[song.id]) {
+            self._logPlaybackEvent(song.id, 'complete', pct);
+            self._loggedThisSession[song.id] = true;
+            self._completedTracks[song.id] = true;
+            self.renderTrackList(); // refresh checkmarks
+          }
+        }
+      }
+    });
     this._audio.addEventListener('ended', function() {
+      // Log completion if not already logged at 80%
+      var song = self._songs[self._currentIndex];
+      if (song && !self._loggedThisSession[song.id]) {
+        self._logPlaybackEvent(song.id, 'complete', 1.0);
+        self._loggedThisSession[song.id] = true;
+        self._completedTracks[song.id] = true;
+      }
       if (self._repeatMode === 'one') {
         self._audio.currentTime = 0;
         self._audio.play();
@@ -416,6 +443,58 @@ const BandPlayer = {
       }
     });
     this._audio.volume = this._volume;
+  },
+
+  /**
+   * Log a playback event to Firestore for practice tracking.
+   * Debounced: one complete event per track per session.
+   */
+  _logPlaybackEvent: function(trackId, eventType, progress) {
+    if (!this._db) return;
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    if (!user) return;
+
+    var data = {
+      userId: user.uid,
+      trackId: trackId,
+      playlistId: this._currentPlaylist ? this._currentPlaylist.id : null,
+      eventType: eventType,
+      progress: Math.round(progress * 100) / 100,
+      listenedSeconds: Math.round(this._audio.currentTime || 0),
+      duration: Math.round(this._audio.duration || 0),
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    this._db.collection('playback-events').add(data).catch(function(err) {
+      console.warn('[BandPlayer] Playback log failed:', err.message);
+    });
+  },
+
+  /**
+   * Load completed track IDs for the current user + playlist.
+   * Called on playlist load.
+   */
+  _loadCompletedTracks: function(playlistId) {
+    if (!this._db) return;
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    if (!user) return;
+    var self = this;
+
+    this._db.collection('playback-events')
+      .where('userId', '==', user.uid)
+      .where('playlistId', '==', playlistId)
+      .where('eventType', '==', 'complete')
+      .get()
+      .then(function(snapshot) {
+        self._completedTracks = {};
+        snapshot.forEach(function(doc) {
+          self._completedTracks[doc.data().trackId] = true;
+        });
+        self.renderTrackList();
+      })
+      .catch(function(err) {
+        console.warn('[BandPlayer] Completed tracks load failed:', err.message);
+      });
   },
 
   // ── Lyrics & Charts ──────────────────────────────────
@@ -1391,19 +1470,33 @@ const BandPlayer = {
     }
 
     // Listen mode — track list with inline progress under active track
+    // Completion summary
+    var completedCount = 0;
+    for (var c = 0; c < this._songs.length; c++) {
+      if (this._completedTracks[this._songs[c].id]) completedCount++;
+    }
     var html = '';
+    if (this._songs.length > 0 && completedCount > 0) {
+      html += '<div style="padding:8px 16px;font-size:12px;color:rgba(255,255,255,0.5);display:flex;justify-content:space-between;align-items:center;">'
+        + '<span><i class="fa-solid fa-check-circle" style="color:#3fb950;margin-right:4px;"></i>' + completedCount + ' of ' + this._songs.length + ' tracks practiced</span>'
+        + '<span style="color:#3fb950;font-weight:600;">' + Math.round(completedCount / this._songs.length * 100) + '%</span>'
+        + '</div>';
+    }
     this._songs.forEach(function(song, i) {
       var isActive = (i === self._currentIndex);
       var hasLyrics = !!(song.lyrics);
       var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
       var cached = self.isCached(song.id);
       var duration = song.duration ? self._formatTime(song.duration) : '';
+      var practiced = self._completedTracks[song.id];
 
       html += '<div class="bp-track' + (isActive ? ' bp-track-active' : '') + '" onclick="BandPlayer.play(' + i + ')">' +
         '<div class="bp-track-num">' +
           (isActive && self._isPlaying
             ? '<div class="bp-eq"><span></span><span></span><span></span><span></span></div>'
-            : '<span>' + (i + 1) + '</span>') +
+            : practiced
+              ? '<i class="fa-solid fa-check-circle" style="color:#3fb950;font-size:14px;" title="Practiced"></i>'
+              : '<span>' + (i + 1) + '</span>') +
         '</div>' +
         artThumb +
         '<div class="bp-track-info">' +

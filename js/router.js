@@ -75,6 +75,12 @@ const Router = {
 
     // Band Music Player (rehearsal tracks, charts, lyrics)
     'dashboard-band-player': 'dashboard/band-player.html',
+
+    // Musician Portal (band member landing page)
+    'dashboard-musician-home': 'dashboard/musician-home.html',
+
+    // Agreement Signing (public, token-based)
+    'sign': 'pages/sign.html',
   },
 
   /**
@@ -97,6 +103,7 @@ const Router = {
    */
   localBlockedRoutes: [
     'dashboard-band-player', // Music Player lives on the public site only
+    'dashboard-musician-home', // Musician Portal lives on the public site only
   ],
 
   localOnlyRoutes: [

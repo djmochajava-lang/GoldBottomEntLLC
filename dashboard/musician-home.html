@@ -1,0 +1,391 @@
+<!-- dashboard/musician-home.html — Musician Portal Landing Page -->
+<div class="dashboard-page musician-portal">
+
+  <!-- Header -->
+  <div class="musician-portal-header">
+    <div class="musician-welcome">
+      <h1 id="mp-welcome-title">Welcome back</h1>
+      <p id="mp-welcome-sub" class="text-muted">Your upcoming gigs, practice progress, and agreements</p>
+    </div>
+  </div>
+
+  <!-- Quick Stats Row -->
+  <div class="musician-stats-row" id="mp-stats-row">
+    <div class="musician-stat-card">
+      <div class="stat-value" id="mp-stat-gigs">--</div>
+      <div class="stat-label">Upcoming Gigs</div>
+    </div>
+    <div class="musician-stat-card">
+      <div class="stat-value" id="mp-stat-tracks">--</div>
+      <div class="stat-label">Tracks Practiced</div>
+    </div>
+    <div class="musician-stat-card">
+      <div class="stat-value" id="mp-stat-ready">--</div>
+      <div class="stat-label">Readiness</div>
+    </div>
+    <div class="musician-stat-card">
+      <div class="stat-value" id="mp-stat-agreements">--</div>
+      <div class="stat-label">Pending Signatures</div>
+    </div>
+  </div>
+
+  <!-- Upcoming Gigs -->
+  <div class="musician-section">
+    <h2><i class="fa-solid fa-calendar-check"></i> Upcoming Gigs</h2>
+    <div id="mp-gigs-list" class="musician-cards-grid">
+      <div class="musician-empty-state" id="mp-gigs-empty">
+        <i class="fa-solid fa-calendar-xmark"></i>
+        <p>No upcoming gigs assigned yet.</p>
+        <span class="text-muted">Your band manager will assign gigs when they're ready.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agreements -->
+  <div class="musician-section">
+    <h2><i class="fa-solid fa-file-signature"></i> Agreements</h2>
+    <div id="mp-agreements-list" class="musician-cards-grid">
+      <div class="musician-empty-state" id="mp-agreements-empty">
+        <i class="fa-solid fa-file-circle-check"></i>
+        <p>No agreements pending.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="musician-section">
+    <h2><i class="fa-solid fa-bolt"></i> Quick Actions</h2>
+    <div class="musician-actions-grid">
+      <a href="#dashboard-band-player" class="musician-action-card">
+        <i class="fa-solid fa-headphones"></i>
+        <span>Practice</span>
+      </a>
+      <a href="#dashboard-calendar" class="musician-action-card">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>Calendar</span>
+      </a>
+      <a href="#dashboard-travel" class="musician-action-card">
+        <i class="fa-solid fa-plane"></i>
+        <span>Travel</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var db = null;
+  var uid = null;
+  var userName = '';
+
+  function init() {
+    // Wait for Auth to be ready
+    if (typeof Auth === 'undefined' || !Auth.isAuthenticated()) {
+      return;
+    }
+
+    var user = Auth.getCurrentUser();
+    if (!user) return;
+
+    uid = user.uid;
+    db = Auth._db;
+    userName = user.displayName || user.email || 'Musician';
+
+    // Set welcome text
+    var welcomeEl = document.getElementById('mp-welcome-title');
+    if (welcomeEl) welcomeEl.textContent = 'Welcome, ' + userName.split(' ')[0];
+
+    // Load data from Firestore
+    loadGigs();
+    loadAgreements();
+    loadPracticeStats();
+  }
+
+  // ── Load Upcoming Gigs ──────────────────────
+  function loadGigs() {
+    if (!db) { updateGigStats(0); return; }
+
+    db.collection('gigs')
+      .where('assignedMusicians', 'array-contains', uid)
+      .where('status', '==', 'upcoming')
+      .orderBy('date', 'asc')
+      .limit(10)
+      .get()
+      .then(function(snapshot) {
+        var gigs = [];
+        snapshot.forEach(function(doc) {
+          gigs.push(Object.assign({ _id: doc.id }, doc.data()));
+        });
+        renderGigs(gigs);
+        updateGigStats(gigs.length);
+        // Load checkpoints for these gigs
+        if (gigs.length > 0) loadCheckpoints(gigs);
+      })
+      .catch(function(err) {
+        console.warn('[MusicianPortal] Failed to load gigs:', err.message);
+        updateGigStats(0);
+      });
+  }
+
+  function renderGigs(gigs) {
+    var container = document.getElementById('mp-gigs-list');
+    var emptyState = document.getElementById('mp-gigs-empty');
+    if (!container) return;
+
+    if (gigs.length === 0) {
+      if (emptyState) emptyState.style.display = '';
+      return;
+    }
+    if (emptyState) emptyState.style.display = 'none';
+
+    var html = '';
+    for (var i = 0; i < gigs.length; i++) {
+      var gig = gigs[i];
+      var dateObj = gig.date && gig.date.toDate ? gig.date.toDate() : new Date(gig.date);
+      var dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      var timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+      html += '<div class="gig-card" data-gig-id="' + gig._id + '">'
+        + '<div class="gig-date-badge">'
+        + '<span class="gig-date-month">' + dateObj.toLocaleDateString('en-US', { month: 'short' }) + '</span>'
+        + '<span class="gig-date-day">' + dateObj.getDate() + '</span>'
+        + '</div>'
+        + '<div class="gig-info">'
+        + '<h3 class="gig-title">' + escapeHtml(gig.title || 'Untitled Gig') + '</h3>'
+        + '<p class="gig-venue"><i class="fa-solid fa-location-dot"></i> ' + escapeHtml(gig.venue || 'TBD') + '</p>'
+        + '<p class="gig-time"><i class="fa-solid fa-clock"></i> ' + dateStr + ' at ' + timeStr + '</p>'
+        + (gig.notes ? '<p class="gig-notes">' + escapeHtml(gig.notes) + '</p>' : '')
+        + '</div>'
+        + '<div class="gig-actions">'
+        + '<div class="checkpoint-bar" id="cp-bar-' + gig._id + '">'
+        + '<div class="cp-segment cp-setlist" title="Setlist Ready"></div>'
+        + '<div class="cp-segment cp-gear" title="Gear Ready"></div>'
+        + '<div class="cp-segment cp-travel" title="Travel Ready"></div>'
+        + '</div>'
+        + '<button class="btn-checkpoint" onclick="window._confirmReadiness(\'' + gig._id + '\')">'
+        + '<i class="fa-solid fa-check-circle"></i> Confirm Readiness'
+        + '</button>'
+        + (gig.playlistId ? '<a href="#dashboard-band-player" class="btn-practice"><i class="fa-solid fa-headphones"></i> Practice</a>' : '')
+        + '</div>'
+        + '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // ── Load Checkpoints ────────────────────────
+  function loadCheckpoints(gigs) {
+    if (!db) return;
+
+    db.collection('rehearsal-checkpoints')
+      .where('musicianId', '==', uid)
+      .get()
+      .then(function(snapshot) {
+        var checkpoints = {};
+        var readyCount = 0;
+        snapshot.forEach(function(doc) {
+          var data = doc.data();
+          checkpoints[data.gigId] = data;
+          if (data.setlistReady && data.gearReady && data.travelReady) readyCount++;
+        });
+
+        // Update checkpoint bars
+        for (var i = 0; i < gigs.length; i++) {
+          var cp = checkpoints[gigs[i]._id];
+          if (cp) updateCheckpointBar(gigs[i]._id, cp);
+        }
+
+        // Update readiness stat
+        var readyEl = document.getElementById('mp-stat-ready');
+        if (readyEl) readyEl.textContent = readyCount + '/' + gigs.length;
+      })
+      .catch(function(err) {
+        console.warn('[MusicianPortal] Checkpoints load error:', err.message);
+      });
+  }
+
+  function updateCheckpointBar(gigId, cp) {
+    var setlist = document.querySelector('#cp-bar-' + gigId + ' .cp-setlist');
+    var gear = document.querySelector('#cp-bar-' + gigId + ' .cp-gear');
+    var travel = document.querySelector('#cp-bar-' + gigId + ' .cp-travel');
+    if (setlist) setlist.classList.toggle('cp-ready', !!cp.setlistReady);
+    if (gear) gear.classList.toggle('cp-ready', !!cp.gearReady);
+    if (travel) travel.classList.toggle('cp-ready', !!cp.travelReady);
+  }
+
+  // ── Load Agreements ─────────────────────────
+  function loadAgreements() {
+    if (!db) { updateAgreementStats(0); return; }
+
+    db.collection('agreements')
+      .where('musicianId', '==', uid)
+      .orderBy('sentAt', 'desc')
+      .limit(10)
+      .get()
+      .then(function(snapshot) {
+        var agreements = [];
+        snapshot.forEach(function(doc) {
+          agreements.push(Object.assign({ _id: doc.id }, doc.data()));
+        });
+        renderAgreements(agreements);
+        var pending = agreements.filter(function(a) { return a.status === 'pending'; }).length;
+        updateAgreementStats(pending);
+      })
+      .catch(function(err) {
+        console.warn('[MusicianPortal] Agreements load error:', err.message);
+        updateAgreementStats(0);
+      });
+  }
+
+  function renderAgreements(agreements) {
+    var container = document.getElementById('mp-agreements-list');
+    var emptyState = document.getElementById('mp-agreements-empty');
+    if (!container) return;
+
+    if (agreements.length === 0) {
+      if (emptyState) emptyState.style.display = '';
+      return;
+    }
+    if (emptyState) emptyState.style.display = 'none';
+
+    var html = '';
+    for (var i = 0; i < agreements.length; i++) {
+      var agr = agreements[i];
+      var statusClass = agr.status === 'signed' ? 'status-signed' : agr.status === 'pending' ? 'status-pending' : 'status-default';
+      var statusLabel = agr.status === 'signed' ? 'Signed' : agr.status === 'pending' ? 'Action Required' : agr.status;
+      var signedDate = agr.signedAt && agr.signedAt.toDate ? agr.signedAt.toDate().toLocaleDateString() : '';
+
+      html += '<div class="agreement-card ' + statusClass + '">'
+        + '<div class="agreement-info">'
+        + '<h3>' + escapeHtml(agr.title || 'Agreement') + '</h3>'
+        + '<span class="agreement-status-badge ' + statusClass + '">' + statusLabel + '</span>'
+        + (signedDate ? '<p class="text-muted">Signed ' + signedDate + '</p>' : '')
+        + '</div>'
+        + (agr.status === 'pending' ? '<a href="#sign?id=' + agr._id + '" class="btn-sign"><i class="fa-solid fa-pen-nib"></i> Sign Now</a>' : '')
+        + '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // ── Load Practice Stats ─────────────────────
+  function loadPracticeStats() {
+    if (!db) { updateTrackStats(0); return; }
+
+    db.collection('playback-events')
+      .where('userId', '==', uid)
+      .where('eventType', '==', 'complete')
+      .get()
+      .then(function(snapshot) {
+        // Count unique tracks completed
+        var uniqueTracks = {};
+        snapshot.forEach(function(doc) {
+          uniqueTracks[doc.data().trackId] = true;
+        });
+        updateTrackStats(Object.keys(uniqueTracks).length);
+      })
+      .catch(function(err) {
+        console.warn('[MusicianPortal] Practice stats error:', err.message);
+        updateTrackStats(0);
+      });
+  }
+
+  // ── Stat Helpers ────────────────────────────
+  function updateGigStats(count) {
+    var el = document.getElementById('mp-stat-gigs');
+    if (el) el.textContent = count;
+  }
+  function updateTrackStats(count) {
+    var el = document.getElementById('mp-stat-tracks');
+    if (el) el.textContent = count;
+  }
+  function updateAgreementStats(count) {
+    var el = document.getElementById('mp-stat-agreements');
+    if (el) el.textContent = count;
+  }
+
+  // ── Confirm Readiness Modal ─────────────────
+  window._confirmReadiness = function(gigId) {
+    if (!db || !uid) return;
+
+    var content = '<div class="checkpoint-form">'
+      + '<h3>Confirm Your Readiness</h3>'
+      + '<div class="checkpoint-toggles">'
+      + '<label class="cp-toggle"><input type="checkbox" id="cp-setlist"> Setlist Ready</label>'
+      + '<label class="cp-toggle"><input type="checkbox" id="cp-gear"> Gear Ready</label>'
+      + '<label class="cp-toggle"><input type="checkbox" id="cp-travel"> Travel Ready</label>'
+      + '</div>'
+      + '<div class="cp-rating">'
+      + '<label>Confidence Level (1-5)</label>'
+      + '<input type="range" id="cp-rating" min="1" max="5" value="3" step="1">'
+      + '<span id="cp-rating-display">3</span>'
+      + '</div>'
+      + '<div class="cp-notes">'
+      + '<label>Notes (optional)</label>'
+      + '<textarea id="cp-notes" rows="3" placeholder="Any concerns or notes for the band manager..."></textarea>'
+      + '</div>'
+      + '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Rehearsal Checkpoint',
+        body: content,
+        size: 'md',
+        buttons: [
+          { label: 'Cancel', class: 'btn-secondary', close: true },
+          { label: 'Submit', class: 'btn-primary', callback: function() { submitCheckpoint(gigId); } }
+        ]
+      });
+
+      // Wire up rating display
+      setTimeout(function() {
+        var slider = document.getElementById('cp-rating');
+        var display = document.getElementById('cp-rating-display');
+        if (slider && display) {
+          slider.addEventListener('input', function() { display.textContent = slider.value; });
+        }
+      }, 100);
+    }
+  };
+
+  function submitCheckpoint(gigId) {
+    var setlist = document.getElementById('cp-setlist');
+    var gear = document.getElementById('cp-gear');
+    var travel = document.getElementById('cp-travel');
+    var rating = document.getElementById('cp-rating');
+    var notes = document.getElementById('cp-notes');
+
+    var data = {
+      gigId: gigId,
+      musicianId: uid,
+      setlistReady: setlist ? setlist.checked : false,
+      gearReady: gear ? gear.checked : false,
+      travelReady: travel ? travel.checked : false,
+      selfRating: rating ? parseInt(rating.value, 10) : 3,
+      notes: notes ? notes.value.trim() : '',
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Use deterministic doc ID (one checkpoint per musician per gig)
+    db.collection('rehearsal-checkpoints').doc(gigId + '_' + uid).set(data)
+      .then(function() {
+        if (typeof Modal !== 'undefined') Modal.close();
+        if (typeof Toast !== 'undefined') Toast.success('Readiness confirmed!');
+        updateCheckpointBar(gigId, data);
+      })
+      .catch(function(err) {
+        if (typeof Toast !== 'undefined') Toast.error('Failed to save: ' + err.message);
+      });
+  }
+
+  // ── Utility ─────────────────────────────────
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Initialize
+  init();
+})();
+</script>

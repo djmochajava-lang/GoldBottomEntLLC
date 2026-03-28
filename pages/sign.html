@@ -1,0 +1,448 @@
+<!-- pages/sign.html — Agreement Signing Page (public, token-based) -->
+<div class="sign-page">
+
+  <!-- Loading State -->
+  <div id="sign-loading" class="sign-center">
+    <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;color:var(--color-gold);"></i>
+    <p>Loading agreement...</p>
+  </div>
+
+  <!-- Auth Required State -->
+  <div id="sign-auth-required" class="sign-center" style="display:none;">
+    <i class="fa-solid fa-lock" style="font-size:2rem;color:var(--color-gold);"></i>
+    <h2>Sign In Required</h2>
+    <p>Please sign in to view and sign this agreement.</p>
+    <button class="sign-btn sign-btn-primary" onclick="Auth.showLoginModal()">
+      <i class="fa-solid fa-right-to-bracket"></i> Sign In
+    </button>
+  </div>
+
+  <!-- Error State -->
+  <div id="sign-error" class="sign-center" style="display:none;">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem;color:var(--color-danger);"></i>
+    <h2 id="sign-error-title">Error</h2>
+    <p id="sign-error-message">Something went wrong.</p>
+    <a href="#dashboard-musician-home" class="sign-btn sign-btn-secondary">Back to Portal</a>
+  </div>
+
+  <!-- Already Signed State -->
+  <div id="sign-already-signed" class="sign-center" style="display:none;">
+    <i class="fa-solid fa-circle-check" style="font-size:3rem;color:var(--color-success);"></i>
+    <h2>Agreement Signed</h2>
+    <p id="sign-signed-date">This agreement has already been signed.</p>
+    <a href="#dashboard-musician-home" class="sign-btn sign-btn-secondary">Back to Portal</a>
+  </div>
+
+  <!-- Agreement Content -->
+  <div id="sign-content" style="display:none;">
+    <div class="sign-header">
+      <h1 id="sign-title">Agreement</h1>
+      <div class="sign-meta">
+        <span id="sign-meta-date"></span>
+        <span class="sign-status-badge" id="sign-status-badge">Pending</span>
+      </div>
+    </div>
+
+    <!-- Terms Summary -->
+    <div class="sign-terms-summary" id="sign-terms-summary" style="display:none;">
+      <h3><i class="fa-solid fa-list-check"></i> Key Terms</h3>
+      <div id="sign-terms-list"></div>
+    </div>
+
+    <!-- Agreement Body -->
+    <div class="sign-body" id="sign-body"></div>
+
+    <!-- Signature Section -->
+    <div class="sign-signature-section">
+      <h3>Your Signature</h3>
+      <div class="sign-type-toggle">
+        <button class="sign-type-btn active" id="sign-type-typed" onclick="window._switchSignType('typed')">
+          <i class="fa-solid fa-keyboard"></i> Type Name
+        </button>
+        <button class="sign-type-btn" id="sign-type-drawn" onclick="window._switchSignType('drawn')">
+          <i class="fa-solid fa-pen"></i> Draw Signature
+        </button>
+      </div>
+
+      <!-- Typed Signature -->
+      <div id="sign-typed-area">
+        <input type="text" id="sign-typed-input" class="sign-input" placeholder="Type your full legal name" autocomplete="off" />
+        <div class="sign-typed-preview" id="sign-typed-preview"></div>
+      </div>
+
+      <!-- Drawn Signature -->
+      <div id="sign-drawn-area" style="display:none;">
+        <canvas id="sign-canvas" width="500" height="150"></canvas>
+        <button class="sign-btn sign-btn-secondary sign-btn-sm" onclick="window._clearCanvas()">
+          <i class="fa-solid fa-eraser"></i> Clear
+        </button>
+      </div>
+
+      <!-- Submit -->
+      <div class="sign-agreement-check">
+        <label>
+          <input type="checkbox" id="sign-agree-check" />
+          I have read and agree to the terms of this agreement.
+        </label>
+      </div>
+      <button class="sign-btn sign-btn-primary sign-btn-lg" id="sign-submit-btn" onclick="window._submitSignature()" disabled>
+        <i class="fa-solid fa-pen-nib"></i> Sign Agreement
+      </button>
+    </div>
+
+    <!-- Support -->
+    <div class="sign-support">
+      <p>Questions? Contact your band manager at <a href="mailto:jeffery.ponder@goldbottoment-llc.com">jeffery.ponder@goldbottoment-llc.com</a></p>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .sign-page { max-width: 720px; margin: 0 auto; padding: var(--space-lg) var(--space-md); }
+  .sign-center { text-align: center; padding: var(--space-3xl) var(--space-lg); }
+  .sign-center h2 { margin: var(--space-md) 0 var(--space-sm); }
+  .sign-center p { color: var(--color-text-secondary); }
+  .sign-header { margin-bottom: var(--space-xl); }
+  .sign-header h1 { font-size: var(--text-2xl); margin: 0 0 var(--space-sm); }
+  .sign-meta { display: flex; align-items: center; gap: var(--space-md); color: var(--color-text-muted); font-size: var(--text-sm); }
+  .sign-status-badge { padding: 2px 10px; border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--fw-semibold); background: rgba(210,153,34,0.2); color: #d29922; }
+
+  .sign-terms-summary { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-lg); margin-bottom: var(--space-lg); }
+  .sign-terms-summary h3 { margin: 0 0 var(--space-md); font-size: var(--text-base); }
+  .sign-terms-summary h3 i { color: var(--color-gold); }
+  .sign-term-item { display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); }
+  .sign-term-item:last-child { border-bottom: none; }
+  .sign-term-label { color: var(--color-text-muted); }
+  .sign-term-value { font-weight: var(--fw-semibold); }
+
+  .sign-body { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-xl); margin-bottom: var(--space-xl); line-height: 1.8; font-size: var(--text-sm); max-height: 400px; overflow-y: auto; }
+
+  .sign-signature-section { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-xl); margin-bottom: var(--space-lg); }
+  .sign-signature-section h3 { margin: 0 0 var(--space-md); }
+  .sign-type-toggle { display: flex; gap: var(--space-sm); margin-bottom: var(--space-md); }
+  .sign-type-btn { padding: var(--space-sm) var(--space-md); border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-bg-tertiary); color: var(--color-text); cursor: pointer; font-size: var(--text-sm); display: flex; align-items: center; gap: var(--space-xs); }
+  .sign-type-btn.active { border-color: var(--color-gold); color: var(--color-gold); background: rgba(212,160,23,0.1); }
+
+  .sign-input { width: 100%; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); font-size: var(--text-lg); font-family: inherit; }
+  .sign-typed-preview { margin-top: var(--space-sm); min-height: 50px; font-family: 'Dancing Script', cursive, serif; font-size: 28px; color: var(--color-gold); padding: var(--space-sm); }
+
+  #sign-canvas { width: 100%; height: 150px; background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: crosshair; touch-action: none; }
+
+  .sign-agreement-check { margin: var(--space-lg) 0; }
+  .sign-agreement-check label { display: flex; align-items: flex-start; gap: var(--space-sm); font-size: var(--text-sm); cursor: pointer; }
+  .sign-agreement-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-gold); margin-top: 2px; flex-shrink: 0; }
+
+  .sign-btn { display: inline-flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-sm); border: none; cursor: pointer; font-size: var(--text-sm); font-weight: var(--fw-semibold); text-decoration: none; transition: all 0.2s; }
+  .sign-btn-primary { background: var(--color-gold); color: #000; }
+  .sign-btn-primary:hover { filter: brightness(1.1); }
+  .sign-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+  .sign-btn-secondary { background: var(--color-bg-tertiary); color: var(--color-text); border: 1px solid var(--color-border); }
+  .sign-btn-lg { font-size: var(--text-base); padding: var(--space-md) var(--space-xl); width: 100%; justify-content: center; }
+  .sign-btn-sm { font-size: var(--text-xs); padding: var(--space-xs) var(--space-sm); margin-top: var(--space-sm); }
+
+  .sign-support { text-align: center; color: var(--color-text-muted); font-size: var(--text-sm); padding: var(--space-md) 0; }
+  .sign-support a { color: var(--color-gold); }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var db = null;
+  var agreementId = null;
+  var agreementData = null;
+  var signType = 'typed';
+  var canvasCtx = null;
+  var isDrawing = false;
+
+  function init() {
+    // Parse agreement ID from hash
+    var hashParts = window.location.hash.split('?');
+    var params = new URLSearchParams(hashParts[1] || '');
+    agreementId = params.get('id');
+
+    if (!agreementId) {
+      showError('No Agreement', 'No agreement ID provided. Check the link you received.');
+      return;
+    }
+
+    // Check auth
+    if (typeof Auth === 'undefined' || !Auth.isAuthenticated()) {
+      showAuthRequired();
+      // Listen for auth state changes
+      if (typeof Auth !== 'undefined') {
+        document.addEventListener('gbe:auth-ready', function() {
+          if (Auth.isAuthenticated()) loadAgreement();
+        });
+      }
+      return;
+    }
+
+    db = Auth._db;
+    loadAgreement();
+  }
+
+  function loadAgreement() {
+    if (!db || !agreementId) return;
+    db = Auth._db;
+    var uid = Auth.getCurrentUser().uid;
+
+    hide('sign-loading');
+    hide('sign-auth-required');
+
+    db.collection('agreements').doc(agreementId).get()
+      .then(function(doc) {
+        if (!doc.exists) {
+          showError('Not Found', 'This agreement does not exist or has been removed.');
+          return;
+        }
+
+        agreementData = doc.data();
+
+        // Verify this is for the current user
+        if (agreementData.musicianId && agreementData.musicianId !== uid) {
+          showError('Access Denied', 'This agreement is for a different musician.');
+          return;
+        }
+
+        // Already signed?
+        if (agreementData.status === 'signed') {
+          var signedDate = agreementData.signedAt && agreementData.signedAt.toDate
+            ? agreementData.signedAt.toDate().toLocaleDateString()
+            : 'previously';
+          document.getElementById('sign-signed-date').textContent = 'Signed on ' + signedDate;
+          show('sign-already-signed');
+          hide('sign-loading');
+          return;
+        }
+
+        renderAgreement(agreementData);
+      })
+      .catch(function(err) {
+        showError('Load Failed', 'Could not load the agreement: ' + err.message);
+      });
+  }
+
+  function renderAgreement(agr) {
+    hide('sign-loading');
+    show('sign-content');
+
+    document.getElementById('sign-title').textContent = agr.title || 'Agreement';
+
+    var sentDate = agr.sentAt && agr.sentAt.toDate
+      ? agr.sentAt.toDate().toLocaleDateString()
+      : '';
+    var metaEl = document.getElementById('sign-meta-date');
+    if (metaEl && sentDate) metaEl.textContent = 'Sent ' + sentDate;
+
+    // Terms summary
+    if (agr.terms && Object.keys(agr.terms).length > 0) {
+      show('sign-terms-summary');
+      var termsHtml = '';
+      var termLabels = {
+        pay: 'Compensation', callTime: 'Call Time', setLength: 'Set Length',
+        venue: 'Venue', eventDate: 'Event Date', dresscode: 'Dress Code'
+      };
+      for (var key in agr.terms) {
+        var label = termLabels[key] || key.charAt(0).toUpperCase() + key.slice(1);
+        termsHtml += '<div class="sign-term-item">'
+          + '<span class="sign-term-label">' + escapeHtml(label) + '</span>'
+          + '<span class="sign-term-value">' + escapeHtml(String(agr.terms[key])) + '</span>'
+          + '</div>';
+      }
+      document.getElementById('sign-terms-list').innerHTML = termsHtml;
+    }
+
+    // Agreement body
+    var bodyEl = document.getElementById('sign-body');
+    if (bodyEl) {
+      bodyEl.innerHTML = agr.content || '<p>No agreement content provided.</p>';
+    }
+
+    // Setup signature interactions
+    setupTypedSignature();
+    setupCanvas();
+    setupSubmitButton();
+  }
+
+  function setupTypedSignature() {
+    var input = document.getElementById('sign-typed-input');
+    var preview = document.getElementById('sign-typed-preview');
+    if (input && preview) {
+      input.addEventListener('input', function() {
+        preview.textContent = input.value;
+        updateSubmitState();
+      });
+    }
+  }
+
+  function setupCanvas() {
+    var canvas = document.getElementById('sign-canvas');
+    if (!canvas) return;
+
+    // Set canvas resolution to match display size
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2;
+    canvas.height = rect.height * 2;
+    canvasCtx = canvas.getContext('2d');
+    canvasCtx.scale(2, 2);
+    canvasCtx.strokeStyle = '#d4a017';
+    canvasCtx.lineWidth = 2;
+    canvasCtx.lineCap = 'round';
+
+    function getPos(e) {
+      var rect = canvas.getBoundingClientRect();
+      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      var pos = getPos(e);
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(pos.x, pos.y);
+    }
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      var pos = getPos(e);
+      canvasCtx.lineTo(pos.x, pos.y);
+      canvasCtx.stroke();
+    }
+    function stopDraw() {
+      isDrawing = false;
+      updateSubmitState();
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseleave', stopDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+  }
+
+  function setupSubmitButton() {
+    var checkbox = document.getElementById('sign-agree-check');
+    if (checkbox) {
+      checkbox.addEventListener('change', updateSubmitState);
+    }
+  }
+
+  function updateSubmitState() {
+    var checkbox = document.getElementById('sign-agree-check');
+    var btn = document.getElementById('sign-submit-btn');
+    if (!checkbox || !btn) return;
+
+    var hasSignature = false;
+    if (signType === 'typed') {
+      var input = document.getElementById('sign-typed-input');
+      hasSignature = input && input.value.trim().length >= 2;
+    } else {
+      // Check if canvas has content
+      var canvas = document.getElementById('sign-canvas');
+      if (canvas && canvasCtx) {
+        var pixels = canvasCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (var i = 3; i < pixels.length; i += 4) {
+          if (pixels[i] > 0) { hasSignature = true; break; }
+        }
+      }
+    }
+
+    btn.disabled = !(checkbox.checked && hasSignature);
+  }
+
+  // ── Public Functions ──────────────────────────
+
+  window._switchSignType = function(type) {
+    signType = type;
+    var typedBtn = document.getElementById('sign-type-typed');
+    var drawnBtn = document.getElementById('sign-type-drawn');
+    var typedArea = document.getElementById('sign-typed-area');
+    var drawnArea = document.getElementById('sign-drawn-area');
+
+    if (type === 'typed') {
+      typedBtn.classList.add('active');
+      drawnBtn.classList.remove('active');
+      typedArea.style.display = '';
+      drawnArea.style.display = 'none';
+    } else {
+      drawnBtn.classList.add('active');
+      typedBtn.classList.remove('active');
+      drawnArea.style.display = '';
+      typedArea.style.display = 'none';
+      // Re-init canvas sizing if needed
+      var canvas = document.getElementById('sign-canvas');
+      if (canvas && !canvasCtx) setupCanvas();
+    }
+    updateSubmitState();
+  };
+
+  window._clearCanvas = function() {
+    var canvas = document.getElementById('sign-canvas');
+    if (canvas && canvasCtx) {
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      updateSubmitState();
+    }
+  };
+
+  window._submitSignature = function() {
+    if (!db || !agreementId) return;
+
+    var btn = document.getElementById('sign-submit-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing...'; }
+
+    var signatureData = {};
+    if (signType === 'typed') {
+      var input = document.getElementById('sign-typed-input');
+      signatureData = { type: 'typed', value: input ? input.value.trim() : '' };
+    } else {
+      var canvas = document.getElementById('sign-canvas');
+      signatureData = { type: 'drawn', value: canvas ? canvas.toDataURL('image/png') : '' };
+    }
+
+    signatureData.userAgent = navigator.userAgent;
+    signatureData.signedFromUrl = window.location.href;
+
+    db.collection('agreements').doc(agreementId).update({
+      status: 'signed',
+      signedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      signatureData: signatureData
+    })
+    .then(function() {
+      hide('sign-content');
+      document.getElementById('sign-signed-date').textContent = 'Signed just now. Thank you!';
+      show('sign-already-signed');
+      if (typeof Toast !== 'undefined') Toast.success('Agreement signed successfully!');
+    })
+    .catch(function(err) {
+      if (typeof Toast !== 'undefined') Toast.error('Failed to sign: ' + err.message);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-pen-nib"></i> Sign Agreement'; }
+    });
+  };
+
+  // ── Helpers ─────────────────────────────────
+  function show(id) { var el = document.getElementById(id); if (el) el.style.display = ''; }
+  function hide(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }
+  function showError(title, msg) {
+    hide('sign-loading'); hide('sign-content'); hide('sign-auth-required'); hide('sign-already-signed');
+    document.getElementById('sign-error-title').textContent = title;
+    document.getElementById('sign-error-message').textContent = msg;
+    show('sign-error');
+  }
+  function showAuthRequired() {
+    hide('sign-loading'); show('sign-auth-required');
+  }
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Initialize
+  init();
+})();
+</script>
