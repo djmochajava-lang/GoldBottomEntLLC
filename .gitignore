@@ -28,6 +28,9 @@ Thumbs.db
 business-docs/
 AcknowledgementLetter.pdf
 
+# Claude Code worktrees (auto-created, never commit)
+.claude/worktrees/
+
 # Local-only files (full version lives in private repo)
 claude.md
 index-local.html
