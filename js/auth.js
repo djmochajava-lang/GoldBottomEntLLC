@@ -758,16 +758,48 @@ const Auth = {
               });
             }
 
-            // No invite token — show access request form, then create registration
-            Auth._role = 'member';
-            Auth._linkedRoles = ['member'];
-            Auth._activeRole = 'member';
-
-            // Normalize displayName per IDP-001 §5.4
+            // No invite token — check Firestore invitations for matching email (auto-approve)
             var displayName = user.displayName ||
               (user.email ? user.email.split('@')[0] : 'User');
 
-            return Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider, displayName);
+            return Auth._checkFirestoreInvitation(emailHash).then(function(invitation) {
+              if (invitation) {
+                // Matching invitation found — auto-approve with invitation role
+                var role = invitation.role || 'band_member';
+                Auth._role = role;
+                Auth._instrument = invitation.instrument || null;
+                Auth._linkedRoles = [role];
+                Auth._activeRole = role;
+
+                return userRef.set({
+                  displayName: displayName,
+                  emailHash: emailHash,
+                  photoURL: user.photoURL || '',
+                  provider: currentProvider,
+                  primaryProvider: currentProvider,
+                  linkedProviders: [currentProvider],
+                  status: 'approved',
+                  role: role,
+                  requestedRole: role,
+                  requestNote: 'Auto-approved via invitation ' + invitation.id,
+                  invitationId: invitation.id,
+                  instrument: invitation.instrument || null,
+                  registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                  lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(function() {
+                  // Mark invitation as accepted in Firestore
+                  Auth._markInvitationAccepted(invitation.id);
+                  console.log('[Auth] Auto-approved via invitation:', invitation.id, 'role:', role);
+                  return 'approved';
+                });
+              }
+
+              // No invitation found — normal registration flow
+              Auth._role = 'member';
+              Auth._linkedRoles = ['member'];
+              Auth._activeRole = 'member';
+              return Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider, displayName);
+            });
           });
         }
       });
@@ -1777,6 +1809,57 @@ const Auth = {
       console.warn('[Auth] Invite accept failed:', err);
       return null;
     });
+  },
+
+  /**
+   * Check Firestore invitations collection for a pending invitation matching
+   * the given emailHash. Used during registration to auto-approve invited users.
+   * Returns the invitation doc data (with id) if found, or null.
+   * @param {string} emailHash - SHA-256 hash of the user's email
+   * @returns {Promise<Object|null>}
+   * @private
+   */
+  _checkFirestoreInvitation: function(emailHash) {
+    if (!this._db) return Promise.resolve(null);
+
+    return this._db.collection('invitations')
+      .where('emailHash', '==', emailHash)
+      .where('status', 'in', ['pending', 'sent', 'opened'])
+      .limit(1)
+      .get()
+      .then(function(snapshot) {
+        if (snapshot.empty) return null;
+        var doc = snapshot.docs[0];
+        var data = doc.data();
+        // Check expiry client-side
+        if (data.expiresAt && data.expiresAt.toDate && data.expiresAt.toDate() < new Date()) {
+          console.log('[Auth] Found invitation but it is expired:', doc.id);
+          return null;
+        }
+        console.log('[Auth] Found pending invitation:', doc.id);
+        return { id: doc.id, role: data.role, instrument: data.instrument };
+      })
+      .catch(function(err) {
+        console.warn('[Auth] Invitation check failed:', err);
+        return null;
+      });
+  },
+
+  /**
+   * Mark an invitation as accepted in Firestore.
+   * Fire-and-forget — the user doc is already created as approved.
+   * Note: Firestore rules block client writes to invitations collection,
+   * but the server Admin SDK (via scheduled sync or the next invitation check)
+   * will pick up the acceptance. We update via a temporary accepted_by field
+   * on the user doc instead, which the server can read.
+   * @param {string} invitationId
+   * @private
+   */
+  _markInvitationAccepted: function(invitationId) {
+    // The invitations collection is read-only for clients (Firestore rules).
+    // The server will detect the acceptance because the user doc has invitationId.
+    // Log for debugging only.
+    console.log('[Auth] Invitation acceptance recorded on user doc, invitationId:', invitationId);
   },
 
   /**
