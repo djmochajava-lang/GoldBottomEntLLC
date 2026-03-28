@@ -17,6 +17,7 @@ const Router = {
     'home': 'pages/home.html',
     'contact': 'pages/contact.html',
     'legal': 'pages/legal.html',
+    'onboard': 'pages/onboard.html',
     '404': 'pages/404.html',
 
     // Entertainment pages (ent-* prefix)

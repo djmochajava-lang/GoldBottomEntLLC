@@ -738,7 +738,27 @@ const Auth = {
               return 'duplicate:' + (primaryData.primaryProvider || primaryData.provider || 'unknown');
             }
 
-            // No duplicate — show access request form, then create registration
+            // No duplicate — check for onboarding invite token (FRD-4)
+            var inviteToken = localStorage.getItem('gbe-invite-token');
+            if (inviteToken) {
+              return Auth._acceptInvitation(user, inviteToken).then(function(result) {
+                if (result && result.success) {
+                  Auth._role = result.role || 'band_member';
+                  Auth._instrument = result.instrument || null;
+                  Auth._linkedRoles = [Auth._role];
+                  Auth._activeRole = Auth._role;
+                  localStorage.removeItem('gbe-invite-token');
+                  console.log('[Auth] Onboarding invite accepted — auto-approved as ' + Auth._role);
+                  return 'approved';
+                }
+                // Invite failed — fall through to normal registration
+                localStorage.removeItem('gbe-invite-token');
+                return Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider,
+                  user.displayName || (user.email ? user.email.split('@')[0] : 'User'));
+              });
+            }
+
+            // No invite token — show access request form, then create registration
             Auth._role = 'member';
             Auth._linkedRoles = ['member'];
             Auth._activeRole = 'member';
@@ -1737,6 +1757,32 @@ const Auth = {
   _hidePinError: function() {
     var el = document.getElementById('auth-pin-error');
     if (el) el.style.display = 'none';
+  },
+
+  /**
+   * Accept an onboarding invitation via the server (FRD-4).
+   * Calls the accept endpoint which writes the Firestore doc via Admin SDK.
+   * @param {Object} user - Firebase Auth user
+   * @param {string} token - Invitation token from localStorage
+   * @returns {Promise<{success: boolean, role: string, instrument: string}|null>}
+   * @private
+   */
+  _acceptInvitation: function(user, token) {
+    var apiBase = window.location.origin;
+    return fetch(apiBase + '/api/v1/onboarding/invite/' + encodeURIComponent(token) + '/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || ''
+      })
+    })
+    .then(function(res) { return res.ok ? res.json() : null; })
+    .catch(function(err) {
+      console.warn('[Auth] Invite accept failed:', err);
+      return null;
+    });
   },
 
   /**

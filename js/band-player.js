@@ -40,16 +40,103 @@ const BandPlayer = {
       this._audio.preload = 'metadata';
     }
 
-    this._setupAudioEvents();
-    this._loadCacheIndex();
-    this.loadPlaylists();
-    this.loadInventory();
+    // NDA gate — check before loading music (FRD-4 onboarding)
+    var self = this;
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    if (user && this._db) {
+      this._db.collection('users').doc(user.uid).get().then(function(doc) {
+        var data = doc.exists ? doc.data() : {};
+        if (data.ndaAcceptedAt) {
+          self._initPlayer();
+        } else {
+          self._showNdaGate();
+        }
+      }).catch(function() {
+        // Firestore error — proceed anyway (graceful degradation)
+        self._initPlayer();
+      });
+    } else {
+      this._initPlayer();
+    }
     this.initialized = true;
 
     // Debug: log auth state for troubleshooting
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
     var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'unknown';
     console.log('🎵 Soul Society initialized | uid:', user ? user.uid : 'none', '| role:', role, '| db:', !!this._db, '| storage:', !!this._storage);
+  },
+
+  // ── Player Init (after NDA check) ────────────────────
+
+  _initPlayer: function() {
+    this._setupAudioEvents();
+    this._loadCacheIndex();
+    this.loadPlaylists();
+    this.loadInventory();
+  },
+
+  _showNdaGate: function() {
+    var container = document.getElementById('band-player-content') ||
+                    document.querySelector('.band-player-container') ||
+                    document.querySelector('#dash-band-player .dashboard-page-content') ||
+                    document.querySelector('#dash-band-player');
+    if (!container) return;
+
+    var self = this;
+    container.innerHTML =
+      '<div style="max-width:520px;margin:var(--space-xl) auto;text-align:center;padding:var(--space-lg);">' +
+        '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
+          '<div style="width:56px;height:56px;border-radius:50%;background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
+            '<i class="fa-solid fa-shield-halved" style="font-size:24px;color:var(--color-gold);"></i>' +
+          '</div>' +
+          '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-sm);">Band Confidentiality</h2>' +
+          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);text-align:left;line-height:1.6;">' +
+            'Before accessing rehearsal materials, charts, and recordings, please review and accept the following:' +
+          '</p>' +
+          '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:left;font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.7;margin-bottom:var(--space-lg);">' +
+            'As a member of L.A. Young Band, I understand that:<br><br>' +
+            '&bull; Rehearsal recordings, charts, and setlists are for band use only<br>' +
+            '&bull; I will not share, distribute, or post these materials publicly<br>' +
+            '&bull; Original compositions and arrangements are the property of Gold Bottom Ent LLC' +
+          '</div>' +
+          '<label style="display:flex;align-items:center;gap:8px;font-size:var(--text-sm);color:var(--color-text);cursor:pointer;justify-content:center;margin-bottom:var(--space-lg);">' +
+            '<input type="checkbox" id="nda-checkbox" style="width:18px;height:18px;accent-color:var(--color-gold);">' +
+            ' I understand and agree' +
+          '</label>' +
+          '<button id="nda-accept-btn" disabled style="padding:10px 32px;border-radius:var(--radius-full);background:var(--color-gold);color:#000;border:none;font-weight:var(--fw-semibold);font-size:var(--text-sm);cursor:pointer;opacity:0.4;transition:opacity 150ms ease;">Accept &amp; Continue</button>' +
+        '</div>' +
+      '</div>';
+
+    var checkbox = document.getElementById('nda-checkbox');
+    var acceptBtn = document.getElementById('nda-accept-btn');
+
+    if (checkbox && acceptBtn) {
+      checkbox.addEventListener('change', function() {
+        acceptBtn.disabled = !checkbox.checked;
+        acceptBtn.style.opacity = checkbox.checked ? '1' : '0.4';
+      });
+
+      acceptBtn.addEventListener('click', function() {
+        if (!checkbox.checked) return;
+        acceptBtn.disabled = true;
+        acceptBtn.textContent = 'Saving...';
+
+        var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+        if (user && self._db) {
+          self._db.collection('users').doc(user.uid).update({
+            ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society');
+            self._initPlayer();
+          }).catch(function(err) {
+            console.error('[BandPlayer] NDA save failed:', err);
+            if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
+            acceptBtn.disabled = false;
+            acceptBtn.textContent = 'Accept & Continue';
+          });
+        }
+      });
+    }
   },
 
   // ── Data Loading ──────────────────────────────────────
