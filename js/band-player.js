@@ -42,29 +42,27 @@ const BandPlayer = {
       this._audio.preload = 'metadata';
     }
 
-    // NDA gate — only challenge once, then cache acceptance locally
+    // NDA gate — check user's Firestore record for ndaAcceptedAt permission
+    // This is a one-time gate: once the user accepts, ndaAcceptedAt is written
+    // to their Firestore user doc and all future checks pass immediately.
+    // The user record is the single source of truth for this permission.
     var self = this;
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
-    var ndaCacheKey = 'gbe-nda-accepted';
-
-    // Check local cache first — skip Firestore round-trip if already accepted
-    if (localStorage.getItem(ndaCacheKey) === 'true') {
-      this._initPlayer();
-    } else if (user && this._db) {
+    if (user && this._db) {
       this._db.collection('users').doc(user.uid).get().then(function(doc) {
         var data = doc.exists ? doc.data() : {};
         if (data.ndaAcceptedAt) {
-          localStorage.setItem(ndaCacheKey, 'true');
           self._initPlayer();
         } else {
           self._showNdaGate();
         }
       }).catch(function() {
-        // Firestore error — proceed anyway (graceful degradation)
-        self._initPlayer();
+        // Firestore error — block access rather than bypass permissions
+        if (typeof Toast !== 'undefined') Toast.error('Could not verify permissions. Please try again.');
       });
     } else {
-      this._initPlayer();
+      // No auth — show NDA gate (will prompt login)
+      this._showNdaGate();
     }
     this.initialized = true;
 
@@ -134,7 +132,6 @@ const BandPlayer = {
           self._db.collection('users').doc(user.uid).update({
             ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
           }).then(function() {
-            localStorage.setItem('gbe-nda-accepted', 'true');
             if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society');
             self._initPlayer();
           }).catch(function(err) {
