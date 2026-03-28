@@ -52,6 +52,69 @@
     </div>
   </div>
 
+  <!-- Gig Timeline -->
+  <div class="musician-section">
+    <h2><i class="fa-solid fa-timeline"></i> Timeline</h2>
+    <div id="mp-timeline" class="timeline-container">
+      <div class="musician-empty-state" id="mp-timeline-empty">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <p>No timeline events yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Summary -->
+  <div class="musician-section">
+    <h2><i class="fa-solid fa-wallet"></i> Payments</h2>
+    <div id="mp-payments" class="musician-cards-grid">
+      <div class="payment-summary-card" id="mp-payment-summary" style="display:none;">
+        <div class="payment-stats-row">
+          <div class="payment-stat">
+            <span class="stat-label">YTD Earnings</span>
+            <span class="stat-value" id="mp-pay-ytd">$0</span>
+          </div>
+          <div class="payment-stat">
+            <span class="stat-label">All Time</span>
+            <span class="stat-value" id="mp-pay-alltime">$0</span>
+          </div>
+          <div class="payment-stat">
+            <span class="stat-label">Gigs Paid</span>
+            <span class="stat-value" id="mp-pay-count">0</span>
+          </div>
+        </div>
+        <div id="mp-pay-history"></div>
+        <div id="mp-w9-status" style="display:none;">
+          <div class="w9-alert">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>W-9 required — YTD payments have reached the $600 threshold.</span>
+          </div>
+        </div>
+      </div>
+      <div class="musician-empty-state" id="mp-payments-empty">
+        <i class="fa-solid fa-receipt"></i>
+        <p>No payment history yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <div class="musician-section">
+    <h2><i class="fa-solid fa-user-circle"></i> My Profile</h2>
+    <div class="profile-card" id="mp-profile">
+      <div class="profile-info">
+        <div class="profile-avatar" id="mp-profile-avatar"></div>
+        <div class="profile-details">
+          <h3 id="mp-profile-name">--</h3>
+          <p id="mp-profile-instrument" class="text-muted">--</p>
+          <p id="mp-profile-email" class="text-muted" style="font-size:12px;">--</p>
+        </div>
+      </div>
+      <button class="btn-checkpoint" onclick="window._editProfile()">
+        <i class="fa-solid fa-pen"></i> Edit Profile
+      </button>
+    </div>
+  </div>
+
   <!-- Quick Actions -->
   <div class="musician-section">
     <h2><i class="fa-solid fa-bolt"></i> Quick Actions</h2>
@@ -102,6 +165,9 @@
     loadGigs();
     loadAgreements();
     loadPracticeStats();
+    loadTimeline();
+    loadPayments();
+    loadProfile();
   }
 
   // ── Load Upcoming Gigs ──────────────────────
@@ -378,6 +444,192 @@
         if (typeof Toast !== 'undefined') Toast.error('Failed to save: ' + err.message);
       });
   }
+
+  // ── Load Timeline ───────────────────────────
+  function loadTimeline() {
+    if (!db) return;
+
+    // Gather gigs, agreements, and checkpoints into a combined timeline
+    Promise.all([
+      db.collection('gigs').where('assignedMusicians', 'array-contains', uid).orderBy('date', 'desc').limit(20).get(),
+      db.collection('agreements').where('musicianId', '==', uid).orderBy('sentAt', 'desc').limit(10).get(),
+      db.collection('rehearsal-checkpoints').where('musicianId', '==', uid).get()
+    ]).then(function(results) {
+      var events = [];
+
+      results[0].forEach(function(doc) {
+        var d = doc.data();
+        var date = d.date && d.date.toDate ? d.date.toDate() : new Date(d.date);
+        events.push({ type: 'gig', date: date, title: d.title || 'Gig', subtitle: d.venue || '', status: d.status, icon: 'fa-guitar', color: '#d4a017' });
+      });
+
+      results[1].forEach(function(doc) {
+        var d = doc.data();
+        var date = d.sentAt && d.sentAt.toDate ? d.sentAt.toDate() : new Date();
+        events.push({ type: 'agreement', date: date, title: d.title || 'Agreement', subtitle: d.status === 'signed' ? 'Signed' : 'Pending', status: d.status, icon: 'fa-file-signature', color: d.status === 'signed' ? '#3fb950' : '#d29922' });
+      });
+
+      results[2].forEach(function(doc) {
+        var d = doc.data();
+        var date = d.submittedAt && d.submittedAt.toDate ? d.submittedAt.toDate() : new Date();
+        events.push({ type: 'checkpoint', date: date, title: 'Readiness Confirmed', subtitle: 'Rating: ' + (d.selfRating || '?') + '/5', status: 'completed', icon: 'fa-check-circle', color: '#3fb950' });
+      });
+
+      events.sort(function(a, b) { return b.date - a.date; });
+      renderTimeline(events.slice(0, 15));
+    }).catch(function(err) {
+      console.warn('[MusicianPortal] Timeline load error:', err.message);
+    });
+  }
+
+  function renderTimeline(events) {
+    var container = document.getElementById('mp-timeline');
+    var emptyState = document.getElementById('mp-timeline-empty');
+    if (!container) return;
+
+    if (events.length === 0) { if (emptyState) emptyState.style.display = ''; return; }
+    if (emptyState) emptyState.style.display = 'none';
+
+    var html = '';
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      var dateStr = ev.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      html += '<div class="timeline-item">'
+        + '<div class="timeline-dot" style="background:' + ev.color + ';"></div>'
+        + '<div class="timeline-content">'
+        + '<div class="timeline-date">' + dateStr + '</div>'
+        + '<div class="timeline-title"><i class="fa-solid ' + ev.icon + '" style="color:' + ev.color + ';margin-right:6px;"></i>' + escapeHtml(ev.title) + '</div>'
+        + (ev.subtitle ? '<div class="timeline-subtitle">' + escapeHtml(ev.subtitle) + '</div>' : '')
+        + '</div></div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // ── Load Payments ──────────────────────────
+  function loadPayments() {
+    if (!db) return;
+
+    db.collection('payments')
+      .where('musicianId', '==', uid)
+      .orderBy('paymentDate', 'desc')
+      .limit(20)
+      .get()
+      .then(function(snapshot) {
+        if (snapshot.empty) return; // leave empty state visible
+
+        var payments = [];
+        var ytd = 0, allTime = 0, currentYear = new Date().getFullYear();
+        snapshot.forEach(function(doc) {
+          var d = doc.data();
+          payments.push(d);
+          var amount = parseFloat(d.amount) || 0;
+          allTime += amount;
+          var payDate = d.paymentDate && d.paymentDate.toDate ? d.paymentDate.toDate() : new Date(d.paymentDate);
+          if (payDate.getFullYear() === currentYear) ytd += amount;
+        });
+
+        document.getElementById('mp-payments-empty').style.display = 'none';
+        document.getElementById('mp-payment-summary').style.display = '';
+        document.getElementById('mp-pay-ytd').textContent = '$' + ytd.toLocaleString();
+        document.getElementById('mp-pay-alltime').textContent = '$' + allTime.toLocaleString();
+        document.getElementById('mp-pay-count').textContent = payments.length;
+
+        // W-9 threshold alert
+        if (ytd >= 600) {
+          document.getElementById('mp-w9-status').style.display = '';
+        }
+
+        // Recent payment list
+        var histHtml = '<div style="margin-top:12px;border-top:1px solid var(--color-border);padding-top:12px;">';
+        histHtml += '<h4 style="margin:0 0 8px;font-size:13px;color:var(--color-text-muted);">Recent Payments</h4>';
+        for (var i = 0; i < Math.min(payments.length, 5); i++) {
+          var p = payments[i];
+          var pDate = p.paymentDate && p.paymentDate.toDate ? p.paymentDate.toDate() : new Date(p.paymentDate);
+          histHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">'
+            + '<span>' + escapeHtml(p.description || 'Payment') + '</span>'
+            + '<span style="font-weight:600;color:#3fb950;">$' + (parseFloat(p.amount) || 0).toLocaleString() + '</span>'
+            + '</div>';
+        }
+        histHtml += '</div>';
+        document.getElementById('mp-pay-history').innerHTML = histHtml;
+      })
+      .catch(function(err) {
+        console.warn('[MusicianPortal] Payments load error:', err.message);
+      });
+  }
+
+  // ── Load Profile ───────────────────────────
+  function loadProfile() {
+    if (!db) return;
+
+    db.collection('users').doc(uid).get().then(function(doc) {
+      if (!doc.exists) return;
+      var data = doc.data();
+
+      var nameEl = document.getElementById('mp-profile-name');
+      var instrEl = document.getElementById('mp-profile-instrument');
+      var emailEl = document.getElementById('mp-profile-email');
+      var avatarEl = document.getElementById('mp-profile-avatar');
+
+      if (nameEl) nameEl.textContent = data.displayName || userName;
+      if (instrEl) instrEl.textContent = data.instrument ? data.instrument.charAt(0).toUpperCase() + data.instrument.slice(1) : 'Musician';
+      if (emailEl) emailEl.textContent = data.email || '';
+      if (avatarEl) {
+        if (data.photoURL) {
+          avatarEl.innerHTML = '<img src="' + escapeHtml(data.photoURL) + '" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />';
+        } else {
+          var initials = (data.displayName || 'M').split(' ').map(function(n) { return n[0]; }).join('').toUpperCase().slice(0, 2);
+          avatarEl.innerHTML = '<div style="width:48px;height:48px;border-radius:50%;background:var(--color-gold);display:flex;align-items:center;justify-content:center;font-weight:700;color:#000;">' + initials + '</div>';
+        }
+      }
+    });
+  }
+
+  // ── Edit Profile Modal ─────────────────────
+  window._editProfile = function() {
+    if (!db || !uid) return;
+
+    db.collection('users').doc(uid).get().then(function(doc) {
+      var data = doc.exists ? doc.data() : {};
+
+      var content = '<div style="display:flex;flex-direction:column;gap:12px;">'
+        + '<div><label style="font-size:13px;display:block;margin-bottom:4px;">Display Name</label>'
+        + '<input type="text" id="prof-name" class="sign-input" value="' + escapeHtml(data.displayName || '') + '" /></div>'
+        + '<div><label style="font-size:13px;display:block;margin-bottom:4px;">Instrument</label>'
+        + '<input type="text" id="prof-instrument" class="sign-input" value="' + escapeHtml(data.instrument || '') + '" /></div>'
+        + '<div><label style="font-size:13px;display:block;margin-bottom:4px;">Phone</label>'
+        + '<input type="tel" id="prof-phone" class="sign-input" value="' + escapeHtml(data.phone || '') + '" /></div>'
+        + '<div><label style="font-size:13px;display:block;margin-bottom:4px;">Emergency Contact</label>'
+        + '<input type="text" id="prof-emergency" class="sign-input" value="' + escapeHtml(data.emergencyContact || '') + '" /></div>'
+        + '</div>';
+
+      if (typeof Modal !== 'undefined') {
+        Modal.open({
+          title: 'Edit Profile',
+          body: content,
+          size: 'md',
+          buttons: [
+            { label: 'Cancel', class: 'btn-secondary', close: true },
+            { label: 'Save', class: 'btn-primary', callback: function() {
+              var updates = {
+                displayName: document.getElementById('prof-name').value.trim(),
+                instrument: document.getElementById('prof-instrument').value.trim(),
+                phone: document.getElementById('prof-phone').value.trim(),
+                emergencyContact: document.getElementById('prof-emergency').value.trim()
+              };
+              db.collection('users').doc(uid).update(updates).then(function() {
+                if (typeof Modal !== 'undefined') Modal.close();
+                if (typeof Toast !== 'undefined') Toast.success('Profile updated!');
+                loadProfile();
+              }).catch(function(err) {
+                if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + err.message);
+              });
+            }}
+          ]
+        });
+      }
+    });
+  };
 
   // ── Utility ─────────────────────────────────
   function escapeHtml(str) {

@@ -1754,12 +1754,89 @@
   resize: vertical;
 }
 
+/* Timeline */
+.timeline-container {
+  position: relative;
+  padding-left: 24px;
+}
+.timeline-container::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-border);
+}
+.timeline-item {
+  position: relative;
+  display: flex;
+  gap: var(--space-md);
+  padding-bottom: var(--space-md);
+}
+.timeline-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: -24px;
+  margin-top: 3px;
+  z-index: 1;
+}
+.timeline-content { flex: 1; }
+.timeline-date { font-size: var(--text-xs); color: var(--color-text-muted); }
+.timeline-title { font-size: var(--text-sm); font-weight: var(--fw-medium); margin: 2px 0; }
+.timeline-subtitle { font-size: var(--text-xs); color: var(--color-text-secondary); }
+
+/* Payment Summary */
+.payment-summary-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+.payment-stats-row {
+  display: flex;
+  gap: var(--space-xl);
+}
+.payment-stat { text-align: center; flex: 1; }
+.payment-stat .stat-label { display: block; font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; margin-bottom: var(--space-xs); }
+.payment-stat .stat-value { font-size: var(--text-xl); font-weight: var(--fw-bold); color: #3fb950; }
+.w9-alert {
+  background: rgba(210, 153, 34, 0.1);
+  border: 1px solid rgba(210, 153, 34, 0.3);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  color: #d29922;
+  margin-top: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Profile Card */
+.profile-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.profile-info { display: flex; align-items: center; gap: var(--space-md); }
+.profile-details h3 { margin: 0; font-size: var(--text-base); }
+.profile-details p { margin: 2px 0 0; }
+
 /* Responsive */
 @media (max-width: 768px) {
   .musician-stats-row { grid-template-columns: repeat(2, 1fr); }
   .musician-actions-grid { grid-template-columns: repeat(2, 1fr); }
   .gig-card { flex-direction: column; }
   .gig-actions { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+  .payment-stats-row { flex-direction: column; gap: var(--space-md); }
+  .profile-card { flex-direction: column; gap: var(--space-md); align-items: flex-start; }
 }
 @media (max-width: 480px) {
   .musician-stats-row { grid-template-columns: 1fr 1fr; gap: var(--space-sm); }

@@ -192,7 +192,10 @@
       '</div>'+
 
       /* Upcoming shows */
-      '<div class="card" id="bm-upcoming" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>';
+      '<div class="card" id="bm-upcoming" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>'+
+
+      /* Band Readiness (Firestore-backed) */
+      '<div class="card" id="bm-band-readiness" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>';
 
     /* Ops metrics */
     var bmHtml =
@@ -274,6 +277,91 @@
         uHtml += '</div>';
       }
       upc.innerHTML = uHtml;
+    }
+
+    /* Band Readiness — Firestore-backed practice + checkpoint monitoring */
+    var readinessEl = document.getElementById('bm-band-readiness');
+    if (readinessEl && typeof Auth !== 'undefined' && Auth._db) {
+      var fdb = Auth._db;
+      fdb.collection('gigs').where('status', '==', 'upcoming').orderBy('date', 'asc').limit(5).get()
+        .then(function(gigsSnap) {
+          if (gigsSnap.empty) {
+            readinessEl.innerHTML = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-users-viewfinder" style="color:#3fb950;"></i> Band Readiness</h3><p class="text-muted">No upcoming gigs published to Firestore.</p>';
+            return;
+          }
+
+          var gigIds = [];
+          var gigsMap = {};
+          gigsSnap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; gigsMap[doc.id] = d; gigIds.push(doc.id); });
+
+          // Load checkpoints and playback events
+          Promise.all([
+            fdb.collection('rehearsal-checkpoints').get(),
+            fdb.collection('playback-events').where('eventType', '==', 'complete').get(),
+            fdb.collection('track-notes').where('flagged', '==', true).get()
+          ]).then(function(results) {
+            var checkpoints = {};
+            results[0].forEach(function(doc) { var d = doc.data(); if (!checkpoints[d.gigId]) checkpoints[d.gigId] = []; checkpoints[d.gigId].push(d); });
+
+            var practiceByUser = {};
+            results[1].forEach(function(doc) { var d = doc.data(); if (!practiceByUser[d.userId]) practiceByUser[d.userId] = new Set(); practiceByUser[d.userId].add(d.trackId); });
+
+            var flaggedNotes = [];
+            results[2].forEach(function(doc) { flaggedNotes.push(doc.data()); });
+
+            var rHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-users-viewfinder" style="color:#3fb950;"></i> Band Readiness</h3>';
+
+            gigIds.forEach(function(gigId) {
+              var gig = gigsMap[gigId];
+              var gigDate = gig.date && gig.date.toDate ? gig.date.toDate() : new Date(gig.date);
+              var gCps = checkpoints[gigId] || [];
+              var musicians = gig.assignedMusicians || [];
+
+              rHtml += '<div style="margin-bottom:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);">';
+              rHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);">';
+              rHtml += '<strong>' + (gig.title||'Gig') + '</strong>';
+              rHtml += '<span style="font-size:var(--text-xs);color:var(--color-text-muted);">' + gigDate.toLocaleDateString() + '</span></div>';
+
+              if (musicians.length === 0) {
+                rHtml += '<p style="font-size:var(--text-sm);color:var(--color-text-muted);">No musicians assigned.</p>';
+              } else {
+                rHtml += '<div style="display:flex;flex-direction:column;gap:4px;">';
+                musicians.forEach(function(uid) {
+                  var cp = gCps.find(function(c) { return c.musicianId === uid; });
+                  var tracksPlayed = practiceByUser[uid] ? practiceByUser[uid].size : 0;
+                  var cpDone = cp ? (cp.setlistReady && cp.gearReady && cp.travelReady) : false;
+
+                  rHtml += '<div style="display:flex;align-items:center;gap:var(--space-sm);font-size:var(--text-sm);">';
+                  rHtml += '<i class="fa-solid ' + (cpDone ? 'fa-circle-check' : 'fa-circle') + '" style="color:' + (cpDone ? '#3fb950' : '#8b949e') + ';"></i>';
+                  rHtml += '<span style="flex:1;">' + uid.slice(0, 8) + '...</span>';
+                  rHtml += '<span style="color:var(--color-text-muted);">' + tracksPlayed + ' tracks</span>';
+                  if (cp) rHtml += '<span style="color:#d4a017;font-size:11px;">' + (cp.selfRating||'?') + '/5</span>';
+                  rHtml += '</div>';
+                });
+                rHtml += '</div>';
+              }
+              rHtml += '</div>';
+            });
+
+            // Flagged notes
+            if (flaggedNotes.length > 0) {
+              rHtml += '<div style="margin-top:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2);">';
+              rHtml += '<h4 style="margin:0 0 var(--space-sm);font-size:var(--text-sm);color:#d29922;"><i class="fa-solid fa-flag"></i> Flagged Notes (' + flaggedNotes.length + ')</h4>';
+              flaggedNotes.slice(0, 5).forEach(function(n) {
+                rHtml += '<div style="font-size:var(--text-sm);padding:3px 0;border-bottom:1px solid var(--color-border);">';
+                rHtml += '<strong>' + (n.songTitle||'Track') + '</strong> — ' + (n.userName||'Musician');
+                if (n.notes) rHtml += '<div style="color:var(--color-text-muted);font-style:italic;">"' + n.notes.slice(0, 100) + '"</div>';
+                rHtml += '</div>';
+              });
+              rHtml += '</div>';
+            }
+
+            readinessEl.innerHTML = rHtml;
+          });
+        })
+        .catch(function(err) {
+          readinessEl.innerHTML = '<h3><i class="fa-solid fa-users-viewfinder" style="color:#3fb950;"></i> Band Readiness</h3><p class="text-muted">Could not load: ' + err.message + '</p>';
+        });
     }
 
     document.addEventListener('gbe:data-updated', renderBandManagerDash);

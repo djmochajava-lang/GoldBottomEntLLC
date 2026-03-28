@@ -683,6 +683,62 @@ const BandPlayer = {
     });
   },
 
+  // ── Track Notes & Flagging ───────────────────────────
+
+  showTrackNotes: function(songId) {
+    var song = this._allSongsMap[songId];
+    if (!song) return;
+    var self = this;
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    if (!user || !this._db) return;
+
+    // Load existing notes for this track from Firestore
+    var noteDocId = songId + '_' + user.uid;
+    this._db.collection('track-notes').doc(noteDocId).get().then(function(doc) {
+      var existing = doc.exists ? doc.data() : {};
+      var noteText = existing.notes || '';
+      var flagged = existing.flagged || false;
+
+      var content = '<div style="margin-bottom:12px;">'
+        + '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">'
+        + '<input type="checkbox" id="tn-flag" ' + (flagged ? 'checked' : '') + ' style="width:18px;height:18px;accent-color:#d29922;" />'
+        + '<span style="font-size:14px;"><i class="fa-solid fa-flag" style="color:#d29922;margin-right:4px;"></i> Flag for discussion with band manager</span>'
+        + '</label>'
+        + '<textarea id="tn-notes" rows="5" placeholder="Your notes on this track (practice reminders, questions, arrangement ideas...)" '
+        + 'style="width:100%;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);padding:10px;font-family:inherit;resize:vertical;">'
+        + self._escHtml(noteText) + '</textarea></div>';
+
+      if (typeof Modal !== 'undefined') {
+        Modal.open({
+          title: 'Notes — ' + self._titleCase(song.title),
+          body: content,
+          size: 'md',
+          buttons: [
+            { label: 'Cancel', class: 'btn-secondary', close: true },
+            { label: 'Save Notes', class: 'btn-primary', callback: function() {
+              var notes = document.getElementById('tn-notes').value.trim();
+              var flag = document.getElementById('tn-flag').checked;
+              self._db.collection('track-notes').doc(noteDocId).set({
+                songId: songId,
+                userId: user.uid,
+                userName: user.displayName || user.email || '',
+                songTitle: song.title,
+                notes: notes,
+                flagged: flag,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true }).then(function() {
+                if (typeof Modal !== 'undefined') Modal.close();
+                if (typeof Toast !== 'undefined') Toast.success('Notes saved!');
+              }).catch(function(err) {
+                if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + err.message);
+              });
+            }}
+          ]
+        });
+      }
+    });
+  },
+
   // ── Edit Mode (band_manager / admin only) ─────────────
 
   toggleEditMode: function() {
@@ -1509,6 +1565,7 @@ const BandPlayer = {
         '<div class="bp-track-actions" onclick="event.stopPropagation()">' +
           '<button class="bp-action-btn" onclick="BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>' +
           '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="' + (hasCharts ? 'View Charts' : 'Chart') + '"' + (hasCharts ? ' style="color:#d4a017;border-color:rgba(212,160,23,0.25);"' : '') + '><i class="fa-solid fa-music"></i></button>' +
+          '<button class="bp-action-btn" onclick="BandPlayer.showTrackNotes(\'' + song.id + '\')" title="Notes / Flag"><i class="fa-solid fa-comment-dots"></i></button>' +
           (cached
             ? '<button class="bp-action-btn" onclick="BandPlayer.removeOffline(\'' + song.id + '\')" title="Remove offline" style="color:#3fb950;border-color:rgba(63,185,80,0.2);"><i class="fa-solid fa-cloud-arrow-down"></i></button>'
             : '<button class="bp-action-btn" onclick="BandPlayer.saveOffline(\'' + song.id + '\')" title="Save offline"><i class="fa-regular fa-cloud-arrow-down"></i></button>') +
