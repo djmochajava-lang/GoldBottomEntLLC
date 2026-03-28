@@ -145,12 +145,48 @@ const BandPlayer = {
 
   loadPlaylists: function() {
     var self = this;
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    var isManager = (role === 'admin' || role === 'band_manager');
+
     this._db.collection('playlists').orderBy('createdAt', 'desc').get()
       .then(function(snap) {
         self._playlists = [];
         snap.forEach(function(doc) {
           self._playlists.push(Object.assign({ id: doc.id }, doc.data()));
         });
+
+        // For band members: filter to playlists assigned to their gigs
+        if (!isManager && user) {
+          self._db.collection('gigs')
+            .where('assignedMusicians', 'array-contains', user.uid)
+            .where('status', '==', 'upcoming')
+            .get()
+            .then(function(gigsSnap) {
+              var gigPlaylistIds = {};
+              gigsSnap.forEach(function(doc) {
+                var gig = doc.data();
+                if (gig.playlistId) gigPlaylistIds[gig.playlistId] = true;
+              });
+              // If gigs have linked playlists, filter; otherwise show all (graceful)
+              if (Object.keys(gigPlaylistIds).length > 0) {
+                self._playlists = self._playlists.filter(function(pl) {
+                  return gigPlaylistIds[pl.id] || pl.isPublic;
+                });
+              }
+              self.renderPlaylistDropdown();
+              if (self._playlists.length > 0) { self.selectPlaylist(self._playlists[0].id); }
+              else { self._renderEmptyState(); }
+            })
+            .catch(function() {
+              // Firestore error — show all playlists (graceful degradation)
+              self.renderPlaylistDropdown();
+              if (self._playlists.length > 0) self.selectPlaylist(self._playlists[0].id);
+              else self._renderEmptyState();
+            });
+          return;
+        }
+
         self.renderPlaylistDropdown();
         // Auto-select first playlist
         if (self._playlists.length > 0) {
@@ -739,6 +775,67 @@ const BandPlayer = {
     });
   },
 
+  // ── Permissions (band_manager / admin only) ──────────
+
+  showPermissions: function() {
+    if (!this._db || !this._currentPlaylist) return;
+    var self = this;
+    var plId = this._currentPlaylist.id;
+
+    // Load current permissions doc for this playlist
+    this._db.collection('playlist-permissions').doc(plId).get().then(function(doc) {
+      var perms = doc.exists ? doc.data() : { accessLevel: 'all_band', restrictedSongs: [] };
+
+      var content = '<div style="display:flex;flex-direction:column;gap:16px;">'
+        + '<div><label style="font-size:13px;display:block;margin-bottom:6px;font-weight:600;">Access Level</label>'
+        + '<select id="perm-level" style="width:100%;padding:8px;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);">'
+        + '<option value="all_band"' + (perms.accessLevel === 'all_band' ? ' selected' : '') + '>All Band Members</option>'
+        + '<option value="assigned_only"' + (perms.accessLevel === 'assigned_only' ? ' selected' : '') + '>Assigned Gig Musicians Only</option>'
+        + '<option value="custom"' + (perms.accessLevel === 'custom' ? ' selected' : '') + '>Custom (by musician)</option>'
+        + '</select></div>'
+        + '<div><label style="font-size:13px;display:block;margin-bottom:6px;font-weight:600;">Download Policy</label>'
+        + '<select id="perm-download" style="width:100%;padding:8px;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);">'
+        + '<option value="allowed"' + (perms.downloadPolicy !== 'disabled' ? ' selected' : '') + '>Downloads Allowed</option>'
+        + '<option value="disabled"' + (perms.downloadPolicy === 'disabled' ? ' selected' : '') + '>Downloads Disabled</option>'
+        + '</select></div>'
+        + '<div><label style="font-size:13px;display:block;margin-bottom:6px;font-weight:600;">Charts & Lyrics</label>'
+        + '<select id="perm-charts" style="width:100%;padding:8px;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);">'
+        + '<option value="all"' + (perms.chartsAccess !== 'instrument_only' ? ' selected' : '') + '>All Charts Visible</option>'
+        + '<option value="instrument_only"' + (perms.chartsAccess === 'instrument_only' ? ' selected' : '') + '>Own Instrument Only</option>'
+        + '</select></div>'
+        + '</div>';
+
+      if (typeof Modal !== 'undefined') {
+        Modal.open({
+          title: 'Playlist Permissions — ' + (self._currentPlaylist.name || 'Playlist'),
+          body: content,
+          size: 'md',
+          buttons: [
+            { label: 'Cancel', class: 'btn-secondary', close: true },
+            { label: 'Save', class: 'btn-primary', callback: function() {
+              var data = {
+                playlistId: plId,
+                accessLevel: document.getElementById('perm-level').value,
+                downloadPolicy: document.getElementById('perm-download').value,
+                chartsAccess: document.getElementById('perm-charts').value,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              };
+              self._db.collection('playlist-permissions').doc(plId).set(data, { merge: true }).then(function() {
+                // Also update the playlist doc with downloadPolicy for inline checks
+                self._db.collection('playlists').doc(plId).update({ downloadPolicy: data.downloadPolicy });
+                self._currentPlaylist.downloadPolicy = data.downloadPolicy;
+                if (typeof Modal !== 'undefined') Modal.close();
+                if (typeof Toast !== 'undefined') Toast.success('Permissions saved!');
+              }).catch(function(err) {
+                if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + err.message);
+              });
+            }}
+          ]
+        });
+      }
+    });
+  },
+
   // ── Edit Mode (band_manager / admin only) ─────────────
 
   toggleEditMode: function() {
@@ -1068,6 +1165,25 @@ const BandPlayer = {
 
   showCreatePlaylist: function() {
     if (typeof Modal === 'undefined') return;
+
+    // Pre-load gigs for the "Link to Gig" dropdown
+    var self = this;
+    var gigsHtml = '<option value="">None</option>';
+    var gigsReady = false;
+
+    if (this._db) {
+      this._db.collection('gigs').where('status', '==', 'upcoming').orderBy('date', 'asc').get()
+        .then(function(snap) {
+          snap.forEach(function(doc) {
+            var g = doc.data();
+            var dateStr = g.date && g.date.toDate ? g.date.toDate().toLocaleDateString() : '';
+            gigsHtml += '<option value="' + doc.id + '">' + (g.title || 'Gig') + (dateStr ? ' (' + dateStr + ')' : '') + '</option>';
+          });
+          var sel = document.getElementById('bp-pl-gig');
+          if (sel) sel.innerHTML = gigsHtml;
+        }).catch(function() {});
+    }
+
     Modal.open({
       title: 'Create Playlist',
       size: 'sm',
@@ -1075,6 +1191,7 @@ const BandPlayer = {
         '<div style="display:flex;flex-direction:column;gap:12px;">' +
           '<div><label class="form-label">Playlist Name *</label><input id="bp-pl-name" class="form-input" placeholder="e.g. Friday Night Set" /></div>' +
           '<div><label class="form-label">Description</label><input id="bp-pl-desc" class="form-input" placeholder="e.g. Blues Alley show — 90 min set" /></div>' +
+          '<div><label class="form-label">Link to Gig</label><select id="bp-pl-gig" class="form-input">' + gigsHtml + '</select></div>' +
           '<div><label class="form-label">Album Art</label>' +
             '<div style="display:flex;gap:8px;align-items:center;">' +
               '<div id="bp-pl-art-preview" style="width:60px;height:60px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">' +
@@ -1096,17 +1213,24 @@ const BandPlayer = {
         var artUrl = (document.getElementById('bp-pl-art-url') || {}).value || '';
         if (!name.trim()) { Toast.error('Playlist name is required'); return; }
 
+        var gigId = (document.getElementById('bp-pl-gig') || {}).value || '';
+
         function createPlaylist(albumArt) {
           var plData = {
             name: name,
             description: desc,
             albumArt: albumArt || '',
             songOrder: [],
+            gigId: gigId || null,
             createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'pin',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           };
           BandPlayer._db.collection('playlists').add(plData).then(function(ref) {
+            // If linked to a gig, update the gig's playlistId
+            if (gigId && BandPlayer._db) {
+              BandPlayer._db.collection('gigs').doc(gigId).update({ playlistId: ref.id }).catch(function() {});
+            }
             Modal.close();
             Toast.success('Playlist created: ' + name);
             plData.id = ref.id;
@@ -1566,6 +1690,7 @@ const BandPlayer = {
           '<button class="bp-action-btn" onclick="BandPlayer.showLyrics(\'' + song.id + '\')" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>' +
           '<button class="bp-action-btn" onclick="BandPlayer.showChart(\'' + song.id + '\')" title="' + (hasCharts ? 'View Charts' : 'Chart') + '"' + (hasCharts ? ' style="color:#d4a017;border-color:rgba(212,160,23,0.25);"' : '') + '><i class="fa-solid fa-music"></i></button>' +
           '<button class="bp-action-btn" onclick="BandPlayer.showTrackNotes(\'' + song.id + '\')" title="Notes / Flag"><i class="fa-solid fa-comment-dots"></i></button>' +
+          (song.audioPath ? '<button class="bp-action-btn" onclick="BandPlayer.downloadTrack(\'' + song.id + '\')" title="Download"><i class="fa-solid fa-download"></i></button>' : '') +
           (cached
             ? '<button class="bp-action-btn" onclick="BandPlayer.removeOffline(\'' + song.id + '\')" title="Remove offline" style="color:#3fb950;border-color:rgba(63,185,80,0.2);"><i class="fa-solid fa-cloud-arrow-down"></i></button>'
             : '<button class="bp-action-btn" onclick="BandPlayer.saveOffline(\'' + song.id + '\')" title="Save offline"><i class="fa-regular fa-cloud-arrow-down"></i></button>') +
@@ -1644,6 +1769,34 @@ const BandPlayer = {
     }).catch(function() {
       return null;
     });
+  },
+
+  downloadTrack: function(songId) {
+    var song = this._allSongsMap[songId];
+    if (!song || !song.audioPath) return;
+    var self = this;
+
+    // Check download policy on playlist
+    if (this._currentPlaylist && this._currentPlaylist.downloadPolicy === 'disabled') {
+      if (typeof Toast !== 'undefined') Toast.info('Downloads are disabled for this playlist.');
+      return;
+    }
+
+    // Get the download URL from Firebase Storage
+    if (this._storage) {
+      this._storage.ref(song.audioPath).getDownloadURL().then(function(url) {
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (song.title || 'track') + '.mp3';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        if (typeof Toast !== 'undefined') Toast.success('Downloading ' + self._titleCase(song.title));
+      }).catch(function(err) {
+        if (typeof Toast !== 'undefined') Toast.error('Download failed: ' + err.message);
+      });
+    }
   },
 
   saveOffline: function(songId) {
