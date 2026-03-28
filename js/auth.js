@@ -1072,13 +1072,7 @@ const Auth = {
     return labels[role] || 'Member';
   },
 
-  /**
-   * Get the current user's active role (may differ from primary role when switching).
-   * @returns {string|null}
-   */
-  getRole: function() {
-    return this._activeRole || this._role;
-  },
+  // getRole() defined at line 880 — do not duplicate here
 
   /**
    * Get the current user's primary role (as assigned in Firestore, never changes in-session).
