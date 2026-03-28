@@ -1,0 +1,313 @@
+<!-- dashboard/agreements.html — Agreement Management Dashboard -->
+<div class="dashboard-page" id="dash-agreements">
+
+  <div class="dashboard-page-header">
+    <div>
+      <h1>Agreements</h1>
+      <p class="text-muted">Manage templates, send agreements, and track signing status.</p>
+    </div>
+    <div style="display:flex;gap:var(--space-sm);">
+      <button class="btn btn-primary" onclick="window._showSendAgreement()">
+        <i class="fa-solid fa-paper-plane"></i> Send Agreement
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="musician-stats-row" id="agr-stats-row">
+    <div class="musician-stat-card">
+      <div class="stat-value" id="agr-stat-total">--</div>
+      <div class="stat-label">Total Agreements</div>
+    </div>
+    <div class="musician-stat-card">
+      <div class="stat-value" id="agr-stat-pending">--</div>
+      <div class="stat-label">Pending Signature</div>
+    </div>
+    <div class="musician-stat-card">
+      <div class="stat-value" id="agr-stat-signed">--</div>
+      <div class="stat-label">Signed</div>
+    </div>
+    <div class="musician-stat-card">
+      <div class="stat-value" id="agr-stat-expired">--</div>
+      <div class="stat-label">Expired</div>
+    </div>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg);">
+    <button class="btn-filter active" onclick="window._filterAgreements('all', this)">All</button>
+    <button class="btn-filter" onclick="window._filterAgreements('pending', this)">Pending</button>
+    <button class="btn-filter" onclick="window._filterAgreements('signed', this)">Signed</button>
+    <button class="btn-filter" onclick="window._filterAgreements('expired', this)">Expired</button>
+  </div>
+
+  <!-- Agreement List -->
+  <div id="agr-list"></div>
+
+  <!-- Templates Section -->
+  <div class="musician-section" style="margin-top:var(--space-2xl);">
+    <h2><i class="fa-solid fa-file-lines"></i> Agreement Templates</h2>
+    <div id="agr-templates-list"></div>
+    <button class="btn btn-secondary" style="margin-top:var(--space-md);" onclick="window._showCreateTemplate()">
+      <i class="fa-solid fa-plus"></i> Create Template
+    </button>
+  </div>
+
+</div>
+
+<style>
+  .btn-filter { padding: 6px 16px; border-radius: var(--radius-full); border: 1px solid var(--color-border); background: var(--color-bg-tertiary); color: var(--color-text-muted); cursor: pointer; font-size: var(--text-sm); }
+  .btn-filter.active { border-color: var(--color-gold); color: var(--color-gold); background: rgba(212,160,23,0.1); }
+  .agr-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-md) var(--space-lg); background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-sm); }
+  .agr-row:hover { border-color: var(--color-gold); }
+  .agr-row-info h3 { margin: 0; font-size: var(--text-base); }
+  .agr-row-info p { margin: 3px 0 0; font-size: var(--text-sm); color: var(--color-text-muted); }
+  .agr-badge { padding: 2px 10px; border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: var(--fw-semibold); }
+  .agr-badge-pending { background: rgba(210,153,34,0.2); color: #d29922; }
+  .agr-badge-signed { background: rgba(63,185,80,0.2); color: #3fb950; }
+  .agr-badge-expired { background: rgba(248,81,73,0.2); color: #f85149; }
+  .tpl-row { padding: var(--space-md); background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-sm); display: flex; justify-content: space-between; align-items: center; }
+  .tpl-row h4 { margin: 0; font-size: var(--text-sm); }
+  .tpl-row p { margin: 2px 0 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+</style>
+
+<script>
+(function() {
+  'use strict';
+  var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
+  if (!db) return;
+
+  var allAgreements = [];
+  var currentFilter = 'all';
+
+  function init() {
+    loadAgreements();
+    loadTemplates();
+  }
+
+  // ── Load Agreements ────────────────────────
+  function loadAgreements() {
+    db.collection('agreements').orderBy('sentAt', 'desc').limit(50).get()
+      .then(function(snap) {
+        allAgreements = [];
+        snap.forEach(function(doc) { allAgreements.push(Object.assign({ _id: doc.id }, doc.data())); });
+        updateStats();
+        renderAgreements();
+      });
+  }
+
+  function updateStats() {
+    var pending = 0, signed = 0, expired = 0;
+    allAgreements.forEach(function(a) {
+      if (a.status === 'pending') pending++;
+      else if (a.status === 'signed') signed++;
+      else if (a.status === 'expired') expired++;
+    });
+    setText('agr-stat-total', allAgreements.length);
+    setText('agr-stat-pending', pending);
+    setText('agr-stat-signed', signed);
+    setText('agr-stat-expired', expired);
+  }
+
+  function renderAgreements() {
+    var el = document.getElementById('agr-list');
+    if (!el) return;
+
+    var filtered = currentFilter === 'all' ? allAgreements : allAgreements.filter(function(a) { return a.status === currentFilter; });
+
+    if (filtered.length === 0) {
+      el.innerHTML = '<div class="musician-empty-state"><i class="fa-solid fa-file-circle-check"></i><p>No agreements ' + (currentFilter === 'all' ? '' : 'with status "' + currentFilter + '"') + '.</p></div>';
+      return;
+    }
+
+    var html = '';
+    filtered.forEach(function(a) {
+      var sentDate = a.sentAt && a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : '';
+      var signedDate = a.signedAt && a.signedAt.toDate ? a.signedAt.toDate().toLocaleDateString() : '';
+      var badgeClass = a.status === 'signed' ? 'agr-badge-signed' : a.status === 'pending' ? 'agr-badge-pending' : 'agr-badge-expired';
+      var statusLabel = a.status === 'signed' ? 'Signed' + (signedDate ? ' ' + signedDate : '') : a.status === 'pending' ? 'Pending' : a.status;
+
+      html += '<div class="agr-row">'
+        + '<div class="agr-row-info">'
+        + '<h3>' + esc(a.title || 'Agreement') + '</h3>'
+        + '<p>' + esc(a.musicianId || 'Unknown musician') + (sentDate ? ' &middot; Sent ' + sentDate : '') + '</p>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:var(--space-sm);">'
+        + '<span class="agr-badge ' + badgeClass + '">' + statusLabel + '</span>'
+        + (a.status === 'signed' ? '<button class="btn-checkpoint" onclick="window._viewSignature(\'' + a._id + '\')"><i class="fa-solid fa-eye"></i></button>' : '')
+        + '</div></div>';
+    });
+    el.innerHTML = html;
+  }
+
+  window._filterAgreements = function(status, btn) {
+    currentFilter = status;
+    document.querySelectorAll('.btn-filter').forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    renderAgreements();
+  };
+
+  // ── Load Templates ─────────────────────────
+  function loadTemplates() {
+    db.collection('agreement-templates').orderBy('createdAt', 'desc').get()
+      .then(function(snap) {
+        var el = document.getElementById('agr-templates-list');
+        if (!el) return;
+        if (snap.empty) { el.innerHTML = '<p class="text-muted">No templates yet. Create one to get started.</p>'; return; }
+        var html = '';
+        snap.forEach(function(doc) {
+          var t = doc.data();
+          html += '<div class="tpl-row"><div><h4>' + esc(t.name || 'Template') + '</h4><p>' + esc(t.type || 'custom') + '</p></div>'
+            + '<button class="btn-checkpoint" onclick="window._useTemplate(\'' + doc.id + '\')"><i class="fa-solid fa-paper-plane"></i> Use</button></div>';
+        });
+        el.innerHTML = html;
+      })
+      .catch(function() {
+        var el = document.getElementById('agr-templates-list');
+        if (el) el.innerHTML = '<p class="text-muted">Templates not available.</p>';
+      });
+  }
+
+  // ── Send Agreement Modal ───────────────────
+  window._showSendAgreement = function(templateId) {
+    // Load musicians from Firestore users collection
+    db.collection('users').where('role', 'in', ['band_member', 'artist']).get().then(function(snap) {
+      var musicianOpts = '';
+      snap.forEach(function(doc) {
+        var u = doc.data();
+        musicianOpts += '<option value="' + doc.id + '">' + esc(u.displayName || u.email || doc.id) + '</option>';
+      });
+
+      var content = '<div style="display:flex;flex-direction:column;gap:12px;">'
+        + '<div><label class="form-label">Musician *</label><select id="agr-musician" class="form-input">' + musicianOpts + '</select></div>'
+        + '<div><label class="form-label">Agreement Title *</label><input id="agr-title" class="form-input" placeholder="e.g. Performance Agreement — Friday Night Jazz" /></div>'
+        + '<div><label class="form-label">Content</label><textarea id="agr-content" class="form-input" rows="6" placeholder="Agreement text (supports HTML)..."></textarea></div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+        + '<div><label class="form-label">Pay ($)</label><input id="agr-pay" class="form-input" type="number" placeholder="250" /></div>'
+        + '<div><label class="form-label">Call Time</label><input id="agr-calltime" class="form-input" placeholder="6:00 PM" /></div>'
+        + '<div><label class="form-label">Set Length</label><input id="agr-setlength" class="form-input" placeholder="2 hours" /></div>'
+        + '<div><label class="form-label">Venue</label><input id="agr-venue" class="form-input" placeholder="Blues Alley" /></div>'
+        + '</div></div>';
+
+      if (typeof Modal !== 'undefined') {
+        Modal.open({
+          title: 'Send Agreement',
+          body: content,
+          size: 'lg',
+          buttons: [
+            { label: 'Cancel', class: 'btn-secondary', close: true },
+            { label: 'Send', class: 'btn-primary', callback: function() {
+              var musicianId = val('agr-musician');
+              var title = val('agr-title');
+              if (!musicianId || !title) { if (typeof Toast !== 'undefined') Toast.error('Musician and title are required'); return; }
+
+              var agrData = {
+                musicianId: musicianId,
+                title: title,
+                content: val('agr-content') || '<p>Standard performance agreement. Terms as discussed.</p>',
+                terms: {
+                  pay: val('agr-pay') ? '$' + val('agr-pay') : '',
+                  callTime: val('agr-calltime') || '',
+                  setLength: val('agr-setlength') || '',
+                  venue: val('agr-venue') || ''
+                },
+                status: 'pending',
+                sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+                signedAt: null,
+                signatureData: null
+              };
+
+              db.collection('agreements').add(agrData).then(function(ref) {
+                if (typeof Modal !== 'undefined') Modal.close();
+                if (typeof Toast !== 'undefined') Toast.success('Agreement sent! Signing link: #sign?id=' + ref.id);
+                loadAgreements();
+              }).catch(function(err) {
+                if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
+              });
+            }}
+          ]
+        });
+      }
+    });
+  };
+
+  window._useTemplate = function(templateId) {
+    db.collection('agreement-templates').doc(templateId).get().then(function(doc) {
+      if (!doc.exists) return;
+      var tpl = doc.data();
+      window._showSendAgreement(templateId);
+      // Pre-fill after modal renders
+      setTimeout(function() {
+        var titleEl = document.getElementById('agr-title');
+        var contentEl = document.getElementById('agr-content');
+        if (titleEl && tpl.name) titleEl.value = tpl.name;
+        if (contentEl && tpl.content) contentEl.value = tpl.content;
+      }, 200);
+    });
+  };
+
+  // ── Create Template Modal ──────────────────
+  window._showCreateTemplate = function() {
+    var content = '<div style="display:flex;flex-direction:column;gap:12px;">'
+      + '<div><label class="form-label">Template Name *</label><input id="tpl-name" class="form-input" placeholder="e.g. Standard Gig Agreement" /></div>'
+      + '<div><label class="form-label">Type</label><select id="tpl-type" class="form-input">'
+      + '<option value="performance">Performance</option><option value="session">Session</option>'
+      + '<option value="touring">Touring</option><option value="substitute">Substitute</option>'
+      + '<option value="custom">Custom</option></select></div>'
+      + '<div><label class="form-label">Content</label><textarea id="tpl-content" class="form-input" rows="8" placeholder="Agreement template text..."></textarea></div>'
+      + '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Create Agreement Template',
+        body: content,
+        size: 'md',
+        buttons: [
+          { label: 'Cancel', class: 'btn-secondary', close: true },
+          { label: 'Save Template', class: 'btn-primary', callback: function() {
+            var name = val('tpl-name');
+            if (!name) { if (typeof Toast !== 'undefined') Toast.error('Template name required'); return; }
+            db.collection('agreement-templates').add({
+              name: name,
+              type: val('tpl-type') || 'custom',
+              content: val('tpl-content') || '',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(function() {
+              if (typeof Modal !== 'undefined') Modal.close();
+              if (typeof Toast !== 'undefined') Toast.success('Template created!');
+              loadTemplates();
+            });
+          }}
+        ]
+      });
+    }
+  };
+
+  // ── View Signature ─────────────────────────
+  window._viewSignature = function(agrId) {
+    db.collection('agreements').doc(agrId).get().then(function(doc) {
+      if (!doc.exists) return;
+      var a = doc.data();
+      var sigData = a.signatureData || {};
+      var content = '<div style="text-align:center;">';
+      if (sigData.type === 'drawn' && sigData.value) {
+        content += '<img src="' + sigData.value + '" style="max-width:100%;border:1px solid var(--color-border);border-radius:6px;background:#fff;" />';
+      } else if (sigData.type === 'typed') {
+        content += '<div style="font-family:\'Dancing Script\',cursive,serif;font-size:32px;color:var(--color-gold);padding:20px;">' + esc(sigData.value || '') + '</div>';
+      }
+      var signedDate = a.signedAt && a.signedAt.toDate ? a.signedAt.toDate().toLocaleString() : 'Unknown';
+      content += '<p style="margin-top:12px;font-size:13px;color:var(--color-text-muted);">Signed: ' + signedDate + '</p>';
+      content += '</div>';
+
+      if (typeof Modal !== 'undefined') Modal.open({ title: 'Signature — ' + esc(a.title || 'Agreement'), body: content, size: 'md' });
+    });
+  };
+
+  // ── Helpers ────────────────────────────────
+  function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function val(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function setText(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+
+  init();
+})();
+</script>

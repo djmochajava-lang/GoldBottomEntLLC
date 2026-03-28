@@ -79,6 +79,9 @@ const Router = {
     // Musician Portal (band member landing page)
     'dashboard-musician-home': 'dashboard/musician-home.html',
 
+    // Agreement Management (band manager)
+    'dashboard-agreements': 'dashboard/agreements.html',
+
     // Agreement Signing (public, token-based)
     'sign': 'pages/sign.html',
   },
