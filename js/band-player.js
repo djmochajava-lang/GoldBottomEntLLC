@@ -384,22 +384,11 @@ const BandPlayer = {
     // Always re-fetch from Firestore so we get the latest charts field
     // (song may have been cached before charts were generated)
     var fetchAndShow = function(latestSong) {
-      var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'band_member';
-      var isManager = (role === 'admin' || role === 'band_manager');
-      var instrument = (typeof Auth !== 'undefined' && Auth.getInstrument) ? Auth.getInstrument() : null;
       var charts = (latestSong.charts && Object.keys(latestSong.charts).length > 0) ? latestSong.charts : null;
 
       if (charts) {
-        var chartKeys = Object.keys(charts);
-
-        if (isManager) {
-          // Managers see a picker for all instrument charts
-          self._showChartPicker(latestSong, charts);
-          return;
-        }
-        // Members: open their specific instrument chart, or first available
-        var targetKey = (instrument && charts[instrument]) ? instrument : chartKeys[0];
-        self._openChartFile(charts[targetKey], latestSong.title + ' — ' + targetKey.charAt(0).toUpperCase() + targetKey.slice(1));
+        // All band team members see the chart picker (FRD-4 permissions)
+        self._showChartPicker(latestSong, charts);
         return;
       }
 
