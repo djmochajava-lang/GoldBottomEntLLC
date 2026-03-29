@@ -161,55 +161,66 @@ const BandPlayer = {
   },
 
   // ── SCREEN 2: Payment Setup & House Band Agreement ──
+  // mode: 'onboarding' (first time, shows HBA + W-9) or 'edit' (returning, payment only + back button)
 
-  _showScreen2: function() {
+  _showScreen2: function(mode) {
     var container = this._getContainer();
     if (!container) return;
     var self = this;
     var IS = this._inputStyle;
     var LS = this._labelStyle;
+    var isEdit = (mode === 'edit');
+    var title = isEdit ? 'Update Payment Info' : 'Payment Setup &amp; House Band Agreement';
+    var subtitle = isEdit
+      ? 'Change how you\u2019d like to get paid. We\u2019ll use these details for all future payments.'
+      : 'Thanks for joining the band! Let\u2019s get you set up so we can pay you quickly and easily after every gig.';
+
+    // Pre-fill from Firestore if editing
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    var prefill = function(data) {
 
     container.innerHTML =
       '<div style="max-width:600px;margin:var(--space-xl) auto;padding:var(--space-lg);">' +
         '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
+          (isEdit ? '<div style="margin-bottom:var(--space-md);"><a href="#" id="pay-back-btn" style="color:var(--color-text-secondary);font-size:var(--text-sm);text-decoration:none;"><i class="fa-solid fa-arrow-left" style="margin-right:4px;"></i> Back to Player</a></div>' : '') +
           '<div style="width:56px;height:56px;border-radius:50%;background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
             '<i class="fa-solid fa-credit-card" style="font-size:24px;color:var(--color-gold);"></i>' +
           '</div>' +
-          '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-xs);text-align:center;">Payment Setup &amp; House Band Agreement</h2>' +
-          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);text-align:center;line-height:1.6;">' +
-            'Thanks for joining the band! Let\u2019s get you set up so we can pay you quickly and easily after every gig.' +
-          '</p>' +
+          '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-xs);text-align:center;">' + title + '</h2>' +
+          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);text-align:center;line-height:1.6;">' + subtitle + '</p>' +
 
-          // Step 1: Payment Method
+          // Payment Method
           '<div style="margin-bottom:var(--space-lg);">' +
-            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);">Step 1: How would you like to get paid?</h3>' +
+            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);">' + (isEdit ? '' : 'Step 1: ') + 'How would you like to get paid?</h3>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:var(--space-sm);">' +
-              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="direct_deposit"> Direct Deposit</label>' +
-              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="venmo"> Venmo</label>' +
-              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="zelle"> Zelle</label>' +
-              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="cashapp"> Cash App</label>' +
-              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="check"> Check</label>' +
-              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="other"> Other</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="direct_deposit"' + (data.paymentMethod === 'direct_deposit' ? ' checked' : '') + '> Direct Deposit</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="venmo"' + (data.paymentMethod === 'venmo' ? ' checked' : '') + '> Venmo</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="zelle"' + (data.paymentMethod === 'zelle' ? ' checked' : '') + '> Zelle</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="cashapp"' + (data.paymentMethod === 'cashapp' ? ' checked' : '') + '> Cash App</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="check"' + (data.paymentMethod === 'check' ? ' checked' : '') + '> Check</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="other"' + (data.paymentMethod === 'other' ? ' checked' : '') + '> Other</label>' +
             '</div>' +
-            // Direct Deposit fields (hidden by default)
-            '<div id="pay-bank-fields" style="display:none;margin-top:var(--space-sm);">' +
+            '<div id="pay-bank-fields" style="display:' + (data.paymentMethod === 'direct_deposit' ? 'block' : 'none') + ';margin-top:var(--space-sm);">' +
               '<div style="display:grid;gap:10px;">' +
-                '<div><label style="' + LS + '">Bank Name</label><input id="pay-bank" type="text" style="' + IS + '" placeholder="e.g. Chase, Bank of America" /></div>' +
-                '<div><label style="' + LS + '">Routing Number</label><input id="pay-routing" type="password" style="' + IS + '" placeholder="9-digit routing number" maxlength="9" autocomplete="off" /></div>' +
-                '<div><label style="' + LS + '">Account Number</label><input id="pay-account" type="password" style="' + IS + '" placeholder="Account number" autocomplete="off" /></div>' +
+                '<div><label style="' + LS + '">Bank Name <span style="color:var(--color-gold);">*</span></label><input id="pay-bank" type="text" style="' + IS + '" placeholder="e.g. Chase, Bank of America" /></div>' +
+                '<div><label style="' + LS + '">Routing Number <span style="color:var(--color-gold);">*</span></label><input id="pay-routing" type="password" style="' + IS + '" placeholder="9-digit routing number" maxlength="9" autocomplete="off" /></div>' +
+                '<div><label style="' + LS + '">Account Number <span style="color:var(--color-gold);">*</span></label><input id="pay-account" type="password" style="' + IS + '" placeholder="Account number" autocomplete="off" /></div>' +
               '</div>' +
             '</div>' +
-            // App handle fields (hidden by default)
-            '<div id="pay-app-fields" style="display:none;margin-top:var(--space-sm);">' +
-              '<div><label style="' + LS + '">Username / Handle</label><input id="pay-handle" type="text" style="' + IS + '" placeholder="e.g. @yourname" /></div>' +
+            '<div id="pay-app-fields" style="display:' + (['venmo','zelle','cashapp'].indexOf(data.paymentMethod) >= 0 ? 'block' : 'none') + ';margin-top:var(--space-sm);">' +
+              '<div><label style="' + LS + '">Username / Handle <span style="color:var(--color-gold);">*</span></label><input id="pay-handle" type="text" style="' + IS + '" placeholder="e.g. @yourname" value="' + (data.paymentHandle || '').replace(/"/g, '&quot;') + '" /></div>' +
             '</div>' +
-            // Other field (hidden by default)
-            '<div id="pay-other-fields" style="display:none;margin-top:var(--space-sm);">' +
-              '<div><label style="' + LS + '">Please describe</label><input id="pay-other" type="text" style="' + IS + '" placeholder="How would you like to be paid?" /></div>' +
+            '<div id="pay-check-fields" style="display:' + (data.paymentMethod === 'check' ? 'block' : 'none') + ';margin-top:var(--space-sm);">' +
+              '<div><label style="' + LS + '">Mailing Address <span style="color:var(--color-gold);">*</span></label><input id="pay-check-address" type="text" style="' + IS + '" placeholder="Where should we mail the check?" value="' + (data.checkAddress || '').replace(/"/g, '&quot;') + '" /></div>' +
             '</div>' +
+            '<div id="pay-other-fields" style="display:' + (data.paymentMethod === 'other' ? 'block' : 'none') + ';margin-top:var(--space-sm);">' +
+              '<div><label style="' + LS + '">Please describe <span style="color:var(--color-gold);">*</span></label><input id="pay-other" type="text" style="' + IS + '" placeholder="How would you like to be paid?" value="' + (data.paymentOther || '').replace(/"/g, '&quot;') + '" /></div>' +
+            '</div>' +
+            '<p id="pay-error" style="display:none;color:#f85149;font-size:var(--text-sm);margin-top:var(--space-xs);"></p>' +
           '</div>' +
 
-          // Step 2: House Band Agreement
+          // House Band Agreement (onboarding only)
+          (!isEdit ? (
           '<div style="margin-bottom:var(--space-lg);">' +
             '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);cursor:pointer;" id="hba-toggle">Step 2: House Band Agreement <i class="fa-solid fa-chevron-down" style="font-size:12px;margin-left:4px;"></i></h3>' +
             '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;">Before we save your payment info, please review our short House Band guidelines (this just formalizes what we\u2019ve already been doing):</p>' +
@@ -227,7 +238,7 @@ const BandPlayer = {
             '</label>' +
           '</div>' +
 
-          // Step 3: W-9
+          // W-9
           '<div style="margin-bottom:var(--space-lg);">' +
             '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);">Step 3: Tax Information (W-9)</h3>' +
             '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;">To keep our payments compliant (especially if we pay you $2,000+ in a year), please provide your W-9 info. <em style="color:var(--color-text-muted);">You can also complete this later from your profile.</em></p>' +
@@ -235,27 +246,30 @@ const BandPlayer = {
               '<div><label style="' + LS + '">Legal Full Name</label><input id="w9-name" type="text" style="' + IS + '" placeholder="As it appears on your tax return" /></div>' +
               '<div><label style="' + LS + '">Mailing Address</label><input id="w9-address" type="text" style="' + IS + '" placeholder="Street, City, State, ZIP" /></div>' +
             '</div>' +
-          '</div>' +
+          '</div>'
+          ) : '') +
 
           // Save button
           '<div style="text-align:center;">' +
-            '<button id="screen2-btn" disabled style="' + this._btnStyle + 'opacity:0.4;">Save Payment Info &amp; Agreement</button>' +
+            '<button id="screen2-btn" disabled style="' + self._btnStyle + 'opacity:0.4;">' + (isEdit ? 'Save Changes' : 'Save Payment Info &amp; Agreement') + '</button>' +
           '</div>' +
         '</div>' +
       '</div>';
 
-    // Payment method toggle logic
+    // Wire up interactions
     var radios = container.querySelectorAll('input[name="pay-method"]');
     var bankFields = document.getElementById('pay-bank-fields');
     var appFields = document.getElementById('pay-app-fields');
+    var checkFields = document.getElementById('pay-check-fields');
     var otherFields = document.getElementById('pay-other-fields');
+    var payError = document.getElementById('pay-error');
     var hbaCheckbox = document.getElementById('hba-checkbox');
     var saveBtn = document.getElementById('screen2-btn');
 
     function updateSaveBtn() {
-      var methodSelected = container.querySelector('input[name="pay-method"]:checked');
-      var agreed = hbaCheckbox && hbaCheckbox.checked;
-      var ok = methodSelected && agreed;
+      var methodRadio = container.querySelector('input[name="pay-method"]:checked');
+      var hbaOk = isEdit || (hbaCheckbox && hbaCheckbox.checked);
+      var ok = methodRadio && hbaOk;
       if (saveBtn) {
         saveBtn.disabled = !ok;
         saveBtn.style.opacity = ok ? '1' : '0.4';
@@ -266,15 +280,17 @@ const BandPlayer = {
       radios[i].addEventListener('change', function() {
         var v = this.value;
         bankFields.style.display = v === 'direct_deposit' ? 'block' : 'none';
-        appFields.style.display = (v === 'venmo' || v === 'zelle' || v === 'cashapp') ? 'block' : 'none';
+        appFields.style.display = (['venmo','zelle','cashapp'].indexOf(v) >= 0) ? 'block' : 'none';
+        checkFields.style.display = v === 'check' ? 'block' : 'none';
         otherFields.style.display = v === 'other' ? 'block' : 'none';
+        if (payError) payError.style.display = 'none';
         updateSaveBtn();
       });
     }
 
     if (hbaCheckbox) hbaCheckbox.addEventListener('change', updateSaveBtn);
 
-    // HBA toggle
+    // HBA toggle (onboarding only)
     var hbaToggle = document.getElementById('hba-toggle');
     var hbaContent = document.getElementById('hba-content');
     if (hbaToggle && hbaContent) {
@@ -286,42 +302,82 @@ const BandPlayer = {
       });
     }
 
+    // Back button (edit mode)
+    var backBtn = document.getElementById('pay-back-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        self._initPlayer();
+      });
+    }
+
+    // Validate required details for selected method
+    function validateDetails(method) {
+      if (method === 'direct_deposit') {
+        var bank = (document.getElementById('pay-bank') || {}).value || '';
+        var routing = (document.getElementById('pay-routing') || {}).value || '';
+        var account = (document.getElementById('pay-account') || {}).value || '';
+        if (!bank.trim()) return 'Please enter your bank name.';
+        if (!routing.trim() || routing.trim().length < 9) return 'Please enter a valid 9-digit routing number.';
+        if (!account.trim()) return 'Please enter your account number.';
+      } else if (method === 'venmo' || method === 'zelle' || method === 'cashapp') {
+        var handle = (document.getElementById('pay-handle') || {}).value || '';
+        if (!handle.trim()) return 'Please enter your ' + method.charAt(0).toUpperCase() + method.slice(1).replace('app','App') + ' username or handle.';
+      } else if (method === 'check') {
+        var addr = (document.getElementById('pay-check-address') || {}).value || '';
+        if (!addr.trim()) return 'Please enter the mailing address for your check.';
+      } else if (method === 'other') {
+        var desc = (document.getElementById('pay-other') || {}).value || '';
+        if (!desc.trim()) return 'Please describe how you\u2019d like to be paid.';
+      }
+      return null;
+    }
+
     // Save handler
     if (saveBtn) {
       saveBtn.addEventListener('click', function() {
         var methodRadio = container.querySelector('input[name="pay-method"]:checked');
-        if (!methodRadio || !hbaCheckbox.checked) return;
+        if (!methodRadio) return;
+        var method = methodRadio.value;
+
+        // Validate details
+        var err = validateDetails(method);
+        if (err) {
+          if (payError) { payError.textContent = err; payError.style.display = 'block'; }
+          return;
+        }
+        if (payError) payError.style.display = 'none';
+
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving...';
 
-        var method = methodRadio.value;
         var paymentData = { method: method };
         if (method === 'direct_deposit') {
           paymentData.bankName = (document.getElementById('pay-bank') || {}).value || '';
-          paymentData.hasRouting = !!(document.getElementById('pay-routing') || {}).value;
-          paymentData.hasAccount = !!(document.getElementById('pay-account') || {}).value;
         } else if (method === 'venmo' || method === 'zelle' || method === 'cashapp') {
           paymentData.handle = (document.getElementById('pay-handle') || {}).value || '';
+        } else if (method === 'check') {
+          paymentData.checkAddress = (document.getElementById('pay-check-address') || {}).value || '';
         } else if (method === 'other') {
           paymentData.description = (document.getElementById('pay-other') || {}).value || '';
         }
 
-        var w9Data = {
-          legalName: (document.getElementById('w9-name') || {}).value || '',
-          address: (document.getElementById('w9-address') || {}).value || ''
+        var updateData = {
+          paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
+          paymentMethod: paymentData.method,
+          paymentHandle: paymentData.handle || '',
+          paymentCheckAddress: paymentData.checkAddress || '',
+          paymentOther: paymentData.description || '',
+          onboardingComplete: true
         };
+        if (!isEdit) {
+          updateData.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
+          updateData.w9LegalName = (document.getElementById('w9-name') || {}).value || '';
+          updateData.w9Address = (document.getElementById('w9-address') || {}).value || '';
+        }
 
-        var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
         if (user && self._db) {
-          self._db.collection('users').doc(user.uid).update({
-            paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
-            houseBandAgreedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            paymentMethod: paymentData.method,
-            paymentHandle: paymentData.handle || '',
-            w9LegalName: w9Data.legalName,
-            w9Address: w9Data.address,
-            onboardingComplete: true
-          }).then(function() {
+          self._db.collection('users').doc(user.uid).update(updateData).then(function() {
             // Send sensitive bank details to server (not Firestore)
             if (method === 'direct_deposit') {
               var routing = (document.getElementById('pay-routing') || {}).value || '';
@@ -330,16 +386,37 @@ const BandPlayer = {
                 self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
               }
             }
-            self._showSetupComplete();
+            if (isEdit) {
+              if (typeof Toast !== 'undefined') Toast.success('Payment info updated!');
+              self._initPlayer();
+            } else {
+              self._showSetupComplete();
+            }
           }).catch(function(err) {
             console.error('[BandPlayer] Screen 2 save failed:', err);
             if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
             saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Payment Info & Agreement';
+            saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
           });
         }
       });
     }
+
+    }; // end prefill callback
+
+    // Load existing data for pre-fill
+    if (user && this._db) {
+      this._db.collection('users').doc(user.uid).get().then(function(doc) {
+        prefill(doc.exists ? doc.data() : {});
+      }).catch(function() { prefill({}); });
+    } else {
+      prefill({});
+    }
+  },
+
+  // Open payment settings from the player (edit mode)
+  showPaymentSettings: function() {
+    this._showScreen2('edit');
   },
 
   _sendBankDetails: function(uid, bankName, routing, account) {

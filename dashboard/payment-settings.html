@@ -1,0 +1,20 @@
+<!-- dashboard/payment-settings.html — Payment Settings (self-service) -->
+<div class="dashboard-page" id="dash-payment-settings" style="max-width:700px;margin:0 auto;padding:var(--space-xl);">
+  <div id="payment-settings-content"></div>
+</div>
+
+<script>
+(function() {
+  // Reuse BandPlayer's payment screen in edit mode
+  if (typeof BandPlayer !== 'undefined') {
+    // Override container lookup for this page
+    var origGet = BandPlayer._getContainer;
+    BandPlayer._getContainer = function() {
+      return document.getElementById('payment-settings-content') || origGet.call(BandPlayer);
+    };
+    BandPlayer._showScreen2('edit');
+    // Restore original after render
+    setTimeout(function() { BandPlayer._getContainer = origGet; }, 100);
+  }
+})();
+</script>

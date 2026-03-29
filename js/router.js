@@ -78,6 +78,9 @@ const Router = {
     // Band Music Player (rehearsal tracks, charts, lyrics)
     'dashboard-band-player': 'dashboard/band-player.html',
 
+    // Payment Settings (musician self-service)
+    'dashboard-payment-settings': 'dashboard/payment-settings.html',
+
     // Musician Portal (band member landing page)
     'dashboard-musician-home': 'dashboard/musician-home.html',
 
@@ -274,6 +277,7 @@ const Router = {
           'dashboard-musician-home': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-calendar':     ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-band-player': ['admin', 'band_manager', 'artist', 'band_member'],
+          'dashboard-payment-settings': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'venue_owner', 'promoter'],
         };
@@ -554,6 +558,7 @@ const Router = {
       'dashboard-export': 'Evidence Export',
       'dashboard-field': 'Field View',
       'dashboard-band-player': 'Band Player',
+      'dashboard-payment-settings': 'Payment Settings',
     };
 
     const label = labels[pageName] || 'Dashboard';
