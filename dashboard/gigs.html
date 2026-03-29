@@ -101,6 +101,7 @@
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
   var currentStatus = 'upcoming';
   var allMusicians = [];
+  var allPlaylists = [];
 
   function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -124,6 +125,19 @@
       allMusicians = data.musicians || [];
     } catch (e) {
       console.warn('[Gigs] Failed to load musicians:', e.message);
+    }
+  }
+
+  // ── Load playlists from Firestore ──
+  async function loadPlaylists() {
+    try {
+      if (typeof Auth !== 'undefined' && Auth._db) {
+        var snap = await Auth._db.collection('playlists').orderBy('createdAt', 'desc').get();
+        allPlaylists = [];
+        snap.forEach(function(doc) { allPlaylists.push(Object.assign({ id: doc.id }, doc.data())); });
+      }
+    } catch (e) {
+      console.warn('[Gigs] Failed to load playlists:', e.message);
     }
   }
 
@@ -226,6 +240,11 @@
       + '<div style="max-height:150px;overflow-y:auto;border:1px solid var(--color-border);border-radius:6px;padding:8px;">'
       + (musOptions || '<p style="color:var(--color-text-muted);margin:0;font-size:13px;">No musicians available. Invite musicians first.</p>')
       + '</div></div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Rehearsal Playlist</label>'
+      + '<select id="new-gig-playlist" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);">'
+      + '<option value="">None</option>'
+      + allPlaylists.map(function(pl) { return '<option value="' + esc(pl.id) + '"' + (prefill.playlistId === pl.id ? ' selected' : '') + '>' + esc(pl.name || 'Untitled') + '</option>'; }).join('')
+      + '</select></div>'
       + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Notes for Musicians</label>'
       + '<textarea id="new-gig-notes" rows="2" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);resize:vertical;">' + esc(prefill.notes || '') + '</textarea></div>'
       + '</div>';
@@ -250,7 +269,8 @@
             if (!date) { if (typeof Toast !== 'undefined') Toast.error('Date is required'); return; }
             if (selected.length === 0) { if (typeof Toast !== 'undefined') Toast.error('Assign at least one musician'); return; }
 
-            var payload = { title: title, venue: venue, date: date, time: time, assignedMusicians: selected, notes: notes };
+            var playlistId = (document.getElementById('new-gig-playlist') || {}).value || '';
+            var payload = { title: title, venue: venue, date: date, time: time, assignedMusicians: selected, notes: notes, playlistId: playlistId || null };
 
             if (prefill._editId) {
               // Update
@@ -346,6 +366,6 @@
   if (createBtn) createBtn.addEventListener('click', function() { openCreateModal(); });
 
   // ── Init ──
-  loadMusicians().then(loadGigs);
+  Promise.all([loadMusicians(), loadPlaylists()]).then(loadGigs);
 })();
 </script>
