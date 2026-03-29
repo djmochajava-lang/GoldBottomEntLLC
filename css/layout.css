@@ -624,7 +624,7 @@
 }
 
 .sidebar-nav-item.active {
-  color: var(--color-gold);
+  color: #fff;
   background: var(--color-gold-muted);
 }
 
