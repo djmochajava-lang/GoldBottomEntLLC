@@ -599,7 +599,7 @@
   text-decoration: none;
   font-size: var(--text-sm);
   font-weight: var(--fw-medium);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition: color var(--transition-fast), background var(--transition-fast), transform 0.15s ease;
   white-space: nowrap;
   position: relative;
 }
@@ -619,8 +619,15 @@
 }
 
 .sidebar-nav-item:hover {
-  color: var(--color-text);
-  background: var(--color-bg-tertiary);
+  color: #fff;
+  background: rgba(212, 160, 23, 0.1);
+  transform: translateX(4px);
+  cursor: pointer;
+}
+
+.sidebar-nav-item:active {
+  transform: translateX(2px);
+  background: rgba(212, 160, 23, 0.18);
 }
 
 .sidebar-nav-item.active {
