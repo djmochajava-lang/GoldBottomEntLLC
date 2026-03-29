@@ -42,13 +42,18 @@ const BandPlayer = {
       this._audio.preload = 'metadata';
     }
 
-    // Two-screen onboarding gate:
+    // Two-screen onboarding gate (band_member and artist only):
     //   Screen 1: Band Confidentiality & Agreement (confidentialityAcceptedAt)
     //   Screen 2: Payment Setup & House Band Agreement (paymentSetupAt)
-    // Both must be completed before player access. Firestore user doc is source of truth.
+    // Admin and band_manager skip straight to the player.
     var self = this;
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
-    if (user && this._db) {
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    var skipGate = (role === 'admin' || role === 'band_manager');
+
+    if (skipGate) {
+      this._initPlayer();
+    } else if (user && this._db) {
       this._db.collection('users').doc(user.uid).get().then(function(doc) {
         var data = doc.exists ? doc.data() : {};
         if (!data.confidentialityAcceptedAt && !data.ndaAcceptedAt) {
