@@ -191,6 +191,9 @@
         '</div>'+
       '</div>'+
 
+      /* Pending Agreements */
+      '<div class="card" id="bm-pending-agreements" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>'+
+
       /* Upcoming shows */
       '<div class="card" id="bm-upcoming" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>'+
 
@@ -201,6 +204,7 @@
     var bmHtml =
       metricCard('fa-filter',          '#f0883e', pipelineItems.length,    'Pipeline Actions') +
       metricCard('fa-file-signature',  '#3fb950', m.activeContracts,       'Active Contracts') +
+      metricCard('fa-pen-nib',         '#d29922', pendingContracts.length,  'Pending Signatures') +
       metricCard('fa-calendar-days',   '#d29922', m.upcomingEvents,        'Upcoming Shows') +
       metricCard('fa-clock-rotate-left','#c778d9', staleFollowups.length,  'Follow-ups Due') +
       metricCard('fa-users',           '#d4a017', m.totalRoster,           'Roster');
@@ -247,6 +251,58 @@
       ];
       if(isLocal) qaItems.push({href:'#dashboard-finances',icon:'fa-dollar-sign',color:'#3fb950',label:'Finances'});
       qaGrid.innerHTML = qaItems.map(function(a){return qaBtn(a.href,a.icon,a.color,a.label);}).join('');
+    }
+
+    /* Pending Agreements — from Firestore */
+    var pendAgEl = document.getElementById('bm-pending-agreements');
+    if (pendAgEl && typeof Auth !== 'undefined' && Auth._db) {
+      Auth._db.collection('agreements')
+        .where('status', 'in', ['sent', 'pending'])
+        .orderBy('sentAt', 'desc')
+        .limit(10)
+        .get()
+        .then(function(snap) {
+          var paHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-file-signature" style="color:#d29922;"></i> Pending Agreements</h3>';
+          if (snap.empty) {
+            paHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i> All agreements signed</p>';
+          } else {
+            paHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+            snap.forEach(function(doc) {
+              var a = doc.data();
+              var sentDate = a.sentAt && a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : '';
+              var statusColor = a.status === 'sent' ? '#d29922' : '#f0883e';
+              paHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid ' + statusColor + ';">'
+                + '<div><div style="font-weight:600;">' + Utils.escapeHtml(a.title || a.templateTitle || 'Agreement') + '</div>'
+                + '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + Utils.escapeHtml(a.musicianName || 'Unknown') + (sentDate ? ' · Sent ' + sentDate : '') + '</div></div>'
+                + '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba(' + hexToRGB(statusColor) + ',0.15);color:' + statusColor + ';font-weight:600;">' + Utils.escapeHtml(a.status) + '</span>'
+                + '</div>';
+            });
+            paHtml += '</div>';
+            paHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--space-md);">'
+              + '<span style="font-size:var(--text-sm);color:var(--color-text-muted);">' + snap.size + ' awaiting signature</span>'
+              + '<a href="#dashboard-contracts" style="font-size:var(--text-sm);color:#d29922;text-decoration:none;font-weight:600;">View All <i class="fa-solid fa-arrow-right"></i></a></div>';
+          }
+          pendAgEl.innerHTML = paHtml;
+        })
+        .catch(function(err) {
+          pendAgEl.innerHTML = '<h3><i class="fa-solid fa-file-signature" style="color:#d29922;"></i> Pending Agreements</h3><p class="text-muted">Could not load: ' + err.message + '</p>';
+        });
+    } else if (pendAgEl) {
+      // Fallback to DataStore contracts
+      var paHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-file-signature" style="color:#d29922;"></i> Pending Agreements</h3>';
+      if (!pendingContracts.length) {
+        paHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i> All agreements signed</p>';
+      } else {
+        paHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+        pendingContracts.slice(0, 5).forEach(function(c) {
+          paHtml += '<div style="padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid #d29922;">'
+            + '<div style="font-weight:600;">' + Utils.escapeHtml(c.title || c.name || 'Contract') + '</div>'
+            + '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + Utils.escapeHtml(c.party || '') + '</div></div>';
+        });
+        paHtml += '</div>';
+        paHtml += '<a href="#dashboard-contracts" style="display:inline-flex;align-items:center;gap:6px;margin-top:var(--space-md);font-size:var(--text-sm);color:#d29922;text-decoration:none;font-weight:600;">View All <i class="fa-solid fa-arrow-right"></i></a>';
+      }
+      pendAgEl.innerHTML = paHtml;
     }
 
     /* Upcoming shows */
