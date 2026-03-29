@@ -203,8 +203,9 @@
       html += '<div>' + musiciansHtml + '</div>';
       html += '<div>' + esc(g.venue || 'TBD') + '</div>';
       html += '<div class="gig-actions-cell">';
-      html += '<button class="gig-action-btn" onclick="window._editGig(\'' + esc(g.id) + '\')"><i class="fa-solid fa-pen"></i></button>';
-      html += '<button class="gig-action-btn danger" onclick="window._deleteGig(\'' + esc(g.id) + '\')"><i class="fa-solid fa-trash"></i></button>';
+      html += '<button class="gig-action-btn" onclick="window._editGig(\'' + esc(g.id) + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>';
+      html += '<button class="gig-action-btn" onclick="window._generateAgreements(\'' + esc(g.id) + '\')" title="Generate Agreements" style="color:#d29922;border-color:rgba(210,153,34,0.3);"><i class="fa-solid fa-file-signature"></i></button>';
+      html += '<button class="gig-action-btn danger" onclick="window._deleteGig(\'' + esc(g.id) + '\')" title="Unpublish"><i class="fa-solid fa-trash"></i></button>';
       html += '</div>';
       html += '</div>';
     });
@@ -348,6 +349,64 @@
       loadGigs();
     } catch (e) {
       if (typeof Toast !== 'undefined') Toast.error('Delete failed: ' + e.message);
+    }
+  };
+
+  // ── Generate Agreements for Gig ──
+  window._generateAgreements = async function(gigId) {
+    if (!isLocal) {
+      if (typeof Toast !== 'undefined') Toast.info('Agreement generation requires the local server.');
+      return;
+    }
+
+    var content = '<div style="display:flex;flex-direction:column;gap:14px;">'
+      + '<p style="margin:0;font-size:var(--text-sm);color:var(--color-text-muted);">This will generate a standard Performance Agreement for each musician assigned to this gig.</p>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Performance Fee</label>'
+      + '<input type="text" id="agr-fee" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" placeholder="e.g. $500" /></div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Commission %</label>'
+      + '<input type="number" id="agr-commission" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" value="15" min="0" max="100" /></div>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Payment Terms</label>'
+      + '<input type="text" id="agr-terms" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" value="Net 14 days after performance" /></div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Performance Format</label>'
+      + '<input type="text" id="agr-format" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" placeholder="e.g. Full band, Duo, Solo" /></div>'
+      + '</div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Additional Notes</label>'
+      + '<textarea id="agr-notes" rows="2" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);resize:vertical;" placeholder="Any special terms for this gig..."></textarea></div>'
+      + '<div style="padding:10px;border-radius:6px;background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2);font-size:var(--text-sm);">'
+      + '<i class="fa-solid fa-info-circle" style="color:#d29922;margin-right:6px;"></i>'
+      + 'Agreement includes 14 standard sections: Parties, Event Details, Compensation, Deposit, Artist Obligations, Management Obligations, Cancellation Policy, Media Rights, Independent Contractor, Liability, Confidentiality, Governing Law, Dispute Resolution, and Signatures.'
+      + '</div></div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Generate Per-Gig Agreements',
+        body: content,
+        size: 'md',
+        buttons: [
+          { label: 'Cancel', class: 'btn-secondary', close: true },
+          { label: 'Generate & Send', class: 'btn-primary', callback: async function() {
+            try {
+              var result = await apiFetch('/gigs/' + gigId + '/agreements', {
+                method: 'POST',
+                body: JSON.stringify({
+                  fee: (document.getElementById('agr-fee') || {}).value || '',
+                  commissionPercent: parseFloat((document.getElementById('agr-commission') || {}).value) || 15,
+                  paymentTerms: (document.getElementById('agr-terms') || {}).value || '',
+                  performanceFormat: (document.getElementById('agr-format') || {}).value || '',
+                  notes: (document.getElementById('agr-notes') || {}).value || ''
+                })
+              });
+              if (typeof Modal !== 'undefined') Modal.close();
+              if (typeof Toast !== 'undefined') Toast.success(result.count + ' agreement(s) generated and sent to musicians!');
+            } catch (e) {
+              if (typeof Toast !== 'undefined') Toast.error('Failed: ' + e.message);
+            }
+          }}
+        ]
+      });
     }
   };
 
