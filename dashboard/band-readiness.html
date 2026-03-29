@@ -1,0 +1,268 @@
+<!-- dashboard/band-readiness.html — Band Readiness Overview (FRD-3) -->
+<div class="dashboard-page">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-lg);">
+    <div>
+      <h1>Band Readiness</h1>
+      <p class="text-muted">Track musician readiness across all upcoming gigs.</p>
+    </div>
+  </div>
+
+  <!-- Summary stats -->
+  <div id="br-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+
+  <!-- Gig sections -->
+  <div id="br-gigs-container">
+    <div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading readiness data...</div>
+  </div>
+</div>
+
+<style>
+  .br-stat-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    text-align: center;
+  }
+  .br-stat-value { font-size: 1.8rem; font-weight: 700; }
+  .br-stat-label { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .br-gig-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+  }
+  .br-musician-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px 80px 80px 60px 100px;
+    gap: var(--space-sm);
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: center;
+    font-size: var(--text-sm);
+  }
+  .br-musician-row.header {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--color-border);
+  }
+  .br-check { text-align: center; }
+  .br-check .ready { color: #3fb950; }
+  .br-check .not-ready { color: #8b949e; }
+  .br-remind-btn {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(210,153,34,0.3);
+    background: rgba(210,153,34,0.1);
+    color: #d29922;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+  .br-remind-btn:hover { background: rgba(210,153,34,0.2); }
+  @media (max-width: 768px) {
+    .br-musician-row { grid-template-columns: 1fr 60px 60px 60px; }
+    .br-musician-row .br-tracks, .br-musician-row .br-rating, .br-musician-row .br-actions { display: none; }
+    .br-musician-row.header .br-tracks, .br-musician-row.header .br-rating, .br-musician-row.header .br-actions { display: none; }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var fdb = null;
+  var musicianNames = {};
+
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function init() {
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      document.getElementById('br-gigs-container').innerHTML = '<p class="text-muted">Firestore not available.</p>';
+      return;
+    }
+    fdb = Auth._db;
+
+    // Load musician names from server if local, or from Firestore users
+    try {
+      var isLocal = Auth.isLocalDashboard && Auth.isLocalDashboard();
+      if (isLocal) {
+        var token = localStorage.getItem('gbe-session-token');
+        var apiKey = localStorage.getItem('gbe-api-key');
+        var headers = { 'Content-Type': 'application/json' };
+        if (token) headers['X-GBE-Session'] = token;
+        if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+        var resp = await fetch('/api/v1/gigs/musicians', { headers: headers });
+        var data = await resp.json();
+        (data.musicians || []).forEach(function(m) { musicianNames[m.id] = m.name; });
+      }
+      // Also try Firestore users
+      var usersSnap = await fdb.collection('users').get();
+      usersSnap.forEach(function(doc) {
+        var u = doc.data();
+        if (u.displayName) musicianNames[doc.id] = u.displayName;
+      });
+    } catch (e) { /* non-fatal */ }
+
+    loadReadiness();
+  }
+
+  async function loadReadiness() {
+    var container = document.getElementById('br-gigs-container');
+    var statsEl = document.getElementById('br-stats');
+
+    try {
+      var gigsSnap = await fdb.collection('gigs').where('status', '==', 'upcoming').orderBy('date', 'asc').get();
+
+      if (gigsSnap.empty) {
+        container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-guitar" style="font-size:2rem;margin-bottom:12px;display:block;opacity:0.3;"></i>No upcoming gigs.</div>';
+        statsEl.innerHTML = '';
+        return;
+      }
+
+      var gigs = [];
+      gigsSnap.forEach(function(doc) { gigs.push(Object.assign({ id: doc.id }, doc.data())); });
+
+      // Load all checkpoints and playback events
+      var cpSnap = await fdb.collection('rehearsal-checkpoints').get();
+      var pbSnap = await fdb.collection('playback-events').where('eventType', '==', 'complete').get();
+
+      var checkpoints = {};
+      cpSnap.forEach(function(doc) {
+        var d = doc.data();
+        var key = (d.gigId || '') + '_' + d.musicianId;
+        checkpoints[key] = d;
+      });
+
+      var practiceByUser = {};
+      pbSnap.forEach(function(doc) {
+        var d = doc.data();
+        if (!practiceByUser[d.userId]) practiceByUser[d.userId] = new Set();
+        practiceByUser[d.userId].add(d.trackId);
+      });
+
+      // Calculate stats
+      var totalMusicians = 0;
+      var totalReady = 0;
+      var totalCheckpoints = 0;
+
+      gigs.forEach(function(g) {
+        (g.assignedMusicians || []).forEach(function(uid) {
+          totalMusicians++;
+          var cp = checkpoints[g.id + '_' + uid];
+          if (cp) {
+            totalCheckpoints++;
+            if (cp.setlistReady && cp.gearReady && cp.travelReady) totalReady++;
+          }
+        });
+      });
+
+      // Render stats
+      var readyPct = totalMusicians > 0 ? Math.round((totalReady / totalMusicians) * 100) : 0;
+      statsEl.innerHTML =
+        '<div class="br-stat-card"><div class="br-stat-value">' + gigs.length + '</div><div class="br-stat-label">Upcoming Gigs</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value">' + totalMusicians + '</div><div class="br-stat-label">Assigned Musicians</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (readyPct >= 80 ? '#3fb950' : readyPct >= 50 ? '#d29922' : '#f85149') + ';">' + readyPct + '%</div><div class="br-stat-label">Ready</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value">' + totalCheckpoints + '/' + totalMusicians + '</div><div class="br-stat-label">Checked In</div></div>';
+
+      // Render gig sections
+      var html = '';
+      gigs.forEach(function(g) {
+        var gigDate = g.date && g.date.toDate ? g.date.toDate() : new Date(g.date);
+        var dateStr = gigDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        var timeStr = gigDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        var musicians = g.assignedMusicians || [];
+
+        html += '<div class="br-gig-card">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md);">';
+        html += '<div><h2 style="margin:0;font-size:1.1rem;">' + esc(g.title || 'Gig') + '</h2>';
+        html += '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + dateStr + (timeStr !== '12:00 AM' ? ' at ' + timeStr : '') + (g.venue ? ' · ' + esc(g.venue) : '') + '</div></div>';
+        html += '</div>';
+
+        if (musicians.length === 0) {
+          html += '<p class="text-muted">No musicians assigned to this gig.</p>';
+        } else {
+          html += '<div class="br-musician-row header"><div>Musician</div><div class="br-check">Setlist</div><div class="br-check">Gear</div><div class="br-check">Travel</div><div class="br-tracks">Tracks</div><div class="br-rating">Rating</div><div class="br-actions"></div></div>';
+
+          musicians.forEach(function(uid) {
+            var name = musicianNames[uid] || uid.slice(0, 12) + '...';
+            var cp = checkpoints[g.id + '_' + uid];
+            var tracks = practiceByUser[uid] ? practiceByUser[uid].size : 0;
+            var allReady = cp && cp.setlistReady && cp.gearReady && cp.travelReady;
+
+            html += '<div class="br-musician-row" style="' + (allReady ? 'background:rgba(63,185,80,0.04);' : '') + '">';
+            html += '<div><strong>' + esc(name) + '</strong></div>';
+            html += '<div class="br-check"><i class="fa-solid ' + (cp && cp.setlistReady ? 'fa-circle-check ready' : 'fa-circle not-ready') + '"></i></div>';
+            html += '<div class="br-check"><i class="fa-solid ' + (cp && cp.gearReady ? 'fa-circle-check ready' : 'fa-circle not-ready') + '"></i></div>';
+            html += '<div class="br-check"><i class="fa-solid ' + (cp && cp.travelReady ? 'fa-circle-check ready' : 'fa-circle not-ready') + '"></i></div>';
+            html += '<div class="br-tracks" style="color:var(--color-text-muted);">' + tracks + '</div>';
+            html += '<div class="br-rating">' + (cp && cp.selfRating ? '<span style="color:#d4a017;">' + cp.selfRating + '/5</span>' : '<span style="color:var(--color-text-muted);">—</span>') + '</div>';
+            html += '<div class="br-actions">';
+            if (!allReady) {
+              html += '<button class="br-remind-btn" onclick="window._sendReminder(\'' + esc(uid) + '\',\'' + esc(g.title || 'Gig') + '\')"><i class="fa-solid fa-bell"></i> Remind</button>';
+            } else {
+              html += '<span style="font-size:11px;color:#3fb950;"><i class="fa-solid fa-check"></i> Ready</span>';
+            }
+            html += '</div></div>';
+          });
+        }
+        html += '</div>';
+      });
+
+      container.innerHTML = html;
+    } catch (e) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:#f85149;">Failed to load readiness data: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  // Send reminder (uses server email endpoint if local, otherwise toast-only)
+  window._sendReminder = async function(musicianId, gigTitle) {
+    var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
+    if (!isLocal) {
+      if (typeof Toast !== 'undefined') Toast.info('Email reminders require the local server.');
+      return;
+    }
+
+    try {
+      var token = localStorage.getItem('gbe-session-token');
+      var apiKey = localStorage.getItem('gbe-api-key');
+      var headers = { 'Content-Type': 'application/json' };
+      if (token) headers['X-GBE-Session'] = token;
+      if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+
+      // Look up musician email
+      var resp = await fetch('/api/v1/gigs/musicians', { headers: headers });
+      var data = await resp.json();
+      var musician = (data.musicians || []).find(function(m) { return m.id === musicianId; });
+
+      if (!musician || !musician.email) {
+        if (typeof Toast !== 'undefined') Toast.error('Could not find musician email.');
+        return;
+      }
+
+      // Send reminder via email endpoint
+      await fetch('/api/v1/email/send', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          to: musician.email,
+          subject: 'Readiness Reminder — ' + gigTitle,
+          account: 'band_manager',
+          text: 'Hi ' + musician.name + ',\n\nThis is a reminder to confirm your readiness for: ' + gigTitle + '.\n\nPlease log into the dashboard and confirm your setlist, gear, and travel status.\n\nThank you,\nGold Bottom Ent. LLC',
+          html: '<p>Hi ' + musician.name + ',</p><p>This is a reminder to confirm your readiness for: <strong>' + gigTitle + '</strong>.</p><p>Please log into the dashboard and confirm your setlist, gear, and travel status.</p><p>Thank you,<br/>Gold Bottom Ent. LLC</p>'
+        })
+      });
+
+      if (typeof Toast !== 'undefined') Toast.success('Reminder sent to ' + musician.name);
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Failed to send reminder: ' + e.message);
+    }
+  };
+
+  init();
+})();
+</script>
