@@ -260,7 +260,8 @@
       <nav class="sidebar-nav">
         <div class="sidebar-nav-group">
           <span class="sidebar-nav-label">Overview</span>
-          <a href="#dashboard-home" class="sidebar-nav-item active" data-page="dashboard-home">
+          <a href="#dashboard-home" class="sidebar-nav-item active" data-page="dashboard-home"
+             data-roles="admin,band_manager,artist">
             <i class="fa-solid fa-gauge-high"></i>
             <span class="sidebar-nav-text">Dashboard</span>
           </a>
@@ -268,15 +269,30 @@
 
         <div class="sidebar-nav-group">
           <span class="sidebar-nav-label">Band</span>
+          <a href="#dashboard-band-player" class="sidebar-nav-item" data-page="dashboard-band-player"
+             data-roles="admin,band_manager,artist,band_member">
+            <i class="fa-solid fa-headphones"></i>
+            <span class="sidebar-nav-text">Band Player</span>
+          </a>
           <a href="#dashboard-musician-home" class="sidebar-nav-item" data-page="dashboard-musician-home"
              data-roles="admin,band_manager,band_member">
             <i class="fa-solid fa-guitar"></i>
             <span class="sidebar-nav-text">My Portal</span>
           </a>
+          <a href="#dashboard-calendar" class="sidebar-nav-item" data-page="dashboard-calendar"
+             data-roles="admin,band_manager,artist,band_member">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span class="sidebar-nav-text">Calendar</span>
+          </a>
           <a href="#dashboard-payment-settings" class="sidebar-nav-item" data-page="dashboard-payment-settings"
              data-roles="artist,band_member">
             <i class="fa-solid fa-wallet"></i>
             <span class="sidebar-nav-text">Payment Settings</span>
+          </a>
+          <a href="#dashboard-travel" class="sidebar-nav-item" data-page="dashboard-travel"
+             data-roles="admin,band_manager,artist,band_member">
+            <i class="fa-solid fa-plane"></i>
+            <span class="sidebar-nav-text">Travel</span>
           </a>
         </div>
 
@@ -317,11 +333,6 @@
             <i class="fa-solid fa-file-contract"></i>
             <span class="sidebar-nav-text">Agreements</span>
           </a>
-          <a href="#dashboard-calendar" class="sidebar-nav-item" data-page="dashboard-calendar"
-             data-roles="admin,band_manager,artist,band_member">
-            <i class="fa-solid fa-calendar-days"></i>
-            <span class="sidebar-nav-text">Calendar</span>
-          </a>
         </div>
 
         <div class="sidebar-nav-group">
@@ -340,20 +351,6 @@
              data-roles="admin,band_manager,artist">
             <i class="fa-solid fa-bag-shopping"></i>
             <span class="sidebar-nav-text">Merch</span>
-          </a>
-          <a href="#dashboard-band-player" class="sidebar-nav-item" data-page="dashboard-band-player"
-             data-roles="admin,band_manager,artist,band_member">
-            <i class="fa-solid fa-headphones"></i>
-            <span class="sidebar-nav-text">Band Player</span>
-          </a>
-        </div>
-
-        <div class="sidebar-nav-group">
-          <span class="sidebar-nav-label">Operations</span>
-          <a href="#dashboard-travel" class="sidebar-nav-item" data-page="dashboard-travel"
-             data-roles="admin,band_manager,artist,band_member">
-            <i class="fa-solid fa-plane"></i>
-            <span class="sidebar-nav-text">Travel</span>
           </a>
         </div>
 
