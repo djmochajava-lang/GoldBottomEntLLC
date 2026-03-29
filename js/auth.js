@@ -285,12 +285,18 @@ const Auth = {
             if (typeof Toast !== 'undefined') {
               Toast.success('Welcome, ' + Auth.getUserDisplayName());
             }
-            // Navigate to pending route if any
+            // Navigate to pending route or role-appropriate landing page
             if (Auth._pendingRoute) {
               var route = Auth._pendingRoute;
               Auth._pendingRoute = null;
               if (typeof Router !== 'undefined') {
                 Router.navigateTo(route, true);
+              }
+            } else {
+              // Session restore (returning to site) — send band members to My Portal
+              var _restoreRole = Auth._activeRole || Auth._role || '';
+              if (_restoreRole === 'band_member' || _restoreRole === 'artist') {
+                if (typeof Router !== 'undefined') Router.navigateTo('dashboard-musician-home', true);
               }
             }
           } else if (status === 'pending') {
