@@ -736,6 +736,14 @@
       // Action buttons
       html += '<div style="display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-top:var(--space-md);padding-top:var(--space-md);border-top:1px solid var(--color-border);">';
       if (isLocal) {
+        // Publish to Band button — only for confirmed/contracted/completed bookings
+        if (['confirmed', 'contracted', 'completed'].includes(b.stage)) {
+          if (b.publishedGigId) {
+            html += '<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--radius-sm);background:rgba(63,185,80,0.1);color:#3fb950;font-size:var(--text-sm);border:1px solid rgba(63,185,80,0.2);"><i class="fa-solid fa-circle-check"></i> Published to Band</span>';
+          } else {
+            html += '<button id="bk-publish-btn" data-id="' + b.id + '" class="btn" style="background:rgba(210,153,34,0.1);color:#d29922;border:1px solid rgba(210,153,34,0.3);"><i class="fa-solid fa-bullhorn"></i> Publish to Band</button>';
+          }
+        }
         html += '<button id="bk-save-btn" data-id="' + b.id + '" class="btn btn-primary" style="margin-left:auto;">Save Changes</button>';
         html += '<button id="bk-delete-btn" data-id="' + b.id + '" class="btn" style="background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);">Delete</button>';
       }
@@ -808,6 +816,81 @@
             loadPipeline();
           } catch (e) {
             alert('Failed to delete: ' + e.message);
+          }
+        });
+      }
+
+      // Publish to Band handler
+      var publishBtn = document.getElementById('bk-publish-btn');
+      if (publishBtn) {
+        publishBtn.addEventListener('click', async function() {
+          var bookingId = this.dataset.id;
+          try {
+            // Fetch available musicians
+            var data = await apiFetch('/gigs/musicians');
+            var musicians = data.musicians || [];
+
+            if (musicians.length === 0) {
+              if (typeof Toast !== 'undefined') Toast.error('No musicians found. Invite musicians first.');
+              return;
+            }
+
+            // Build musician selection modal
+            var selHtml = '<div style="display:flex;flex-direction:column;gap:12px;">';
+            selHtml += '<p style="font-size:var(--text-sm);color:var(--color-text-muted);margin:0;">Select musicians to assign to this gig:</p>';
+            selHtml += '<div style="max-height:200px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:8px;">';
+            musicians.forEach(function(m) {
+              selHtml += '<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);">';
+              selHtml += '<input type="checkbox" value="' + esc(m.id) + '" class="gig-musician-cb" checked>';
+              selHtml += '<span style="font-size:var(--text-sm);">' + esc(m.name) + (m.instrument ? ' <span style="color:var(--color-text-muted);">(' + esc(m.instrument) + ')</span>' : '') + '</span>';
+              selHtml += '</label>';
+            });
+            selHtml += '</div>';
+            selHtml += '<div class="form-group"><label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:4px;">Gig Title (optional)</label>';
+            selHtml += '<input type="text" id="gig-title" class="form-input" style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" placeholder="Leave blank to use booking name" /></div>';
+            selHtml += '<div class="form-group"><label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:4px;">Notes for Musicians (optional)</label>';
+            selHtml += '<textarea id="gig-notes" rows="2" style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);resize:vertical;" placeholder="Dress code, call time, special instructions..."></textarea></div>';
+            selHtml += '</div>';
+
+            closeModal();
+            if (typeof Modal !== 'undefined') {
+              Modal.open({
+                title: 'Publish to Band',
+                body: selHtml,
+                size: 'md',
+                buttons: [
+                  { label: 'Cancel', class: 'btn-secondary', close: true },
+                  { label: 'Publish', class: 'btn-primary', callback: async function() {
+                    var selected = [];
+                    document.querySelectorAll('.gig-musician-cb:checked').forEach(function(cb) {
+                      selected.push(cb.value);
+                    });
+                    if (selected.length === 0) {
+                      if (typeof Toast !== 'undefined') Toast.error('Select at least one musician');
+                      return;
+                    }
+                    try {
+                      await apiFetch('/gigs/publish', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          bookingId: bookingId,
+                          assignedMusicians: selected,
+                          title: (document.getElementById('gig-title') || {}).value || '',
+                          notes: (document.getElementById('gig-notes') || {}).value || ''
+                        })
+                      });
+                      if (typeof Modal !== 'undefined') Modal.close();
+                      if (typeof Toast !== 'undefined') Toast.success('Gig published to band! Musicians can now see it.');
+                      loadPipeline();
+                    } catch (pubErr) {
+                      if (typeof Toast !== 'undefined') Toast.error('Publish failed: ' + pubErr.message);
+                    }
+                  }}
+                ]
+              });
+            }
+          } catch (e) {
+            if (typeof Toast !== 'undefined') Toast.error('Failed to load musicians: ' + e.message);
           }
         });
       }

@@ -220,11 +220,14 @@ const Router = {
       pageName = this.legacyRedirects[pageName];
     }
 
-    // Mobile auto-redirect — send mobile users straight to Field View
-    // (mirrors how LA Young auto-serves mobile layout without a nudge banner)
-    if (pageName === 'dashboard-home' && window.innerWidth <= 768) {
-      var _mobileRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
-      if (_mobileRole === 'admin' || _mobileRole === 'band_manager') {
+    // Role-based dashboard home redirect
+    if (pageName === 'dashboard-home' && typeof Auth !== 'undefined' && Auth.getRole) {
+      var _homeRole = Auth.getRole();
+      if (_homeRole === 'band_member' || _homeRole === 'artist') {
+        // Musicians/artists → Musician Portal
+        pageName = 'dashboard-musician-home';
+      } else if (window.innerWidth <= 768 && (_homeRole === 'admin' || _homeRole === 'band_manager')) {
+        // Mobile admin/manager → Field View
         pageName = 'dashboard-field';
       }
     }
@@ -264,21 +267,51 @@ const Router = {
           'dashboard-merch':        ['admin', 'band_manager', 'artist'],
           'dashboard-ip':           ['admin', 'band_manager', 'artist'],
           'dashboard-distribution': ['admin', 'band_manager', 'artist'],
+          'dashboard-musician-home': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-calendar':     ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-band-player': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'venue_owner', 'promoter'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
-        if (_allowedRoles) {
-          var _currentRole = Auth.getRole ? Auth.getRole() : 'member';
-          if (_allowedRoles.indexOf(_currentRole) === -1) {
-            if (typeof Toast !== 'undefined') {
-              Toast.error('Your role does not have access to this section.');
+        var _currentRole = Auth.getRole ? Auth.getRole() : 'member';
+
+        // For dashboard pages: deny by default if not explicitly listed in ACL
+        if (pageName.indexOf('dashboard-') === 0) {
+          if (_allowedRoles) {
+            if (_allowedRoles.indexOf(_currentRole) === -1) {
+              if (typeof Toast !== 'undefined') {
+                Toast.error('Your role does not have access to this section.');
+              }
+              // Redirect to role-appropriate home
+              if (_currentRole === 'band_member' || _currentRole === 'artist') {
+                this.navigateTo('dashboard-musician-home');
+              } else {
+                this.navigateTo('dashboard-home');
+              }
+              return;
             }
-            this.navigateTo('dashboard-home');
-            return;
+          } else {
+            // Not in ACL at all — only admin and band_manager can access unlisted dashboard pages
+            if (_currentRole !== 'admin' && _currentRole !== 'band_manager') {
+              if (typeof Toast !== 'undefined') {
+                Toast.error('Your role does not have access to this section.');
+              }
+              if (_currentRole === 'band_member' || _currentRole === 'artist') {
+                this.navigateTo('dashboard-musician-home');
+              } else {
+                this.navigateTo('dashboard-home');
+              }
+              return;
+            }
           }
+        } else if (_allowedRoles && _allowedRoles.indexOf(_currentRole) === -1) {
+          // Non-dashboard pages with explicit ACL
+          if (typeof Toast !== 'undefined') {
+            Toast.error('Your role does not have access to this section.');
+          }
+          this.navigateTo('dashboard-home');
+          return;
         }
       }
 
