@@ -42,27 +42,27 @@ const BandPlayer = {
       this._audio.preload = 'metadata';
     }
 
-    // NDA gate — check user's Firestore record for ndaAcceptedAt permission
-    // This is a one-time gate: once the user accepts, ndaAcceptedAt is written
-    // to their Firestore user doc and all future checks pass immediately.
-    // The user record is the single source of truth for this permission.
+    // Two-screen onboarding gate:
+    //   Screen 1: Band Confidentiality & Agreement (confidentialityAcceptedAt)
+    //   Screen 2: Payment Setup & House Band Agreement (paymentSetupAt)
+    // Both must be completed before player access. Firestore user doc is source of truth.
     var self = this;
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
     if (user && this._db) {
       this._db.collection('users').doc(user.uid).get().then(function(doc) {
         var data = doc.exists ? doc.data() : {};
-        if (data.ndaAcceptedAt) {
-          self._initPlayer();
+        if (!data.confidentialityAcceptedAt && !data.ndaAcceptedAt) {
+          self._showScreen1();
+        } else if (!data.paymentSetupAt) {
+          self._showScreen2();
         } else {
-          self._showNdaGate();
+          self._initPlayer();
         }
       }).catch(function() {
-        // Firestore error — block access rather than bypass permissions
         if (typeof Toast !== 'undefined') Toast.error('Could not verify permissions. Please try again.');
       });
     } else {
-      // No auth — show NDA gate (will prompt login)
-      this._showNdaGate();
+      this._showScreen1();
     }
     this.initialized = true;
 
@@ -81,66 +81,308 @@ const BandPlayer = {
     this.loadInventory();
   },
 
-  _showNdaGate: function() {
-    var container = document.getElementById('band-player-content') ||
-                    document.querySelector('.band-player-container') ||
-                    document.querySelector('#dash-band-player .dashboard-page-content') ||
-                    document.querySelector('#dash-band-player');
-    if (!container) return;
+  // ── Onboarding Helpers ──
 
+  _getContainer: function() {
+    return document.getElementById('band-player-content') ||
+      document.querySelector('.band-player-container') ||
+      document.querySelector('#dash-band-player .dashboard-page-content') ||
+      document.querySelector('#dash-band-player');
+  },
+
+  _btnStyle: 'padding:12px 32px;border-radius:var(--radius-full);background:var(--color-gold);color:#000;border:none;font-weight:var(--fw-semibold);font-size:var(--text-sm);cursor:pointer;transition:opacity 150ms ease;',
+  _inputStyle: 'width:100%;padding:10px 12px;border-radius:var(--radius-md);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);',
+  _labelStyle: 'display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:var(--color-text);',
+
+  // ── SCREEN 1: Band Confidentiality & Agreement ──
+
+  _showScreen1: function() {
+    var container = this._getContainer();
+    if (!container) return;
     var self = this;
+
     container.innerHTML =
-      '<div style="max-width:520px;margin:var(--space-xl) auto;text-align:center;padding:var(--space-lg);">' +
+      '<div style="max-width:560px;margin:var(--space-xl) auto;padding:var(--space-lg);">' +
         '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
           '<div style="width:56px;height:56px;border-radius:50%;background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
             '<i class="fa-solid fa-shield-halved" style="font-size:24px;color:var(--color-gold);"></i>' +
           '</div>' +
-          '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-sm);">Band Confidentiality</h2>' +
-          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);text-align:left;line-height:1.6;">' +
-            'Before accessing rehearsal materials, charts, and recordings, please review and accept the following:' +
+          '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-xs);text-align:center;">Band Confidentiality &amp; Agreement</h2>' +
+          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);text-align:center;line-height:1.6;">' +
+            'Welcome to the L.A. Young Soul Society band portal!' +
           '</p>' +
-          '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:left;font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.7;margin-bottom:var(--space-lg);">' +
-            'As a member of L.A. Young Band, I understand that:<br><br>' +
-            '&bull; Rehearsal recordings, charts, and setlists are for band use only<br>' +
-            '&bull; I will not share, distribute, or post these materials publicly<br>' +
-            '&bull; Original compositions and arrangements are the property of Gold Bottom Ent LLC' +
+          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-md);text-align:left;line-height:1.6;">' +
+            'Before you can access the original songs, demos, charts, and rehearsal materials, please read and agree:' +
+          '</p>' +
+          '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:left;font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.8;margin-bottom:var(--space-lg);">' +
+            '&bull; All original compositions, lyrics, demos, and arrangements by LA Young are the sole property of Gold Bottom Ent LLC.<br><br>' +
+            '&bull; Any contributions, harmonies, adaptations, or ideas I add to LA Young\u2019s pre-existing original material become derivative works owned solely by Gold Bottom Ent LLC / LA Young. I will not claim any ownership, co-writing credit, or royalties unless we specifically agree in writing.<br><br>' +
+            '&bull; Rehearsal recordings, charts, setlists, and private band materials are for internal use only. I will not share, distribute, copy, or post them publicly without written permission.<br><br>' +
+            '&bull; This applies during our working relationship and for 3 years after (or until the material is publicly released).<br><br>' +
+            '<em>I understand I am working as a freelance independent contractor for Gold Bottom Ent LLC only.</em>' +
           '</div>' +
-          '<label style="display:flex;align-items:center;gap:8px;font-size:var(--text-sm);color:var(--color-text);cursor:pointer;justify-content:center;margin-bottom:var(--space-lg);">' +
-            '<input type="checkbox" id="nda-checkbox" style="width:18px;height:18px;accent-color:var(--color-gold);">' +
-            ' I understand and agree' +
+          '<label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--text-sm);color:var(--color-text);cursor:pointer;justify-content:center;margin-bottom:var(--space-lg);">' +
+            '<input type="checkbox" id="screen1-checkbox" style="width:18px;height:18px;accent-color:var(--color-gold);margin-top:2px;">' +
+            ' I have read, understand, and agree to the above.' +
           '</label>' +
-          '<button id="nda-accept-btn" disabled style="padding:10px 32px;border-radius:var(--radius-full);background:var(--color-gold);color:#000;border:none;font-weight:var(--fw-semibold);font-size:var(--text-sm);cursor:pointer;opacity:0.4;transition:opacity 150ms ease;">Accept &amp; Continue</button>' +
+          '<div style="text-align:center;">' +
+            '<button id="screen1-btn" disabled style="' + this._btnStyle + 'opacity:0.4;">Accept &amp; Continue</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
 
-    var checkbox = document.getElementById('nda-checkbox');
-    var acceptBtn = document.getElementById('nda-accept-btn');
-
-    if (checkbox && acceptBtn) {
+    var checkbox = document.getElementById('screen1-checkbox');
+    var btn = document.getElementById('screen1-btn');
+    if (checkbox && btn) {
       checkbox.addEventListener('change', function() {
-        acceptBtn.disabled = !checkbox.checked;
-        acceptBtn.style.opacity = checkbox.checked ? '1' : '0.4';
+        btn.disabled = !checkbox.checked;
+        btn.style.opacity = checkbox.checked ? '1' : '0.4';
       });
-
-      acceptBtn.addEventListener('click', function() {
+      btn.addEventListener('click', function() {
         if (!checkbox.checked) return;
-        acceptBtn.disabled = true;
-        acceptBtn.textContent = 'Saving...';
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+        if (user && self._db) {
+          self._db.collection('users').doc(user.uid).update({
+            confidentialityAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            self._showScreen2();
+          }).catch(function(err) {
+            console.error('[BandPlayer] Screen 1 save failed:', err);
+            if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
+            btn.disabled = false;
+            btn.textContent = 'Accept & Continue';
+          });
+        }
+      });
+    }
+  },
+
+  // ── SCREEN 2: Payment Setup & House Band Agreement ──
+
+  _showScreen2: function() {
+    var container = this._getContainer();
+    if (!container) return;
+    var self = this;
+    var IS = this._inputStyle;
+    var LS = this._labelStyle;
+
+    container.innerHTML =
+      '<div style="max-width:600px;margin:var(--space-xl) auto;padding:var(--space-lg);">' +
+        '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
+          '<div style="width:56px;height:56px;border-radius:50%;background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
+            '<i class="fa-solid fa-credit-card" style="font-size:24px;color:var(--color-gold);"></i>' +
+          '</div>' +
+          '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-xs);text-align:center;">Payment Setup &amp; House Band Agreement</h2>' +
+          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);text-align:center;line-height:1.6;">' +
+            'Thanks for joining the band! Let\u2019s get you set up so we can pay you quickly and easily after every gig.' +
+          '</p>' +
+
+          // Step 1: Payment Method
+          '<div style="margin-bottom:var(--space-lg);">' +
+            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);">Step 1: How would you like to get paid?</h3>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:var(--space-sm);">' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="direct_deposit"> Direct Deposit</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="venmo"> Venmo</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="zelle"> Zelle</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="cashapp"> Cash App</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="check"> Check</label>' +
+              '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-sm);cursor:pointer;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);"><input type="radio" name="pay-method" value="other"> Other</label>' +
+            '</div>' +
+            // Direct Deposit fields (hidden by default)
+            '<div id="pay-bank-fields" style="display:none;margin-top:var(--space-sm);">' +
+              '<div style="display:grid;gap:10px;">' +
+                '<div><label style="' + LS + '">Bank Name</label><input id="pay-bank" type="text" style="' + IS + '" placeholder="e.g. Chase, Bank of America" /></div>' +
+                '<div><label style="' + LS + '">Routing Number</label><input id="pay-routing" type="password" style="' + IS + '" placeholder="9-digit routing number" maxlength="9" autocomplete="off" /></div>' +
+                '<div><label style="' + LS + '">Account Number</label><input id="pay-account" type="password" style="' + IS + '" placeholder="Account number" autocomplete="off" /></div>' +
+              '</div>' +
+            '</div>' +
+            // App handle fields (hidden by default)
+            '<div id="pay-app-fields" style="display:none;margin-top:var(--space-sm);">' +
+              '<div><label style="' + LS + '">Username / Handle</label><input id="pay-handle" type="text" style="' + IS + '" placeholder="e.g. @yourname" /></div>' +
+            '</div>' +
+            // Other field (hidden by default)
+            '<div id="pay-other-fields" style="display:none;margin-top:var(--space-sm);">' +
+              '<div><label style="' + LS + '">Please describe</label><input id="pay-other" type="text" style="' + IS + '" placeholder="How would you like to be paid?" /></div>' +
+            '</div>' +
+          '</div>' +
+
+          // Step 2: House Band Agreement
+          '<div style="margin-bottom:var(--space-lg);">' +
+            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);cursor:pointer;" id="hba-toggle">Step 2: House Band Agreement <i class="fa-solid fa-chevron-down" style="font-size:12px;margin-left:4px;"></i></h3>' +
+            '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;">Before we save your payment info, please review our short House Band guidelines (this just formalizes what we\u2019ve already been doing):</p>' +
+            '<div id="hba-content" style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:left;font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.8;margin-bottom:var(--space-sm);">' +
+              '&bull; You are a freelance independent contractor for Gold Bottom Ent LLC only (not an employee). You handle your own taxes and insurance.<br><br>' +
+              '&bull; LA Young\u2019s original compositions, lyrics, and demos are her / Gold Bottom Ent LLC\u2019s sole property. Any contributions or arrangements you make to her pre-existing originals are derivative works owned solely by her / the LLC. You will not claim ownership, co-writing credit, or royalties unless we agree in writing.<br><br>' +
+              '&bull; Rehearsal materials, charts, and recordings are for band use only \u2014 please don\u2019t share them publicly.<br><br>' +
+              '&bull; No extra pay for rehearsals, local travel, or prep unless we note it for a specific gig.<br><br>' +
+              '&bull; You\u2019re responsible for your own gear. We\u2019re not liable for loss or damage unless caused by our direct negligence.<br><br>' +
+              '&bull; All obligations are with Gold Bottom Ent LLC only \u2014 no personal liability for Jeffery Ponder or LA Young.' +
+            '</div>' +
+            '<label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--text-sm);color:var(--color-text);cursor:pointer;margin-bottom:var(--space-sm);">' +
+              '<input type="checkbox" id="hba-checkbox" style="width:18px;height:18px;accent-color:var(--color-gold);margin-top:2px;">' +
+              ' I have read and agree to the House Band guidelines above.' +
+            '</label>' +
+          '</div>' +
+
+          // Step 3: W-9
+          '<div style="margin-bottom:var(--space-lg);">' +
+            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);">Step 3: Tax Information (W-9)</h3>' +
+            '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;">To keep our payments compliant (especially if we pay you $2,000+ in a year), please provide your W-9 info. <em style="color:var(--color-text-muted);">You can also complete this later from your profile.</em></p>' +
+            '<div style="display:grid;gap:10px;">' +
+              '<div><label style="' + LS + '">Legal Full Name</label><input id="w9-name" type="text" style="' + IS + '" placeholder="As it appears on your tax return" /></div>' +
+              '<div><label style="' + LS + '">Mailing Address</label><input id="w9-address" type="text" style="' + IS + '" placeholder="Street, City, State, ZIP" /></div>' +
+            '</div>' +
+          '</div>' +
+
+          // Save button
+          '<div style="text-align:center;">' +
+            '<button id="screen2-btn" disabled style="' + this._btnStyle + 'opacity:0.4;">Save Payment Info &amp; Agreement</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // Payment method toggle logic
+    var radios = container.querySelectorAll('input[name="pay-method"]');
+    var bankFields = document.getElementById('pay-bank-fields');
+    var appFields = document.getElementById('pay-app-fields');
+    var otherFields = document.getElementById('pay-other-fields');
+    var hbaCheckbox = document.getElementById('hba-checkbox');
+    var saveBtn = document.getElementById('screen2-btn');
+
+    function updateSaveBtn() {
+      var methodSelected = container.querySelector('input[name="pay-method"]:checked');
+      var agreed = hbaCheckbox && hbaCheckbox.checked;
+      var ok = methodSelected && agreed;
+      if (saveBtn) {
+        saveBtn.disabled = !ok;
+        saveBtn.style.opacity = ok ? '1' : '0.4';
+      }
+    }
+
+    for (var i = 0; i < radios.length; i++) {
+      radios[i].addEventListener('change', function() {
+        var v = this.value;
+        bankFields.style.display = v === 'direct_deposit' ? 'block' : 'none';
+        appFields.style.display = (v === 'venmo' || v === 'zelle' || v === 'cashapp') ? 'block' : 'none';
+        otherFields.style.display = v === 'other' ? 'block' : 'none';
+        updateSaveBtn();
+      });
+    }
+
+    if (hbaCheckbox) hbaCheckbox.addEventListener('change', updateSaveBtn);
+
+    // HBA toggle
+    var hbaToggle = document.getElementById('hba-toggle');
+    var hbaContent = document.getElementById('hba-content');
+    if (hbaToggle && hbaContent) {
+      hbaToggle.addEventListener('click', function() {
+        var visible = hbaContent.style.display !== 'none';
+        hbaContent.style.display = visible ? 'none' : 'block';
+        var icon = hbaToggle.querySelector('i');
+        if (icon) icon.className = visible ? 'fa-solid fa-chevron-right' : 'fa-solid fa-chevron-down';
+      });
+    }
+
+    // Save handler
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        var methodRadio = container.querySelector('input[name="pay-method"]:checked');
+        if (!methodRadio || !hbaCheckbox.checked) return;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        var method = methodRadio.value;
+        var paymentData = { method: method };
+        if (method === 'direct_deposit') {
+          paymentData.bankName = (document.getElementById('pay-bank') || {}).value || '';
+          paymentData.hasRouting = !!(document.getElementById('pay-routing') || {}).value;
+          paymentData.hasAccount = !!(document.getElementById('pay-account') || {}).value;
+        } else if (method === 'venmo' || method === 'zelle' || method === 'cashapp') {
+          paymentData.handle = (document.getElementById('pay-handle') || {}).value || '';
+        } else if (method === 'other') {
+          paymentData.description = (document.getElementById('pay-other') || {}).value || '';
+        }
+
+        var w9Data = {
+          legalName: (document.getElementById('w9-name') || {}).value || '',
+          address: (document.getElementById('w9-address') || {}).value || ''
+        };
 
         var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
         if (user && self._db) {
           self._db.collection('users').doc(user.uid).update({
-            ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+            paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
+            houseBandAgreedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            paymentMethod: paymentData.method,
+            paymentHandle: paymentData.handle || '',
+            w9LegalName: w9Data.legalName,
+            w9Address: w9Data.address,
+            onboardingComplete: true
           }).then(function() {
-            if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society');
-            self._initPlayer();
+            // Send sensitive bank details to server (not Firestore)
+            if (method === 'direct_deposit') {
+              var routing = (document.getElementById('pay-routing') || {}).value || '';
+              var account = (document.getElementById('pay-account') || {}).value || '';
+              if (routing || account) {
+                self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
+              }
+            }
+            self._showSetupComplete();
           }).catch(function(err) {
-            console.error('[BandPlayer] NDA save failed:', err);
+            console.error('[BandPlayer] Screen 2 save failed:', err);
             if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
-            acceptBtn.disabled = false;
-            acceptBtn.textContent = 'Accept & Continue';
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Payment Info & Agreement';
           });
         }
+      });
+    }
+  },
+
+  _sendBankDetails: function(uid, bankName, routing, account) {
+    // Send bank details to home office server for encrypted storage — NOT Firestore
+    var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+    if (!isLocal) return; // Only send when on LAN
+    var baseUrl = window.location.protocol + '//' + window.location.hostname + ':3000';
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', baseUrl + '/api/v1/onboarding/payment-details', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      var token = localStorage.getItem('gbe-session-token') || '';
+      if (token) xhr.setRequestHeader('X-GBE-Session', token);
+      xhr.send(JSON.stringify({ uid: uid, bankName: bankName, routing: routing, account: account }));
+    } catch (e) {
+      console.warn('[BandPlayer] Bank details send failed (non-critical):', e.message);
+    }
+  },
+
+  _showSetupComplete: function() {
+    var container = this._getContainer();
+    if (!container) return;
+    var self = this;
+
+    container.innerHTML =
+      '<div style="max-width:520px;margin:var(--space-xl) auto;text-align:center;padding:var(--space-lg);">' +
+        '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
+          '<div style="width:64px;height:64px;border-radius:50%;background:rgba(63,185,80,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
+            '<i class="fa-solid fa-check" style="font-size:28px;color:#3fb950;"></i>' +
+          '</div>' +
+          '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-sm);">You\u2019re all set!</h2>' +
+          '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);line-height:1.6;margin-bottom:var(--space-lg);">' +
+            'Payment setup complete! Looking forward to the next gig with you.' +
+          '</p>' +
+          '<button id="setup-done-btn" style="' + this._btnStyle + '">Enter the Band Portal</button>' +
+        '</div>' +
+      '</div>';
+
+    var doneBtn = document.getElementById('setup-done-btn');
+    if (doneBtn) {
+      doneBtn.addEventListener('click', function() {
+        if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society!');
+        self._initPlayer();
       });
     }
   },
