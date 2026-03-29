@@ -1,0 +1,351 @@
+<!-- dashboard/gigs.html — Band Gig Management (FRD-3) -->
+<div class="dashboard-page">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-lg);">
+    <div>
+      <h1>Band Gigs</h1>
+      <p class="text-muted">Manage gigs published to the band. Musicians see these on their portal.</p>
+    </div>
+    <button id="gigs-create-btn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> New Gig</button>
+  </div>
+
+  <!-- Filter tabs -->
+  <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-md);">
+    <button class="gig-filter-btn active" data-status="upcoming">Upcoming</button>
+    <button class="gig-filter-btn" data-status="completed">Completed</button>
+    <button class="gig-filter-btn" data-status="cancelled">Cancelled</button>
+  </div>
+
+  <!-- Gigs table -->
+  <div id="gigs-table-container">
+    <div id="gigs-loading" style="text-align:center;padding:48px;color:var(--color-text-muted);">
+      <i class="fa-solid fa-spinner fa-spin"></i> Loading gigs...
+    </div>
+  </div>
+</div>
+
+<style>
+  .gig-filter-btn {
+    padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    transition: all 0.2s;
+  }
+  .gig-filter-btn.active {
+    background: rgba(210, 153, 34, 0.15);
+    color: #d4a017;
+    border-color: rgba(210, 153, 34, 0.3);
+  }
+  .gig-filter-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.05);
+  }
+  .gig-row {
+    display: grid;
+    grid-template-columns: 1fr 140px 1fr 120px 100px;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+    align-items: center;
+    font-size: var(--text-sm);
+    transition: background 0.15s;
+  }
+  .gig-row:hover { background: rgba(255,255,255,0.03); }
+  .gig-row-header {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--color-border);
+  }
+  .gig-row-header:hover { background: transparent; }
+  .gig-musicians {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .gig-musician-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    background: rgba(139,148,158,0.15);
+    color: var(--color-text-muted);
+  }
+  .gig-actions-cell { display: flex; gap: 6px; }
+  .gig-action-btn {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .gig-action-btn:hover { background: rgba(255,255,255,0.08); color: var(--color-text); }
+  .gig-action-btn.danger:hover { background: rgba(248,81,73,0.1); color: #f85149; border-color: rgba(248,81,73,0.3); }
+  @media (max-width: 768px) {
+    .gig-row { grid-template-columns: 1fr; gap: 4px; }
+    .gig-row-header { display: none; }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+  var currentStatus = 'upcoming';
+  var allMusicians = [];
+
+  function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function apiFetch(path, opts) {
+    opts = opts || {};
+    var headers = opts.headers || {};
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    var token = localStorage.getItem('gbe-session-token');
+    if (token) headers['X-GBE-Session'] = token;
+    var apiKey = localStorage.getItem('gbe-api-key');
+    if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+    var resp = await fetch('/api/v1' + path, Object.assign({}, opts, { headers: headers }));
+    if (!resp.ok) { var err = await resp.json().catch(function() { return { error: resp.statusText }; }); throw new Error(err.error || resp.statusText); }
+    return resp.json();
+  }
+
+  // ── Load musicians for assignment ──
+  async function loadMusicians() {
+    try {
+      var data = await apiFetch('/gigs/musicians');
+      allMusicians = data.musicians || [];
+    } catch (e) {
+      console.warn('[Gigs] Failed to load musicians:', e.message);
+    }
+  }
+
+  // ── Load gigs ──
+  async function loadGigs() {
+    var container = document.getElementById('gigs-table-container');
+    if (!container) return;
+
+    container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading gigs...</div>';
+
+    try {
+      var data;
+      if (isLocal) {
+        data = await apiFetch('/gigs?status=' + currentStatus);
+      } else {
+        // On public site, read from Firestore directly
+        if (typeof Auth !== 'undefined' && Auth._db) {
+          var snap = await Auth._db.collection('gigs').where('status', '==', currentStatus).orderBy('date', 'asc').get();
+          var gigs = [];
+          snap.forEach(function(doc) { gigs.push(Object.assign({ id: doc.id }, doc.data())); });
+          data = { gigs: gigs };
+        } else {
+          data = { gigs: [] };
+        }
+      }
+
+      renderGigs(data.gigs || []);
+    } catch (e) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:#f85149;">Failed to load gigs: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  function renderGigs(gigs) {
+    var container = document.getElementById('gigs-table-container');
+    if (!container) return;
+
+    if (gigs.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-guitar" style="font-size:2rem;margin-bottom:12px;display:block;opacity:0.3;"></i>No ' + currentStatus + ' gigs.</div>';
+      return;
+    }
+
+    var html = '<div class="gig-row gig-row-header"><div>Title</div><div>Date</div><div>Musicians</div><div>Venue</div><div>Actions</div></div>';
+
+    gigs.forEach(function(g) {
+      var dateStr = '';
+      if (g.date) {
+        var d = g.date.toDate ? g.date.toDate() : new Date(g.date);
+        dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        var timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        if (timeStr !== '12:00 AM') dateStr += ' ' + timeStr;
+      }
+
+      var musiciansHtml = '<div class="gig-musicians">';
+      (g.assignedMusicians || []).forEach(function(mid) {
+        var m = allMusicians.find(function(x) { return x.id === mid; });
+        musiciansHtml += '<span class="gig-musician-pill">' + esc(m ? m.name : mid) + '</span>';
+      });
+      musiciansHtml += '</div>';
+
+      html += '<div class="gig-row" data-id="' + esc(g.id) + '">';
+      html += '<div><strong>' + esc(g.title || 'Untitled') + '</strong>' + (g.bookingId ? '<br><span style="font-size:11px;color:var(--color-text-muted);">From booking</span>' : '') + '</div>';
+      html += '<div>' + dateStr + '</div>';
+      html += '<div>' + musiciansHtml + '</div>';
+      html += '<div>' + esc(g.venue || 'TBD') + '</div>';
+      html += '<div class="gig-actions-cell">';
+      html += '<button class="gig-action-btn" onclick="window._editGig(\'' + esc(g.id) + '\')"><i class="fa-solid fa-pen"></i></button>';
+      html += '<button class="gig-action-btn danger" onclick="window._deleteGig(\'' + esc(g.id) + '\')"><i class="fa-solid fa-trash"></i></button>';
+      html += '</div>';
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  // ── Create Gig Modal ──
+  function openCreateModal(prefill) {
+    prefill = prefill || {};
+    var musOptions = '';
+    allMusicians.forEach(function(m) {
+      var checked = (prefill.assignedMusicians || []).indexOf(m.id) >= 0 ? ' checked' : '';
+      musOptions += '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">'
+        + '<input type="checkbox" class="new-gig-musician" value="' + esc(m.id) + '"' + checked + '>'
+        + '<span>' + esc(m.name) + (m.instrument ? ' <span style="color:var(--color-text-muted);font-size:12px;">(' + esc(m.instrument) + ')</span>' : '') + '</span></label>';
+    });
+
+    var content = '<div style="display:flex;flex-direction:column;gap:14px;">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Title</label>'
+      + '<input type="text" id="new-gig-title" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" value="' + esc(prefill.title || '') + '" /></div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Venue</label>'
+      + '<input type="text" id="new-gig-venue" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" value="' + esc(prefill.venue || '') + '" /></div>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Date</label>'
+      + '<input type="date" id="new-gig-date" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" value="' + esc(prefill.date || '') + '" /></div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Time</label>'
+      + '<input type="time" id="new-gig-time" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);" value="' + esc(prefill.time || '') + '" /></div>'
+      + '</div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Assign Musicians</label>'
+      + '<div style="max-height:150px;overflow-y:auto;border:1px solid var(--color-border);border-radius:6px;padding:8px;">'
+      + (musOptions || '<p style="color:var(--color-text-muted);margin:0;font-size:13px;">No musicians available. Invite musicians first.</p>')
+      + '</div></div>'
+      + '<div><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Notes for Musicians</label>'
+      + '<textarea id="new-gig-notes" rows="2" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);resize:vertical;">' + esc(prefill.notes || '') + '</textarea></div>'
+      + '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: prefill._editId ? 'Edit Gig' : 'Create New Gig',
+        body: content,
+        size: 'md',
+        buttons: [
+          { label: 'Cancel', class: 'btn-secondary', close: true },
+          { label: prefill._editId ? 'Save' : 'Create & Publish', class: 'btn-primary', callback: function() {
+            var title = document.getElementById('new-gig-title').value.trim();
+            var venue = document.getElementById('new-gig-venue').value.trim();
+            var date = document.getElementById('new-gig-date').value;
+            var time = document.getElementById('new-gig-time').value;
+            var notes = document.getElementById('new-gig-notes').value.trim();
+            var selected = [];
+            document.querySelectorAll('.new-gig-musician:checked').forEach(function(cb) { selected.push(cb.value); });
+
+            if (!title) { if (typeof Toast !== 'undefined') Toast.error('Title is required'); return; }
+            if (!date) { if (typeof Toast !== 'undefined') Toast.error('Date is required'); return; }
+            if (selected.length === 0) { if (typeof Toast !== 'undefined') Toast.error('Assign at least one musician'); return; }
+
+            var payload = { title: title, venue: venue, date: date, time: time, assignedMusicians: selected, notes: notes };
+
+            if (prefill._editId) {
+              // Update
+              apiFetch('/gigs/' + prefill._editId, { method: 'PUT', body: JSON.stringify(payload) })
+                .then(function() {
+                  if (typeof Modal !== 'undefined') Modal.close();
+                  if (typeof Toast !== 'undefined') Toast.success('Gig updated');
+                  loadGigs();
+                })
+                .catch(function(e) { if (typeof Toast !== 'undefined') Toast.error('Update failed: ' + e.message); });
+            } else {
+              // Create
+              payload.status = 'upcoming';
+              apiFetch('/gigs', { method: 'POST', body: JSON.stringify(payload) })
+                .then(function() {
+                  if (typeof Modal !== 'undefined') Modal.close();
+                  if (typeof Toast !== 'undefined') Toast.success('Gig created and published to band!');
+                  loadGigs();
+                })
+                .catch(function(e) { if (typeof Toast !== 'undefined') Toast.error('Create failed: ' + e.message); });
+            }
+          }}
+        ]
+      });
+    }
+  }
+
+  // ── Edit Gig ──
+  window._editGig = async function(gigId) {
+    try {
+      // Fetch gig data
+      var data;
+      if (isLocal) {
+        var resp = await apiFetch('/gigs?status=' + currentStatus);
+        data = (resp.gigs || []).find(function(g) { return g.id === gigId; });
+      } else if (typeof Auth !== 'undefined' && Auth._db) {
+        var doc = await Auth._db.collection('gigs').doc(gigId).get();
+        data = doc.exists ? Object.assign({ id: doc.id }, doc.data()) : null;
+      }
+      if (!data) { if (typeof Toast !== 'undefined') Toast.error('Gig not found'); return; }
+
+      var dateVal = '';
+      var timeVal = '';
+      if (data.date) {
+        var d = data.date.toDate ? data.date.toDate() : new Date(data.date);
+        dateVal = d.toISOString().split('T')[0];
+        var h = d.getHours(), m = d.getMinutes();
+        if (h || m) timeVal = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      }
+
+      openCreateModal({
+        _editId: gigId,
+        title: data.title || '',
+        venue: data.venue || '',
+        date: dateVal,
+        time: timeVal,
+        notes: data.notes || '',
+        assignedMusicians: data.assignedMusicians || []
+      });
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Failed to load gig: ' + e.message);
+    }
+  };
+
+  // ── Delete Gig ──
+  window._deleteGig = async function(gigId) {
+    if (!confirm('Unpublish this gig? Musicians will no longer see it.')) return;
+    try {
+      if (isLocal) {
+        await apiFetch('/gigs/' + gigId, { method: 'DELETE' });
+      } else if (typeof Auth !== 'undefined' && Auth._db) {
+        await Auth._db.collection('gigs').doc(gigId).delete();
+      }
+      if (typeof Toast !== 'undefined') Toast.success('Gig unpublished');
+      loadGigs();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Delete failed: ' + e.message);
+    }
+  };
+
+  // ── Filter tabs ──
+  document.querySelectorAll('.gig-filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.gig-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentStatus = btn.dataset.status;
+      loadGigs();
+    });
+  });
+
+  // ── Create button ──
+  var createBtn = document.getElementById('gigs-create-btn');
+  if (createBtn) createBtn.addEventListener('click', function() { openCreateModal(); });
+
+  // ── Init ──
+  loadMusicians().then(loadGigs);
+})();
+</script>
