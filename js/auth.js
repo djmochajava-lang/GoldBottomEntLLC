@@ -1337,6 +1337,29 @@ const Auth = {
       return;
     }
 
+    // Auto-login: if ?autologin=true (linked from LA Young Band Portal), skip modal and go straight to Google sign-in
+    try {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('autologin') === 'true') {
+        // Clean URL
+        if (window.history.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        }
+        // Trigger Google sign-in directly
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+          var provider = new firebase.auth.GoogleAuthProvider();
+          firebase.auth().signInWithPopup(provider).catch(function(err) {
+            if (err.code !== 'auth/popup-closed-by-user') {
+              console.error('[Auth] Auto-login failed:', err.code);
+            }
+            // Fall back to showing the modal
+            Auth.showLoginModal();
+          });
+          return;
+        }
+      }
+    } catch (e) { /* ignore */ }
+
     var isLocal = this._isOnLocalServer();
 
     // Shared button base styles
