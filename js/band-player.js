@@ -58,8 +58,6 @@ const BandPlayer = {
         var data = doc.exists ? doc.data() : {};
         if (!data.confidentialityAcceptedAt && !data.ndaAcceptedAt) {
           self._showScreen1();
-        } else if (!data.paymentSetupAt) {
-          self._showScreen2();
         } else {
           self._initPlayer();
         }
@@ -153,7 +151,8 @@ const BandPlayer = {
             confidentialityAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
             ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
           }).then(function() {
-            self._showScreen2();
+            if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society!');
+            self._initPlayer();
           }).catch(function(err) {
             console.error('[BandPlayer] Screen 1 save failed:', err);
             if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
