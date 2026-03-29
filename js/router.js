@@ -558,7 +558,7 @@ const Router = {
       'dashboard-export': 'Evidence Export',
       'dashboard-field': 'Field View',
       'dashboard-band-player': 'Band Player',
-      'dashboard-payment-settings': 'Payment Settings',
+      'dashboard-payment-settings': 'Payment Info',
     };
 
     const label = labels[pageName] || 'Dashboard';
