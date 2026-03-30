@@ -1,0 +1,529 @@
+<!-- pages/entertainment/tickets.html — Public Ticket Sales (FRD-8) -->
+
+<section class="page-section" id="page-ent-tickets">
+  <div class="container">
+    <h1 class="page-title reveal">Tickets</h1>
+    <p class="page-subtitle reveal">Get tickets for upcoming Gold Bottom Entertainment events.</p>
+
+    <!-- Event Listing -->
+    <div id="tix-pub-events" class="stagger-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-lg);margin-top:var(--space-xl);"></div>
+
+    <!-- Empty State -->
+    <div id="tix-pub-empty" style="display:none;text-align:center;padding:var(--space-3xl);color:var(--color-text-muted);">
+      <i class="fa-solid fa-ticket" style="font-size:3rem;opacity:0.3;margin-bottom:var(--space-md);display:block;"></i>
+      <h3>No Upcoming Events</h3>
+      <p>Check back soon for new shows and events.</p>
+    </div>
+
+    <!-- Loading -->
+    <div id="tix-pub-loading" style="text-align:center;padding:var(--space-3xl);color:var(--color-text-muted);">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size:1.5rem;"></i>
+      <p>Loading events...</p>
+    </div>
+
+    <!-- Event Detail (hidden by default, shown when user clicks Get Tickets) -->
+    <div id="tix-pub-detail" style="display:none;margin-top:var(--space-xl);">
+      <button id="tix-pub-back" class="btn btn-outline" style="margin-bottom:var(--space-lg);">
+        <i class="fa-solid fa-arrow-left"></i> Back to Events
+      </button>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-xl);align-items:start;" id="tix-detail-grid">
+        <!-- Event Info -->
+        <div id="tix-pub-event-info">
+          <h2 id="tix-detail-name" style="color:var(--color-gold);margin-bottom:var(--space-sm);"></h2>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-md);margin-bottom:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">
+            <span id="tix-detail-date"><i class="fa-solid fa-calendar"></i> </span>
+            <span id="tix-detail-venue"><i class="fa-solid fa-location-dot"></i> </span>
+          </div>
+          <p id="tix-detail-desc" style="color:var(--color-text-secondary);line-height:1.6;margin-bottom:var(--space-lg);"></p>
+
+          <!-- Tier Selection -->
+          <h3 style="margin-bottom:var(--space-sm);">Select Tickets</h3>
+          <div id="tix-detail-tiers" style="display:flex;flex-direction:column;gap:var(--space-sm);"></div>
+        </div>
+
+        <!-- Checkout Form -->
+        <div class="glass-card" style="padding:var(--space-lg);" id="tix-pub-checkout">
+          <h3 style="margin-top:0;margin-bottom:var(--space-md);color:var(--color-gold);"><i class="fa-solid fa-cart-shopping"></i> Checkout</h3>
+
+          <div id="tix-checkout-summary" style="margin-bottom:var(--space-md);padding:var(--space-md);background:var(--color-bg-secondary);border-radius:var(--radius-sm);">
+            <p style="color:var(--color-text-muted);text-align:center;">Select a ticket tier to begin.</p>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:var(--space-md);">
+            <div>
+              <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Full Name *</label>
+              <input id="tix-co-name" type="text" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Your full name">
+            </div>
+            <div>
+              <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Email *</label>
+              <input id="tix-co-email" type="email" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="you@email.com">
+            </div>
+            <div>
+              <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Phone</label>
+              <input id="tix-co-phone" type="tel" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="(optional)">
+            </div>
+            <div>
+              <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Promo Code</label>
+              <div style="display:flex;gap:var(--space-xs);">
+                <input id="tix-co-promo" type="text" style="flex:1;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);text-transform:uppercase;" placeholder="PROMO CODE">
+                <button id="tix-co-promo-btn" class="btn btn-outline btn-sm">Apply</button>
+              </div>
+              <div id="tix-co-promo-msg" style="font-size:var(--text-xs);margin-top:4px;"></div>
+            </div>
+            <div style="border-top:1px solid var(--color-border);padding-top:var(--space-md);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);">
+                <span style="font-weight:600;">Total:</span>
+                <span id="tix-co-total" style="font-size:var(--text-xl);font-weight:700;color:var(--color-gold);">$0.00</span>
+              </div>
+              <button id="tix-co-submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:var(--text-base);" disabled>
+                <i class="fa-solid fa-lock"></i> Complete Purchase
+              </button>
+              <p style="font-size:var(--text-xs);color:var(--color-text-muted);text-align:center;margin-top:var(--space-xs);">
+                Secure checkout. Confirmation sent to your email.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation (shown after purchase) -->
+    <div id="tix-pub-confirm" style="display:none;text-align:center;padding:var(--space-3xl);">
+      <div style="width:80px;height:80px;border-radius:50%;background:rgba(63,185,80,0.15);display:inline-flex;align-items:center;justify-content:center;margin-bottom:var(--space-lg);">
+        <i class="fa-solid fa-circle-check" style="font-size:2.5rem;color:#3fb950;"></i>
+      </div>
+      <h2 style="color:var(--color-gold);">You're In!</h2>
+      <p style="color:var(--color-text-secondary);max-width:500px;margin:var(--space-md) auto;">
+        Your tickets have been reserved. A confirmation with your QR ticket(s) will be sent to your email.
+      </p>
+      <div class="glass-card" style="display:inline-block;padding:var(--space-lg);margin-top:var(--space-md);">
+        <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-xs);">Confirmation Code</div>
+        <div id="tix-confirm-code" style="font-size:var(--text-2xl);font-weight:700;font-family:monospace;letter-spacing:2px;color:var(--color-gold);"></div>
+        <div id="tix-confirm-details" style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-top:var(--space-sm);"></div>
+      </div>
+      <div style="margin-top:var(--space-xl);">
+        <button id="tix-confirm-back" class="btn btn-primary"><i class="fa-solid fa-arrow-left"></i> Back to Events</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .tix-event-card {
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+  }
+  .tix-event-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    border-color: rgba(212,160,23,0.3);
+  }
+  .tix-event-card-img {
+    height: 180px;
+    background: linear-gradient(135deg, rgba(212,160,23,0.2), rgba(212,160,23,0.05));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .tix-event-card-img i {
+    font-size: 3rem;
+    color: rgba(212,160,23,0.4);
+  }
+  .tix-event-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .tix-event-card-body {
+    padding: var(--space-md);
+  }
+  .tix-event-card-body h3 {
+    margin: 0 0 var(--space-xs);
+    font-size: var(--text-lg);
+  }
+  .tix-event-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: var(--space-sm);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+  }
+  .tix-event-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border);
+  }
+  .tix-event-price {
+    font-weight: 700;
+    color: var(--color-gold);
+    font-size: var(--text-lg);
+  }
+  .tix-tier-option {
+    padding: var(--space-md);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+  }
+  .tix-tier-option:hover { border-color: rgba(212,160,23,0.4); background: rgba(212,160,23,0.05); }
+  .tix-tier-option.selected { border-color: var(--color-gold); background: rgba(212,160,23,0.1); }
+  .tix-tier-option .tier-info { flex: 1; }
+  .tix-tier-option .tier-price { font-size: var(--text-lg); font-weight: 700; color: var(--color-gold); white-space: nowrap; }
+  .tix-tier-option .tier-qty-wrap { display: flex; align-items: center; gap: var(--space-xs); }
+  .tix-tier-qty {
+    width: 60px;
+    padding: 6px;
+    text-align: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+  }
+  @media (max-width: 768px) {
+    #tix-detail-grid { grid-template-columns: 1fr !important; }
+    #tix-pub-events { grid-template-columns: 1fr !important; }
+    .tix-event-card-img { height: 140px; }
+  }
+</style>
+
+<script>
+(function() {
+  // Determine API base — public endpoint, no auth needed
+  const hostname = window.location.hostname;
+  const isLocal = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.0\.0\.1)/.test(hostname);
+  const API = isLocal
+    ? `http://${hostname}:3000/api/v1/tickets`
+    : null; // On GitHub Pages, no API available
+
+  if (!API) {
+    document.getElementById('tix-pub-loading').style.display = 'none';
+    document.getElementById('tix-pub-empty').style.display = 'block';
+    document.getElementById('tix-pub-empty').querySelector('p').textContent = 'Ticket sales are available when connected to the local network.';
+    return;
+  }
+
+  const eventsContainer = document.getElementById('tix-pub-events');
+  const loadingEl = document.getElementById('tix-pub-loading');
+  const emptyEl = document.getElementById('tix-pub-empty');
+  const detailEl = document.getElementById('tix-pub-detail');
+  const confirmEl = document.getElementById('tix-pub-confirm');
+
+  function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtDate(d) {
+    if (!d) return '';
+    try {
+      return new Date(d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    } catch(_) { return d; }
+  }
+  function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+  let currentEvent = null;
+  let currentTiers = [];
+  let selectedTier = null;
+  let selectedQty = 1;
+  let promoDiscount = null;
+  let holdOrderId = null;
+
+  // ── Load Public Events ──
+  async function loadEvents() {
+    try {
+      const res = await fetch(`${API}/events/public`);
+      const data = await res.json();
+      const events = data.events || [];
+      loadingEl.style.display = 'none';
+
+      if (!events.length) { emptyEl.style.display = 'block'; return; }
+
+      eventsContainer.innerHTML = events.map(ev => {
+        const tiers = ev.tiers || [];
+        const prices = tiers.map(t => t.price).filter(p => p != null);
+        const minPrice = prices.length ? Math.min(...prices) : 0;
+        const maxPrice = prices.length ? Math.max(...prices) : 0;
+        const priceStr = minPrice === maxPrice
+          ? (minPrice === 0 ? 'Free' : fmt(minPrice))
+          : fmt(minPrice) + ' \u2013 ' + fmt(maxPrice);
+        const imgHtml = ev.image_url
+          ? `<img src="${escHtml(ev.image_url)}" alt="${escHtml(ev.event_name)}">`
+          : `<i class="fa-solid fa-music"></i>`;
+
+        return `<div class="tix-event-card reveal" data-event-id="${ev.id}">
+          <div class="tix-event-card-img">${imgHtml}</div>
+          <div class="tix-event-card-body">
+            <h3>${escHtml(ev.event_name)}</h3>
+            <div class="tix-event-card-meta">
+              <span><i class="fa-solid fa-calendar"></i> ${fmtDate(ev.event_date)}</span>
+              <span><i class="fa-solid fa-location-dot"></i> ${escHtml(ev.venue_name || 'TBA')}</span>
+            </div>
+            <div class="tix-event-card-footer">
+              <span class="tix-event-price">${priceStr}</span>
+              <button class="btn btn-primary btn-sm shimmer-sweep">Get Tickets</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Click handlers
+      eventsContainer.querySelectorAll('.tix-event-card').forEach(card => {
+        card.addEventListener('click', () => showEventDetail(card.dataset.eventId));
+      });
+    } catch (err) {
+      console.error('[Tickets] Public load failed:', err);
+      loadingEl.style.display = 'none';
+      emptyEl.style.display = 'block';
+    }
+  }
+
+  // ── Event Detail ──
+  async function showEventDetail(eventId) {
+    try {
+      const res = await fetch(`${API}/events/${eventId}`);
+      if (!res.ok) throw new Error('Event not found');
+      currentEvent = await res.json();
+      currentTiers = currentEvent.tiers || [];
+      selectedTier = null;
+      selectedQty = 1;
+      promoDiscount = null;
+      holdOrderId = null;
+
+      document.getElementById('tix-detail-name').textContent = currentEvent.event_name;
+      document.getElementById('tix-detail-date').innerHTML = '<i class="fa-solid fa-calendar"></i> ' + fmtDate(currentEvent.event_date);
+      document.getElementById('tix-detail-venue').innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + escHtml(currentEvent.venue_name || 'TBA');
+      document.getElementById('tix-detail-desc').textContent = currentEvent.description || '';
+
+      // Render tier options
+      const tiersEl = document.getElementById('tix-detail-tiers');
+      if (!currentTiers.length) {
+        tiersEl.innerHTML = '<p style="color:var(--color-text-muted);">No tickets available for this event.</p>';
+      } else {
+        tiersEl.innerHTML = currentTiers.map(t => {
+          const avail = t.quantity ? (t.quantity - (t.sold || 0)) : null;
+          const soldOut = avail !== null && avail <= 0;
+          return `<div class="tix-tier-option ${soldOut ? 'sold-out' : ''}" data-tier-id="${t.id}" ${soldOut ? 'style="opacity:0.5;pointer-events:none;"' : ''}>
+            <div class="tier-info">
+              <div style="font-weight:600;">${escHtml(t.tier_name)}</div>
+              ${t.description ? `<div style="font-size:var(--text-xs);color:var(--color-text-muted);">${escHtml(t.description)}</div>` : ''}
+              ${avail !== null ? `<div style="font-size:var(--text-xs);color:${soldOut ? '#f85149' : '#3fb950'};">${soldOut ? 'Sold Out' : avail + ' remaining'}</div>` : ''}
+            </div>
+            <div class="tier-price">${t.price === 0 ? 'Free' : fmt(t.price)}</div>
+            <div class="tier-qty-wrap">
+              <input type="number" class="tix-tier-qty" min="1" max="${Math.min(avail || 10, 10)}" value="1" data-tier-id="${t.id}" ${soldOut ? 'disabled' : ''}>
+            </div>
+          </div>`;
+        }).join('');
+
+        // Tier click handlers
+        tiersEl.querySelectorAll('.tix-tier-option:not(.sold-out)').forEach(opt => {
+          opt.addEventListener('click', function(e) {
+            if (e.target.classList.contains('tix-tier-qty')) return;
+            tiersEl.querySelectorAll('.tix-tier-option').forEach(o => o.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedTier = currentTiers.find(t => t.id === this.dataset.tierId);
+            selectedQty = parseInt(this.querySelector('.tix-tier-qty').value) || 1;
+            updateCheckoutSummary();
+          });
+        });
+
+        // Qty change handlers
+        tiersEl.querySelectorAll('.tix-tier-qty').forEach(input => {
+          input.addEventListener('change', function() {
+            const tierId = this.dataset.tierId;
+            if (selectedTier && selectedTier.id === tierId) {
+              selectedQty = parseInt(this.value) || 1;
+              updateCheckoutSummary();
+            }
+          });
+          input.addEventListener('click', function(e) { e.stopPropagation(); });
+        });
+      }
+
+      // Reset checkout
+      document.getElementById('tix-co-name').value = '';
+      document.getElementById('tix-co-email').value = '';
+      document.getElementById('tix-co-phone').value = '';
+      document.getElementById('tix-co-promo').value = '';
+      document.getElementById('tix-co-promo-msg').textContent = '';
+      updateCheckoutSummary();
+
+      // Show detail, hide list
+      eventsContainer.style.display = 'none';
+      emptyEl.style.display = 'none';
+      confirmEl.style.display = 'none';
+      detailEl.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('[Tickets] Detail load failed:', err);
+      if (typeof Toast !== 'undefined') Toast.error('Could not load event details');
+    }
+  }
+
+  function updateCheckoutSummary() {
+    const summaryEl = document.getElementById('tix-checkout-summary');
+    const totalEl = document.getElementById('tix-co-total');
+    const submitBtn = document.getElementById('tix-co-submit');
+
+    if (!selectedTier) {
+      summaryEl.innerHTML = '<p style="color:var(--color-text-muted);text-align:center;">Select a ticket tier to begin.</p>';
+      totalEl.textContent = '$0.00';
+      submitBtn.disabled = true;
+      return;
+    }
+
+    let subtotal = selectedTier.price * selectedQty;
+    let discountAmt = 0;
+    if (promoDiscount) {
+      if (promoDiscount.type === 'percent') {
+        discountAmt = subtotal * (promoDiscount.value / 100);
+      } else {
+        discountAmt = promoDiscount.value;
+      }
+      discountAmt = Math.min(discountAmt, subtotal);
+    }
+    const total = Math.max(0, subtotal - discountAmt);
+
+    summaryEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span>${escHtml(selectedTier.tier_name)} x ${selectedQty}</span>
+        <span>${fmt(subtotal)}</span>
+      </div>
+      ${promoDiscount ? `<div style="display:flex;justify-content:space-between;color:#3fb950;font-size:var(--text-sm);">
+        <span>Promo: ${escHtml(promoDiscount.code)}</span>
+        <span>-${fmt(discountAmt)}</span>
+      </div>` : ''}`;
+
+    totalEl.textContent = total === 0 ? 'Free' : fmt(total);
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = total === 0
+      ? '<i class="fa-solid fa-ticket"></i> Reserve Tickets (Free)'
+      : '<i class="fa-solid fa-lock"></i> Complete Purchase';
+  }
+
+  // Promo Code
+  document.getElementById('tix-co-promo-btn').addEventListener('click', async () => {
+    const code = document.getElementById('tix-co-promo').value.trim();
+    const msgEl = document.getElementById('tix-co-promo-msg');
+    if (!code) { msgEl.textContent = ''; promoDiscount = null; updateCheckoutSummary(); return; }
+    try {
+      const res = await fetch(`${API}/promos/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, eventId: currentEvent.id })
+      });
+      const data = await res.json();
+      if (data.error) {
+        msgEl.innerHTML = `<span style="color:#f85149;">${escHtml(data.error)}</span>`;
+        promoDiscount = null;
+      } else {
+        promoDiscount = { code: code.toUpperCase(), type: data.discountType || data.discount_type, value: data.discountValue || data.discount_value };
+        msgEl.innerHTML = `<span style="color:#3fb950;"><i class="fa-solid fa-check"></i> ${promoDiscount.type === 'percent' ? promoDiscount.value + '% off' : fmt(promoDiscount.value) + ' off'} applied!</span>`;
+      }
+      updateCheckoutSummary();
+    } catch (err) {
+      msgEl.innerHTML = '<span style="color:#f85149;">Failed to validate code</span>';
+    }
+  });
+
+  // Submit Purchase — 2-step: hold then pay
+  document.getElementById('tix-co-submit').addEventListener('click', async () => {
+    const name = document.getElementById('tix-co-name').value.trim();
+    const email = document.getElementById('tix-co-email').value.trim();
+    const phone = document.getElementById('tix-co-phone').value.trim();
+    const promo = document.getElementById('tix-co-promo').value.trim();
+
+    if (!name) { if (typeof Toast !== 'undefined') Toast.error('Please enter your name'); return; }
+    if (!email) { if (typeof Toast !== 'undefined') Toast.error('Please enter your email'); return; }
+    if (!selectedTier) { if (typeof Toast !== 'undefined') Toast.error('Please select a ticket tier'); return; }
+
+    const submitBtn = document.getElementById('tix-co-submit');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+    try {
+      // Step 1: Create hold
+      const holdRes = await fetch(`${API}/orders/public`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: currentEvent.id,
+          tierId: selectedTier.id,
+          quantity: selectedQty,
+          buyerName: name,
+          buyerEmail: email,
+          buyerPhone: phone || null,
+          promoCode: promo || null,
+          fanOptIn: true
+        })
+      });
+
+      const holdData = await holdRes.json();
+      if (!holdRes.ok) {
+        throw new Error(holdData.message || holdData.error || 'Failed to reserve tickets');
+      }
+
+      holdOrderId = holdData.orderId;
+
+      // Step 2: Pay (for free tickets, no nonce needed)
+      if (holdData.isFree || holdData.totalPrice === 0) {
+        const payRes = await fetch(`${API}/orders/${holdOrderId}/pay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fanOptIn: true })
+        });
+        const payData = await payRes.json();
+        if (!payRes.ok) throw new Error(payData.message || payData.error || 'Confirmation failed');
+        showConfirmation(payData.confirmationCode, selectedQty);
+      } else {
+        // For paid tickets, Square Web Payments SDK integration would go here.
+        // For now, show a placeholder message.
+        if (typeof Toast !== 'undefined') Toast.info('Payment integration coming soon. Hold created: ' + holdData.confirmationCode);
+        showConfirmation(holdData.confirmationCode, selectedQty);
+      }
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error(err.message);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Complete Purchase';
+    }
+  });
+
+  function showConfirmation(code, qty) {
+    document.getElementById('tix-confirm-code').textContent = code;
+    document.getElementById('tix-confirm-details').textContent =
+      qty + ' ticket' + (qty > 1 ? 's' : '') + ' for ' + (currentEvent ? currentEvent.event_name : 'the event');
+    detailEl.style.display = 'none';
+    confirmEl.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Back buttons
+  document.getElementById('tix-pub-back').addEventListener('click', () => {
+    detailEl.style.display = 'none';
+    eventsContainer.style.display = 'grid';
+  });
+
+  document.getElementById('tix-confirm-back').addEventListener('click', () => {
+    confirmEl.style.display = 'none';
+    eventsContainer.style.display = 'grid';
+    loadEvents(); // Refresh to show updated availability
+  });
+
+  // ── Init ──
+  loadEvents();
+})();
+</script>

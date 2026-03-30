@@ -191,9 +191,10 @@
     // Collect all form fields
     var data = {
       formType: 'enterprise',
-      source: 'gbe-public',
+      source: 'project_inquiry',
       routeTo: 'ceo',
       inquiryType: inquiryType,
+      projectType: inquiryType,
       name: name,
       email: email,
       phone: form.querySelector('[name="phone"]').value.trim() || '',
@@ -210,9 +211,20 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending\u2026';
 
+    // Always attempt server API POST (relative URL works on same origin)
+    var serverPost = fetch('/api/v1/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({}, data, { submittedAt: new Date().toISOString() }))
+    }).catch(function() { /* Server unreachable — silent, Firestore/local fallback handles it */ });
+
     // Submit via multi-strategy (server → Firestore → localStorage)
-    Forms.submitContact(data)
-      .then(function(result) {
+    Promise.all([
+      Forms.submitContact(data),
+      serverPost
+    ])
+      .then(function(results) {
+        var result = results[0];
         if (result.method === 'local') {
           showFeedback('Message saved! We\'ll process it when our server is back online.', false);
         } else {

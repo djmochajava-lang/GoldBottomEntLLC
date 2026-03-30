@@ -31,6 +31,7 @@ const Router = {
     'ent-promoter': 'pages/entertainment/promoter.html',
     'ent-inquiry': 'pages/entertainment/inquiry.html',
     'ent-quote': 'pages/entertainment/quote.html',
+    'ent-series': 'pages/entertainment/series.html',
 
     // Enterprise pages (biz-* prefix)
     'biz-home': 'pages/enterprise/home.html',
@@ -72,6 +73,9 @@ const Router = {
     // Booking Inbox + CRM
     'dashboard-contacts': 'dashboard/contacts.html',
 
+    // CRM Contacts (local-only admin page)
+    'dashboard-crm-contacts': 'dashboard/crm-contacts.html',
+
     // Band Manager Field View (mobile-optimized)
     'dashboard-field': 'dashboard/field.html',
 
@@ -87,8 +91,14 @@ const Router = {
     // Agreement Management (band manager)
     'dashboard-agreements': 'dashboard/agreements.html',
 
+    // Ticket Sales (FRD-8)
+    'dashboard-tickets': 'dashboard/tickets.html',
+
     // Agreement Signing (public, token-based)
     'sign': 'pages/sign.html',
+
+    // Public Ticket Sales (FRD-8)
+    'ent-tickets': 'pages/entertainment/tickets.html',
   },
 
   /**
@@ -128,6 +138,8 @@ const Router = {
     'dashboard-quotes',
     'dashboard-inbox',
     'dashboard-contacts',
+    'dashboard-crm-contacts',
+    'dashboard-tickets', // FRD-8 Ticket Sales — local-only (admin/band_manager)
     // dashboard-field is intentionally NOT local-only — it has offline fallbacks
     // and should be accessible on remote mobile for band managers on the road
   ],
@@ -259,6 +271,7 @@ const Router = {
           'dashboard-quotes':       ['admin', 'band_manager'],
           'dashboard-inbox':        ['admin', 'band_manager'],
           'dashboard-contacts':     ['admin', 'band_manager'],
+          'dashboard-crm-contacts': ['admin', 'band_manager'],
           'dashboard-leads':        ['admin', 'band_manager'],
           'dashboard-finances':     ['admin', 'band_manager'],
           'dashboard-documents':    ['admin', 'band_manager'],
@@ -559,6 +572,7 @@ const Router = {
       'dashboard-field': 'Field View',
       'dashboard-band-player': 'Band Player',
       'dashboard-payment-settings': 'Payment Info',
+      'dashboard-crm-contacts': 'CRM Contacts',
     };
 
     const label = labels[pageName] || 'Dashboard';

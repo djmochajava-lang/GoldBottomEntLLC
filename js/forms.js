@@ -341,14 +341,16 @@ const Forms = {
   submitContact: function (payload) {
     var serverUrl = null;
 
-    // Detect LAN server
-    if (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard()) {
+    // Detect LAN server — only use Express API when on port 3000 (or 4000 dev).
+    // Port 8111 is http-server (static only, no POST support).
+    var port = window.location.port;
+    if ((port === '3000' || port === '4000') && typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard()) {
       serverUrl = window.location.protocol + '//' + window.location.host + '/api/v1/contact';
     }
 
-    // Strategy 1: Server API (LAN only)
+    // Strategy 1: Server API (Express on port 3000/4000 only)
     function tryServer() {
-      if (!serverUrl) return Promise.reject('not on LAN');
+      if (!serverUrl) return Promise.reject('not on Express server');
       // Strip Firestore-specific fields
       var serverPayload = {};
       for (var k in payload) {

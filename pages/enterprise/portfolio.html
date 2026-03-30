@@ -38,6 +38,21 @@
   </div>
 </section>
 
+<style>
+  .portfolio-client-type {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-accent, #58a6ff);
+    background: rgba(88, 166, 255, 0.1);
+    border: 1px solid rgba(88, 166, 255, 0.2);
+    border-radius: var(--radius-sm, 4px);
+    padding: 2px 10px;
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+</style>
+
 <script>
 (function() {
   var grid = document.getElementById('biz-portfolio-grid');
@@ -47,77 +62,83 @@
     {
       title: 'GBE Corporate Portal',
       category: 'web',
+      clientType: 'Internal Project',
       tags: ['HTML/CSS/JS', 'SPA', 'Firebase', 'Node.js'],
-      description: 'A dual-layout single-page application serving as both a public-facing website and an internal management dashboard for Gold Bottom Ent LLC.',
+      description: 'A dual-layout single-page application serving as both a public-facing corporate website and an internal management dashboard. Features hash-based routing across 28+ routes, dual authentication (Firebase + PIN), role-based access control, and a two-tier dashboard with full CRUD operations for 16+ entity types.',
       outcomes: [
         { value: '28+', label: 'Routes' },
-        { value: '2', label: 'Layouts' },
+        { value: '16+', label: 'Entity Types' },
         { value: '99.9%', label: 'Uptime' }
       ],
       status: 'live',
       statusLabel: 'Live'
     },
     {
-      title: 'GBE Home Server',
+      title: 'Fleet Management Mobile App',
       category: 'app',
-      tags: ['Node.js', 'Express', 'SQLite', 'REST API'],
-      description: 'A self-hosted Express.js server providing a RESTful API, automated backups, and a LAN-accessible management dashboard.',
+      clientType: 'Regional Logistics Company',
+      tags: ['React Native', 'Node.js', 'PostgreSQL', 'MapBox', 'Push Notifications'],
+      description: 'A cross-platform mobile application for a mid-size logistics firm to track fleet vehicles in real time, manage driver assignments, and automate maintenance scheduling. Integrated GPS telemetry with geofencing alerts and a driver-facing interface for route optimization and delivery confirmations.',
       outcomes: [
-        { value: '30', label: 'Day Retention' },
-        { value: 'REST', label: 'API' },
-        { value: 'Auto', label: 'Backups' }
-      ],
-      status: 'live',
-      statusLabel: 'Live'
-    },
-    {
-      title: 'Artist Booking Platform',
-      category: 'web',
-      tags: ['React', 'Node.js', 'PostgreSQL', 'Stripe'],
-      description: 'A booking management platform connecting venues with artists, featuring calendar integration and payment processing.',
-      outcomes: [
-        { value: 'Real-time', label: 'Calendar' },
-        { value: 'Stripe', label: 'Payments' },
-        { value: 'Auto', label: 'Confirmations' }
-      ],
-      status: 'development',
-      statusLabel: 'In Development'
-    },
-    {
-      title: 'Small Business Digital Audit',
-      category: 'consulting',
-      tags: ['Strategy', 'SEO', 'Analytics', 'Cloud'],
-      description: 'Technology audit and digital transformation roadmap for a growing retail business transitioning to e-commerce.',
-      outcomes: [
-        { value: 'Full', label: 'Tech Audit' },
-        { value: 'E-comm', label: 'Platform' },
-        { value: 'Cloud', label: 'Migration' }
+        { value: '40%', label: 'Fuel Savings' },
+        { value: '120+', label: 'Vehicles Tracked' },
+        { value: '2.5x', label: 'Dispatch Speed' }
       ],
       status: 'completed',
       statusLabel: 'Completed'
     },
     {
-      title: 'Music Distribution Dashboard',
+      title: 'Sales Pipeline Analytics Platform',
       category: 'app',
-      tags: ['JavaScript', 'Chart.js', 'REST API', 'Firebase'],
-      description: 'An analytics dashboard tracking music distribution across streaming platforms with real-time revenue reporting.',
+      clientType: 'B2B SaaS Startup',
+      tags: ['JavaScript', 'Chart.js', 'Python', 'REST API', 'PostgreSQL'],
+      description: 'A custom analytics dashboard consolidating sales data from multiple CRM sources into a unified pipeline view. Built ETL pipelines to normalize data from Salesforce, HubSpot, and spreadsheet imports, with real-time KPI tracking, cohort analysis, and automated weekly executive summary reports.',
       outcomes: [
-        { value: 'Multi', label: 'Platforms' },
-        { value: 'Real-time', label: 'Revenue' },
-        { value: 'Auto', label: 'Sync' }
+        { value: '3', label: 'CRM Sources Unified' },
+        { value: '60%', label: 'Reporting Time Saved' },
+        { value: '$850K', label: 'Pipeline Visibility' }
       ],
-      status: 'development',
-      statusLabel: 'In Development'
+      status: 'completed',
+      statusLabel: 'Completed'
+    },
+    {
+      title: 'GBE Home Server Infrastructure',
+      category: 'consulting',
+      clientType: 'Internal Project',
+      tags: ['Node.js', 'Express', 'SQLite', 'PM2', 'REST API', 'Linux'],
+      description: 'A self-hosted Express.js server running on portable SSD hardware, providing a RESTful API with 17+ endpoints, automated database backups with 30-day retention, session-based authentication, and a LAN-accessible management dashboard. Designed as a cost-effective alternative to cloud hosting with full data sovereignty.',
+      outcomes: [
+        { value: '$0/mo', label: 'Hosting Cost' },
+        { value: '17+', label: 'API Endpoints' },
+        { value: '30-Day', label: 'Backup Retention' }
+      ],
+      status: 'live',
+      statusLabel: 'Live'
+    },
+    {
+      title: 'IT Infrastructure Modernization',
+      category: 'consulting',
+      clientType: 'Growing Retail Business (15 Employees)',
+      tags: ['Strategy', 'Cloud Migration', 'Security Audit', 'Google Workspace'],
+      description: 'A comprehensive technology audit and digital transformation engagement for a retail business transitioning from paper-based operations. Assessed existing infrastructure, migrated email and file storage to Google Workspace, implemented POS system integration, established backup procedures, and created a 12-month technology roadmap.',
+      outcomes: [
+        { value: '75%', label: 'Manual Tasks Eliminated' },
+        { value: '12-Mo', label: 'Tech Roadmap' },
+        { value: '4 hrs/wk', label: 'Time Saved' }
+      ],
+      status: 'completed',
+      statusLabel: 'Completed'
     },
     {
       title: 'Nonprofit Website Redesign',
       category: 'web',
-      tags: ['WordPress', 'PHP', 'SEO', 'Accessibility'],
-      description: 'A complete website redesign for a DC-area nonprofit, focusing on accessibility, SEO, and donor conversion.',
+      clientType: 'DC-Area Nonprofit Organization',
+      tags: ['WordPress', 'PHP', 'SEO', 'WCAG Accessibility', 'Stripe'],
+      description: 'A complete website redesign for a DC-area nonprofit, focusing on WCAG AA accessibility compliance, search engine optimization, and donor conversion. Rebuilt the donation flow with Stripe integration, added event registration, and implemented a content management workflow for non-technical staff.',
       outcomes: [
         { value: '200%', label: 'Traffic Increase' },
-        { value: 'AA', label: 'WCAG Level' },
-        { value: 'Donor', label: 'Portal' }
+        { value: 'AA', label: 'WCAG Compliance' },
+        { value: '3x', label: 'Donor Conversions' }
       ],
       status: 'completed',
       statusLabel: 'Completed'
@@ -148,6 +169,7 @@
         '<div class="portfolio-screenshot"><i class="fa-solid fa-laptop-code"></i></div>' +
         '<div class="portfolio-card-body">' +
           '<h3>' + p.title + '</h3>' +
+          (p.clientType ? '<span class="portfolio-client-type">' + p.clientType + '</span>' : '') +
           '<p>' + p.description + '</p>' +
           '<div class="portfolio-outcomes">' + outcomes + '</div>' +
           '<div class="portfolio-tech">' + tags + '</div>' +

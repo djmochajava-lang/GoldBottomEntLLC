@@ -1,0 +1,299 @@
+<!-- pages/entertainment/series.html — Multi-Show Quote Request (FRD-6) -->
+<section class="page-section" id="page-ent-series">
+  <div class="container">
+    <h1 class="page-title reveal">Series & Multi-Show Booking</h1>
+    <p class="page-subtitle reveal">Planning a series of events, a multi-venue run, or a recurring engagement? Request a bundled quote and save with volume pricing.</p>
+
+    <!-- Volume Discount Info -->
+    <div class="glass-card reveal" style="max-width:800px;margin:0 auto var(--space-xl);padding:var(--space-lg);text-align:center;">
+      <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-tags"></i> Volume Discount Tiers</h3>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-md);margin-top:var(--space-md);">
+        <div style="padding:var(--space-md) var(--space-lg);background:var(--color-bg-secondary);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">5%</div>
+          <div style="font-size:var(--text-sm);color:var(--color-text-muted);">2-3 Shows</div>
+        </div>
+        <div style="padding:var(--space-md) var(--space-lg);background:var(--color-bg-secondary);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">10%</div>
+          <div style="font-size:var(--text-sm);color:var(--color-text-muted);">4-6 Shows</div>
+        </div>
+        <div style="padding:var(--space-md) var(--space-lg);background:var(--color-bg-secondary);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">15%</div>
+          <div style="font-size:var(--text-sm);color:var(--color-text-muted);">7-12 Shows</div>
+        </div>
+        <div style="padding:var(--space-md) var(--space-lg);background:var(--color-bg-secondary);border-radius:var(--radius-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">20%</div>
+          <div style="font-size:var(--text-sm);color:var(--color-text-muted);">13+ Shows</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card reveal" style="max-width:800px;margin:0 auto;">
+      <form id="series-request-form" data-form="series-request">
+
+        <!-- Contact Info -->
+        <div class="form-section">
+          <h3><i class="fa-solid fa-user text-gold"></i> Contact Information</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="sr-name">Full Name *</label>
+              <input type="text" class="form-input" id="sr-name" name="name" required placeholder="Your name" minlength="2" maxlength="200" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sr-org">Organization / Venue</label>
+              <input type="text" class="form-input" id="sr-org" name="organization" placeholder="Company or venue name" maxlength="200" />
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="sr-email">Email *</label>
+              <input type="email" class="form-input" id="sr-email" name="email" required placeholder="you@example.com" maxlength="254" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sr-phone">Phone *</label>
+              <input type="tel" class="form-input" id="sr-phone" name="phone" required placeholder="(555) 123-4567" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Shows -->
+        <div class="form-section" style="margin-top:var(--space-xl);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h3><i class="fa-solid fa-calendar-days text-gold"></i> Shows (<span id="sr-show-count">1</span>)</h3>
+            <button type="button" class="btn btn-outline btn-sm" id="sr-add-show"><i class="fa-solid fa-plus"></i> Add Show</button>
+          </div>
+          <div id="sr-shows-container"></div>
+        </div>
+
+        <!-- Additional Info -->
+        <div class="form-section" style="margin-top:var(--space-xl);">
+          <h3><i class="fa-solid fa-circle-info text-gold"></i> Additional Information</h3>
+          <div class="form-group">
+            <label class="form-label" for="sr-notes">Notes / Special Requirements</label>
+            <textarea class="form-textarea" id="sr-notes" name="notes" rows="4" placeholder="Tell us about your series concept, recurring schedule, or any special requirements..." maxlength="3000"></textarea>
+          </div>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" for="sr-budget">Total Budget Range</label>
+              <select class="form-select" id="sr-budget" name="budgetRange">
+                <option value="">Select range (optional)...</option>
+                <option value="under-5000">Under $5,000</option>
+                <option value="5000-10000">$5,000 - $10,000</option>
+                <option value="10000-25000">$10,000 - $25,000</option>
+                <option value="25000-50000">$25,000 - $50,000</option>
+                <option value="50000-plus">$50,000+</option>
+                <option value="discuss">Prefer to Discuss</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sr-referral">How did you hear about us?</label>
+              <select class="form-select" id="sr-referral" name="referralSource">
+                <option value="">Select (optional)...</option>
+                <option value="google">Google Search</option>
+                <option value="social-media">Social Media</option>
+                <option value="referral">Referral / Word of Mouth</option>
+                <option value="repeat-client">Repeat Client</option>
+                <option value="website">Website</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="form-status" id="sr-form-status" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block shimmer-sweep" id="sr-submit-btn" style="margin-top:var(--space-lg);">
+          <i class="fa-solid fa-paper-plane"></i> Request Multi-Show Quote
+        </button>
+        <p class="text-muted text-center" style="margin-top:var(--space-sm);font-size:var(--text-sm);">
+          We'll review your series details and send a custom bundled quote within 48 hours.
+        </p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  'use strict';
+  var form = document.getElementById('series-request-form');
+  if (!form) return;
+
+  var submitBtn = document.getElementById('sr-submit-btn');
+  var statusEl = document.getElementById('sr-form-status');
+  var showsContainer = document.getElementById('sr-shows-container');
+  var showCountEl = document.getElementById('sr-show-count');
+  var showIndex = 0;
+
+  function showFeedback(msg, isError) {
+    if (typeof Toast !== 'undefined') {
+      isError ? Toast.error(msg) : Toast.success(msg);
+    }
+    statusEl.textContent = msg;
+    statusEl.style.display = 'block';
+    statusEl.style.color = isError ? '#f85149' : '#3fb950';
+    statusEl.style.padding = 'var(--space-sm)';
+    statusEl.style.borderRadius = 'var(--radius-sm)';
+    statusEl.style.marginBottom = 'var(--space-sm)';
+  }
+
+  function createShowRow(idx) {
+    var div = document.createElement('div');
+    div.className = 'sr-show-row';
+    div.dataset.idx = idx;
+    div.style.cssText = 'padding:var(--space-md);background:var(--color-bg-secondary);border-radius:var(--radius-md);margin-bottom:var(--space-md);margin-top:var(--space-md);';
+    div.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);">' +
+      '<strong style="color:var(--color-gold);">Show #' + (idx + 1) + '</strong>' +
+      '<button type="button" class="sr-remove-show" data-idx="' + idx + '" style="color:#f85149;background:none;border:none;cursor:pointer;font-size:var(--text-sm);padding:4px 8px;" title="Remove show"><i class="fa-solid fa-trash-can"></i></button>' +
+      '</div>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label class="form-label">Event Name</label><input type="text" class="form-input" data-field="eventName" placeholder="e.g. Friday Jazz Night" maxlength="200" /></div>' +
+        '<div class="form-group"><label class="form-label">Event Date</label><input type="date" class="form-input" data-field="eventDate" /></div>' +
+      '</div>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label class="form-label">Event Time</label>' +
+          '<select class="form-select" data-field="eventTime"><option value="">Select...</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option><option value="late-night">Late Night</option><option value="flexible">Flexible</option></select></div>' +
+        '<div class="form-group"><label class="form-label">Venue / Location</label><input type="text" class="form-input" data-field="venue" placeholder="Venue name and city" maxlength="300" /></div>' +
+      '</div>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label class="form-label">Performance Format</label>' +
+          '<select class="form-select" data-field="performanceFormat"><option value="flexible">Flexible / Discuss</option><option value="solo-vocal">Solo Vocal</option><option value="duo-trio">Duo / Trio</option><option value="full-band">Full Band</option><option value="dj-set">DJ Set</option></select></div>' +
+        '<div class="form-group"><label class="form-label">Duration (Hours)</label>' +
+          '<select class="form-select" data-field="hours"><option value="1">1 hour</option><option value="2" selected>2 hours</option><option value="3">3 hours</option><option value="4">4 hours</option><option value="5">5 hours</option><option value="6">6 hours</option><option value="8">8 hours</option></select></div>' +
+      '</div>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label class="form-label">Estimated Guests</label>' +
+          '<select class="form-select" data-field="guestCount"><option value="">Select range...</option><option value="under-50">Under 50</option><option value="50-100">50-100</option><option value="100-250">100-250</option><option value="250-500">250-500</option><option value="500-1000">500-1,000</option><option value="1000-plus">1,000+</option></select></div>' +
+        '<div class="form-group"><label class="form-label">Sound System</label>' +
+          '<select class="form-select" data-field="soundSystem"><option value="">Not sure yet</option><option value="venue-provides">Venue provides PA</option><option value="we-need">We need PA provided</option><option value="not-sure">Not sure yet</option></select></div>' +
+      '</div>';
+    return div;
+  }
+
+  function addShow() {
+    showsContainer.appendChild(createShowRow(showIndex));
+    showIndex++;
+    updateCount();
+  }
+
+  function updateCount() {
+    var rows = showsContainer.querySelectorAll('.sr-show-row');
+    showCountEl.textContent = rows.length;
+  }
+
+  // Remove show handler (delegated)
+  showsContainer.addEventListener('click', function(e) {
+    var btn = e.target.closest('.sr-remove-show');
+    if (!btn) return;
+    var row = showsContainer.querySelector('.sr-show-row[data-idx="' + btn.dataset.idx + '"]');
+    if (row) row.remove();
+    // Renumber
+    var rows = showsContainer.querySelectorAll('.sr-show-row');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].querySelector('strong').textContent = 'Show #' + (i + 1);
+    }
+    updateCount();
+  });
+
+  document.getElementById('sr-add-show').addEventListener('click', addShow);
+
+  // Start with 2 shows (it's a multi-show form)
+  addShow();
+  addShow();
+
+  // Set min dates
+  function setMinDates() {
+    var today = new Date().toISOString().split('T')[0];
+    showsContainer.querySelectorAll('[data-field="eventDate"]').forEach(function(el) {
+      if (!el.getAttribute('min')) el.setAttribute('min', today);
+    });
+  }
+
+  // Observe new rows for date min
+  var observer = new MutationObserver(setMinDates);
+  observer.observe(showsContainer, { childList: true });
+  setMinDates();
+
+  // Submit
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    statusEl.style.display = 'none';
+
+    var name = form.querySelector('[name="name"]').value.trim();
+    var email = form.querySelector('[name="email"]').value.trim();
+    var phone = form.querySelector('[name="phone"]').value.trim();
+    var organization = form.querySelector('[name="organization"]').value.trim();
+    var notes = form.querySelector('[name="notes"]').value.trim();
+    var budgetRange = form.querySelector('[name="budgetRange"]').value;
+    var referralSource = form.querySelector('[name="referralSource"]').value;
+
+    // Validate contact
+    if (!name || name.length < 2) { showFeedback('Please enter your name.', true); return; }
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) { showFeedback('Please enter a valid email address.', true); return; }
+    if (!phone) { showFeedback('Please enter your phone number.', true); return; }
+
+    // Gather shows
+    var showRows = showsContainer.querySelectorAll('.sr-show-row');
+    if (showRows.length < 2) { showFeedback('Please add at least 2 shows for a multi-show quote.', true); return; }
+
+    var shows = [];
+    for (var i = 0; i < showRows.length; i++) {
+      var row = showRows[i];
+      var get = function(field) {
+        var el = row.querySelector('[data-field="' + field + '"]');
+        return el ? el.value : '';
+      };
+      shows.push({
+        eventName: get('eventName'),
+        eventDate: get('eventDate'),
+        eventTime: get('eventTime'),
+        venue: get('venue'),
+        performanceFormat: get('performanceFormat'),
+        hours: get('hours'),
+        guestCount: get('guestCount'),
+        soundSystem: get('soundSystem')
+      });
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+
+    var payload = {
+      formType: 'multi_show_request',
+      source: 'gbe-public',
+      name: name,
+      email: email,
+      phone: phone,
+      organization: organization,
+      showCount: shows.length,
+      shows: shows,
+      budgetRange: budgetRange,
+      referralSource: referralSource,
+      notes: notes
+    };
+
+    Forms.submitContact(payload)
+      .then(function(result) {
+        if (result.method === 'local') {
+          showFeedback('Quote request saved! We will process it when our server is back online.', false);
+        } else {
+          showFeedback('Multi-show quote request received! We will send your bundled estimate within 48 hours.', false);
+        }
+        form.reset();
+        // Re-add shows after reset
+        showsContainer.innerHTML = '';
+        showIndex = 0;
+        addShow();
+        addShow();
+      })
+      .catch(function(err) {
+        console.error('Series form submission error:', err);
+        showFeedback('Unable to submit. Please try again or email booking@layoungbandpage.com', true);
+      })
+      .finally(function() {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Request Multi-Show Quote';
+      });
+  });
+})();
+</script>
