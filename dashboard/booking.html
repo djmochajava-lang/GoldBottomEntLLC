@@ -201,6 +201,7 @@
 
 <script>
 (function(){
+  if(typeof Auth==='undefined'||!Auth.isInternalStaff()){document.getElementById('dash-booking').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
 
   /* ---- API Helpers ---- */

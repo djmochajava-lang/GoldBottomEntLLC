@@ -292,7 +292,7 @@ const Router = {
           'dashboard-band-player': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-payment-settings': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
-          'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'venue_owner', 'promoter'],
+          'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'band_member', 'venue_owner', 'promoter'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
         var _currentRole = Auth.getRole ? Auth.getRole() : 'member';

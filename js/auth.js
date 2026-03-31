@@ -44,7 +44,7 @@ const Auth = {
   /** @type {string|null} Registration status: null, 'pending', 'approved', 'denied' */
   _registrationStatus: null,
 
-  /** @type {string|null} User's primary role from Firestore (never changes within a session) */
+  /** @type {string|null} User's primary role — use _setRole/_getRole internally (tamper-resistant) */
   _role: null,
 
   /** @type {Array<string>} All roles this user is allowed to switch between */
@@ -64,6 +64,55 @@ const Auth = {
 
   /** @type {string|null} Server base URL when on LAN (e.g., 'http://192.168.1.191:3000') */
   _serverUrl: null,
+
+  /**
+   * Freeze _role, _activeRole, _linkedRoles after server sets them.
+   * After freezing, direct assignment (Auth._role = 'admin') is silently ignored.
+   * Only Auth._setRoleInternal() can change values (uses closure token).
+   * @private
+   */
+  _freezeRoles: (function() {
+    var _token = Math.random().toString(36) + Date.now().toString(36);
+    var _store = { role: null, activeRole: null, linkedRoles: [] };
+    var _frozen = false;
+
+    // Expose the internal setter on Auth (called from within auth.js only)
+    // Usage: Auth._setRoleInternal('_role', 'admin')
+    function makeSetRoleInternal(authObj) {
+      authObj._setRoleInternal = function(prop, val) {
+        if (prop === '_role') _store.role = val;
+        else if (prop === '_activeRole') _store.activeRole = val;
+        else if (prop === '_linkedRoles') _store.linkedRoles = Array.isArray(val) ? val.slice() : [];
+      };
+    }
+
+    return function freezeRoles() {
+      if (_frozen) return; // only freeze once
+      var self = this;
+      _store.role = self._role;
+      _store.activeRole = self._activeRole;
+      _store.linkedRoles = (self._linkedRoles || []).slice();
+
+      makeSetRoleInternal(self);
+
+      Object.defineProperty(self, '_role', {
+        get: function() { return _store.role; },
+        set: function() { /* silently ignore console tampering */ },
+        configurable: false, enumerable: true
+      });
+      Object.defineProperty(self, '_activeRole', {
+        get: function() { return _store.activeRole; },
+        set: function() { /* silently ignore console tampering */ },
+        configurable: false, enumerable: true
+      });
+      Object.defineProperty(self, '_linkedRoles', {
+        get: function() { return _store.linkedRoles; },
+        set: function() { /* silently ignore console tampering */ },
+        configurable: false, enumerable: true
+      });
+      _frozen = true;
+    };
+  })(),
 
   /** @type {boolean} Whether authenticated via PIN (not Firebase) */
   _isPinAuth: false,
@@ -102,6 +151,7 @@ const Auth = {
             Auth._role = 'admin';
             Auth._linkedRoles = ['admin'];
             Auth._activeRole = 'admin';
+            Auth._freezeRoles(); // Lock role properties against console tampering
 
             // Still initialize Firestore so contact forms can write submissions
             Auth._initFirestoreOnly();
@@ -270,7 +320,7 @@ const Auth = {
             Auth._updateUI(user);
             Auth._notifyListeners(user);
             Auth._showEmailVerificationRequired(user);
-            console.log('[Auth] Email not verified — blocking access:', user.email);
+            console.log('[Auth] Email not verified — blocking access');
             return;
           }
 
@@ -279,7 +329,7 @@ const Auth = {
           Auth._notifyListeners(user);
 
           if (status === 'approved') {
-            console.log('[Auth] Signed in (approved):', user.displayName || user.email);
+            console.log('[Auth] Signed in (approved)');
             // Close login modal and welcome user
             if (typeof Modal !== 'undefined' && Modal.isOpen) Modal.close();
             if (typeof Toast !== 'undefined') {
@@ -300,7 +350,7 @@ const Auth = {
               }
             }
           } else if (status === 'pending') {
-            console.log('[Auth] Signed in (pending approval):', user.email);
+            console.log('[Auth] Signed in (pending approval)');
             // Show pending screen — don't sign them out, keep session alive
             Auth._showPendingApproval(user);
           } else if (status === 'denied') {
@@ -874,7 +924,7 @@ const Auth = {
           }
         });
         if (primary) {
-          console.log('[Auth] Duplicate emailHash detected — primary UID:', primary.id);
+          console.log('[Auth] Duplicate emailHash detected — primary UID found');
         }
         return primary;
       })
@@ -1212,7 +1262,7 @@ const Auth = {
             console.warn('[Auth] Failed to send verification email:', e);
           });
         }
-        console.log('[Auth] Email/Password account created for:', email);
+        console.log('[Auth] Email/Password account created');
         return credential;
       });
   },

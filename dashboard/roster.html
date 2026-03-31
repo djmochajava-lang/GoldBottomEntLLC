@@ -22,6 +22,7 @@
 
 <script>
 (function(){
+  if(typeof Auth==='undefined'||!Auth.isInternalStaff()){document.getElementById('dash-roster').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
   if(typeof DataStore==='undefined')return;
 
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
