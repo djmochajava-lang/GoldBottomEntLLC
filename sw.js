@@ -2,7 +2,7 @@
 // Caches the app shell and CDN assets so the Music Player works in airplane mode.
 // Audio files are cached separately by BandPlayer via the Cache API (bp-offline-audio).
 
-var SHELL_CACHE = 'gbe-shell-v1';
+var SHELL_CACHE = 'gbe-shell-v2';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // Firebase backend API hostnames — never intercept these; let Firebase SDK handle them
