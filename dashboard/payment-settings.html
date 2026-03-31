@@ -5,6 +5,7 @@
 
 <script>
 (function() {
+  if(typeof Auth==='undefined'||!Auth.isAuthenticated()||(!Auth.isBandMember()&&!Auth.isSinger()&&!Auth.isInternalStaff())){document.getElementById('dash-payment-settings').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
   // Reuse BandPlayer's payment screen in edit mode
   if (typeof BandPlayer !== 'undefined') {
     // Override container lookup for this page

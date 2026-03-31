@@ -76,6 +76,7 @@
   'use strict';
   var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
   if (!db) return;
+  if(!Auth.isInternalStaff()&&!Auth.isSinger()&&!Auth.isBandMember()){document.getElementById('dash-agreements').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
 
   var allAgreements = [];
   var currentFilter = 'all';
