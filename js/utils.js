@@ -360,10 +360,75 @@ const Utils = {
   },
 
   /**
+   * Read a cookie value by name.
+   * @param {string} name
+   * @returns {string|null}
+   */
+  getCookie: function(name) {
+    var match = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  },
+
+  /**
+   * Get CSRF token from cookie (set by server on authenticated GET).
+   * @returns {string|null}
+   */
+  getCsrfToken: function() {
+    return this.getCookie('gbe-csrf');
+  },
+
+  /**
+   * Build headers object for fetch calls, including CSRF token if available.
+   * @param {Object} [extra] - Additional headers to merge
+   * @returns {Object}
+   */
+  fetchHeaders: function(extra) {
+    var headers = { 'Content-Type': 'application/json' };
+    var csrf = this.getCsrfToken();
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+    var session = typeof Auth !== 'undefined' && Auth._sessionToken;
+    if (session) headers['X-GBE-Session'] = session;
+    if (extra) {
+      for (var k in extra) { if (extra.hasOwnProperty(k)) headers[k] = extra[k]; }
+    }
+    return headers;
+  },
+
+  /**
    * Initialize utility module
    */
   init: function() {
+    // Install global fetch interceptor for CSRF token injection
+    this._installCsrfInterceptor();
     console.log('[Utils] Utility functions loaded — v1.0.0');
+  },
+
+  /**
+   * Wrap window.fetch to auto-inject X-CSRF-Token header on POST/PUT/DELETE.
+   * This ensures all API calls (including dashboard page apiFetch helpers)
+   * automatically include the CSRF token without modifying each caller.
+   * @private
+   */
+  _installCsrfInterceptor: function() {
+    var originalFetch = window.fetch;
+    var self = this;
+    window.fetch = function(url, opts) {
+      opts = opts || {};
+      var method = (opts.method || 'GET').toUpperCase();
+      if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+        var csrf = self.getCsrfToken();
+        if (csrf) {
+          // Merge CSRF header — support both Headers object and plain object
+          if (opts.headers instanceof Headers) {
+            if (!opts.headers.has('X-CSRF-Token')) opts.headers.set('X-CSRF-Token', csrf);
+          } else {
+            opts.headers = opts.headers || {};
+            if (!opts.headers['X-CSRF-Token']) opts.headers['X-CSRF-Token'] = csrf;
+          }
+        }
+      }
+      return originalFetch.call(window, url, opts);
+    };
   }
 };
 
