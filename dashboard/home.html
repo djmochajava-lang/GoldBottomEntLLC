@@ -45,12 +45,18 @@
 
   /* ===== HELPER ===== */
   function hexToRGB(hex){hex=hex.replace('#','');var r=parseInt(hex.substring(0,2),16),g=parseInt(hex.substring(2,4),16),b=parseInt(hex.substring(4,6),16);return r+','+g+','+b;}
+  function _isZeroValue(v){
+    if(v===0||v==='0') return true;
+    if(typeof v==='string'&&/^\$?0(\.00)?$/.test(v.trim())) return true;
+    return false;
+  }
   function metricCard(icon,color,value,label,onclick){
+    var emptyHint = _isZeroValue(value) ? '<div style="font-size:var(--text-xs);color:var(--color-text-muted);opacity:0.7;margin-top:2px;font-style:italic;">No data yet</div>' : '';
     return '<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);'+(onclick?'cursor:pointer;':'')+'" '+(onclick?'onclick="'+onclick+'"':'')+'>'+
       '<div style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(color)+',0.15);color:'+color+';">'+
       '<i class="fa-solid '+icon+'"></i></div>'+
       '<div><div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+value+'</div>'+
-      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+label+'</div></div></div>';
+      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+label+'</div>'+emptyHint+'</div></div>';
   }
   function qaBtn(href,icon,color,label){
     return '<a href="'+href+'" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);"><i class="fa-solid '+icon+'" style="font-size:var(--text-lg);color:'+color+';"></i><span>'+label+'</span></a>';

@@ -1,4 +1,5 @@
-<!-- dashboard/tickets.html — FRD-8 Ticket Sales Dashboard (Local Only) -->
+<!-- dashboard/tickets.html — FRD-8 Ticket Sales Dashboard (Hybrid: Firestore + Express) -->
+<!-- DEF-013: Events/Tiers use Firestore (works from any device). Orders/Promos/Door/Analytics use Express (LAN only). -->
 <div class="dashboard-page" id="dash-tickets">
   <div class="dashboard-page-header">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
@@ -43,10 +44,8 @@
           <th>Event</th>
           <th>Venue</th>
           <th>Date</th>
-          <th>Series</th>
           <th>Status</th>
-          <th>Sold / Cap</th>
-          <th>Revenue</th>
+          <th>Tiers</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -76,7 +75,6 @@
           <th>Qty</th>
           <th>Sold</th>
           <th>Description</th>
-          <th>Sale Window</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -89,115 +87,125 @@
 
   <!-- ==================== ORDERS TAB ==================== -->
   <div id="tab-orders" class="tix-tab-content" style="display:none;">
-    <div style="display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-md);align-items:center;">
-      <select id="tix-order-event-filter" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-        <option value="">All Events</option>
-      </select>
-      <select id="tix-order-status-filter" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-        <option value="">All Statuses</option>
-        <option value="held">Held</option>
-        <option value="confirmed">Confirmed</option>
-        <option value="checked_in">Checked In</option>
-        <option value="cancelled">Cancelled</option>
-        <option value="refunded">Refunded</option>
-      </select>
+    <div id="tix-orders-lan-gate"></div>
+    <div id="tix-orders-content" style="display:none;">
+      <div style="display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-md);align-items:center;">
+        <select id="tix-order-event-filter" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+          <option value="">All Events</option>
+        </select>
+        <select id="tix-order-status-filter" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+          <option value="">All Statuses</option>
+          <option value="held">Held</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="checked_in">Checked In</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="refunded">Refunded</option>
+        </select>
+      </div>
+      <table class="data-table" id="tix-orders-table">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Event</th>
+            <th>Tier</th>
+            <th>Qty</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tix-orders-body"></tbody>
+      </table>
+      <p id="tix-orders-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
+        No orders found. Orders will appear here when tickets are purchased.
+      </p>
     </div>
-    <table class="data-table" id="tix-orders-table">
-      <thead>
-        <tr>
-          <th>Order #</th>
-          <th>Customer</th>
-          <th>Event</th>
-          <th>Tier</th>
-          <th>Qty</th>
-          <th>Total</th>
-          <th>Status</th>
-          <th>Date</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="tix-orders-body"></tbody>
-    </table>
-    <p id="tix-orders-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
-      No orders found. Orders will appear here when tickets are purchased.
-    </p>
   </div>
 
   <!-- ==================== PROMOS TAB ==================== -->
   <div id="tab-promos" class="tix-tab-content" style="display:none;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:var(--space-md);">
-      <button class="btn btn-primary btn-sm" id="tix-create-promo-btn"><i class="fa-solid fa-plus"></i> New Promo Code</button>
+    <div id="tix-promos-lan-gate"></div>
+    <div id="tix-promos-content" style="display:none;">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:var(--space-md);">
+        <button class="btn btn-primary btn-sm" id="tix-create-promo-btn"><i class="fa-solid fa-plus"></i> New Promo Code</button>
+      </div>
+      <table class="data-table" id="tix-promos-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Discount</th>
+            <th>Type</th>
+            <th>Uses / Max</th>
+            <th>Expires</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tix-promos-body"></tbody>
+      </table>
+      <p id="tix-promos-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
+        No promo codes yet. Create one to offer discounts on tickets.
+      </p>
     </div>
-    <table class="data-table" id="tix-promos-table">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Discount</th>
-          <th>Type</th>
-          <th>Uses / Max</th>
-          <th>Expires</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="tix-promos-body"></tbody>
-    </table>
-    <p id="tix-promos-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
-      No promo codes yet. Create one to offer discounts on tickets.
-    </p>
   </div>
 
   <!-- ==================== DOOR LIST TAB ==================== -->
   <div id="tab-door" class="tix-tab-content" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-md);">
-      <div style="display:flex;gap:var(--space-sm);align-items:center;">
-        <label style="font-size:var(--text-sm);color:var(--color-text-muted);">Event:</label>
-        <select id="tix-door-event-select" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-          <option value="">-- Select Event --</option>
-        </select>
+    <div id="tix-door-lan-gate"></div>
+    <div id="tix-door-content" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-md);">
+        <div style="display:flex;gap:var(--space-sm);align-items:center;">
+          <label style="font-size:var(--text-sm);color:var(--color-text-muted);">Event:</label>
+          <select id="tix-door-event-select" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+            <option value="">-- Select Event --</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" id="tix-add-guest-btn" disabled><i class="fa-solid fa-user-plus"></i> Add Guest</button>
       </div>
-      <button class="btn btn-primary btn-sm" id="tix-add-guest-btn" disabled><i class="fa-solid fa-user-plus"></i> Add Guest</button>
+      <div id="tix-door-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+      <table class="data-table" id="tix-door-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Tier</th>
+            <th>Ticket #</th>
+            <th>Check-in</th>
+            <th>Time</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="tix-door-body"></tbody>
+      </table>
+      <p id="tix-door-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">
+        Select an event to view its door list.
+      </p>
     </div>
-    <!-- Door Stats -->
-    <div id="tix-door-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
-    <table class="data-table" id="tix-door-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Tier</th>
-          <th>Ticket #</th>
-          <th>Check-in</th>
-          <th>Time</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="tix-door-body"></tbody>
-    </table>
-    <p id="tix-door-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">
-      Select an event to view its door list.
-    </p>
   </div>
 
   <!-- ==================== ANALYTICS TAB ==================== -->
   <div id="tab-analytics" class="tix-tab-content" style="display:none;">
-    <div id="tix-analytics-global" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-xl);"></div>
-    <h3 style="margin-bottom:var(--space-md);color:var(--color-text-secondary);"><i class="fa-solid fa-chart-bar"></i> Per-Event Breakdown</h3>
-    <table class="data-table" id="tix-analytics-table">
-      <thead>
-        <tr>
-          <th>Event</th>
-          <th>Date</th>
-          <th>Tickets Sold</th>
-          <th>Capacity</th>
-          <th>Revenue</th>
-          <th>Avg Price</th>
-        </tr>
-      </thead>
-      <tbody id="tix-analytics-body"></tbody>
-    </table>
-    <p id="tix-analytics-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
-      No analytics data yet. Create events and sell tickets to see stats.
-    </p>
+    <div id="tix-analytics-lan-gate"></div>
+    <div id="tix-analytics-content" style="display:none;">
+      <div id="tix-analytics-global" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-xl);"></div>
+      <h3 style="margin-bottom:var(--space-md);color:var(--color-text-secondary);"><i class="fa-solid fa-chart-bar"></i> Per-Event Breakdown</h3>
+      <table class="data-table" id="tix-analytics-table">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Date</th>
+            <th>Tickets Sold</th>
+            <th>Capacity</th>
+            <th>Revenue</th>
+            <th>Avg Price</th>
+          </tr>
+        </thead>
+        <tbody id="tix-analytics-body"></tbody>
+      </table>
+      <p id="tix-analytics-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
+        No analytics data yet. Create events and sell tickets to see stats.
+      </p>
+    </div>
   </div>
 </div>
 
@@ -227,6 +235,12 @@
   .tix-action-btn:hover { background: rgba(255,255,255,0.08); color: var(--color-text); }
   .tix-action-btn.danger:hover { background: rgba(248,81,73,0.15); color: #f85149; border-color: rgba(248,81,73,0.3); }
   .tix-action-btn.success:hover { background: rgba(63,185,80,0.15); color: #3fb950; border-color: rgba(63,185,80,0.3); }
+  .tix-lan-msg {
+    text-align: center; padding: var(--space-xl) var(--space-lg);
+    color: var(--color-text-muted); background: var(--color-bg-secondary);
+    border-radius: var(--radius-md); border: 1px dashed var(--color-border);
+  }
+  .tix-lan-msg i { font-size: 2rem; opacity: 0.4; display: block; margin-bottom: var(--space-md); }
   @media (max-width: 768px) {
     #dash-tickets .data-table { display: block; overflow-x: auto; }
     #tix-tabs { -webkit-overflow-scrolling: touch; }
@@ -235,15 +249,43 @@
 
 <script>
 (function() {
-  const isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
-  if (!isLocal) {
-    document.getElementById('dash-tickets').innerHTML = '<p style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);">Ticket Sales is only available on the local server.</p>';
+  // ── Environment Detection ──
+  var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
+  var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
+
+  if (!db) {
+    document.getElementById('dash-tickets').innerHTML =
+      '<p style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);">' +
+      '<i class="fa-solid fa-database" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-md);"></i>' +
+      'Firestore not available. Please sign in to manage events.</p>';
     return;
   }
 
-  const API = `http://${window.location.hostname}:3000/api/v1/tickets`;
-  const token = localStorage.getItem('gbe-session-token') || '';
-  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  var eventsRef = db.collection('ticket_events');
+
+  // Express API for LAN-only tabs
+  var API = isLocal ? ('http://' + window.location.hostname + ':3000/api/v1/tickets') : null;
+  var token = localStorage.getItem('gbe-session-token') || '';
+  var expressHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+  // ── LAN gate message for Orders/Promos/Door/Analytics tabs ──
+  var lanGateHtml = '<div class="tix-lan-msg">' +
+    '<i class="fa-solid fa-wifi"></i>' +
+    '<h3 style="margin-bottom:var(--space-xs);">Home Network Required</h3>' +
+    '<p>Order management, promo codes, door check-in, and analytics are available when connected to the home network.</p>' +
+    '</div>';
+
+  if (!isLocal) {
+    document.getElementById('tix-orders-lan-gate').innerHTML = lanGateHtml;
+    document.getElementById('tix-promos-lan-gate').innerHTML = lanGateHtml;
+    document.getElementById('tix-door-lan-gate').innerHTML = lanGateHtml;
+    document.getElementById('tix-analytics-lan-gate').innerHTML = lanGateHtml;
+  } else {
+    document.getElementById('tix-orders-content').style.display = 'block';
+    document.getElementById('tix-promos-content').style.display = 'block';
+    document.getElementById('tix-door-content').style.display = 'block';
+    document.getElementById('tix-analytics-content').style.display = 'block';
+  }
 
   // ── Helpers ──
   function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -256,67 +298,68 @@
     try { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch(_) { return d; }
   }
   function statusBadge(status) {
-    const colors = {
+    var colors = {
       draft: '#8b949e', published: '#3fb950', private: '#d29922',
       held: '#d29922', confirmed: '#3fb950', checked_in: '#58a6ff',
       cancelled: '#f85149', refunded: '#bc8cff',
       active: '#3fb950', expired: '#8b949e', exhausted: '#f85149'
     };
-    const c = colors[status] || '#8b949e';
-    return `<span class="tix-status-badge" style="background:${c}22;color:${c};">${(status || 'unknown').replace(/_/g, ' ')}</span>`;
+    var c = colors[status] || '#8b949e';
+    return '<span class="tix-status-badge" style="background:' + c + '22;color:' + c + ';">' + (status || 'unknown').replace(/_/g, ' ') + '</span>';
   }
-  function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function genId() { return 'tev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
 
   // ── Cache ──
-  let eventsCache = [];
-  let seriesCache = [];
-  let allOrderEvents = []; // for filters
+  var eventsCache = [];
 
   // ── Tab Switching ──
-  document.querySelectorAll('.tix-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tix-tab').forEach(t => {
+  document.querySelectorAll('.tix-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.tix-tab').forEach(function(t) {
         t.classList.remove('active'); t.style.color = 'var(--color-text-muted)'; t.style.borderBottomColor = 'transparent';
       });
       tab.classList.add('active'); tab.style.color = 'var(--color-text)'; tab.style.borderBottomColor = 'var(--color-gold)';
-      document.querySelectorAll('.tix-tab-content').forEach(c => c.style.display = 'none');
+      document.querySelectorAll('.tix-tab-content').forEach(function(c) { c.style.display = 'none'; });
       document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
     });
   });
 
   // ══════════════════════════════════════════
-  //  EVENTS TAB
+  //  EVENTS TAB (Firestore)
   // ══════════════════════════════════════════
 
-  async function loadEvents() {
-    try {
-      const [evRes, serRes] = await Promise.all([
-        fetch(`${API}/events`, { headers }).then(r => r.json()),
-        fetch(`${API}/series`, { headers }).then(r => r.json())
-      ]);
-      eventsCache = evRes.events || [];
-      seriesCache = serRes.series || [];
+  function loadEvents() {
+    eventsRef.orderBy('eventDate', 'desc').get().then(function(snap) {
+      eventsCache = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        d.id = doc.id;
+        eventsCache.push(d);
+      });
       populateEventSelects();
       renderEventsTable();
-    } catch (err) {
-      console.error('[Tickets] Events load failed:', err);
-    }
+      renderStats();
+    }).catch(function(err) {
+      console.error('[Tickets] Firestore events load failed:', err);
+    });
   }
 
   function populateEventSelects() {
-    const selects = [
-      document.getElementById('tix-tier-event-select'),
-      document.getElementById('tix-door-event-select'),
-      document.getElementById('tix-order-event-filter')
-    ];
-    selects.forEach(sel => {
-      const val = sel.value;
-      const first = sel.options[0].outerHTML;
+    var selects = [document.getElementById('tix-tier-event-select')];
+    if (isLocal) {
+      selects.push(document.getElementById('tix-door-event-select'));
+      selects.push(document.getElementById('tix-order-event-filter'));
+    }
+    selects.forEach(function(sel) {
+      if (!sel) return;
+      var val = sel.value;
+      var first = sel.options[0].outerHTML;
       sel.innerHTML = first;
-      eventsCache.forEach(ev => {
-        const opt = document.createElement('option');
+      eventsCache.forEach(function(ev) {
+        var opt = document.createElement('option');
         opt.value = ev.id;
-        opt.textContent = ev.event_name + ' (' + fmtDate(ev.event_date) + ')';
+        opt.textContent = ev.eventName + ' (' + fmtDate(ev.eventDate) + ')';
         sel.appendChild(opt);
       });
       sel.value = val;
@@ -324,68 +367,64 @@
   }
 
   function renderEventsTable() {
-    const tbody = document.getElementById('tix-events-body');
-    const empty = document.getElementById('tix-events-empty');
+    var tbody = document.getElementById('tix-events-body');
+    var empty = document.getElementById('tix-events-empty');
     if (!eventsCache.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-    tbody.innerHTML = eventsCache.map(ev => {
-      const series = seriesCache.find(s => s.id === ev.series_id);
-      const status = ev.is_public ? 'published' : 'draft';
-      return `<tr>
-        <td><div style="font-weight:600;">${escHtml(ev.event_name)}</div></td>
-        <td>${escHtml(ev.venue_name || '\u2014')}</td>
-        <td>${fmtDate(ev.event_date)}</td>
-        <td>${escHtml(series ? series.name : '\u2014')}</td>
-        <td>${statusBadge(status)}</td>
-        <td>${ev.tickets_sold || 0} / ${ev.max_capacity || '\u221e'}</td>
-        <td style="font-weight:600;color:var(--color-gold);">${fmt(ev.revenue || 0)}</td>
-        <td style="white-space:nowrap;">
-          <button class="tix-action-btn" onclick="window._tixEditEvent('${ev.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-          <button class="tix-action-btn ${ev.is_public ? 'danger' : 'success'}" onclick="window._tixTogglePublish('${ev.id}', ${ev.is_public})" title="${ev.is_public ? 'Unpublish' : 'Publish'}">
-            <i class="fa-solid fa-${ev.is_public ? 'eye-slash' : 'eye'}"></i>
-          </button>
-          <button class="tix-action-btn danger" onclick="window._tixDeleteEvent('${ev.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
-        </td>
-      </tr>`;
+    tbody.innerHTML = eventsCache.map(function(ev) {
+      var status = ev.status || 'draft';
+      var tierCount = (ev.tiers || []).length;
+      return '<tr>' +
+        '<td><div style="font-weight:600;">' + escHtml(ev.eventName) + '</div></td>' +
+        '<td>' + escHtml(ev.venueName || '\u2014') + '</td>' +
+        '<td>' + fmtDate(ev.eventDate) + '</td>' +
+        '<td>' + statusBadge(status) + '</td>' +
+        '<td>' + tierCount + ' tier' + (tierCount !== 1 ? 's' : '') + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="tix-action-btn" onclick="window._tixEditEvent(\'' + ev.id + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button> ' +
+          '<button class="tix-action-btn ' + (status === 'published' ? 'danger' : 'success') + '" onclick="window._tixTogglePublish(\'' + ev.id + '\', \'' + status + '\')" title="' + (status === 'published' ? 'Unpublish' : 'Publish') + '">' +
+            '<i class="fa-solid fa-' + (status === 'published' ? 'eye-slash' : 'eye') + '"></i></button> ' +
+          '<button class="tix-action-btn danger" onclick="window._tixDeleteEvent(\'' + ev.id + '\')" title="Delete"><i class="fa-solid fa-trash"></i></button>' +
+        '</td>' +
+      '</tr>';
     }).join('');
+  }
+
+  function renderStats() {
+    var total = eventsCache.length;
+    var published = eventsCache.filter(function(e) { return e.status === 'published'; }).length;
+    var totalTiers = eventsCache.reduce(function(sum, e) { return sum + (e.tiers || []).length; }, 0);
+    document.getElementById('tix-stats').innerHTML =
+      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">' + total + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Events</div></div>' +
+      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">' + published + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Published</div></div>' +
+      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">' + totalTiers + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Ticket Tiers</div></div>';
   }
 
   // Create/Edit Event Modal
   function showEventModal(eventData) {
-    const isEdit = !!eventData;
-    const ev = eventData || {};
-    const html = `
-      <div style="display:flex;flex-direction:column;gap:var(--space-md);max-height:70vh;overflow-y:auto;padding:var(--space-sm);">
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Event Name *</label>
-          <input id="ev-name" type="text" value="${escHtml(ev.event_name || '')}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. Jazz Night at The Blue Note">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Date *</label>
-            <input id="ev-date" type="date" value="${(ev.event_date || '').split('T')[0]}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-          </div>
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Capacity</label>
-            <input id="ev-cap" type="number" min="1" value="${ev.max_capacity || ''}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. 200">
-          </div>
-        </div>
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Venue Name</label>
-          <input id="ev-venue" type="text" value="${escHtml(ev.venue_name || '')}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. The Blue Note">
-        </div>
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Series</label>
-          <select id="ev-series" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-            <option value="">None</option>
-            ${seriesCache.map(s => `<option value="${s.id}" ${s.id === ev.series_id ? 'selected' : ''}>${escHtml(s.name)}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Description</label>
-          <textarea id="ev-desc" rows="3" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);resize:vertical;">${escHtml(ev.description || '')}</textarea>
-        </div>
-      </div>`;
+    var isEdit = !!eventData;
+    var ev = eventData || {};
+    var html =
+      '<div style="display:flex;flex-direction:column;gap:var(--space-md);max-height:70vh;overflow-y:auto;padding:var(--space-sm);">' +
+        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Event Name *</label>' +
+        '<input id="ev-name" type="text" value="' + escHtml(ev.eventName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. Jazz Night at The Blue Note"></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Date *</label>' +
+          '<input id="ev-date" type="date" value="' + (ev.eventDate || '').split('T')[0] + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);"></div>' +
+          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Capacity</label>' +
+          '<input id="ev-cap" type="number" min="1" value="' + (ev.maxCapacity || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. 200"></div>' +
+        '</div>' +
+        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Venue Name</label>' +
+        '<input id="ev-venue" type="text" value="' + escHtml(ev.venueName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. The Blue Note"></div>' +
+        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Description</label>' +
+        '<textarea id="ev-desc" rows="3" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);resize:vertical;">' + escHtml(ev.description || '') + '</textarea></div>' +
+      '</div>';
     if (typeof Modal !== 'undefined') {
       Modal.open({
         title: isEdit ? 'Edit Event' : 'Create Event',
@@ -393,554 +432,422 @@
         size: 'md',
         buttons: [
           { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
-          { text: isEdit ? 'Save' : 'Create', class: 'btn btn-primary', action: async () => {
-            const body = {
+          { text: isEdit ? 'Save' : 'Create', class: 'btn btn-primary', action: function() {
+            var data = {
               eventName: document.getElementById('ev-name').value.trim(),
               eventDate: document.getElementById('ev-date').value,
               venueName: document.getElementById('ev-venue').value.trim(),
               maxCapacity: parseInt(document.getElementById('ev-cap').value) || null,
-              seriesId: document.getElementById('ev-series').value || null,
-              description: document.getElementById('ev-desc').value.trim()
+              description: document.getElementById('ev-desc').value.trim(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
-            if (!body.eventName || !body.eventDate) { Toast.error('Name and date are required'); return; }
-            try {
-              const url = isEdit ? `${API}/events/${ev.id}` : `${API}/events`;
-              const method = isEdit ? 'PUT' : 'POST';
-              const res = await fetch(url, { method, headers, body: JSON.stringify(body) });
-              if (!res.ok) { const d = await res.json(); throw new Error(d.error || d.message); }
+            if (!data.eventName || !data.eventDate) { Toast.error('Name and date are required'); return; }
+            var promise;
+            if (isEdit) {
+              promise = eventsRef.doc(ev.id).update(data);
+            } else {
+              data.status = 'draft';
+              data.tiers = [];
+              data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+              data.createdBy = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'unknown';
+              promise = eventsRef.doc(genId()).set(data);
+            }
+            promise.then(function() {
               Modal.close();
               Toast.success(isEdit ? 'Event updated' : 'Event created');
-              loadEvents(); loadAnalytics();
-            } catch (err) { Toast.error(err.message); }
+              loadEvents();
+            }).catch(function(err) { Toast.error(err.message); });
           }}
         ]
       });
     }
   }
 
-  document.getElementById('tix-create-event-btn').addEventListener('click', () => showEventModal(null));
+  document.getElementById('tix-create-event-btn').addEventListener('click', function() { showEventModal(null); });
 
-  window._tixEditEvent = async function(id) {
-    try {
-      const res = await fetch(`${API}/events/${id}`, { headers });
-      const ev = await res.json();
-      showEventModal(ev);
-    } catch (err) { Toast.error('Failed to load event'); }
+  window._tixEditEvent = function(id) {
+    var ev = eventsCache.find(function(e) { return e.id === id; });
+    if (ev) showEventModal(ev);
   };
 
-  window._tixTogglePublish = async function(id, isPublic) {
-    try {
-      if (isPublic) {
-        await fetch(`${API}/events/${id}`, { method: 'PUT', headers, body: JSON.stringify({ isPublic: false }) });
-        Toast.success('Event unpublished');
-      } else {
-        const res = await fetch(`${API}/events/${id}/publish`, { method: 'POST', headers });
-        const data = await res.json();
-        if (data.error) { Toast.error(data.error); return; }
-        Toast.success('Event published');
-      }
+  window._tixTogglePublish = function(id, currentStatus) {
+    var newStatus = currentStatus === 'published' ? 'draft' : 'published';
+    eventsRef.doc(id).update({
+      status: newStatus,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+      Toast.success(newStatus === 'published' ? 'Event published' : 'Event unpublished');
       loadEvents();
-    } catch (err) { Toast.error(err.message); }
+    }).catch(function(err) { Toast.error(err.message); });
   };
 
-  window._tixDeleteEvent = async function(id) {
+  window._tixDeleteEvent = function(id) {
     if (typeof Modal !== 'undefined') {
-      Modal.confirm('Delete this event? This cannot be undone.', async () => {
-        try {
-          await fetch(`${API}/events/${id}`, { method: 'DELETE', headers });
+      Modal.confirm('Delete this event? This cannot be undone.', function() {
+        eventsRef.doc(id).delete().then(function() {
           Toast.success('Event deleted');
-          loadEvents(); loadAnalytics();
-        } catch (err) { Toast.error(err.message); }
+          loadEvents();
+        }).catch(function(err) { Toast.error(err.message); });
       });
     }
   };
 
   // ══════════════════════════════════════════
-  //  TIERS TAB
+  //  TIERS TAB (Firestore — embedded in event doc)
   // ══════════════════════════════════════════
 
-  const tierEventSel = document.getElementById('tix-tier-event-select');
-  const addTierBtn = document.getElementById('tix-add-tier-btn');
+  var tierEventSel = document.getElementById('tix-tier-event-select');
+  var addTierBtn = document.getElementById('tix-add-tier-btn');
 
-  tierEventSel.addEventListener('change', () => {
+  tierEventSel.addEventListener('change', function() {
     addTierBtn.disabled = !tierEventSel.value;
-    if (tierEventSel.value) loadTiers(tierEventSel.value);
+    if (tierEventSel.value) renderTiers(tierEventSel.value);
     else { document.getElementById('tix-tiers-body').innerHTML = ''; document.getElementById('tix-tiers-empty').style.display = 'block'; }
   });
 
-  async function loadTiers(eventId) {
-    try {
-      const res = await fetch(`${API}/events/${eventId}`, { headers });
-      const ev = await res.json();
-      const tiers = ev.tiers || [];
-      const tbody = document.getElementById('tix-tiers-body');
-      const empty = document.getElementById('tix-tiers-empty');
-      if (!tiers.length) { tbody.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No tiers for this event. Add one to start selling.'; return; }
-      empty.style.display = 'none';
-      tbody.innerHTML = tiers.map(t => `<tr>
-        <td style="font-weight:600;">${escHtml(t.tier_name)}</td>
-        <td style="color:var(--color-gold);font-weight:600;">${fmt(t.price)}</td>
-        <td>${t.quantity || '\u221e'}</td>
-        <td>${t.sold || 0}</td>
-        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(t.description || '\u2014')}</td>
-        <td>${t.sale_start ? fmtDate(t.sale_start) + ' \u2013 ' + fmtDate(t.sale_end) : '\u2014'}</td>
-        <td style="white-space:nowrap;">
-          <button class="tix-action-btn" onclick="window._tixEditTier('${t.id}', '${eventId}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-          <button class="tix-action-btn danger" onclick="window._tixDeleteTier('${t.id}', '${eventId}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
-        </td>
-      </tr>`).join('');
-    } catch (err) { console.error('[Tickets] Tiers load failed:', err); }
+  function renderTiers(eventId) {
+    var ev = eventsCache.find(function(e) { return e.id === eventId; });
+    var tiers = ev ? (ev.tiers || []) : [];
+    var tbody = document.getElementById('tix-tiers-body');
+    var empty = document.getElementById('tix-tiers-empty');
+    if (!tiers.length) { tbody.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No tiers for this event. Add one to start selling.'; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = tiers.map(function(t) {
+      return '<tr>' +
+        '<td style="font-weight:600;">' + escHtml(t.tierName) + '</td>' +
+        '<td style="color:var(--color-gold);font-weight:600;">' + fmt(t.price) + '</td>' +
+        '<td>' + (t.quantity || '\u221e') + '</td>' +
+        '<td>' + (t.sold || 0) + '</td>' +
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(t.description || '\u2014') + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="tix-action-btn" onclick="window._tixEditTier(\'' + t.id + '\', \'' + eventId + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button> ' +
+          '<button class="tix-action-btn danger" onclick="window._tixDeleteTier(\'' + t.id + '\', \'' + eventId + '\')" title="Delete"><i class="fa-solid fa-trash"></i></button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
   }
 
   function showTierModal(eventId, tierData) {
-    const isEdit = !!tierData;
-    const t = tierData || {};
-    const html = `
-      <div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Tier Name *</label>
-          <input id="tier-name" type="text" value="${escHtml(t.tier_name || '')}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. VIP, General Admission">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Price *</label>
-            <input id="tier-price" type="number" min="0" step="0.01" value="${t.price != null ? t.price : ''}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="0.00">
-          </div>
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Quantity</label>
-            <input id="tier-qty" type="number" min="1" value="${t.quantity || ''}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Unlimited">
-          </div>
-        </div>
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Description</label>
-          <input id="tier-desc" type="text" value="${escHtml(t.description || '')}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="What's included">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Sale Start</label>
-            <input id="tier-start" type="date" value="${(t.sale_start || '').split('T')[0]}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-          </div>
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Sale End</label>
-            <input id="tier-end" type="date" value="${(t.sale_end || '').split('T')[0]}" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-          </div>
-        </div>
-      </div>`;
+    var isEdit = !!tierData;
+    var t = tierData || {};
+    var html =
+      '<div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">' +
+        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Tier Name *</label>' +
+        '<input id="tier-name" type="text" value="' + escHtml(t.tierName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. VIP, General Admission"></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Price *</label>' +
+          '<input id="tier-price" type="number" min="0" step="0.01" value="' + (t.price != null ? t.price : '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="0.00"></div>' +
+          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Quantity</label>' +
+          '<input id="tier-qty" type="number" min="1" value="' + (t.quantity || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Unlimited"></div>' +
+        '</div>' +
+        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Description</label>' +
+        '<input id="tier-desc" type="text" value="' + escHtml(t.description || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="What\'s included"></div>' +
+      '</div>';
     Modal.open({
       title: isEdit ? 'Edit Tier' : 'Add Ticket Tier',
       content: html,
       size: 'md',
       buttons: [
         { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
-        { text: isEdit ? 'Save' : 'Add', class: 'btn btn-primary', action: async () => {
-          const body = {
+        { text: isEdit ? 'Save' : 'Add', class: 'btn btn-primary', action: function() {
+          var tierObj = {
+            id: isEdit ? t.id : ('tier_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
             tierName: document.getElementById('tier-name').value.trim(),
             price: parseFloat(document.getElementById('tier-price').value),
             quantity: parseInt(document.getElementById('tier-qty').value) || null,
             description: document.getElementById('tier-desc').value.trim(),
-            saleStart: document.getElementById('tier-start').value || null,
-            saleEnd: document.getElementById('tier-end').value || null
+            sold: isEdit ? (t.sold || 0) : 0
           };
-          if (!body.tierName) { Toast.error('Tier name is required'); return; }
-          if (isNaN(body.price)) { Toast.error('Price is required'); return; }
-          try {
-            const url = isEdit ? `${API}/tiers/${t.id}` : `${API}/events/${eventId}/tiers`;
-            const method = isEdit ? 'PUT' : 'POST';
-            await fetch(url, { method, headers, body: JSON.stringify(body) });
+          if (!tierObj.tierName) { Toast.error('Tier name is required'); return; }
+          if (isNaN(tierObj.price)) { Toast.error('Price is required'); return; }
+
+          var ev = eventsCache.find(function(e) { return e.id === eventId; });
+          var tiers = (ev && ev.tiers) ? ev.tiers.slice() : [];
+
+          if (isEdit) {
+            var idx = tiers.findIndex(function(x) { return x.id === t.id; });
+            if (idx >= 0) tiers[idx] = tierObj;
+          } else {
+            tiers.push(tierObj);
+          }
+
+          eventsRef.doc(eventId).update({
+            tiers: tiers,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
             Modal.close();
             Toast.success(isEdit ? 'Tier updated' : 'Tier added');
-            loadTiers(eventId);
-          } catch (err) { Toast.error(err.message); }
+            // Update local cache
+            if (ev) ev.tiers = tiers;
+            renderTiers(eventId);
+            renderStats();
+          }).catch(function(err) { Toast.error(err.message); });
         }}
       ]
     });
   }
 
-  addTierBtn.addEventListener('click', () => {
+  addTierBtn.addEventListener('click', function() {
     if (tierEventSel.value) showTierModal(tierEventSel.value, null);
   });
 
-  window._tixEditTier = async function(tierId, eventId) {
-    try {
-      const res = await fetch(`${API}/events/${eventId}`, { headers });
-      const ev = await res.json();
-      const tier = (ev.tiers || []).find(t => t.id === tierId);
-      if (tier) showTierModal(eventId, tier);
-    } catch (err) { Toast.error('Failed to load tier'); }
+  window._tixEditTier = function(tierId, eventId) {
+    var ev = eventsCache.find(function(e) { return e.id === eventId; });
+    var tier = ev ? (ev.tiers || []).find(function(t) { return t.id === tierId; }) : null;
+    if (tier) showTierModal(eventId, tier);
   };
 
   window._tixDeleteTier = function(tierId, eventId) {
-    Modal.confirm('Delete this tier?', async () => {
-      try {
-        await fetch(`${API}/tiers/${tierId}`, { method: 'DELETE', headers });
+    Modal.confirm('Delete this tier?', function() {
+      var ev = eventsCache.find(function(e) { return e.id === eventId; });
+      var tiers = ev ? (ev.tiers || []).filter(function(t) { return t.id !== tierId; }) : [];
+      eventsRef.doc(eventId).update({
+        tiers: tiers,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function() {
         Toast.success('Tier deleted');
-        loadTiers(eventId);
-      } catch (err) { Toast.error(err.message); }
+        if (ev) ev.tiers = tiers;
+        renderTiers(eventId);
+        renderStats();
+      }).catch(function(err) { Toast.error(err.message); });
     });
   };
 
   // ══════════════════════════════════════════
-  //  ORDERS TAB
+  //  ORDERS TAB (Express — LAN only)
   // ══════════════════════════════════════════
 
-  const orderEventFilter = document.getElementById('tix-order-event-filter');
-  const orderStatusFilter = document.getElementById('tix-order-status-filter');
+  if (isLocal && API) {
+    var orderEventFilter = document.getElementById('tix-order-event-filter');
+    var orderStatusFilter = document.getElementById('tix-order-status-filter');
+    orderEventFilter.addEventListener('change', loadOrders);
+    orderStatusFilter.addEventListener('change', loadOrders);
 
-  orderEventFilter.addEventListener('change', loadOrders);
-  orderStatusFilter.addEventListener('change', loadOrders);
-
-  async function loadOrders() {
-    try {
-      const params = new URLSearchParams();
+    function loadOrders() {
+      var params = new URLSearchParams();
       if (orderEventFilter.value) params.set('eventId', orderEventFilter.value);
       if (orderStatusFilter.value) params.set('status', orderStatusFilter.value);
-      const res = await fetch(`${API}/orders?${params}`, { headers });
-      const data = await res.json();
-      const orders = data.orders || [];
-      const tbody = document.getElementById('tix-orders-body');
-      const empty = document.getElementById('tix-orders-empty');
-      if (!orders.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      tbody.innerHTML = orders.map(o => {
-        const ev = eventsCache.find(e => e.id === o.event_id);
-        return `<tr>
-          <td style="font-family:monospace;font-size:var(--text-xs);">${escHtml(o.confirmation_code || o.id.slice(0,12))}</td>
-          <td>
-            <div style="font-weight:600;">${escHtml(o.buyer_name || '\u2014')}</div>
-            <div style="font-size:var(--text-xs);color:var(--color-text-muted);">${escHtml(o.buyer_email || '')}</div>
-          </td>
-          <td>${escHtml(ev ? ev.event_name : o.event_id)}</td>
-          <td>${escHtml(o.tier_name || '\u2014')}</td>
-          <td>${o.quantity}</td>
-          <td style="font-weight:600;color:var(--color-gold);">${fmt(o.total_price)}</td>
-          <td>${statusBadge(o.status)}</td>
-          <td>${fmtDate(o.created_at)}</td>
-          <td style="white-space:nowrap;">
-            ${o.status === 'confirmed' ? `
-              <button class="tix-action-btn danger" onclick="window._tixCancelOrder('${o.id}')" title="Cancel"><i class="fa-solid fa-ban"></i></button>
-              <button class="tix-action-btn danger" onclick="window._tixRefundOrder('${o.id}')" title="Refund"><i class="fa-solid fa-rotate-left"></i></button>
-              <button class="tix-action-btn" onclick="window._tixReissueOrder('${o.id}')" title="Reissue"><i class="fa-solid fa-arrows-rotate"></i></button>
-              <button class="tix-action-btn" onclick="window._tixResendOrder('${o.id}')" title="Resend Email"><i class="fa-solid fa-envelope"></i></button>
-            ` : ''}
-          </td>
-        </tr>`;
-      }).join('');
-    } catch (err) { console.error('[Tickets] Orders load failed:', err); }
-  }
-
-  window._tixCancelOrder = function(id) {
-    Modal.confirm('Cancel this order?', async () => {
-      try {
-        const res = await fetch(`${API}/orders/${id}/cancel`, { method: 'POST', headers });
-        const data = await res.json();
-        if (data.error) { Toast.error(data.error); return; }
-        Toast.success('Order cancelled');
-        loadOrders(); loadAnalytics();
-      } catch (err) { Toast.error(err.message); }
-    });
-  };
-
-  window._tixRefundOrder = function(id) {
-    Modal.confirm('Refund this order? Tickets will be voided and capacity restored.', async () => {
-      try {
-        const res = await fetch(`${API}/orders/${id}/refund`, { method: 'POST', headers, body: JSON.stringify({ reason: 'Admin refund' }) });
-        const data = await res.json();
-        if (data.error) { Toast.error(data.error); return; }
-        Toast.success('Order refunded');
-        loadOrders(); loadAnalytics();
-      } catch (err) { Toast.error(err.message); }
-    });
-  };
-
-  window._tixReissueOrder = async function(id) {
-    try {
-      const res = await fetch(`${API}/orders/${id}/reissue`, { method: 'POST', headers });
-      const data = await res.json();
-      if (data.error) { Toast.error(data.error); return; }
-      Toast.success('New tickets issued. Old QR codes voided.');
-      loadOrders();
-    } catch (err) { Toast.error(err.message); }
-  };
-
-  window._tixResendOrder = async function(id) {
-    try {
-      const res = await fetch(`${API}/orders/${id}/resend`, { method: 'POST', headers });
-      const data = await res.json();
-      if (data.error) { Toast.error(data.error); return; }
-      Toast.success('Confirmation email resent');
-    } catch (err) { Toast.error(err.message); }
-  };
-
-  // ══════════════════════════════════════════
-  //  PROMOS TAB
-  // ══════════════════════════════════════════
-
-  async function loadPromos() {
-    try {
-      const res = await fetch(`${API}/promos`, { headers });
-      const data = await res.json();
-      const promos = data.promos || [];
-      const tbody = document.getElementById('tix-promos-body');
-      const empty = document.getElementById('tix-promos-empty');
-      if (!promos.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      tbody.innerHTML = promos.map(p => {
-        const isExpired = p.expires_at && new Date(p.expires_at) < new Date();
-        const isExhausted = p.max_uses && p.use_count >= p.max_uses;
-        const pStatus = isExpired ? 'expired' : isExhausted ? 'exhausted' : 'active';
-        return `<tr>
-          <td style="font-family:monospace;font-weight:700;letter-spacing:1px;">${escHtml(p.code)}</td>
-          <td style="color:var(--color-gold);font-weight:600;">${p.discount_type === 'percent' ? p.discount_value + '%' : fmt(p.discount_value)}</td>
-          <td>${p.discount_type === 'percent' ? 'Percent' : 'Fixed'}</td>
-          <td>${p.use_count || 0} / ${p.max_uses || '\u221e'}</td>
-          <td>${p.expires_at ? fmtDate(p.expires_at) : 'Never'}</td>
-          <td>${statusBadge(pStatus)}</td>
-          <td>
-            <button class="tix-action-btn" onclick="window._tixEditPromo('${p.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-          </td>
-        </tr>`;
-      }).join('');
-    } catch (err) { console.error('[Tickets] Promos load failed:', err); }
-  }
-
-  function showPromoModal() {
-    const html = `
-      <div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Promo Code *</label>
-          <input id="promo-code" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);text-transform:uppercase;" placeholder="e.g. EARLYBIRD20">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Discount Type *</label>
-            <select id="promo-type" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-              <option value="percent">Percent (%)</option>
-              <option value="fixed">Fixed ($)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Discount Value *</label>
-            <input id="promo-value" type="number" min="0" step="0.01" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. 20">
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Max Uses</label>
-            <input id="promo-max" type="number" min="1" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Unlimited">
-          </div>
-          <div>
-            <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Expires</label>
-            <input id="promo-expires" type="date" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-          </div>
-        </div>
-      </div>`;
-    Modal.open({
-      title: 'Create Promo Code',
-      content: html,
-      size: 'md',
-      buttons: [
-        { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
-        { text: 'Create', class: 'btn btn-primary', action: async () => {
-          const body = {
-            code: document.getElementById('promo-code').value.trim().toUpperCase(),
-            discountType: document.getElementById('promo-type').value,
-            discountValue: parseFloat(document.getElementById('promo-value').value),
-            maxUses: parseInt(document.getElementById('promo-max').value) || null,
-            expiresAt: document.getElementById('promo-expires').value || null
-          };
-          if (!body.code || isNaN(body.discountValue)) { Toast.error('Code and discount value are required'); return; }
-          try {
-            const res = await fetch(`${API}/promos`, { method: 'POST', headers, body: JSON.stringify(body) });
-            if (!res.ok) { const d = await res.json(); throw new Error(d.error || d.message); }
-            Modal.close();
-            Toast.success('Promo code created');
-            loadPromos();
-          } catch (err) { Toast.error(err.message); }
-        }}
-      ]
-    });
-  }
-
-  document.getElementById('tix-create-promo-btn').addEventListener('click', showPromoModal);
-
-  // ══════════════════════════════════════════
-  //  DOOR LIST TAB
-  // ══════════════════════════════════════════
-
-  const doorEventSel = document.getElementById('tix-door-event-select');
-  const addGuestBtn = document.getElementById('tix-add-guest-btn');
-
-  doorEventSel.addEventListener('change', () => {
-    addGuestBtn.disabled = !doorEventSel.value;
-    if (doorEventSel.value) loadDoorList(doorEventSel.value);
-    else {
-      document.getElementById('tix-door-body').innerHTML = '';
-      document.getElementById('tix-door-stats').innerHTML = '';
-      document.getElementById('tix-door-empty').style.display = 'block';
+      fetch(API + '/orders?' + params, { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+        var orders = data.orders || [];
+        var tbody = document.getElementById('tix-orders-body');
+        var empty = document.getElementById('tix-orders-empty');
+        if (!orders.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        tbody.innerHTML = orders.map(function(o) {
+          return '<tr>' +
+            '<td style="font-family:monospace;font-size:var(--text-xs);">' + escHtml(o.confirmation_code || o.id.slice(0,12)) + '</td>' +
+            '<td><div style="font-weight:600;">' + escHtml(o.buyer_name || '\u2014') + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + escHtml(o.buyer_email || '') + '</div></td>' +
+            '<td>' + escHtml(o.event_name || o.event_id) + '</td>' +
+            '<td>' + escHtml(o.tier_name || '\u2014') + '</td>' +
+            '<td>' + o.quantity + '</td>' +
+            '<td style="font-weight:600;color:var(--color-gold);">' + fmt(o.total_price) + '</td>' +
+            '<td>' + statusBadge(o.status) + '</td>' +
+            '<td>' + fmtDate(o.created_at) + '</td>' +
+            '<td style="white-space:nowrap;">' +
+              (o.status === 'confirmed' ?
+                '<button class="tix-action-btn danger" onclick="window._tixCancelOrder(\'' + o.id + '\')" title="Cancel"><i class="fa-solid fa-ban"></i></button> ' +
+                '<button class="tix-action-btn danger" onclick="window._tixRefundOrder(\'' + o.id + '\')" title="Refund"><i class="fa-solid fa-rotate-left"></i></button> ' +
+                '<button class="tix-action-btn" onclick="window._tixReissueOrder(\'' + o.id + '\')" title="Reissue"><i class="fa-solid fa-arrows-rotate"></i></button> ' +
+                '<button class="tix-action-btn" onclick="window._tixResendOrder(\'' + o.id + '\')" title="Resend"><i class="fa-solid fa-envelope"></i></button>'
+              : '') +
+            '</td></tr>';
+        }).join('');
+      }).catch(function(err) { console.error('[Tickets] Orders load failed:', err); });
     }
-  });
 
-  async function loadDoorList(eventId) {
-    try {
-      const res = await fetch(`${API}/door-list/${eventId}`, { headers });
-      const data = await res.json();
-      const list = data.doorList || [];
-      const tbody = document.getElementById('tix-door-body');
-      const empty = document.getElementById('tix-door-empty');
-      const statsEl = document.getElementById('tix-door-stats');
+    window._tixCancelOrder = function(id) {
+      Modal.confirm('Cancel this order?', function() {
+        fetch(API + '/orders/' + id + '/cancel', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.error) { Toast.error(data.error); return; }
+          Toast.success('Order cancelled'); loadOrders();
+        }).catch(function(err) { Toast.error(err.message); });
+      });
+    };
 
-      const total = list.length;
-      const checkedIn = list.filter(e => e.checked_in_at).length;
-      const remaining = total - checkedIn;
+    window._tixRefundOrder = function(id) {
+      Modal.confirm('Refund this order? Tickets will be voided.', function() {
+        fetch(API + '/orders/' + id + '/refund', { method: 'POST', headers: expressHeaders, body: JSON.stringify({ reason: 'Admin refund' }) }).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.error) { Toast.error(data.error); return; }
+          Toast.success('Order refunded'); loadOrders();
+        }).catch(function(err) { Toast.error(err.message); });
+      });
+    };
 
-      statsEl.innerHTML = `
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">${total}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Expected</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">${checkedIn}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Checked In</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#d29922;">${remaining}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Remaining</div>
-        </div>`;
+    window._tixReissueOrder = function(id) {
+      fetch(API + '/orders/' + id + '/reissue', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { Toast.error(data.error); return; }
+        Toast.success('New tickets issued'); loadOrders();
+      }).catch(function(err) { Toast.error(err.message); });
+    };
 
-      if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No one on the door list yet.'; return; }
-      empty.style.display = 'none';
-      tbody.innerHTML = list.map(e => `<tr>
-        <td style="font-weight:600;">${escHtml(e.guest_name)}</td>
-        <td>${escHtml(e.tier_name || '\u2014')}</td>
-        <td style="font-family:monospace;font-size:var(--text-xs);">${escHtml(e.ticket_number || e.confirmation_code || '\u2014')}</td>
-        <td>${e.checked_in_at ? statusBadge('checked_in') : statusBadge('confirmed')}</td>
-        <td>${e.checked_in_at ? fmtDateTime(e.checked_in_at) : '\u2014'}</td>
-        <td>${!e.checked_in_at ? `<button class="tix-action-btn success" onclick="window._tixCheckIn('${e.id}', '${eventId}')" title="Check In"><i class="fa-solid fa-check"></i> Check In</button>` : '<span style="color:#3fb950;font-size:var(--text-xs);"><i class="fa-solid fa-circle-check"></i> Done</span>'}</td>
-      </tr>`).join('');
-    } catch (err) { console.error('[Tickets] Door list load failed:', err); }
-  }
+    window._tixResendOrder = function(id) {
+      fetch(API + '/orders/' + id + '/resend', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { Toast.error(data.error); return; }
+        Toast.success('Confirmation email resent');
+      }).catch(function(err) { Toast.error(err.message); });
+    };
 
-  window._tixCheckIn = async function(entryId, eventId) {
-    try {
-      const res = await fetch(`${API}/door-list/${entryId}/check-in`, { method: 'POST', headers });
-      const data = await res.json();
-      if (data.error) { Toast.error(data.error); return; }
-      Toast.success('Checked in!');
-      loadDoorList(eventId);
-    } catch (err) { Toast.error(err.message); }
-  };
+    // ── PROMOS (Express — LAN only) ──
+    function loadPromos() {
+      fetch(API + '/promos', { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+        var promos = data.promos || [];
+        var tbody = document.getElementById('tix-promos-body');
+        var empty = document.getElementById('tix-promos-empty');
+        if (!promos.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        tbody.innerHTML = promos.map(function(p) {
+          var isExpired = p.expires_at && new Date(p.expires_at) < new Date();
+          var isExhausted = p.max_uses && p.use_count >= p.max_uses;
+          var pStatus = isExpired ? 'expired' : isExhausted ? 'exhausted' : 'active';
+          return '<tr>' +
+            '<td style="font-family:monospace;font-weight:700;letter-spacing:1px;">' + escHtml(p.code) + '</td>' +
+            '<td style="color:var(--color-gold);font-weight:600;">' + (p.discount_type === 'percent' ? p.discount_value + '%' : fmt(p.discount_value)) + '</td>' +
+            '<td>' + (p.discount_type === 'percent' ? 'Percent' : 'Fixed') + '</td>' +
+            '<td>' + (p.use_count || 0) + ' / ' + (p.max_uses || '\u221e') + '</td>' +
+            '<td>' + (p.expires_at ? fmtDate(p.expires_at) : 'Never') + '</td>' +
+            '<td>' + statusBadge(pStatus) + '</td></tr>';
+        }).join('');
+      }).catch(function(err) { console.error('[Tickets] Promos load failed:', err); });
+    }
 
-  addGuestBtn.addEventListener('click', () => {
-    if (!doorEventSel.value) return;
-    const html = `
-      <div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Guest Name *</label>
-          <input id="guest-name" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Full name">
-        </div>
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Tier</label>
-          <input id="guest-tier" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. VIP, Guest List">
-        </div>
-        <div>
-          <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Notes</label>
-          <input id="guest-notes" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Any special notes">
-        </div>
-      </div>`;
-    Modal.open({
-      title: 'Add Guest to Door List',
-      content: html,
-      size: 'sm',
-      buttons: [
-        { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
-        { text: 'Add', class: 'btn btn-primary', action: async () => {
-          const guestName = document.getElementById('guest-name').value.trim();
-          if (!guestName) { Toast.error('Guest name is required'); return; }
-          try {
-            await fetch(`${API}/door-list/${doorEventSel.value}`, {
-              method: 'POST', headers,
-              body: JSON.stringify({
-                guestName,
-                tierName: document.getElementById('guest-tier').value.trim(),
-                notes: document.getElementById('guest-notes').value.trim()
-              })
-            });
-            Modal.close();
-            Toast.success('Guest added');
-            loadDoorList(doorEventSel.value);
-          } catch (err) { Toast.error(err.message); }
-        }}
-      ]
+    document.getElementById('tix-create-promo-btn').addEventListener('click', function() {
+      var html =
+        '<div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">' +
+          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Promo Code *</label>' +
+          '<input id="promo-code" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);text-transform:uppercase;" placeholder="e.g. EARLYBIRD20"></div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+            '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Discount Type *</label>' +
+            '<select id="promo-type" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);"><option value="percent">Percent (%)</option><option value="fixed">Fixed ($)</option></select></div>' +
+            '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Discount Value *</label>' +
+            '<input id="promo-value" type="number" min="0" step="0.01" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. 20"></div>' +
+          '</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+            '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Max Uses</label>' +
+            '<input id="promo-max" type="number" min="1" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Unlimited"></div>' +
+            '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Expires</label>' +
+            '<input id="promo-expires" type="date" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);"></div>' +
+          '</div></div>';
+      Modal.open({
+        title: 'Create Promo Code', content: html, size: 'md',
+        buttons: [
+          { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
+          { text: 'Create', class: 'btn btn-primary', action: function() {
+            var body = {
+              code: document.getElementById('promo-code').value.trim().toUpperCase(),
+              discountType: document.getElementById('promo-type').value,
+              discountValue: parseFloat(document.getElementById('promo-value').value),
+              maxUses: parseInt(document.getElementById('promo-max').value) || null,
+              expiresAt: document.getElementById('promo-expires').value || null
+            };
+            if (!body.code || isNaN(body.discountValue)) { Toast.error('Code and value required'); return; }
+            fetch(API + '/promos', { method: 'POST', headers: expressHeaders, body: JSON.stringify(body) }).then(function(r) {
+              if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || d.message); });
+              Modal.close(); Toast.success('Promo created'); loadPromos();
+            }).catch(function(err) { Toast.error(err.message); });
+          }}
+        ]
+      });
     });
-  });
 
-  // ══════════════════════════════════════════
-  //  ANALYTICS TAB
-  // ══════════════════════════════════════════
+    // ── DOOR LIST (Express — LAN only) ──
+    var doorEventSel = document.getElementById('tix-door-event-select');
+    var addGuestBtn = document.getElementById('tix-add-guest-btn');
+    doorEventSel.addEventListener('change', function() {
+      addGuestBtn.disabled = !doorEventSel.value;
+      if (doorEventSel.value) loadDoorList(doorEventSel.value);
+      else { document.getElementById('tix-door-body').innerHTML = ''; document.getElementById('tix-door-stats').innerHTML = ''; document.getElementById('tix-door-empty').style.display = 'block'; }
+    });
 
-  async function loadAnalytics() {
-    try {
-      const res = await fetch(`${API}/stats`, { headers });
-      const stats = await res.json();
+    function loadDoorList(eventId) {
+      fetch(API + '/door-list/' + eventId, { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+        var list = data.doorList || [];
+        var tbody = document.getElementById('tix-door-body');
+        var empty = document.getElementById('tix-door-empty');
+        var statsEl = document.getElementById('tix-door-stats');
+        var total = list.length;
+        var checkedIn = list.filter(function(e) { return e.checked_in_at; }).length;
+        var remaining = total - checkedIn;
+        statsEl.innerHTML =
+          '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">' + total + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Expected</div></div>' +
+          '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">' + checkedIn + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Checked In</div></div>' +
+          '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:#d29922;">' + remaining + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Remaining</div></div>';
+        if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No one on the door list yet.'; return; }
+        empty.style.display = 'none';
+        tbody.innerHTML = list.map(function(e) {
+          return '<tr>' +
+            '<td style="font-weight:600;">' + escHtml(e.guest_name) + '</td>' +
+            '<td>' + escHtml(e.tier_name || '\u2014') + '</td>' +
+            '<td style="font-family:monospace;font-size:var(--text-xs);">' + escHtml(e.ticket_number || e.confirmation_code || '\u2014') + '</td>' +
+            '<td>' + (e.checked_in_at ? statusBadge('checked_in') : statusBadge('confirmed')) + '</td>' +
+            '<td>' + (e.checked_in_at ? fmtDateTime(e.checked_in_at) : '\u2014') + '</td>' +
+            '<td>' + (!e.checked_in_at ? '<button class="tix-action-btn success" onclick="window._tixCheckIn(\'' + e.id + '\', \'' + eventId + '\')" title="Check In"><i class="fa-solid fa-check"></i> Check In</button>' : '<span style="color:#3fb950;font-size:var(--text-xs);"><i class="fa-solid fa-circle-check"></i> Done</span>') + '</td></tr>';
+        }).join('');
+      }).catch(function(err) { console.error('[Tickets] Door list load failed:', err); });
+    }
 
-      document.getElementById('tix-analytics-global').innerHTML = `
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">${fmt(stats.totalRevenue || 0)}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Total Revenue</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">${stats.ticketsSold || 0}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Tickets Sold</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">${stats.totalEvents || 0}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Events</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#d29922;">${fmt(stats.avgTicketPrice || 0)}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Avg Ticket Price</div>
-        </div>`;
+    window._tixCheckIn = function(entryId, eventId) {
+      fetch(API + '/door-list/' + entryId + '/check-in', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { Toast.error(data.error); return; }
+        Toast.success('Checked in!'); loadDoorList(eventId);
+      }).catch(function(err) { Toast.error(err.message); });
+    };
 
-      // Also load top stats bar
-      document.getElementById('tix-stats').innerHTML = `
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">${fmt(stats.totalRevenue || 0)}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Revenue</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">${stats.ticketsSold || 0}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Sold</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">${stats.totalEvents || 0}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Events</div>
-        </div>
-        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
-          <div style="font-size:var(--text-2xl);font-weight:700;color:#d29922;">${stats.activePromos || 0}</div>
-          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Active Promos</div>
-        </div>`;
+    addGuestBtn.addEventListener('click', function() {
+      if (!doorEventSel.value) return;
+      var html =
+        '<div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">' +
+          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Guest Name *</label>' +
+          '<input id="guest-name" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Full name"></div>' +
+          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Tier</label>' +
+          '<input id="guest-tier" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. VIP, Guest List"></div>' +
+        '</div>';
+      Modal.open({
+        title: 'Add Guest', content: html, size: 'sm',
+        buttons: [
+          { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
+          { text: 'Add', class: 'btn btn-primary', action: function() {
+            var guestName = document.getElementById('guest-name').value.trim();
+            if (!guestName) { Toast.error('Name required'); return; }
+            fetch(API + '/door-list/' + doorEventSel.value, {
+              method: 'POST', headers: expressHeaders,
+              body: JSON.stringify({ guestName: guestName, tierName: document.getElementById('guest-tier').value.trim() })
+            }).then(function() { Modal.close(); Toast.success('Guest added'); loadDoorList(doorEventSel.value); }).catch(function(err) { Toast.error(err.message); });
+          }}
+        ]
+      });
+    });
 
-      // Per-event breakdown
-      const eventBreakdown = stats.perEvent || [];
-      const tbody = document.getElementById('tix-analytics-body');
-      const empty = document.getElementById('tix-analytics-empty');
-      if (!eventBreakdown.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-      empty.style.display = 'none';
-      tbody.innerHTML = eventBreakdown.map(e => `<tr>
-        <td style="font-weight:600;">${escHtml(e.eventName || e.event_name || '\u2014')}</td>
-        <td>${fmtDate(e.eventDate || e.event_date)}</td>
-        <td>${e.ticketsSold || e.tickets_sold || 0}</td>
-        <td>${e.capacity || e.max_capacity || '\u221e'}</td>
-        <td style="font-weight:600;color:var(--color-gold);">${fmt(e.revenue || 0)}</td>
-        <td>${fmt(e.avgPrice || e.avg_price || 0)}</td>
-      </tr>`).join('');
-    } catch (err) { console.error('[Tickets] Analytics load failed:', err); }
+    // ── ANALYTICS (Express — LAN only) ──
+    function loadAnalytics() {
+      fetch(API + '/stats', { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(stats) {
+        document.getElementById('tix-analytics-global').innerHTML =
+          '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">' + fmt(stats.totalRevenue || 0) + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Total Revenue</div></div>' +
+          '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">' + (stats.ticketsSold || 0) + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Tickets Sold</div></div>' +
+          '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">' + (stats.totalEvents || 0) + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Events</div></div>' +
+          '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:#d29922;">' + fmt(stats.avgTicketPrice || 0) + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Avg Price</div></div>';
+        var eventBreakdown = stats.perEvent || [];
+        var tbody = document.getElementById('tix-analytics-body');
+        var empty = document.getElementById('tix-analytics-empty');
+        if (!eventBreakdown.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        tbody.innerHTML = eventBreakdown.map(function(e) {
+          return '<tr><td style="font-weight:600;">' + escHtml(e.eventName || e.event_name || '\u2014') + '</td>' +
+            '<td>' + fmtDate(e.eventDate || e.event_date) + '</td>' +
+            '<td>' + (e.ticketsSold || e.tickets_sold || 0) + '</td>' +
+            '<td>' + (e.capacity || e.max_capacity || '\u221e') + '</td>' +
+            '<td style="font-weight:600;color:var(--color-gold);">' + fmt(e.revenue || 0) + '</td>' +
+            '<td>' + fmt(e.avgPrice || e.avg_price || 0) + '</td></tr>';
+        }).join('');
+      }).catch(function(err) { console.error('[Tickets] Analytics load failed:', err); });
+    }
+
+    // Load LAN-only tabs
+    loadOrders();
+    loadPromos();
+    loadAnalytics();
   }
 
-  // ── Initial Load ──
+  // ── Initial Load (Firestore events — always) ──
   loadEvents();
-  loadOrders();
-  loadPromos();
-  loadAnalytics();
 })();
 </script>

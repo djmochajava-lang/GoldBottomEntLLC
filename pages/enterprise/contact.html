@@ -225,17 +225,32 @@
     ])
       .then(function(results) {
         var result = results[0];
-        if (result.method === 'local') {
-          showFeedback('Message saved! We\'ll process it when our server is back online.', false);
-        } else {
-          showFeedback('Proposal request received! Someone will get back to you soon.', false);
-        }
-        form.reset();
+        // Replace form with confirmation panel to prevent double-submit
+        var card = form.closest('.glass-card');
+        var icon = result.method === 'local'
+          ? 'fa-solid fa-floppy-disk'
+          : 'fa-solid fa-circle-check';
+        var headline = result.method === 'local'
+          ? 'Request Saved'
+          : 'Proposal Request Received';
+        var detail = result.method === 'local'
+          ? 'Your project inquiry has been saved locally and will be delivered when our server is back online.'
+          : 'Thank you, <strong>' + (typeof Utils !== 'undefined' ? Utils.escapeHtml(name) : name) + '</strong>! We\'ve received your project inquiry and will respond within 24 hours.';
+        var emailNote = 'A confirmation has been sent to <strong>' + (typeof Utils !== 'undefined' ? Utils.escapeHtml(email) : email) + '</strong>.';
+
+        card.innerHTML =
+          '<div style="text-align:center;padding:40px 20px;">' +
+            '<i class="' + icon + ' text-gold" style="font-size:48px;margin-bottom:16px;"></i>' +
+            '<h2 style="margin-bottom:12px;">' + headline + '</h2>' +
+            '<p style="font-size:15px;line-height:1.6;color:var(--color-text-secondary);margin-bottom:8px;">' + detail + '</p>' +
+            '<p style="font-size:14px;color:var(--color-text-muted);margin-bottom:24px;">' + emailNote + '</p>' +
+            '<a href="#biz-home" class="btn btn-primary shimmer-sweep">' +
+              '<i class="fa-solid fa-arrow-left"></i> Back to Enterprise' +
+            '</a>' +
+          '</div>';
       })
       .catch(function() {
         showFeedback(FALLBACK_MSG, true);
-      })
-      .then(function() {
         btn.disabled = false;
         btn.innerHTML = origHTML;
       });

@@ -139,7 +139,7 @@ const Router = {
     'dashboard-inbox',
     'dashboard-contacts',
     'dashboard-crm-contacts',
-    'dashboard-tickets', // FRD-8 Ticket Sales — local-only (admin/band_manager)
+    // dashboard-tickets removed from local-only — now uses Firestore for event/tier CRUD (DEF-013)
     // dashboard-field is intentionally NOT local-only — it has offline fallbacks
     // and should be accessible on remote mobile for band managers on the road
   ],
