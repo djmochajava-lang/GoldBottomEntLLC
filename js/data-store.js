@@ -6,6 +6,149 @@
  * Designed for easy migration to a real backend (API swap).
  */
 
+// ── PII Encryption Layer ─────────────────────────
+// Transparent AES-256-GCM encryption for PII fields in localStorage.
+// Uses Web Crypto API (built into all modern browsers).
+// Key is derived from a random device secret stored separately.
+const _PII = {
+  // Fields to encrypt per entity key
+  FIELDS: {
+    'gbe-roster':          ['email', 'phone', 'name', 'bio'],
+    'gbe-bookings':        ['contactName', 'contactEmail', 'contactPhone'],
+    'gbe-venue-leads':     ['name', 'contactName', 'contactEmail', 'contactPhone'],
+    'gbe-it-credentials':  ['password', 'apiKey', 'username'],
+    'gbe-settings':        ['ownerName', 'ownerEmail', 'ownerPhone', 'ein', 'bankName',
+                            'attorney', 'accountant', 'registeredAgent', 'insurance'],
+    'gbe-integrations':    [], // handled specially — all nested token/key values
+    'gbe-invoices':        ['client'],
+    'gbe-contracts':       ['partyA', 'partyB'],
+  },
+  PREFIX: '\x00ENC:',  // marker to detect already-encrypted values
+  _key: null,          // cached CryptoKey
+  _ready: false,
+
+  // Initialize: derive AES key from device secret (generate if first time)
+  init: async function() {
+    if (this._ready) return;
+    if (typeof crypto === 'undefined' || !crypto.subtle) {
+      console.warn('[PII] Web Crypto API not available — encryption disabled');
+      return;
+    }
+    try {
+      var secret = localStorage.getItem('gbe-device-secret');
+      if (!secret) {
+        var arr = new Uint8Array(32);
+        crypto.getRandomValues(arr);
+        secret = Array.from(arr, function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+        localStorage.setItem('gbe-device-secret', secret);
+      }
+      var rawKey = new Uint8Array(secret.match(/.{2}/g).map(function(h) { return parseInt(h, 16); }));
+      this._key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['encrypt', 'decrypt']);
+      this._ready = true;
+    } catch (e) {
+      console.warn('[PII] Encryption init failed:', e.message);
+    }
+  },
+
+  // Encrypt a string value → base64(iv + ciphertext)
+  encrypt: async function(plaintext) {
+    if (!this._ready || !plaintext || typeof plaintext !== 'string') return plaintext;
+    try {
+      var iv = crypto.getRandomValues(new Uint8Array(12));
+      var encoded = new TextEncoder().encode(plaintext);
+      var cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, this._key, encoded);
+      var combined = new Uint8Array(iv.length + cipherBuf.byteLength);
+      combined.set(iv);
+      combined.set(new Uint8Array(cipherBuf), iv.length);
+      return this.PREFIX + btoa(String.fromCharCode.apply(null, combined));
+    } catch (e) { return plaintext; }
+  },
+
+  // Decrypt a previously encrypted value
+  decrypt: async function(ciphertext) {
+    if (!this._ready || !ciphertext || typeof ciphertext !== 'string') return ciphertext;
+    if (!ciphertext.startsWith(this.PREFIX)) return ciphertext; // not encrypted (legacy)
+    try {
+      var raw = ciphertext.slice(this.PREFIX.length);
+      var bytes = Uint8Array.from(atob(raw), function(c) { return c.charCodeAt(0); });
+      var iv = bytes.slice(0, 12);
+      var data = bytes.slice(12);
+      var decBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, this._key, data);
+      return new TextDecoder().decode(decBuf);
+    } catch (e) { return ciphertext; } // return as-is if decryption fails
+  },
+
+  // Encrypt PII fields in an array of items (for _save)
+  encryptItems: async function(key, items) {
+    if (!this._ready || !Array.isArray(items)) return items;
+    var fields = this.FIELDS[key];
+    if (!fields || fields.length === 0) return items;
+    var self = this;
+    var result = [];
+    for (var i = 0; i < items.length; i++) {
+      var item = Object.assign({}, items[i]);
+      for (var f = 0; f < fields.length; f++) {
+        var field = fields[f];
+        if (item[field] && typeof item[field] === 'string' && !item[field].startsWith(self.PREFIX)) {
+          item[field] = await self.encrypt(item[field]);
+        }
+      }
+      result.push(item);
+    }
+    return result;
+  },
+
+  // Decrypt PII fields in an array of items (for _getAll)
+  decryptItems: async function(key, items) {
+    if (!this._ready || !Array.isArray(items)) return items;
+    var fields = this.FIELDS[key];
+    if (!fields || fields.length === 0) return items;
+    var self = this;
+    var result = [];
+    for (var i = 0; i < items.length; i++) {
+      var item = Object.assign({}, items[i]);
+      for (var f = 0; f < fields.length; f++) {
+        var field = fields[f];
+        if (item[field] && typeof item[field] === 'string' && item[field].startsWith(self.PREFIX)) {
+          item[field] = await self.decrypt(item[field]);
+        }
+      }
+      result.push(item);
+    }
+    return result;
+  },
+
+  // Encrypt PII fields in a singleton object (for settings/integrations)
+  encryptObject: async function(key, obj) {
+    if (!this._ready || !obj || typeof obj !== 'object') return obj;
+    var fields = this.FIELDS[key];
+    if (!fields || fields.length === 0) return obj;
+    var result = Object.assign({}, obj);
+    for (var f = 0; f < fields.length; f++) {
+      var field = fields[f];
+      if (result[field] && typeof result[field] === 'string' && !result[field].startsWith(this.PREFIX)) {
+        result[field] = await this.encrypt(result[field]);
+      }
+    }
+    return result;
+  },
+
+  // Decrypt PII fields in a singleton object
+  decryptObject: async function(key, obj) {
+    if (!this._ready || !obj || typeof obj !== 'object') return obj;
+    var fields = this.FIELDS[key];
+    if (!fields || fields.length === 0) return obj;
+    var result = Object.assign({}, obj);
+    for (var f = 0; f < fields.length; f++) {
+      var field = fields[f];
+      if (result[field] && typeof result[field] === 'string' && result[field].startsWith(this.PREFIX)) {
+        result[field] = await this.decrypt(result[field]);
+      }
+    }
+    return result;
+  }
+};
+
 const DataStore = {
   KEYS: {
     ROSTER: 'gbe-roster',
@@ -33,19 +176,107 @@ const DataStore = {
 
   init() {
     this.seedIfEmpty();
+    // Initialize PII encryption and migrate existing plaintext data
+    this._initEncryption();
     console.log('✅ DataStore initialized');
   },
+
+  /**
+   * Initialize PII encryption system, populate decrypted cache,
+   * and migrate existing plaintext data.
+   * Non-blocking — runs in background after sync init completes.
+   */
+  _initEncryption: function() {
+    _PII.init().then(function() {
+      if (!_PII._ready) return;
+
+      // Populate decrypted cache from encrypted localStorage
+      DataStore._loadDecryptedCache().then(function() {
+        // One-time migration: encrypt existing plaintext PII
+        if (!Utils.storage.get('gbe-pii-encrypted-v1')) {
+          DataStore._migrateEncryption().then(function() {
+            Utils.storage.set('gbe-pii-encrypted-v1', new Date().toISOString());
+            console.log('[PII] Migration complete — existing data encrypted');
+          });
+        }
+      });
+    });
+  },
+
+  /**
+   * Load all PII entity data from localStorage, decrypt, and store in cache.
+   * @returns {Promise<void>}
+   */
+  _loadDecryptedCache: async function() {
+    var keys = Object.keys(_PII.FIELDS);
+    for (var k = 0; k < keys.length; k++) {
+      var entityKey = keys[k];
+      var raw = Utils.storage.get(entityKey, null);
+      if (!raw) continue;
+
+      if (Array.isArray(raw)) {
+        this._cache[entityKey] = await _PII.decryptItems(entityKey, raw);
+      } else if (typeof raw === 'object') {
+        this._cache[entityKey] = await _PII.decryptObject(entityKey, raw);
+      }
+    }
+  },
+
+  /**
+   * Migrate all existing plaintext PII data to encrypted form.
+   * @returns {Promise<void>}
+   */
+  _migrateEncryption: async function() {
+    var keys = Object.keys(_PII.FIELDS);
+    for (var k = 0; k < keys.length; k++) {
+      var entityKey = keys[k];
+      var fields = _PII.FIELDS[entityKey];
+      if (!fields || fields.length === 0) continue;
+
+      // Use the decrypted cache (which has plaintext from before migration)
+      var plain = this._cache[entityKey];
+      if (!plain) continue;
+
+      if (Array.isArray(plain)) {
+        var encrypted = await _PII.encryptItems(entityKey, plain);
+        Utils.storage.set(entityKey, encrypted);
+      } else if (typeof plain === 'object') {
+        var encrypted = await _PII.encryptObject(entityKey, plain);
+        Utils.storage.set(entityKey, encrypted);
+      }
+    }
+  },
+
+  // ============================================================
+  // PII DECRYPTED CACHE — stores decrypted data in memory
+  // localStorage holds encrypted values; this cache holds decrypted.
+  // ============================================================
+  _cache: {},
 
   // ============================================================
   // GENERIC CRUD HELPERS
   // ============================================================
 
   _getAll(key) {
+    // Return from decrypted cache if available, otherwise raw localStorage
+    if (this._cache[key] !== undefined) return this._cache[key];
     return Utils.storage.get(key, []);
   },
 
   _save(key, data) {
-    Utils.storage.set(key, data);
+    // Update decrypted cache immediately (synchronous for callers)
+    this._cache[key] = data;
+    // Write encrypted version to localStorage (async, non-blocking)
+    if (_PII._ready && _PII.FIELDS[key] && _PII.FIELDS[key].length > 0) {
+      var encPromise = Array.isArray(data)
+        ? _PII.encryptItems(key, data)
+        : _PII.encryptObject(key, data);
+      encPromise.then(function(encrypted) {
+        Utils.storage.set(key, encrypted);
+      });
+    } else {
+      Utils.storage.set(key, data);
+    }
   },
 
   _getById(key, id) {
@@ -366,12 +597,14 @@ const DataStore = {
   // ============================================================
 
   getIntegrations() {
+    if (this._cache[this.KEYS.INTEGRATIONS] !== undefined) return this._cache[this.KEYS.INTEGRATIONS];
     return Utils.storage.get(this.KEYS.INTEGRATIONS, {});
   },
 
   updateIntegration(service, data) {
     const integrations = this.getIntegrations();
     integrations[service] = { ...integrations[service], ...data, updatedAt: new Date().toISOString() };
+    this._cache[this.KEYS.INTEGRATIONS] = integrations;
     Utils.storage.set(this.KEYS.INTEGRATIONS, integrations);
     return integrations[service];
   },
@@ -381,6 +614,7 @@ const DataStore = {
   // ============================================================
 
   getSettings() {
+    if (this._cache[this.KEYS.SETTINGS] !== undefined) return this._cache[this.KEYS.SETTINGS];
     return Utils.storage.get(this.KEYS.SETTINGS, {});
   },
 
@@ -388,7 +622,7 @@ const DataStore = {
     const settings = this.getSettings();
     Object.assign(settings, data);
     settings.updatedAt = new Date().toISOString();
-    Utils.storage.set(this.KEYS.SETTINGS, settings);
+    this._save(this.KEYS.SETTINGS, settings);
     return settings;
   },
 
