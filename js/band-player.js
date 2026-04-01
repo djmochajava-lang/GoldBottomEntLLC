@@ -44,7 +44,7 @@ const BandPlayer = {
 
     // Two-screen onboarding gate (band_member and artist only):
     //   Screen 1: Band Confidentiality & Agreement (confidentialityAcceptedAt)
-    //   Screen 2: Payment Setup & House Band Agreement (paymentSetupAt)
+    //   Screen 2: Payment Setup & GBE Freelance Musician Agreement (paymentSetupAt)
     // Admin and band_manager skip straight to the player.
     var self = this;
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
@@ -164,7 +164,7 @@ const BandPlayer = {
     }
   },
 
-  // ── SCREEN 2: Payment Setup & House Band Agreement ──
+  // ── SCREEN 2: Payment Setup & GBE Freelance Musician Agreement ──
   // mode: 'onboarding' (first time, shows HBA + W-9) or 'edit' (returning, payment only + back button)
 
   _showScreen2: function(mode) {
@@ -174,7 +174,7 @@ const BandPlayer = {
     var IS = this._inputStyle;
     var LS = this._labelStyle;
     var isEdit = (mode === 'edit');
-    var title = isEdit ? 'Update Payment Info' : 'Payment Setup &amp; House Band Agreement';
+    var title = isEdit ? 'Update Payment Info' : 'Payment Setup &amp; GBE Freelance Musician Agreement';
     var subtitle = isEdit
       ? 'Change how you\u2019d like to get paid. We\u2019ll use these details for all future payments.'
       : 'Thanks for joining the band! Let\u2019s get you set up so we can pay you quickly and easily after every gig.';
@@ -223,11 +223,30 @@ const BandPlayer = {
             '<p id="pay-error" style="display:none;color:#f85149;font-size:var(--text-sm);margin-top:var(--space-xs);"></p>' +
           '</div>' +
 
-          // House Band Agreement (onboarding only)
-          (!isEdit ? (
+          // GBE Freelance Musician Agreement — show based on completion status, not edit/onboard mode
+          (data.houseBandAgreedAt ? (
+          // ACCEPTED — show green status card with "View Agreement" link
+          '<div style="margin-bottom:var(--space-lg);background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);padding:var(--space-md);">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-xs);">' +
+              '<i class="fa-solid fa-circle-check" style="color:#3fb950;font-size:18px;"></i>' +
+              '<h3 style="font-size:var(--text-base);color:#3fb950;margin:0;">GBE Freelance Musician Agreement — Accepted</h3>' +
+            '</div>' +
+            '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);">Accepted on ' + (data.houseBandAgreedAt.toDate ? data.houseBandAgreedAt.toDate().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) : 'file') + '. A copy is kept on record with Gold Bottom Ent LLC.</p>' +
+            '<a href="#" id="hba-view-link" style="font-size:var(--text-sm);color:var(--color-gold);text-decoration:none;"><i class="fa-solid fa-file-lines" style="margin-right:4px;"></i>View Agreement</a>' +
+            '<div id="hba-view-content" style="display:none;margin-top:var(--space-sm);background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.8;">' +
+              '&bull; You are a freelance independent contractor for Gold Bottom Ent LLC only (not an employee). You handle your own taxes and insurance.<br><br>' +
+              '&bull; LA Young\u2019s original compositions, lyrics, and demos are her / Gold Bottom Ent LLC\u2019s sole property. Any contributions or arrangements you make to her pre-existing originals are derivative works owned solely by her / the LLC. You will not claim ownership, co-writing credit, or royalties unless we agree in writing.<br><br>' +
+              '&bull; Rehearsal materials, charts, and recordings are for band use only \u2014 please don\u2019t share them publicly.<br><br>' +
+              '&bull; No extra pay for rehearsals, local travel, or prep unless we note it for a specific gig.<br><br>' +
+              '&bull; You\u2019re responsible for your own gear. We\u2019re not liable for loss or damage unless caused by our direct negligence.<br><br>' +
+              '&bull; All obligations are with Gold Bottom Ent LLC only \u2014 no personal liability for Jeffery Ponder or LA Young.' +
+            '</div>' +
+          '</div>'
+          ) : (
+          // NOT YET ACCEPTED — show agreement for acceptance
           '<div style="margin-bottom:var(--space-lg);">' +
-            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);cursor:pointer;" id="hba-toggle">Step 2: House Band Agreement <i class="fa-solid fa-chevron-down" style="font-size:12px;margin-left:4px;"></i></h3>' +
-            '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;">Before we save your payment info, please review our short House Band guidelines (this just formalizes what we\u2019ve already been doing):</p>' +
+            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);cursor:pointer;" id="hba-toggle">' + (isEdit ? '' : 'Step 2: ') + 'GBE Freelance Musician Agreement <i class="fa-solid fa-chevron-down" style="font-size:12px;margin-left:4px;"></i></h3>' +
+            '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;">Please review our GBE Freelance Musician Agreement terms (this formalizes what we\u2019ve already been doing):</p>' +
             '<div id="hba-content" style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:left;font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.8;margin-bottom:var(--space-sm);">' +
               '&bull; You are a freelance independent contractor for Gold Bottom Ent LLC only (not an employee). You handle your own taxes and insurance.<br><br>' +
               '&bull; LA Young\u2019s original compositions, lyrics, and demos are her / Gold Bottom Ent LLC\u2019s sole property. Any contributions or arrangements you make to her pre-existing originals are derivative works owned solely by her / the LLC. You will not claim ownership, co-writing credit, or royalties unless we agree in writing.<br><br>' +
@@ -238,20 +257,37 @@ const BandPlayer = {
             '</div>' +
             '<label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--text-sm);color:var(--color-text);cursor:pointer;margin-bottom:var(--space-sm);">' +
               '<input type="checkbox" id="hba-checkbox" style="width:18px;height:18px;accent-color:var(--color-gold);margin-top:2px;">' +
-              ' I have read and agree to the House Band guidelines above.' +
+              ' I have read and agree to the GBE Freelance Musician Agreement terms above.' +
             '</label>' +
-          '</div>' +
-
-          // W-9
-          '<div style="margin-bottom:var(--space-lg);">' +
-            '<h3 style="font-size:var(--text-base);color:var(--color-gold);margin-bottom:var(--space-sm);">Step 3: Tax Information (W-9)</h3>' +
-            '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;">To keep our payments compliant (especially if we pay you $2,000+ in a year), please provide your W-9 info. <em style="color:var(--color-text-muted);">You can also complete this later from your profile.</em></p>' +
-            '<div style="display:grid;gap:10px;">' +
-              '<div><label style="' + LS + '">Legal Full Name</label><input id="w9-name" type="text" style="' + IS + '" placeholder="As it appears on your tax return" /></div>' +
-              '<div><label style="' + LS + '">Mailing Address</label><input id="w9-address" type="text" style="' + IS + '" placeholder="Street, City, State, ZIP" /></div>' +
-            '</div>' +
           '</div>'
-          ) : '') +
+          )) +
+
+          // W-9 Tax Information — always show, with status indicator
+          '<div style="margin-bottom:var(--space-lg);">' +
+            (data.w9LegalName ? (
+            // W-9 ON FILE — green status
+            '<div style="background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);padding:var(--space-md);margin-bottom:var(--space-sm);">' +
+              '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<i class="fa-solid fa-circle-check" style="color:#3fb950;font-size:18px;"></i>' +
+                '<h3 style="font-size:var(--text-base);color:#3fb950;margin:0;">W-9 Information On File</h3>' +
+              '</div>' +
+              '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-top:var(--space-xs);">Name: ' + (data.w9LegalName || '').replace(/</g,'&lt;') + '</p>' +
+            '</div>'
+            ) : (
+            // W-9 MISSING — yellow warning
+            '<div style="background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.3);border-radius:var(--radius-md);padding:var(--space-md);margin-bottom:var(--space-sm);">' +
+              '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-xs);">' +
+                '<i class="fa-solid fa-triangle-exclamation" style="color:#d29922;font-size:18px;"></i>' +
+                '<h3 style="font-size:var(--text-base);color:#d29922;margin:0;">' + (isEdit ? '' : 'Step 3: ') + 'Tax Information (W-9)</h3>' +
+              '</div>' +
+              '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;"><strong>Required for payments over $2,000 within a calendar year.</strong> The IRS requires us to file a 1099-NEC for independent contractors paid $600+ annually. Please provide your W-9 info so we can pay you without delay.</p>' +
+              '<div style="display:grid;gap:10px;">' +
+                '<div><label style="' + LS + '">Legal Full Name <span style="color:var(--color-gold);">*</span></label><input id="w9-name" type="text" style="' + IS + '" placeholder="As it appears on your tax return" /></div>' +
+                '<div><label style="' + LS + '">Mailing Address</label><input id="w9-address" type="text" style="' + IS + '" placeholder="Street, City, State, ZIP" /></div>' +
+              '</div>' +
+            '</div>'
+            )) +
+          '</div>' +
 
           // Save button
           '<div style="text-align:center;">' +
@@ -294,7 +330,7 @@ const BandPlayer = {
 
     if (hbaCheckbox) hbaCheckbox.addEventListener('change', updateSaveBtn);
 
-    // HBA toggle (onboarding only)
+    // HBA toggle (acceptance mode)
     var hbaToggle = document.getElementById('hba-toggle');
     var hbaContent = document.getElementById('hba-content');
     if (hbaToggle && hbaContent) {
@@ -303,6 +339,20 @@ const BandPlayer = {
         hbaContent.style.display = visible ? 'none' : 'block';
         var icon = hbaToggle.querySelector('i');
         if (icon) icon.className = visible ? 'fa-solid fa-chevron-right' : 'fa-solid fa-chevron-down';
+      });
+    }
+
+    // HBA view link (read-only mode — already accepted)
+    var hbaViewLink = document.getElementById('hba-view-link');
+    var hbaViewContent = document.getElementById('hba-view-content');
+    if (hbaViewLink && hbaViewContent) {
+      hbaViewLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        var visible = hbaViewContent.style.display !== 'none';
+        hbaViewContent.style.display = visible ? 'none' : 'block';
+        hbaViewLink.innerHTML = visible
+          ? '<i class="fa-solid fa-file-lines" style="margin-right:4px;"></i>View Agreement'
+          : '<i class="fa-solid fa-file-lines" style="margin-right:4px;"></i>Hide Agreement';
       });
     }
 
@@ -374,10 +424,17 @@ const BandPlayer = {
           paymentOther: paymentData.description || '',
           onboardingComplete: true
         };
-        if (!isEdit) {
+        // Save agreement acceptance if checkbox was checked (onboarding or edit mode)
+        if (hbaCheckbox && hbaCheckbox.checked && !data.houseBandAgreedAt) {
           updateData.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
-          updateData.w9LegalName = (document.getElementById('w9-name') || {}).value || '';
-          updateData.w9Address = (document.getElementById('w9-address') || {}).value || '';
+          updateData.houseBandAgreementVersion = '1.0';
+        }
+        // Save W-9 if fields are present and filled
+        var w9Name = (document.getElementById('w9-name') || {}).value || '';
+        var w9Addr = (document.getElementById('w9-address') || {}).value || '';
+        if (w9Name.trim()) {
+          updateData.w9LegalName = w9Name;
+          updateData.w9Address = w9Addr;
         }
 
         if (user && self._db) {

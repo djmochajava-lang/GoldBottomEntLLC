@@ -1,18 +1,44 @@
-<!-- dashboard/band-readiness.html — Band Readiness Overview (FRD-3) -->
+<!-- dashboard/band-readiness.html — Band Readiness + Compliance Overview -->
 <div class="dashboard-page">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-lg);">
     <div>
       <h1>Band Readiness</h1>
-      <p class="text-muted">Track musician readiness across all upcoming gigs.</p>
+      <p class="text-muted">Track musician readiness, compliance, and onboarding status.</p>
     </div>
   </div>
 
-  <!-- Summary stats -->
-  <div id="br-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+  <!-- Tab Bar -->
+  <div id="br-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);">
+    <button class="br-tab active" data-tab="gigs" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;">
+      <i class="fa-solid fa-guitar"></i> Gig Readiness
+    </button>
+    <button class="br-tab" data-tab="compliance" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-clipboard-check"></i> Compliance
+    </button>
+  </div>
 
-  <!-- Gig sections -->
-  <div id="br-gigs-container">
-    <div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading readiness data...</div>
+  <!-- TAB: Gig Readiness (original content) -->
+  <div id="br-tab-gigs">
+    <!-- Summary stats -->
+    <div id="br-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+
+    <!-- Gig sections -->
+    <div id="br-gigs-container">
+      <div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading readiness data...</div>
+    </div>
+  </div>
+
+  <!-- TAB: Compliance -->
+  <div id="br-tab-compliance" style="display:none;">
+    <!-- Compliance stats -->
+    <div id="comp-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+
+    <!-- Compliance table -->
+    <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">
+      <div id="comp-table-container">
+        <div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading compliance data...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -64,10 +90,18 @@
     transition: all 0.15s;
   }
   .br-remind-btn:hover { background: rgba(210,153,34,0.2); }
+  .comp-row { display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr 1fr; gap:var(--space-sm); padding:var(--space-sm) var(--space-xs); border-bottom:1px solid rgba(255,255,255,0.04); align-items:center; font-size:var(--text-sm); }
+  .comp-row.header { font-weight:600; color:var(--color-text-muted); font-size:var(--text-xs); text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid var(--color-border); }
+  .comp-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:var(--radius-full); font-size:11px; font-weight:600; }
+  .comp-badge.ok { background:rgba(63,185,80,0.12); color:#3fb950; }
+  .comp-badge.missing { background:rgba(248,81,73,0.12); color:#f85149; }
+  .comp-badge.pending { background:rgba(210,153,34,0.12); color:#d29922; }
   @media (max-width: 768px) {
     .br-musician-row { grid-template-columns: 1fr 60px 60px 60px; }
     .br-musician-row .br-tracks, .br-musician-row .br-rating, .br-musician-row .br-actions { display: none; }
     .br-musician-row.header .br-tracks, .br-musician-row.header .br-rating, .br-musician-row.header .br-actions { display: none; }
+    .comp-row { grid-template-columns: 1fr 1fr 1fr; }
+    .comp-row .comp-col-w9, .comp-row .comp-col-payment { display: none; }
   }
 </style>
 
@@ -262,6 +296,117 @@
       if (typeof Toast !== 'undefined') Toast.error('Failed to send reminder: ' + e.message);
     }
   };
+
+  // ═══ TAB SWITCHING ═══
+  var tabs = document.querySelectorAll('.br-tab');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabs.forEach(function(t) {
+        t.classList.remove('active');
+        t.style.color = 'var(--color-text-muted)';
+        t.style.borderBottomColor = 'transparent';
+      });
+      this.classList.add('active');
+      this.style.color = 'var(--color-text)';
+      this.style.borderBottomColor = 'var(--color-gold)';
+      var target = this.getAttribute('data-tab');
+      document.getElementById('br-tab-gigs').style.display = target === 'gigs' ? 'block' : 'none';
+      document.getElementById('br-tab-compliance').style.display = target === 'compliance' ? 'block' : 'none';
+      if (target === 'compliance' && !compLoaded) loadCompliance();
+    });
+  });
+
+  // ═══ COMPLIANCE TAB ═══
+  var compLoaded = false;
+
+  async function loadCompliance() {
+    compLoaded = true;
+    if (!fdb) { document.getElementById('comp-table-container').innerHTML = '<p class="text-muted">Firestore not available.</p>'; return; }
+
+    try {
+      // Get all band members (role = band_member, artist, or band_manager)
+      var snap = await fdb.collection('users').where('status', '==', 'approved').get();
+      var bandRoles = ['band_member', 'artist', 'band_manager'];
+      var members = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        if (bandRoles.indexOf(d.role) >= 0) {
+          members.push({ uid: doc.id, name: d.displayName || d.email || doc.id, role: d.role, data: d });
+        }
+      });
+
+      // Stats
+      var totalMembers = members.length;
+      var agreedCount = members.filter(function(m) { return !!m.data.houseBandAgreedAt; }).length;
+      var w9Count = members.filter(function(m) { return !!(m.data.w9LegalName && m.data.w9LegalName.trim()); }).length;
+      var paymentCount = members.filter(function(m) { return !!m.data.paymentSetupAt; }).length;
+      var fullyCompliant = members.filter(function(m) { return m.data.houseBandAgreedAt && m.data.w9LegalName && m.data.paymentSetupAt; }).length;
+
+      document.getElementById('comp-stats').innerHTML =
+        '<div class="br-stat-card"><div class="br-stat-value">' + totalMembers + '</div><div class="br-stat-label">Band Members</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (agreedCount === totalMembers ? '#3fb950' : '#d29922') + ';">' + agreedCount + '/' + totalMembers + '</div><div class="br-stat-label">Agreement Signed</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (w9Count === totalMembers ? '#3fb950' : '#d29922') + ';">' + w9Count + '/' + totalMembers + '</div><div class="br-stat-label">W-9 On File</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (paymentCount === totalMembers ? '#3fb950' : '#d29922') + ';">' + paymentCount + '/' + totalMembers + '</div><div class="br-stat-label">Payment Setup</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (fullyCompliant === totalMembers ? '#3fb950' : '#f85149') + ';">' + fullyCompliant + '/' + totalMembers + '</div><div class="br-stat-label">Fully Compliant</div></div>';
+
+      // Table
+      var html = '<div class="comp-row header">' +
+        '<div>Musician</div>' +
+        '<div>Agreement</div>' +
+        '<div class="comp-col-w9">W-9</div>' +
+        '<div class="comp-col-payment">Payment</div>' +
+        '<div>Status</div>' +
+      '</div>';
+
+      members.sort(function(a, b) {
+        // Sort non-compliant first
+        var aOk = a.data.houseBandAgreedAt && a.data.w9LegalName && a.data.paymentSetupAt ? 1 : 0;
+        var bOk = b.data.houseBandAgreedAt && b.data.w9LegalName && b.data.paymentSetupAt ? 1 : 0;
+        return aOk - bOk || (a.name || '').localeCompare(b.name || '');
+      });
+
+      members.forEach(function(m) {
+        var d = m.data;
+        var agreed = !!d.houseBandAgreedAt;
+        var w9 = !!(d.w9LegalName && d.w9LegalName.trim());
+        var payment = !!d.paymentSetupAt;
+        var full = agreed && w9 && payment;
+
+        var agreedDate = '';
+        if (agreed && d.houseBandAgreedAt && d.houseBandAgreedAt.toDate) {
+          agreedDate = d.houseBandAgreedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        var roleLabel = { band_member: 'Member', artist: 'Artist', band_manager: 'Manager' }[m.role] || m.role;
+
+        html += '<div class="comp-row">' +
+          '<div><strong>' + esc(m.name) + '</strong><br><span style="font-size:11px;color:var(--color-text-muted);">' + roleLabel + '</span></div>' +
+          '<div>' + (agreed
+            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> ' + agreedDate + '</span>'
+            : '<span class="comp-badge missing"><i class="fa-solid fa-circle-xmark"></i> Not signed</span>') + '</div>' +
+          '<div class="comp-col-w9">' + (w9
+            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> On file</span>'
+            : '<span class="comp-badge pending"><i class="fa-solid fa-triangle-exclamation"></i> Missing</span>') + '</div>' +
+          '<div class="comp-col-payment">' + (payment
+            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> ' + (d.paymentMethod || 'Set') + '</span>'
+            : '<span class="comp-badge missing"><i class="fa-solid fa-circle-xmark"></i> Not set</span>') + '</div>' +
+          '<div>' + (full
+            ? '<span class="comp-badge ok"><i class="fa-solid fa-shield-check"></i> Compliant</span>'
+            : '<span class="comp-badge missing"><i class="fa-solid fa-shield-xmark"></i> Incomplete</span>') + '</div>' +
+        '</div>';
+      });
+
+      if (members.length === 0) {
+        html = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">No band members found. Invite musicians from the Team page.</p>';
+      }
+
+      document.getElementById('comp-table-container').innerHTML = html;
+
+    } catch (err) {
+      console.error('[Compliance] Load failed:', err);
+      document.getElementById('comp-table-container').innerHTML = '<p style="color:#f85149;">Failed to load compliance data: ' + esc(err.message) + '</p>';
+    }
+  }
 
   init();
 })();

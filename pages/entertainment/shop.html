@@ -1,26 +1,28 @@
-<!-- pages/entertainment/shop.html — Entertainment Merch Shop -->
+<!-- pages/entertainment/shop.html — "I _____ Because I Am Human" Trademark Collection -->
 <section class="page-section" id="page-ent-shop">
   <div class="container">
-    <h1 class="page-title reveal">Shop</h1>
-    <p class="page-subtitle reveal">Official merchandise from Gold Bottom Entertainment artists.</p>
-    <div class="glass-card reveal" style="text-align: center; padding: var(--space-3xl);">
-      <div style="font-size: var(--text-4xl); color: var(--color-gold-muted); margin-bottom: var(--space-lg);">
-        <i class="fa-solid fa-bag-shopping"></i>
-      </div>
-      <h2>Merch Store Coming Soon</h2>
-      <p class="text-muted" style="max-width: 500px; margin: var(--space-md) auto var(--space-xl);">
-        We're building out a full merch experience powered by Shopify. Artist-branded apparel,
-        accessories, limited drops, and more.
+    <h1 class="page-title reveal">&ldquo;Because I Am Human&rdquo;&trade; Collection</h1>
+    <p class="page-subtitle reveal">Official trademark apparel from Gold Bottom Entertainment. Every design is a declaration.</p>
+
+    <!-- Collection Intro -->
+    <div class="glass-card reveal" style="text-align: center; padding: var(--space-2xl) var(--space-xl); margin-bottom: var(--space-2xl);">
+      <p style="font-size: var(--text-lg); color: var(--color-text-secondary); max-width: 640px; margin: 0 auto; line-height: 1.7;">
+        In the age of algorithms, automation, and artificial everything &mdash;
+        this is a declaration of authenticity. <strong style="color: var(--color-gold);">I _____ because I am human.&trade;</strong>
+        Fill in the blank with your art. Wear the statement.
       </p>
-      <a href="#ent-contact" class="btn btn-primary btn-lg shimmer-sweep">
-        <i class="fa-solid fa-bell"></i> Get Notified
-      </a>
     </div>
-    <!-- Product Preview -->
-    <h2 class="section-heading text-center reveal" style="margin-top: var(--space-3xl);">Product Preview</h2>
-    <div class="grid grid-3 stagger-grid" id="ent-shop-preview" style="margin-top: var(--space-xl);">
-      <!-- Populated by script -->
+
+    <!-- Filter Pills -->
+    <div class="reveal" id="ent-shop-filters" style="display: flex; gap: var(--space-sm); justify-content: center; flex-wrap: wrap; margin-bottom: var(--space-xl);">
+      <button class="btn btn-ghost btn-sm ent-shop-filter active" data-filter="all" style="border-color: var(--color-gold); color: var(--color-gold);">All</button>
+      <button class="btn btn-ghost btn-sm ent-shop-filter" data-filter="t-shirt">T-Shirts</button>
+      <button class="btn btn-ghost btn-sm ent-shop-filter" data-filter="hoodie">Hoodies</button>
     </div>
+
+    <!-- Product Grid -->
+    <div class="stagger-grid" id="ent-shop-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-lg); margin-bottom: var(--space-2xl);"></div>
+
     <!-- Integration Badges -->
     <div class="glass-card reveal" style="margin-top: var(--space-2xl); text-align: center; padding: var(--space-xl);">
       <p class="text-uppercase-sm" style="margin-bottom: var(--space-md); color: var(--color-text-muted);">Powered By</p>
@@ -33,35 +35,254 @@
     </div>
   </div>
 </section>
-<script>
-(function() {
-  var grid = document.getElementById('ent-shop-preview');
-  if (!grid) return;
-  if (typeof DataStore !== 'undefined' && DataStore.getProducts) {
-    var products = DataStore.getProducts();
-    if (products && products.length > 0) {
-      grid.innerHTML = products.slice(0, 6).map(function(p) {
-        return '<div class="glass-card" style="text-align:center;padding:var(--space-lg);">' +
-          '<div style="aspect-ratio:1;background:var(--color-bg-tertiary);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-3xl);color:var(--color-text-muted);margin-bottom:var(--space-md);"><i class="fa-solid fa-shirt"></i></div>' +
-          '<h4>' + (p.name || 'Product') + '</h4>' +
-          '<p class="text-gold" style="font-weight:600;">$' + (p.price || '—') + '</p>' +
-        '</div>';
-      }).join('');
-      return;
+
+<style>
+  .ent-shop-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.3s ease, transform 0.2s ease;
+  }
+  .ent-shop-card:hover {
+    border-color: var(--color-gold);
+    transform: translateY(-4px);
+  }
+  .ent-shop-card__mockup {
+    aspect-ratio: 1;
+    background: #0d0d0d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    position: relative;
+    overflow: hidden;
+  }
+  .ent-shop-card__mockup::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(212,160,23,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .ent-shop-card__phrase {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    line-height: 1.3;
+    text-align: center;
+    color: #d4a017;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    z-index: 1;
+    text-shadow: 0 0 30px rgba(212,160,23,0.15);
+  }
+  .ent-shop-card__body {
+    padding: var(--space-md) var(--space-lg) var(--space-lg);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .ent-shop-card__badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-xs);
+    width: fit-content;
+  }
+  .ent-shop-card__badge--tshirt {
+    background: rgba(212,160,23,0.12);
+    color: #d4a017;
+  }
+  .ent-shop-card__badge--hoodie {
+    background: rgba(88,166,255,0.12);
+    color: #58a6ff;
+  }
+  .ent-shop-card__name {
+    font-size: var(--text-base);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+  .ent-shop-card__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin-bottom: var(--space-sm);
+    flex: 1;
+  }
+  .ent-shop-card__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-sm);
+  }
+  .ent-shop-card__sizes {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .ent-shop-card__size {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .ent-shop-card__size:hover, .ent-shop-card__size.selected {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+    background: rgba(212,160,23,0.08);
+  }
+  .ent-shop-card__colors {
+    display: flex;
+    gap: 6px;
+  }
+  .ent-shop-card__color-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--color-border);
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .ent-shop-card__color-dot:hover {
+    border-color: var(--color-gold);
+  }
+  .ent-shop-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border);
+  }
+  .ent-shop-card__price {
+    font-size: var(--text-lg);
+    font-weight: var(--fw-bold);
+    color: var(--color-gold);
+  }
+  .ent-shop-filter.active {
+    border-color: var(--color-gold) !important;
+    color: var(--color-gold) !important;
+  }
+
+  @media (max-width: 480px) {
+    #ent-shop-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .ent-shop-card__phrase {
+      font-size: 1.15rem;
     }
   }
-  grid.innerHTML =
-    '<div class="glass-card" style="text-align:center;padding:var(--space-lg);">' +
-      '<div style="aspect-ratio:1;background:var(--color-bg-tertiary);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-3xl);color:var(--color-text-muted);margin-bottom:var(--space-md);"><i class="fa-solid fa-shirt"></i></div>' +
-      '<h4>Artist Tee</h4><p class="text-gold" style="font-weight:600;">$35</p>' +
-    '</div>' +
-    '<div class="glass-card" style="text-align:center;padding:var(--space-lg);">' +
-      '<div style="aspect-ratio:1;background:var(--color-bg-tertiary);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-3xl);color:var(--color-text-muted);margin-bottom:var(--space-md);"><i class="fa-solid fa-hat-cowboy"></i></div>' +
-      '<h4>Logo Snapback</h4><p class="text-gold" style="font-weight:600;">$28</p>' +
-    '</div>' +
-    '<div class="glass-card" style="text-align:center;padding:var(--space-lg);">' +
-      '<div style="aspect-ratio:1;background:var(--color-bg-tertiary);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-3xl);color:var(--color-text-muted);margin-bottom:var(--space-md);"><i class="fa-solid fa-compact-disc"></i></div>' +
-      '<h4>Limited Vinyl</h4><p class="text-gold" style="font-weight:600;">$25</p>' +
-    '</div>';
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var PRODUCTS = [
+    { id:'biah-01', name:'I Sing Because I Am Human\u2122 \u2014 T-Shirt', design:'I Sing\nBecause I Am\nHuman\u2122', description:'L.A. Young\'s signature phrase. A declaration of authenticity in the age of algorithms.', price:29.99, type:'t-shirt', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'White',hex:'#f5f5f5'},{name:'Gold',hex:'#d4a017'}] },
+    { id:'biah-02', name:'I Sing Because I Am Human\u2122 \u2014 Hoodie', design:'I Sing\nBecause I Am\nHuman\u2122', description:'The voice behind the music, the human behind the voice. Heavyweight fleece.', price:49.99, type:'hoodie', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'Charcoal',hex:'#36454f'}] },
+    { id:'biah-03', name:'I Dance Because I Am Human\u2122 \u2014 T-Shirt', design:'I Dance\nBecause I Am\nHuman\u2122', description:'Movement is the body\'s oldest language \u2014 and it belongs to all of us.', price:29.99, type:'t-shirt', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'White',hex:'#f5f5f5'},{name:'Gold',hex:'#d4a017'}] },
+    { id:'biah-04', name:'I Dance Because I Am Human\u2122 \u2014 Hoodie', design:'I Dance\nBecause I Am\nHuman\u2122', description:'Movement is human. Heavyweight fleece hoodie with the dance declaration.', price:49.99, type:'hoodie', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'Charcoal',hex:'#36454f'}] },
+    { id:'biah-05', name:'I Create Because I Am Human\u2122 \u2014 T-Shirt', design:'I Create\nBecause I Am\nHuman\u2122', description:'For painters, writers, builders, and dreamers. Creation is what makes us human.', price:29.99, type:'t-shirt', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'White',hex:'#f5f5f5'},{name:'Gold',hex:'#d4a017'}] },
+    { id:'biah-06', name:'I Create Because I Am Human\u2122 \u2014 Hoodie', design:'I Create\nBecause I Am\nHuman\u2122', description:'The creative\'s declaration. Heavyweight fleece hoodie for every maker.', price:49.99, type:'hoodie', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'Charcoal',hex:'#36454f'}] },
+    { id:'biah-07', name:'I Play Because I Am Human\u2122 \u2014 T-Shirt', design:'I Play\nBecause I Am\nHuman\u2122', description:'For musicians and performers. Every note played is proof of life.', price:29.99, type:'t-shirt', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'White',hex:'#f5f5f5'},{name:'Gold',hex:'#d4a017'}] },
+    { id:'biah-08', name:'I Play Because I Am Human\u2122 \u2014 Hoodie', design:'I Play\nBecause I Am\nHuman\u2122', description:'The musician\'s declaration. Heavyweight fleece for those who play.', price:49.99, type:'hoodie', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'Charcoal',hex:'#36454f'}] },
+    { id:'biah-09', name:'I Dream Because I Am Human\u2122 \u2014 T-Shirt', design:'I Dream\nBecause I Am\nHuman\u2122', description:'Inspiration starts with a dream. The most aspirational piece in the collection.', price:29.99, type:'t-shirt', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'White',hex:'#f5f5f5'},{name:'Gold',hex:'#d4a017'}] },
+    { id:'biah-10', name:'I Dream Because I Am Human\u2122 \u2014 Hoodie', design:'I Dream\nBecause I Am\nHuman\u2122', description:'Dream boldly. Heavyweight fleece hoodie with the dreamer\'s declaration.', price:49.99, type:'hoodie', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'Charcoal',hex:'#36454f'}] },
+    { id:'biah-11', name:'Because I Am Human\u2122 \u2014 T-Shirt', design:'Because\nI Am\nHuman\u2122', description:'The core mark. No verb needed \u2014 the statement speaks for itself. Bold, minimal, universal.', price:29.99, type:'t-shirt', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'White',hex:'#f5f5f5'},{name:'Gold',hex:'#d4a017'}] },
+    { id:'biah-12', name:'Because I Am Human\u2122 \u2014 Hoodie', design:'Because\nI Am\nHuman\u2122', description:'The core mark on heavyweight fleece. No verb, no explanation \u2014 just truth.', price:49.99, type:'hoodie', sizes:['S','M','L','XL','2XL'], colors:[{name:'Black',hex:'#111'},{name:'Charcoal',hex:'#36454f'}] }
+  ];
+
+  var grid = document.getElementById('ent-shop-grid');
+  if (!grid) return;
+
+  var currentFilter = 'all';
+
+  function renderGrid(filter) {
+    var filtered = filter === 'all' ? PRODUCTS : PRODUCTS.filter(function(p) { return p.type === filter; });
+    var html = '';
+
+    filtered.forEach(function(p) {
+      var isHoodie = p.type === 'hoodie';
+      var badgeClass = isHoodie ? 'ent-shop-card__badge--hoodie' : 'ent-shop-card__badge--tshirt';
+      var badgeLabel = isHoodie ? 'Hoodie' : 'T-Shirt';
+      var icon = isHoodie ? 'fa-solid fa-vest-patches' : 'fa-solid fa-shirt';
+      var designLines = p.design.split('\n');
+
+      html += '<div class="ent-shop-card reveal">';
+
+      // Mockup area with phrase as visual
+      html += '<div class="ent-shop-card__mockup">';
+      html += '<div style="text-align:center;">';
+      html += '<i class="' + icon + '" style="font-size:2.5rem;color:rgba(212,160,23,0.15);position:absolute;top:12px;right:12px;"></i>';
+      html += '<div class="ent-shop-card__phrase">';
+      designLines.forEach(function(line) {
+        html += '<div>' + line + '</div>';
+      });
+      html += '</div>';
+      html += '</div>';
+      html += '</div>';
+
+      // Body
+      html += '<div class="ent-shop-card__body">';
+      html += '<span class="ent-shop-card__badge ' + badgeClass + '">' + badgeLabel + '</span>';
+      html += '<h4 class="ent-shop-card__name">' + p.name + '</h4>';
+      html += '<p class="ent-shop-card__desc">' + p.description + '</p>';
+
+      // Sizes
+      html += '<div class="ent-shop-card__meta">';
+      html += '<div class="ent-shop-card__sizes">';
+      p.sizes.forEach(function(s) {
+        html += '<span class="ent-shop-card__size">' + s + '</span>';
+      });
+      html += '</div>';
+
+      // Colors
+      html += '<div class="ent-shop-card__colors">';
+      p.colors.forEach(function(c) {
+        var border = c.hex === '#f5f5f5' ? '2px solid #666' : '2px solid ' + c.hex;
+        html += '<span class="ent-shop-card__color-dot" title="' + c.name + '" style="background:' + c.hex + ';border:' + border + ';"></span>';
+      });
+      html += '</div>';
+      html += '</div>';
+
+      // Footer
+      html += '<div class="ent-shop-card__footer">';
+      html += '<span class="ent-shop-card__price">$' + p.price.toFixed(2) + '</span>';
+      html += '<button class="btn btn-ghost btn-sm" disabled style="opacity:0.6;cursor:default;">Coming Soon</button>';
+      html += '</div>';
+
+      html += '</div>'; // body
+      html += '</div>'; // card
+    });
+
+    grid.innerHTML = html;
+  }
+
+  // Filter buttons
+  var filterBtns = document.querySelectorAll('.ent-shop-filter');
+  filterBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      filterBtns.forEach(function(b) { b.classList.remove('active'); b.style.borderColor = ''; b.style.color = ''; });
+      btn.classList.add('active');
+      btn.style.borderColor = 'var(--color-gold)';
+      btn.style.color = 'var(--color-gold)';
+      currentFilter = btn.getAttribute('data-filter');
+      renderGrid(currentFilter);
+    });
+  });
+
+  renderGrid('all');
 })();
 </script>

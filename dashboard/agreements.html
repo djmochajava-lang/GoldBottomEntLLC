@@ -44,6 +44,15 @@
   <!-- Agreement List -->
   <div id="agr-list"></div>
 
+  <!-- GBE Freelance Musician Agreements Section -->
+  <div class="musician-section" style="margin-top:var(--space-2xl);">
+    <h2><i class="fa-solid fa-handshake"></i> GBE Freelance Musician Agreements</h2>
+    <p class="text-muted" style="margin-bottom:var(--space-md);">Freelance musician agreements accepted during onboarding. Kept on file per standard business practice. View the accepted terms for any musician.</p>
+    <div id="hba-list">
+      <div style="text-align:center;padding:var(--space-lg);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+    </div>
+  </div>
+
   <!-- Templates Section -->
   <div class="musician-section" style="margin-top:var(--space-2xl);">
     <h2><i class="fa-solid fa-file-lines"></i> Agreement Templates</h2>
@@ -69,6 +78,12 @@
   .tpl-row { padding: var(--space-md); background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-sm); display: flex; justify-content: space-between; align-items: center; }
   .tpl-row h4 { margin: 0; font-size: var(--text-sm); }
   .tpl-row p { margin: 2px 0 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+  .hba-row { display:flex; justify-content:space-between; align-items:center; padding:var(--space-md) var(--space-lg); background:var(--color-bg-secondary); border:1px solid var(--color-border); border-radius:var(--radius-md); margin-bottom:var(--space-sm); }
+  .hba-row:hover { border-color: var(--color-gold); }
+  .hba-row-info { display:flex; align-items:center; gap:var(--space-sm); }
+  .hba-row-info .hba-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .hba-row-info .hba-icon.ok { background:rgba(63,185,80,0.12); color:#3fb950; }
+  .hba-row-info .hba-icon.pending { background:rgba(248,81,73,0.12); color:#f85149; }
 </style>
 
 <script>
@@ -84,6 +99,7 @@
   function init() {
     loadAgreements();
     loadTemplates();
+    loadHouseBandAgreements();
   }
 
   // ── Load Agreements ────────────────────────
@@ -302,6 +318,96 @@
 
       if (typeof Modal !== 'undefined') Modal.open({ title: 'Signature — ' + esc(a.title || 'Agreement'), body: content, size: 'md' });
     });
+  };
+
+  // ── GBE Freelance Musician Agreements ──────────────────
+  var HOUSE_BAND_AGREEMENT_TEXT =
+    '\u2022 You are a freelance independent contractor for Gold Bottom Ent LLC only (not an employee). You handle your own taxes and insurance.\n\n' +
+    '\u2022 LA Young\u2019s original compositions, lyrics, and demos are her / Gold Bottom Ent LLC\u2019s sole property. Any contributions or arrangements you make to her pre-existing originals are derivative works owned solely by her / the LLC. You will not claim ownership, co-writing credit, or royalties unless we agree in writing.\n\n' +
+    '\u2022 Rehearsal materials, charts, and recordings are for band use only \u2014 please don\u2019t share them publicly.\n\n' +
+    '\u2022 No extra pay for rehearsals, local travel, or prep unless we note it for a specific gig.\n\n' +
+    '\u2022 You\u2019re responsible for your own gear. We\u2019re not liable for loss or damage unless caused by our direct negligence.\n\n' +
+    '\u2022 All obligations are with Gold Bottom Ent LLC only \u2014 no personal liability for Jeffery Ponder or LA Young.';
+
+  function loadHouseBandAgreements() {
+    var el = document.getElementById('hba-list');
+    if (!el || !db) return;
+
+    db.collection('users').where('status', '==', 'approved').get()
+      .then(function(snap) {
+        var bandRoles = ['band_member', 'artist'];
+        var members = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          if (bandRoles.indexOf(d.role) >= 0) {
+            members.push({ uid: doc.id, name: d.displayName || d.email || doc.id, role: d.role, data: d });
+          }
+        });
+
+        if (members.length === 0) {
+          el.innerHTML = '<p class="text-muted" style="padding:var(--space-md);">No band members found.</p>';
+          return;
+        }
+
+        // Sort: accepted first (by date), then not accepted
+        members.sort(function(a, b) {
+          var aDate = a.data.houseBandAgreedAt ? (a.data.houseBandAgreedAt.toDate ? a.data.houseBandAgreedAt.toDate().getTime() : 0) : 0;
+          var bDate = b.data.houseBandAgreedAt ? (b.data.houseBandAgreedAt.toDate ? b.data.houseBandAgreedAt.toDate().getTime() : 0) : 0;
+          if (!aDate && bDate) return 1;
+          if (aDate && !bDate) return -1;
+          return bDate - aDate;
+        });
+
+        var html = '';
+        members.forEach(function(m) {
+          var d = m.data;
+          var agreed = !!d.houseBandAgreedAt;
+          var agreedDate = '';
+          if (agreed && d.houseBandAgreedAt && d.houseBandAgreedAt.toDate) {
+            agreedDate = d.houseBandAgreedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          }
+          var version = d.houseBandAgreementVersion || '1.0';
+          var roleLabel = m.role === 'artist' ? 'Artist' : 'Band Member';
+
+          html += '<div class="hba-row">'
+            + '<div class="hba-row-info">'
+            + '<div class="hba-icon ' + (agreed ? 'ok' : 'pending') + '"><i class="fa-solid ' + (agreed ? 'fa-circle-check' : 'fa-circle-xmark') + '"></i></div>'
+            + '<div>'
+            + '<h3 style="margin:0;font-size:var(--text-base);">' + esc(m.name) + '</h3>'
+            + '<p style="margin:2px 0 0;font-size:var(--text-sm);color:var(--color-text-muted);">' + roleLabel
+            + (agreed ? ' \u00B7 Accepted ' + agreedDate + ' \u00B7 v' + version : ' \u00B7 Not yet accepted') + '</p>'
+            + '</div></div>'
+            + '<div style="display:flex;align-items:center;gap:var(--space-sm);">'
+            + (agreed
+              ? '<span class="agr-badge agr-badge-signed">Accepted</span>'
+                + '<button class="btn-checkpoint" onclick="window._viewHBA(\'' + esc(m.name) + '\', \'' + agreedDate + '\', \'' + version + '\')"><i class="fa-solid fa-eye"></i></button>'
+              : '<span class="agr-badge agr-badge-expired">Not Signed</span>')
+            + '</div></div>';
+        });
+        el.innerHTML = html;
+      })
+      .catch(function(err) {
+        el.innerHTML = '<p style="color:#f85149;">Failed to load: ' + esc(err.message) + '</p>';
+      });
+  }
+
+  window._viewHBA = function(name, date, version) {
+    var content = '<div style="padding:var(--space-md);">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md);padding-bottom:var(--space-sm);border-bottom:1px solid var(--color-border);">'
+      + '<div><strong>Musician:</strong> ' + esc(name) + '</div>'
+      + '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">Version ' + esc(version) + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-md);">'
+      + '<i class="fa-solid fa-circle-check" style="color:#3fb950;"></i>'
+      + '<span style="font-size:var(--text-sm);color:#3fb950;">Accepted on ' + esc(date) + '</span>'
+      + '</div>'
+      + '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.8;white-space:pre-wrap;">'
+      + esc(HOUSE_BAND_AGREEMENT_TEXT)
+      + '</div>'
+      + '<p style="margin-top:var(--space-md);font-size:var(--text-xs);color:var(--color-text-muted);">This agreement is stored on file with Gold Bottom Ent LLC. The musician accepted via the Payment Info onboarding flow.</p>'
+      + '</div>';
+
+    if (typeof Modal !== 'undefined') Modal.open({ title: 'GBE Freelance Musician Agreement — ' + esc(name), body: content, size: 'lg' });
   };
 
   // ── Helpers ────────────────────────────────
