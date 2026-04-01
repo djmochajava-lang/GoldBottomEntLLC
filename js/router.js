@@ -94,6 +94,9 @@ const Router = {
     // Ticket Sales (FRD-8)
     'dashboard-tickets': 'dashboard/tickets.html',
 
+    // Claude Agent Dashboard (FRD-16)
+    'dashboard-claude-agent': 'dashboard/claude-agent.html',
+
     // Agreement Signing (public, token-based)
     'sign': 'pages/sign.html',
 
@@ -139,6 +142,7 @@ const Router = {
     'dashboard-inbox',
     'dashboard-contacts',
     'dashboard-crm-contacts',
+    'dashboard-claude-agent',
     // dashboard-tickets removed from local-only — now uses Firestore for event/tier CRUD (DEF-013)
     // dashboard-field is intentionally NOT local-only — it has offline fallbacks
     // and should be accessible on remote mobile for band managers on the road
@@ -293,6 +297,7 @@ const Router = {
           'dashboard-payment-settings': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'band_member', 'venue_owner', 'promoter'],
+          'dashboard-claude-agent': ['admin'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
         var _currentRole = Auth.getRole ? Auth.getRole() : 'member';

@@ -62,11 +62,13 @@
               <select class="form-select" id="quote-event-type" name="eventType" required>
                 <option value="">Select event type...</option>
                 <option value="concert">Concert / Live Show</option>
-                <option value="corporate">Corporate Event / Gala</option>
+                <option value="corporate">Corporate Event</option>
+                <option value="gala">Gala / Black-Tie Affair</option>
                 <option value="private-party">Private Event / Party</option>
                 <option value="wedding">Wedding / Reception</option>
                 <option value="fundraiser">Fundraiser / Charity</option>
                 <option value="festival">Festival</option>
+                <option value="tribute">Tribute Show</option>
                 <option value="club-lounge">Club / Lounge</option>
                 <option value="other">Other</option>
               </select>
@@ -86,35 +88,23 @@
           </div>
         </div>
 
-        <!-- Section 3: Performance Details -->
+        <!-- Section 3: Show Package -->
         <div class="form-section" style="margin-top: var(--space-xl);">
-          <h3><i class="fa-solid fa-music text-gold"></i> Performance Details</h3>
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label class="form-label" for="quote-format">Performance Format *</label>
-              <select class="form-select" id="quote-format" name="performanceFormat" required>
-                <option value="">Select format...</option>
-                <option value="solo-vocal">Solo Vocal</option>
-                <option value="duo-trio">Duo / Trio</option>
-                <option value="full-band">Full Band</option>
-                <option value="dj-set">DJ Set</option>
-                <option value="flexible">Flexible / Discuss</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="quote-hours">Duration (Hours) *</label>
-              <select class="form-select" id="quote-hours" name="hours" required>
-                <option value="">Select duration...</option>
-                <option value="1">1 hour</option>
-                <option value="2">2 hours</option>
-                <option value="3">3 hours</option>
-                <option value="4">4 hours</option>
-                <option value="5">5 hours</option>
-                <option value="6">6 hours</option>
-                <option value="8">8 hours</option>
-                <option value="custom">Custom / Discuss</option>
-              </select>
-            </div>
+          <h3><i class="fa-solid fa-music text-gold"></i> Show Package</h3>
+          <div class="form-group">
+            <label class="form-label" for="quote-format">Select a Package *</label>
+            <select class="form-select" id="quote-format" name="performanceFormat" required>
+              <option value="">Choose your experience...</option>
+              <option value="solo">Solo Performance w/ Tracks</option>
+              <option value="duo">Acoustic Duo — Intimate Setting</option>
+              <option value="la-with-dj">L.A. with DJ — Live Vocals over Curated Mixes</option>
+              <option value="small-band">Small Band — 5-Piece Live</option>
+              <option value="full-band">Full Band — 7-Piece Live Show</option>
+              <option value="full-show">Full Show / Tribute Experience — Full Band + Vocalists</option>
+              <option value="hosting-mc">Hosting & MC — Event Emcee</option>
+              <option value="studio-session">Studio Recording Session</option>
+            </select>
+            <p class="text-muted" style="font-size: var(--text-xs); margin-top: 4px;">Solo includes one 20–30 min set. All band packages include (2) 45-minute sets. Ask about custom configurations.</p>
           </div>
           <div class="grid grid-2">
             <div class="form-group">
@@ -128,11 +118,12 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="quote-sound">Sound System</label>
-              <select class="form-select" id="quote-sound" name="soundSystem">
+              <label class="form-label" for="quote-sound">Sound System *</label>
+              <select class="form-select" id="quote-sound" name="soundSystem" required>
                 <option value="">Select...</option>
-                <option value="venue-provides">Venue provides PA</option>
-                <option value="we-need">We need PA provided</option>
+                <option value="venue-provides">Venue provides full PA</option>
+                <option value="we-need">We need PA + Audio Engineer</option>
+                <option value="pa-only">We need PA only (no engineer)</option>
                 <option value="not-sure">Not sure yet</option>
               </select>
             </div>
@@ -172,6 +163,18 @@
             <label class="form-label" for="quote-notes">Special Requirements / Notes</label>
             <textarea class="form-textarea" id="quote-notes" name="notes" rows="4" placeholder="Any additional details about your event, special requests, or questions..." maxlength="2000"></textarea>
           </div>
+        </div>
+
+        <!-- Multi-Show & Custom Pricing Notice -->
+        <div style="background: rgba(212,160,23,0.08); border: 1px solid rgba(212,160,23,0.25); border-radius: var(--radius-md); padding: var(--space-md); margin-top: var(--space-lg);">
+          <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text-secondary);">
+            <i class="fa-solid fa-star text-gold"></i>
+            <strong>Multi-Show Discounts Available</strong> — Planning a series, residency, or multiple events? Ask about our volume pricing.
+          </p>
+          <p style="margin: var(--space-xs) 0 0; font-size: var(--text-sm); color: var(--color-text-secondary);">
+            <i class="fa-solid fa-phone text-gold"></i>
+            <strong>Call for Custom Pricing</strong> — Every event is unique. We'll work with your budget and vision.
+          </p>
         </div>
 
         <!-- Submit -->
@@ -245,7 +248,6 @@
     var eventType = form.querySelector('[name="eventType"]').value;
     var guestCount = form.querySelector('[name="guestCount"]').value;
     var performanceFormat = form.querySelector('[name="performanceFormat"]').value;
-    var hours = form.querySelector('[name="hours"]').value;
     var indoorOutdoor = form.querySelector('[name="indoorOutdoor"]').value;
     var soundSystem = form.querySelector('[name="soundSystem"]').value;
     var budgetRange = form.querySelector('[name="budgetRange"]').value;
@@ -295,15 +297,15 @@
 
     // Validation — Performance
     if (!performanceFormat) {
-      setFieldError(form.querySelector('[name="performanceFormat"]'), 'Please select a performance format');
-      return;
-    }
-    if (!hours) {
-      setFieldError(form.querySelector('[name="hours"]'), 'Please select a duration');
+      setFieldError(form.querySelector('[name="performanceFormat"]'), 'Please select a show package');
       return;
     }
     if (!indoorOutdoor) {
       setFieldError(form.querySelector('[name="indoorOutdoor"]'), 'Please select indoor or outdoor');
+      return;
+    }
+    if (!soundSystem) {
+      setFieldError(form.querySelector('[name="soundSystem"]'), 'Please select a sound system option');
       return;
     }
 
@@ -325,7 +327,6 @@
       eventType: eventType,
       guestCount: guestCount,
       performanceFormat: performanceFormat,
-      hours: hours,
       indoorOutdoor: indoorOutdoor,
       soundSystem: soundSystem,
       budgetRange: budgetRange,

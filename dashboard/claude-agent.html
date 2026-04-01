@@ -1,0 +1,652 @@
+<!-- dashboard/claude-agent.html — Claude Agent Dashboard (FRD-16) -->
+<div class="dashboard-page" id="dash-claude-agent">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1><i class="fa-solid fa-robot"></i> Claude Agent</h1><p class="text-muted">Email agent inbox, task queue, audit trail, and manual processing.</p></div>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div id="agent-stats-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+
+  <!-- Tab Bar -->
+  <div id="agent-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);flex-wrap:wrap;">
+    <button class="agent-tab active" data-tab="inbox" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;">
+      <i class="fa-solid fa-inbox"></i> Inbox
+    </button>
+    <button class="agent-tab" data-tab="tasks" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-list-check"></i> Tasks
+    </button>
+    <button class="agent-tab" data-tab="audit" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-clock-rotate-left"></i> Audit Log
+    </button>
+    <button class="agent-tab" data-tab="processing" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-gears"></i> Processing
+    </button>
+  </div>
+
+  <!-- Inbox Tab -->
+  <div id="agent-tab-inbox" class="agent-tab-content">
+    <!-- Filters -->
+    <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-md);flex-wrap:wrap;align-items:center;">
+      <select id="agent-inbox-status" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+        <option value="">All Statuses</option>
+        <option value="new">New</option>
+        <option value="processing">Processing</option>
+        <option value="processed">Processed</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <select id="agent-inbox-priority" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+        <option value="">All Priorities</option>
+        <option value="P1">P1 - Urgent</option>
+        <option value="P2">P2 - High</option>
+        <option value="P3">P3 - Normal</option>
+        <option value="P4">P4 - Low</option>
+      </select>
+    </div>
+    <div class="card" id="agent-inbox-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);overflow-x:auto;"></div>
+    <div id="agent-inbox-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--space-md);"></div>
+  </div>
+
+  <!-- Tasks Tab -->
+  <div id="agent-tab-tasks" class="agent-tab-content" style="display:none;">
+    <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-md);flex-wrap:wrap;align-items:center;">
+      <select id="agent-task-status" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="awaiting_approval">Awaiting Approval</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="complete">Complete</option>
+      </select>
+      <select id="agent-task-priority" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+        <option value="">All Priorities</option>
+        <option value="P1">P1 - Urgent</option>
+        <option value="P2">P2 - High</option>
+        <option value="P3">P3 - Normal</option>
+        <option value="P4">P4 - Low</option>
+      </select>
+    </div>
+    <div class="card" id="agent-task-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);overflow-x:auto;"></div>
+    <div id="agent-task-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--space-md);"></div>
+  </div>
+
+  <!-- Audit Log Tab -->
+  <div id="agent-tab-audit" class="agent-tab-content" style="display:none;">
+    <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-md);flex-wrap:wrap;align-items:center;">
+      <input type="text" id="agent-audit-task-id" placeholder="Filter by Task ID..." style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);min-width:180px;">
+      <select id="agent-audit-action" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
+        <option value="">All Actions</option>
+        <option value="email_received">Email Received</option>
+        <option value="task_created">Task Created</option>
+        <option value="approval_received">Approval Received</option>
+        <option value="task_rejected">Task Rejected</option>
+        <option value="task_executed">Task Executed</option>
+      </select>
+    </div>
+    <div class="card" id="agent-audit-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);overflow-x:auto;"></div>
+  </div>
+
+  <!-- Processing Tab -->
+  <div id="agent-tab-processing" class="agent-tab-content" style="display:none;">
+    <div class="card" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);max-width:600px;">
+      <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-gears"></i> Manual Processing</h3>
+      <p style="color:var(--color-text-muted);font-size:var(--text-sm);margin-bottom:var(--space-md);">
+        Automated processing is deprecated. Emails must be manually reviewed and tasks created.
+        Use this button to trigger processing of the next queued item.
+      </p>
+      <button id="agent-process-btn" class="btn btn-primary">
+        <i class="fa-solid fa-play"></i> Process Next Queued
+      </button>
+      <div id="agent-process-result" style="margin-top:var(--space-md);display:none;">
+        <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:var(--space-md);font-size:var(--text-sm);white-space:pre-wrap;max-height:300px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Inbox Detail Modal -->
+<div id="agent-modal-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;justify-content:center;align-items:flex-start;padding-top:5vh;overflow-y:auto;">
+  <div id="agent-modal" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);max-width:700px;width:95%;padding:var(--space-xl);position:relative;margin-bottom:5vh;">
+    <button id="agent-modal-close" style="position:absolute;top:var(--space-sm);right:var(--space-sm);background:none;border:none;color:var(--color-text-muted);font-size:1.5rem;cursor:pointer;padding:var(--space-xs);">&times;</button>
+    <div id="agent-modal-content"></div>
+  </div>
+</div>
+
+<!-- Reject Reason Modal -->
+<div id="agent-reject-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1001;justify-content:center;align-items:center;">
+  <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);max-width:450px;width:95%;padding:var(--space-xl);">
+    <h3 style="margin-top:0;color:var(--color-text);">Reject Task</h3>
+    <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-md);">Optionally provide a reason for rejection.</p>
+    <textarea id="agent-reject-reason" rows="3" style="width:100%;padding:var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);resize:vertical;" placeholder="Reason (optional)..."></textarea>
+    <div style="display:flex;gap:var(--space-sm);justify-content:flex-end;margin-top:var(--space-md);">
+      <button id="agent-reject-cancel" class="btn btn-outline">Cancel</button>
+      <button id="agent-reject-confirm" class="btn" style="background:var(--color-danger);color:#fff;">Reject</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ── Local-only guard ──
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+  if (!isLocal) {
+    document.getElementById('agent-inbox-container').innerHTML =
+      '<p class="text-muted" style="text-align:center;padding:var(--space-xl);">' +
+      '<i class="fa-solid fa-lock"></i> Claude Agent dashboard is only available on the private server.</p>';
+    return;
+  }
+
+  /* ---- Pill Styles ---- */
+  var priorityPill = {
+    P1: { label: 'P1', bg: 'rgba(248,81,73,0.15)', color: '#f85149' },
+    P2: { label: 'P2', bg: 'rgba(210,153,34,0.15)', color: '#d29922' },
+    P3: { label: 'P3', bg: 'rgba(88,166,255,0.15)', color: '#58a6ff' },
+    P4: { label: 'P4', bg: 'rgba(139,148,158,0.15)', color: '#8b949e' }
+  };
+
+  var statusPill = {
+    'new':               { label: 'New',              bg: 'rgba(88,166,255,0.15)',  color: '#58a6ff' },
+    'processing':        { label: 'Processing',       bg: 'rgba(210,153,34,0.15)',  color: '#d29922' },
+    'processed':         { label: 'Processed',        bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' },
+    'rejected':          { label: 'Rejected',         bg: 'rgba(248,81,73,0.15)',   color: '#f85149' },
+    'pending':           { label: 'Pending',          bg: 'rgba(188,140,255,0.15)', color: '#bc8cff' },
+    'awaiting_approval': { label: 'Awaiting Approval',bg: 'rgba(210,153,34,0.15)',  color: '#e3b341' },
+    'approved':          { label: 'Approved',         bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' },
+    'complete':          { label: 'Complete',         bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' }
+  };
+
+  function pill(map, key) {
+    var p = map[key] || { label: key || '-', bg: 'rgba(139,148,158,0.1)', color: '#8b949e' };
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;font-weight:600;background:' +
+      p.bg + ';color:' + p.color + ';">' + p.label + '</span>';
+  }
+
+  /* ---- State ---- */
+  var inboxPage = 0;
+  var taskPage = 0;
+  var pageSize = 25;
+  var currentTab = 'inbox';
+  var rejectTaskId = null;
+
+  /* ---- API Helper ---- */
+  function apiUrl() {
+    if (typeof Auth !== 'undefined' && Auth._serverUrl) return Auth._serverUrl + '/api/v1';
+    return window.location.origin + '/api/v1';
+  }
+
+  function apiHeaders() {
+    var h = { 'Content-Type': 'application/json' };
+    if (typeof Auth !== 'undefined') {
+      var token = Auth._apiKey || Auth._sessionToken;
+      if (token) h['Authorization'] = 'Bearer ' + token;
+    }
+    return h;
+  }
+
+  async function apiFetch(path, opts) {
+    opts = opts || {};
+    opts.headers = apiHeaders();
+    var resp = await fetch(apiUrl() + path, opts);
+    if (!resp.ok) throw new Error('API error: ' + resp.status);
+    return resp.json();
+  }
+
+  /* ---- Utilities ---- */
+  function escHtml(str) {
+    if (!str) return '';
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function formatTime(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    var now = new Date();
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString();
+  }
+
+  function formatTimestamp(dateStr) {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleString();
+  }
+
+  function statCard(label, value, color) {
+    return '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);text-align:center;">' +
+      '<div style="font-size:1.5rem;font-weight:700;color:' + color + ';">' + (value || 0) + '</div>' +
+      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);margin-top:4px;">' + label + '</div>' +
+      '</div>';
+  }
+
+  /* ---- Stats Bar ---- */
+  async function loadStats() {
+    try {
+      var data = await apiFetch('/claude-agent/stats');
+      var inbox = data.inbox || {};
+      var tasks = data.tasks || {};
+
+      var inboxTotal = 0;
+      Object.keys(inbox).forEach(function(k) { inboxTotal += inbox[k]; });
+
+      document.getElementById('agent-stats-bar').innerHTML =
+        statCard('Inbox Total', inboxTotal, '#8b949e') +
+        statCard('New', inbox['new'], '#58a6ff') +
+        statCard('Processing', inbox['processing'], '#d29922') +
+        statCard('Processed', inbox['processed'], '#3fb950') +
+        statCard('Pending', tasks['pending'] || tasks['awaiting_approval'], '#bc8cff') +
+        statCard('Approved', tasks['approved'], '#3fb950') +
+        statCard('Rejected', tasks['rejected'], '#f85149') +
+        statCard('Complete', tasks['complete'], '#3fb950');
+    } catch (e) {
+      console.error('[Agent] Stats load error:', e);
+    }
+  }
+
+  /* ---- Inbox Tab ---- */
+  async function loadInbox() {
+    try {
+      var params = [];
+      var statusVal = document.getElementById('agent-inbox-status').value;
+      var prioVal = document.getElementById('agent-inbox-priority').value;
+      if (statusVal) params.push('status=' + statusVal);
+      if (prioVal) params.push('priority=' + prioVal);
+      params.push('limit=' + pageSize);
+      params.push('offset=' + (inboxPage * pageSize));
+
+      var data = await apiFetch('/claude-agent/inbox?' + params.join('&'));
+      renderInbox(data.data, data.total);
+    } catch (e) {
+      console.error('[Agent] Inbox load error:', e);
+      document.getElementById('agent-inbox-container').innerHTML =
+        '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Failed to load inbox. Is the server running?</p>';
+    }
+  }
+
+  function renderInbox(records, total) {
+    if (!records || records.length === 0) {
+      document.getElementById('agent-inbox-container').innerHTML =
+        '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">' +
+        '<i class="fa-solid fa-inbox"></i> No inbox records found.</p>';
+      document.getElementById('agent-inbox-pagination').innerHTML = '';
+      return;
+    }
+
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">ID</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Subject</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">From</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Priority</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Status</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Received</th>';
+    html += '</tr></thead><tbody>';
+
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      html += '<tr style="border-bottom:1px solid var(--color-border);cursor:pointer;" class="agent-inbox-row" data-id="' + r.id + '">';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);color:var(--color-text-muted);font-family:monospace;font-size:0.75rem;">' + escHtml(String(r.id)) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.subject) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.from_address || r.sender || '') + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + pill(priorityPill, r.priority) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + pill(statusPill, r.status) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);color:var(--color-text-muted);white-space:nowrap;">' + formatTime(r.received_at) + '</td>';
+      html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('agent-inbox-container').innerHTML = html;
+
+    // Pagination
+    renderPagination('agent-inbox-pagination', total, inboxPage, function(page) {
+      inboxPage = page;
+      loadInbox();
+    });
+
+    // Row click → detail modal
+    document.querySelectorAll('.agent-inbox-row').forEach(function(row) {
+      row.addEventListener('click', function() { openInboxDetail(row.dataset.id); });
+    });
+  }
+
+  async function openInboxDetail(id) {
+    try {
+      var r = await apiFetch('/claude-agent/inbox/' + id);
+      var mc = document.getElementById('agent-modal-content');
+
+      var html = '<h2 style="margin-top:0;">' + escHtml(r.subject || 'Inbox Record #' + r.id) + '</h2>';
+      html += '<div style="display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-md);">';
+      html += pill(priorityPill, r.priority) + ' ' + pill(statusPill, r.status);
+      html += '</div>';
+
+      html += '<div style="display:grid;grid-template-columns:120px 1fr;gap:var(--space-xs) var(--space-sm);margin-bottom:var(--space-md);font-size:var(--text-sm);">';
+      if (r.from_address || r.sender) html += infoRow('From', r.from_address || r.sender);
+      if (r.to_address) html += infoRow('To', r.to_address);
+      html += infoRow('Received', formatTimestamp(r.received_at));
+      if (r.processed_at) html += infoRow('Processed', formatTimestamp(r.processed_at));
+      html += infoRow('ID', String(r.id));
+      html += '</div>';
+
+      if (r.body || r.body_text || r.body_html) {
+        var bodyContent = r.body || r.body_text || '';
+        html += '<div style="margin-bottom:var(--space-md);">';
+        html += '<strong style="font-size:var(--text-sm);">Body:</strong>';
+        html += '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:var(--space-sm);margin-top:var(--space-xs);white-space:pre-wrap;font-size:var(--text-sm);max-height:400px;overflow-y:auto;">' + escHtml(bodyContent) + '</div>';
+        html += '</div>';
+      }
+
+      mc.innerHTML = html;
+      document.getElementById('agent-modal-overlay').style.display = 'flex';
+    } catch (e) {
+      console.error('[Agent] Inbox detail error:', e);
+    }
+  }
+
+  /* ---- Tasks Tab ---- */
+  async function loadTasks() {
+    try {
+      var params = [];
+      var statusVal = document.getElementById('agent-task-status').value;
+      var prioVal = document.getElementById('agent-task-priority').value;
+      if (statusVal) params.push('status=' + statusVal);
+      if (prioVal) params.push('priority=' + prioVal);
+      params.push('limit=' + pageSize);
+      params.push('offset=' + (taskPage * pageSize));
+
+      var data = await apiFetch('/claude-agent/tasks?' + params.join('&'));
+      renderTasks(data.data, data.total);
+    } catch (e) {
+      console.error('[Agent] Tasks load error:', e);
+      document.getElementById('agent-task-container').innerHTML =
+        '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Failed to load tasks.</p>';
+    }
+  }
+
+  function renderTasks(records, total) {
+    if (!records || records.length === 0) {
+      document.getElementById('agent-task-container').innerHTML =
+        '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">' +
+        '<i class="fa-solid fa-list-check"></i> No tasks found.</p>';
+      document.getElementById('agent-task-pagination').innerHTML = '';
+      return;
+    }
+
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Task ID</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Type</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Description</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Priority</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Status</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Created</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Actions</th>';
+    html += '</tr></thead><tbody>';
+
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      var canApprove = r.status === 'awaiting_approval';
+      var canReject = r.status === 'awaiting_approval' || r.status === 'approved';
+
+      html += '<tr style="border-bottom:1px solid var(--color-border);">';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);font-family:monospace;font-size:0.75rem;color:var(--color-gold);">' + escHtml(r.task_id || String(r.id)) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + escHtml(r.task_type || r.type || '-') + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.description || r.summary || '-') + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + pill(priorityPill, r.priority) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + pill(statusPill, r.status) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);color:var(--color-text-muted);white-space:nowrap;">' + formatTime(r.created_at) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);white-space:nowrap;">';
+      if (canApprove) {
+        html += '<button class="agent-approve-btn" data-id="' + r.id + '" style="background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-sm);padding:2px 8px;cursor:pointer;font-size:var(--text-sm);margin-right:4px;"><i class="fa-solid fa-check"></i> Approve</button>';
+      }
+      if (canReject) {
+        html += '<button class="agent-reject-btn" data-id="' + r.id + '" style="background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-sm);padding:2px 8px;cursor:pointer;font-size:var(--text-sm);"><i class="fa-solid fa-xmark"></i> Reject</button>';
+      }
+      if (!canApprove && !canReject) {
+        html += '<span style="color:var(--color-text-muted);font-size:var(--text-sm);">-</span>';
+      }
+      html += '</td>';
+      html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('agent-task-container').innerHTML = html;
+
+    // Pagination
+    renderPagination('agent-task-pagination', total, taskPage, function(page) {
+      taskPage = page;
+      loadTasks();
+    });
+
+    // Action handlers
+    document.querySelectorAll('.agent-approve-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { approveTask(btn.dataset.id); });
+    });
+    document.querySelectorAll('.agent-reject-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { showRejectModal(btn.dataset.id); });
+    });
+  }
+
+  async function approveTask(id) {
+    try {
+      await apiFetch('/claude-agent/tasks/' + id + '/approve', { method: 'POST' });
+      if (typeof Toast !== 'undefined') Toast.success('Task approved');
+      loadTasks();
+      loadStats();
+    } catch (e) {
+      console.error('[Agent] Approve error:', e);
+      if (typeof Toast !== 'undefined') Toast.error('Failed to approve: ' + e.message);
+    }
+  }
+
+  function showRejectModal(id) {
+    rejectTaskId = id;
+    document.getElementById('agent-reject-reason').value = '';
+    document.getElementById('agent-reject-overlay').style.display = 'flex';
+  }
+
+  async function confirmReject() {
+    if (!rejectTaskId) return;
+    var reason = document.getElementById('agent-reject-reason').value.trim();
+    try {
+      await apiFetch('/claude-agent/tasks/' + rejectTaskId + '/reject', {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason })
+      });
+      if (typeof Toast !== 'undefined') Toast.success('Task rejected');
+      document.getElementById('agent-reject-overlay').style.display = 'none';
+      rejectTaskId = null;
+      loadTasks();
+      loadStats();
+    } catch (e) {
+      console.error('[Agent] Reject error:', e);
+      if (typeof Toast !== 'undefined') Toast.error('Failed to reject: ' + e.message);
+    }
+  }
+
+  /* ---- Audit Log Tab ---- */
+  async function loadAudit() {
+    try {
+      var params = [];
+      var taskIdVal = document.getElementById('agent-audit-task-id').value.trim();
+      var actionVal = document.getElementById('agent-audit-action').value;
+      if (taskIdVal) params.push('task_id=' + encodeURIComponent(taskIdVal));
+      if (actionVal) params.push('action=' + actionVal);
+      params.push('limit=100');
+
+      var data = await apiFetch('/claude-agent/audit?' + params.join('&'));
+      renderAudit(data.data);
+    } catch (e) {
+      console.error('[Agent] Audit load error:', e);
+      document.getElementById('agent-audit-container').innerHTML =
+        '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Failed to load audit log.</p>';
+    }
+  }
+
+  function renderAudit(records) {
+    if (!records || records.length === 0) {
+      document.getElementById('agent-audit-container').innerHTML =
+        '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">' +
+        '<i class="fa-solid fa-clock-rotate-left"></i> No audit records found.</p>';
+      return;
+    }
+
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Timestamp</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Action</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Task ID</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Detail</th>';
+    html += '</tr></thead><tbody>';
+
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      html += '<tr style="border-bottom:1px solid var(--color-border);">';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);color:var(--color-text-muted);white-space:nowrap;font-size:0.75rem;">' + formatTimestamp(r.created_at) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);">' + actionPill(r.action) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);font-family:monospace;font-size:0.75rem;color:var(--color-gold);">' + escHtml(r.task_id || '-') + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.detail || '-') + '</td>';
+      html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('agent-audit-container').innerHTML = html;
+  }
+
+  function actionPill(action) {
+    var colors = {
+      'email_received':    { bg: 'rgba(88,166,255,0.15)',  color: '#58a6ff' },
+      'task_created':      { bg: 'rgba(188,140,255,0.15)', color: '#bc8cff' },
+      'approval_received': { bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' },
+      'task_rejected':     { bg: 'rgba(248,81,73,0.15)',   color: '#f85149' },
+      'task_executed':     { bg: 'rgba(210,153,34,0.15)',   color: '#d29922' }
+    };
+    var c = colors[action] || { bg: 'rgba(139,148,158,0.1)', color: '#8b949e' };
+    var label = action ? action.replace(/_/g, ' ') : '-';
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;font-weight:600;background:' +
+      c.bg + ';color:' + c.color + ';text-transform:capitalize;">' + label + '</span>';
+  }
+
+  /* ---- Pagination Helper ---- */
+  function renderPagination(containerId, total, currentPage, onPageChange) {
+    var container = document.getElementById(containerId);
+    if (!total || total <= pageSize) { container.innerHTML = ''; return; }
+    var totalPages = Math.ceil(total / pageSize);
+    var html = '<span style="color:var(--color-text-muted);font-size:var(--text-sm);">Showing ' +
+      (currentPage * pageSize + 1) + '-' + Math.min((currentPage + 1) * pageSize, total) + ' of ' + total + '</span>';
+    html += '<div style="display:flex;gap:var(--space-xs);">';
+    if (currentPage > 0) html += '<button class="agent-page-btn" data-page="' + (currentPage - 1) + '" style="padding:var(--space-xs) var(--space-sm);border:1px solid var(--color-border);border-radius:var(--radius-sm);cursor:pointer;background:var(--color-bg-secondary);color:var(--color-text);">Prev</button>';
+    if (currentPage < totalPages - 1) html += '<button class="agent-page-btn" data-page="' + (currentPage + 1) + '" style="padding:var(--space-xs) var(--space-sm);border:1px solid var(--color-border);border-radius:var(--radius-sm);cursor:pointer;background:var(--color-bg-secondary);color:var(--color-text);">Next</button>';
+    html += '</div>';
+    container.innerHTML = html;
+    container.querySelectorAll('.agent-page-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { onPageChange(parseInt(btn.dataset.page)); });
+    });
+  }
+
+  function infoRow(label, value) {
+    return '<div style="color:var(--color-text-muted);font-weight:600;">' + label + '</div>' +
+           '<div>' + escHtml(value || '-') + '</div>';
+  }
+
+  /* ---- Tab Switching ---- */
+  document.getElementById('agent-tabs').addEventListener('click', function(e) {
+    var btn = e.target.closest('.agent-tab');
+    if (!btn) return;
+    var tab = btn.dataset.tab;
+    if (tab === currentTab) return;
+
+    // Update tab buttons
+    document.querySelectorAll('.agent-tab').forEach(function(t) {
+      t.classList.remove('active');
+      t.style.color = 'var(--color-text-muted)';
+      t.style.borderBottomColor = 'transparent';
+    });
+    btn.classList.add('active');
+    btn.style.color = 'var(--color-text)';
+    btn.style.borderBottomColor = 'var(--color-gold)';
+
+    // Show/hide content
+    document.querySelectorAll('.agent-tab-content').forEach(function(c) { c.style.display = 'none'; });
+    document.getElementById('agent-tab-' + tab).style.display = '';
+
+    currentTab = tab;
+
+    // Load data for the tab
+    if (tab === 'inbox') loadInbox();
+    else if (tab === 'tasks') loadTasks();
+    else if (tab === 'audit') loadAudit();
+  });
+
+  /* ---- Filter listeners ---- */
+  ['agent-inbox-status', 'agent-inbox-priority'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', function() {
+      inboxPage = 0;
+      loadInbox();
+    });
+  });
+
+  ['agent-task-status', 'agent-task-priority'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', function() {
+      taskPage = 0;
+      loadTasks();
+    });
+  });
+
+  var auditSearchTimeout = null;
+  document.getElementById('agent-audit-task-id').addEventListener('input', function() {
+    clearTimeout(auditSearchTimeout);
+    auditSearchTimeout = setTimeout(loadAudit, 300);
+  });
+  document.getElementById('agent-audit-action').addEventListener('change', loadAudit);
+
+  /* ---- Processing Button ---- */
+  document.getElementById('agent-process-btn').addEventListener('click', async function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+    var resultEl = document.getElementById('agent-process-result');
+    try {
+      var result = await apiFetch('/claude-agent/process', { method: 'POST' });
+      resultEl.style.display = '';
+      resultEl.querySelector('div').textContent = JSON.stringify(result, null, 2);
+      loadStats();
+    } catch (e) {
+      resultEl.style.display = '';
+      resultEl.querySelector('div').textContent = 'Error: ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-play"></i> Process Next Queued';
+    }
+  });
+
+  /* ---- Modal Close ---- */
+  document.getElementById('agent-modal-close').addEventListener('click', function() {
+    document.getElementById('agent-modal-overlay').style.display = 'none';
+  });
+  document.getElementById('agent-modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+  });
+
+  /* ---- Reject Modal ---- */
+  document.getElementById('agent-reject-cancel').addEventListener('click', function() {
+    document.getElementById('agent-reject-overlay').style.display = 'none';
+    rejectTaskId = null;
+  });
+  document.getElementById('agent-reject-confirm').addEventListener('click', confirmReject);
+  document.getElementById('agent-reject-overlay').addEventListener('click', function(e) {
+    if (e.target === this) { this.style.display = 'none'; rejectTaskId = null; }
+  });
+
+  /* ---- Initial Load ---- */
+  loadStats();
+  loadInbox();
+
+  // Auto-refresh every 60 seconds
+  setInterval(function() { loadStats(); }, 60000);
+})();
+</script>
