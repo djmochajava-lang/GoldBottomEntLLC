@@ -138,8 +138,8 @@ const Router = {
     'dashboard-servers',
     'dashboard-metrics',
     'dashboard-export',
-    'dashboard-quotes',
-    'dashboard-inbox',
+    // dashboard-quotes removed from local-only — now uses Firestore quote_pipeline for remote read access
+    // dashboard-inbox removed from local-only — now uses Firestore inbox_pipeline for remote read access
     'dashboard-contacts',
     'dashboard-crm-contacts',
     'dashboard-claude-agent',
@@ -578,6 +578,9 @@ const Router = {
       'dashboard-band-player': 'Band Player',
       'dashboard-payment-settings': 'Payment Info',
       'dashboard-crm-contacts': 'CRM Contacts',
+      'dashboard-quotes': 'Quote Pipeline',
+      'dashboard-tickets': 'Ticket Sales',
+      'dashboard-agreements': 'Agreements',
     };
 
     const label = labels[pageName] || 'Dashboard';
