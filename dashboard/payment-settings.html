@@ -6,16 +6,31 @@
 <script>
 (function() {
   if(typeof Auth==='undefined'||!Auth.isAuthenticated()||(!Auth.isBandMember()&&!Auth.isSinger()&&!Auth.isInternalStaff())){document.getElementById('dash-payment-settings').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
-  // Reuse BandPlayer's payment screen in edit mode
-  if (typeof BandPlayer !== 'undefined') {
+
+  function doInit() {
+    if (typeof BandPlayer === 'undefined') return;
+    // Ensure BandPlayer has Firestore/Storage from Auth (init() may not have been called)
+    if (!BandPlayer._db) BandPlayer._db = Auth._db;
+    if (!BandPlayer._storage && Auth.getStorage) BandPlayer._storage = Auth.getStorage();
     // Override container lookup for this page
     var origGet = BandPlayer._getContainer;
     BandPlayer._getContainer = function() {
       return document.getElementById('payment-settings-content') || origGet.call(BandPlayer);
     };
     BandPlayer._showScreen2('edit');
-    // Restore original after render
-    setTimeout(function() { BandPlayer._getContainer = origGet; }, 100);
+    // Restore original after render completes (async Firestore prefill)
+    setTimeout(function() { BandPlayer._getContainer = origGet; }, 5000);
+  }
+
+  // Wait for Firestore to be ready before initializing
+  if (typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { doInit(); });
+  } else {
+    // Fallback polling if whenReady not available
+    (function tryInit(n) {
+      if (typeof Auth !== 'undefined' && Auth._db) { doInit(); }
+      else if (n < 20) { setTimeout(function() { tryInit(n + 1); }, 500); }
+    })(0);
   }
 })();
 </script>

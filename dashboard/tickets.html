@@ -249,6 +249,7 @@
 
 <script>
 (function() {
+  function initTickets() {
   // ── Environment Detection ──
   var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
   var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
@@ -849,5 +850,13 @@
 
   // ── Initial Load (Firestore events — always) ──
   loadEvents();
+  } // end initTickets
+
+  // Wait for Firestore to be ready
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { initTickets(); });
+  } else {
+    initTickets();
+  }
 })();
 </script>

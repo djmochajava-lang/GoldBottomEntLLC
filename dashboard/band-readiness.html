@@ -408,6 +408,11 @@
     }
   }
 
-  init();
+  // Wait for Firestore to be ready
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { init(); });
+  } else {
+    init();
+  }
 })();
 </script>

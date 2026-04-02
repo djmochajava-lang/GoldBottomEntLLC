@@ -637,7 +637,11 @@
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // Initialize
-  init();
+  // Initialize — wait for Firestore to be ready
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { init(); });
+  } else {
+    init();
+  }
 })();
 </script>

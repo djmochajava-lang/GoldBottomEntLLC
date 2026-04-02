@@ -574,9 +574,18 @@
   }
 
   /* ── Initial render + re-render on role switch ────────────── */
-  renderDash();
-  if (typeof Auth !== 'undefined' && Auth.onAuthStateChanged) {
-    Auth.onAuthStateChanged(function() { renderDash(); });
+  function startDash() {
+    renderDash();
+    if (typeof Auth !== 'undefined' && Auth.onAuthStateChanged) {
+      Auth.onAuthStateChanged(function() { renderDash(); });
+    }
+  }
+
+  // Wait for Firestore to be ready (band_manager/band_member dashboards need _db)
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { startDash(); });
+  } else {
+    startDash();
   }
 
 })();

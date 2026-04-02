@@ -65,6 +65,12 @@ const Auth = {
   /** @type {string|null} Server base URL when on LAN (e.g., 'http://192.168.1.191:3000') */
   _serverUrl: null,
 
+  /** @type {Array<Function>} Callbacks waiting for _db to be ready */
+  _readyCallbacks: [],
+
+  /** @type {boolean} Whether _db is confirmed ready */
+  _dbReady: false,
+
   /**
    * Freeze _role, _activeRole, _linkedRoles after server sets them.
    * After freezing, direct assignment (Auth._role = 'admin') is silently ignored.
@@ -250,6 +256,7 @@ const Auth = {
             console.warn('[Auth] Firestore offline persistence error:', err.code);
           }
         });
+        this._flushReadyCallbacks();
         console.log('[Auth] Firestore connected');
       } else {
         console.warn('[Auth] Firestore SDK not loaded — registration disabled');
@@ -431,6 +438,7 @@ const Auth = {
       if (typeof firebase.firestore === 'function') {
         this._db = firebase.firestore();
         this._db.enablePersistence({ synchronizeTabs: true }).catch(function() {});
+        this._flushReadyCallbacks();
         console.log('[Auth] Firestore connected (PIN auth path)');
       }
       if (typeof firebase.storage === 'function') {
@@ -1050,6 +1058,36 @@ const Auth = {
    */
   getStorage: function() {
     return this._storage || null;
+  },
+
+  /**
+   * Register a callback to fire when Auth._db (Firestore) is available.
+   * If _db is already available, fires immediately (synchronous).
+   * If not, queues the callback and fires once _db becomes available.
+   * @param {Function} callback - function(db) called with the Firestore instance
+   */
+  whenReady: function(callback) {
+    if (typeof callback !== 'function') return;
+    if (this._dbReady && this._db) {
+      callback(this._db);
+    } else {
+      this._readyCallbacks.push(callback);
+    }
+  },
+
+  /**
+   * Flush all queued whenReady callbacks. Called internally once _db is set.
+   * @private
+   */
+  _flushReadyCallbacks: function() {
+    if (!this._db) return;
+    this._dbReady = true;
+    var cbs = this._readyCallbacks.splice(0);
+    for (var i = 0; i < cbs.length; i++) {
+      try { cbs[i](this._db); } catch (e) {
+        console.error('[Auth] whenReady callback error:', e);
+      }
+    }
   },
 
   /**
