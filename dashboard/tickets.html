@@ -265,7 +265,7 @@
   var eventsRef = db.collection('ticket_events');
 
   // Express API for LAN-only tabs
-  var API = isLocal ? ('http://' + window.location.hostname + ':3000/api/v1/tickets') : null;
+  var API = isLocal ? (window.location.origin + '/api/v1/tickets') : null;
   var token = localStorage.getItem('gbe-session-token') || '';
   var expressHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
 
