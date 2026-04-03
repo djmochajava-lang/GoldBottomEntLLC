@@ -449,7 +449,10 @@ const BandPlayer = {
             }
             if (isEdit) {
               if (typeof Toast !== 'undefined') Toast.success('Payment info updated!');
-              self._initPlayer();
+              // Only reinit player if we're on the Band Player page (not payment-settings)
+              if (document.getElementById('band-player-container')) {
+                self._initPlayer();
+              }
             } else {
               self._showSetupComplete();
             }
