@@ -280,7 +280,7 @@ const BandPlayer = {
                 '<i class="fa-solid fa-triangle-exclamation" style="color:#d29922;font-size:18px;"></i>' +
                 '<h3 style="font-size:var(--text-base);color:#d29922;margin:0;">' + (isEdit ? '' : 'Step 3: ') + 'Tax Information (W-9)</h3>' +
               '</div>' +
-              '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;"><strong>Required for payments over $2,000 within a calendar year.</strong> The IRS requires us to file a 1099-NEC for independent contractors paid $600+ annually. Please provide your W-9 info so we can pay you without delay.</p>' +
+              '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;"><strong>Required for payments over $2,000 within a calendar year.</strong> The IRS requires us to file a 1099-NEC for independent contractors paid $2,000+ annually. Please provide your W-9 info so we can pay you without delay.</p>' +
               '<div style="display:grid;gap:10px;">' +
                 '<div><label style="' + LS + '">Legal Full Name <span style="color:var(--color-gold);">*</span></label><input id="w9-name" type="text" style="' + IS + '" placeholder="As it appears on your tax return" /></div>' +
                 '<div><label style="' + LS + '">Mailing Address</label><input id="w9-address" type="text" style="' + IS + '" placeholder="Street, City, State, ZIP" /></div>' +
@@ -437,6 +437,13 @@ const BandPlayer = {
           updateData.w9Address = w9Addr;
         }
 
+        if (!user || !self._db) {
+          console.error('[BandPlayer] Save failed: user=' + !!user + ', db=' + !!self._db);
+          if (typeof Toast !== 'undefined') Toast.error('Not signed in. Please refresh and try again.');
+          saveBtn.disabled = false;
+          saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
+          return;
+        }
         if (user && self._db) {
           self._db.collection('users').doc(user.uid).update(updateData).then(function() {
             // Send sensitive bank details to server (not Firestore)
@@ -543,13 +550,26 @@ const BandPlayer = {
           self._playlists.push(Object.assign({ id: doc.id }, doc.data()));
         });
 
-        // For band members: filter to playlists assigned to their gigs
+        // For band members/artists: filter to playlists assigned to their gigs
         if (!isManager && user) {
+          // Timeout fallback — if gigs query takes >5s, show all playlists
+          var gigsResolved = false;
+          setTimeout(function() {
+            if (!gigsResolved) {
+              gigsResolved = true;
+              console.warn('[BandPlayer] Gigs query timed out — showing all playlists');
+              self.renderPlaylistDropdown();
+              if (self._playlists.length > 0) self.selectPlaylist(self._playlists[0].id);
+              else self._renderEmptyState();
+            }
+          }, 5000);
           self._db.collection('gigs')
             .where('assignedMusicians', 'array-contains', user.uid)
             .where('status', '==', 'upcoming')
             .get()
             .then(function(gigsSnap) {
+              if (gigsResolved) return; // timeout already fired
+              gigsResolved = true;
               var gigPlaylistIds = {};
               gigsSnap.forEach(function(doc) {
                 var gig = doc.data();
@@ -565,8 +585,10 @@ const BandPlayer = {
               if (self._playlists.length > 0) { self.selectPlaylist(self._playlists[0].id); }
               else { self._renderEmptyState(); }
             })
-            .catch(function() {
-              // Firestore error — show all playlists (graceful degradation)
+            .catch(function(err) {
+              if (gigsResolved) return;
+              gigsResolved = true;
+              console.warn('[BandPlayer] Gigs query failed:', err.message, '— showing all playlists');
               self.renderPlaylistDropdown();
               if (self._playlists.length > 0) self.selectPlaylist(self._playlists[0].id);
               else self._renderEmptyState();
