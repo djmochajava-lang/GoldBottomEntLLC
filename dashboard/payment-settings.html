@@ -8,10 +8,21 @@
   if(typeof Auth==='undefined'||!Auth.isAuthenticated()||(!Auth.isBandMember()&&!Auth.isSinger()&&!Auth.isInternalStaff())){document.getElementById('dash-payment-settings').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
 
   function doInit() {
-    if (typeof BandPlayer === 'undefined') return;
-    // Ensure BandPlayer has Firestore/Storage from Auth (init() may not have been called)
-    if (!BandPlayer._db) BandPlayer._db = Auth._db;
+    if (typeof BandPlayer === 'undefined') {
+      document.getElementById('payment-settings-content').innerHTML =
+        '<p style="padding:var(--space-xl);color:var(--color-text-muted);text-align:center;">' +
+        '<i class="fa-solid fa-spinner fa-spin"></i> Loading payment settings...</p>';
+      // Retry — BandPlayer script may still be loading
+      setTimeout(doInit, 500);
+      return;
+    }
+    // Ensure BandPlayer has Firestore/Storage from Auth
+    if (!BandPlayer._db && Auth._db) BandPlayer._db = Auth._db;
     if (!BandPlayer._storage && Auth.getStorage) BandPlayer._storage = Auth.getStorage();
+    // Initialize BandPlayer if it hasn't been yet
+    if (!BandPlayer.initialized && BandPlayer._db) {
+      BandPlayer.initialized = true; // Prevent full init (which shows Screen 1)
+    }
     // Override container lookup for this page
     var origGet = BandPlayer._getContainer;
     BandPlayer._getContainer = function() {
