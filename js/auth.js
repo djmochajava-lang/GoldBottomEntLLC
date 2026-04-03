@@ -482,13 +482,15 @@ const Auth = {
 
     if (!isPrivate) return null;
 
-    // If already on the API server port (3000), use origin as-is.
-    // Otherwise the SPA is served by a different server (e.g. VS Code
-    // Live Server on 8080), so point to the API on port 3000.
+    // If on the HomeOffice server (port 3000 HTTP or 3443 HTTPS), use origin as-is.
+    // Also works for dev server (port 4000). Only fall back to :3000 if on a
+    // completely different server (e.g. VS Code Live Server on 8080).
     var port = window.location.port;
-    if (port === '3000') {
+    var knownPorts = ['3000', '3443', '4000'];
+    if (knownPorts.indexOf(port) >= 0 || !port) {
       return window.location.origin;
     }
+    // Dev preview servers (8080, 8111, 9111, etc.) — point to API on same protocol
     return window.location.protocol + '//' + hostname + ':3000';
   },
 
