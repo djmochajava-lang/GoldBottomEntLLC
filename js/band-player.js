@@ -27,23 +27,7 @@ const BandPlayer = {
   _loggedThisSession: {}, // trackId → true (debounce: one log per track per session)
 
   init: function() {
-    var currentUser = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
-    var currentUid = currentUser ? currentUser.uid : null;
-
-    if (this.initialized) {
-      // SPA re-navigation: only re-render if we're on the band player page
-      var onBandPlayerPage = !!document.getElementById('dash-band-player') ||
-                             !!document.getElementById('band-player-content');
-      if (!onBandPlayerPage) return; // Not on band player — don't touch other pages
-
-      // If user changed (role switch), do a full re-init
-      if (currentUid && this._uid !== currentUid) {
-        this.initialized = false; // force full re-init for new user
-      } else {
-        this._initPlayer();
-        return;
-      }
-    }
+    if (this.initialized) return;
     this._db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
     this._storage = (typeof Auth !== 'undefined' && Auth.getStorage) ? Auth.getStorage() : null;
 
@@ -84,7 +68,6 @@ const BandPlayer = {
       this._showScreen1();
     }
     this.initialized = true;
-    this._uid = currentUid;
 
     // Debug: log auth state for troubleshooting
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
