@@ -27,7 +27,11 @@ const BandPlayer = {
   _loggedThisSession: {}, // trackId → true (debounce: one log per track per session)
 
   init: function() {
-    if (this.initialized) return;
+    if (this.initialized) {
+      // SPA re-navigation: DOM was replaced but data is in memory. Re-render.
+      this._initPlayer();
+      return;
+    }
     this._db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
     this._storage = (typeof Auth !== 'undefined' && Auth.getStorage) ? Auth.getStorage() : null;
 
@@ -445,12 +449,11 @@ const BandPlayer = {
           return;
         }
         if (user && self._db) {
-          console.log('[BandPlayer] Saving payment data for uid:', user.uid, 'fields:', Object.keys(updateData).join(', '));
+          // Save to Firestore
           // Timeout: if Firestore doesn't respond in 10s, show error
           var saveTimedOut = false;
           var saveTimer = setTimeout(function() {
             saveTimedOut = true;
-            console.error('[BandPlayer] Save timed out after 10s');
             if (typeof Toast !== 'undefined') Toast.error('Save timed out. Check your connection and try again.');
             saveBtn.disabled = false;
             saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
@@ -466,6 +469,8 @@ const BandPlayer = {
                 self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
               }
             }
+            saveBtn.disabled = false;
+            saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
             if (isEdit) {
               if (typeof Toast !== 'undefined') Toast.success('Payment info updated!');
               // Only reinit player if we're on the Band Player page (not payment-settings)
@@ -478,8 +483,7 @@ const BandPlayer = {
           }).catch(function(err) {
             if (saveTimedOut) return;
             clearTimeout(saveTimer);
-            console.error('[BandPlayer] Screen 2 save failed:', err.code, err.message);
-            if (typeof Toast !== 'undefined') Toast.error('Failed to save: ' + (err.message || 'Unknown error'));
+            if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
             saveBtn.disabled = false;
             saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
           });
