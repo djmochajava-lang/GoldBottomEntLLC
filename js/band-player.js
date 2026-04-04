@@ -445,7 +445,19 @@ const BandPlayer = {
           return;
         }
         if (user && self._db) {
+          console.log('[BandPlayer] Saving payment data for uid:', user.uid, 'fields:', Object.keys(updateData).join(', '));
+          // Timeout: if Firestore doesn't respond in 10s, show error
+          var saveTimedOut = false;
+          var saveTimer = setTimeout(function() {
+            saveTimedOut = true;
+            console.error('[BandPlayer] Save timed out after 10s');
+            if (typeof Toast !== 'undefined') Toast.error('Save timed out. Check your connection and try again.');
+            saveBtn.disabled = false;
+            saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
+          }, 10000);
           self._db.collection('users').doc(user.uid).update(updateData).then(function() {
+            if (saveTimedOut) return;
+            clearTimeout(saveTimer);
             // Send sensitive bank details to server (not Firestore)
             if (method === 'direct_deposit') {
               var routing = (document.getElementById('pay-routing') || {}).value || '';
@@ -464,8 +476,10 @@ const BandPlayer = {
               self._showSetupComplete();
             }
           }).catch(function(err) {
-            console.error('[BandPlayer] Screen 2 save failed:', err);
-            if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
+            if (saveTimedOut) return;
+            clearTimeout(saveTimer);
+            console.error('[BandPlayer] Screen 2 save failed:', err.code, err.message);
+            if (typeof Toast !== 'undefined') Toast.error('Failed to save: ' + (err.message || 'Unknown error'));
             saveBtn.disabled = false;
             saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
           });
@@ -542,6 +556,7 @@ const BandPlayer = {
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
     var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
     var isManager = (role === 'admin' || role === 'band_manager');
+    var isArtist = (role === 'artist');
 
     this._db.collection('playlists').orderBy('createdAt', 'desc').get()
       .then(function(snap) {
@@ -550,8 +565,9 @@ const BandPlayer = {
           self._playlists.push(Object.assign({ id: doc.id }, doc.data()));
         });
 
-        // For band members/artists: filter to playlists assigned to their gigs
-        if (!isManager && user) {
+        // Artists see all playlists (they're the lead, not assigned to gigs)
+        // Only band_members get filtered by gig assignment
+        if (!isManager && !isArtist && user) {
           // Timeout fallback — if gigs query takes >5s, show all playlists
           var gigsResolved = false;
           setTimeout(function() {
