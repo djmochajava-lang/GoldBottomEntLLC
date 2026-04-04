@@ -482,15 +482,13 @@ const Auth = {
 
     if (!isPrivate) return null;
 
-    // If on the HomeOffice server (port 3000 HTTP or 3443 HTTPS), use origin as-is.
-    // Also works for dev server (port 4000). Only fall back to :3000 if on a
-    // completely different server (e.g. VS Code Live Server on 8080).
+    // If already on the API server port (3000), use origin as-is.
+    // Otherwise the SPA is served by a different server (e.g. VS Code
+    // Live Server on 8080), so point to the API on port 3000.
     var port = window.location.port;
-    var knownPorts = ['3000', '3443', '4000'];
-    if (knownPorts.indexOf(port) >= 0 || !port) {
+    if (port === '3000') {
       return window.location.origin;
     }
-    // Dev preview servers (8080, 8111, 9111, etc.) — point to API on same protocol
     return window.location.protocol + '//' + hostname + ':3000';
   },
 
@@ -1580,14 +1578,14 @@ const Auth = {
             'transition:border-color 0.2s;" />' +
           // Email input
           '<input id="auth-email-input" type="email" placeholder="Email address" ' +
-            'autocomplete="off" style="width:100%;padding:10px 14px;margin-bottom:8px;' +
+            'autocomplete="email" style="width:100%;padding:10px 14px;margin-bottom:8px;' +
             'border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
             'background:rgba(255,255,255,0.05);color:#e6edf3;font-size:14px;' +
             'font-family:inherit;outline:none;box-sizing:border-box;' +
             'transition:border-color 0.2s;" />' +
           // Password input
           '<input id="auth-email-password" type="password" placeholder="Password" ' +
-            'autocomplete="new-password" style="width:100%;padding:10px 14px;margin-bottom:4px;' +
+            'autocomplete="current-password" style="width:100%;padding:10px 14px;margin-bottom:4px;' +
             'border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
             'background:rgba(255,255,255,0.05);color:#e6edf3;font-size:14px;' +
             'font-family:inherit;outline:none;box-sizing:border-box;' +
