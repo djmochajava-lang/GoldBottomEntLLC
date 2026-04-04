@@ -31,8 +31,12 @@ const BandPlayer = {
     var currentUid = currentUser ? currentUser.uid : null;
 
     if (this.initialized) {
-      // SPA re-navigation: DOM was replaced but data is in memory.
-      // If user changed (role switch), do a full re-init.
+      // SPA re-navigation: only re-render if we're on the band player page
+      var onBandPlayerPage = !!document.getElementById('dash-band-player') ||
+                             !!document.getElementById('band-player-content');
+      if (!onBandPlayerPage) return; // Not on band player — don't touch other pages
+
+      // If user changed (role switch), do a full re-init
       if (currentUid && this._uid !== currentUid) {
         this.initialized = false; // force full re-init for new user
       } else {
