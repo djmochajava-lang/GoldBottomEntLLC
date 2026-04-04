@@ -27,10 +27,18 @@ const BandPlayer = {
   _loggedThisSession: {}, // trackId → true (debounce: one log per track per session)
 
   init: function() {
+    var currentUser = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    var currentUid = currentUser ? currentUser.uid : null;
+
     if (this.initialized) {
-      // SPA re-navigation: DOM was replaced but data is in memory. Re-render.
-      this._initPlayer();
-      return;
+      // SPA re-navigation: DOM was replaced but data is in memory.
+      // If user changed (role switch), do a full re-init.
+      if (currentUid && this._uid !== currentUid) {
+        this.initialized = false; // force full re-init for new user
+      } else {
+        this._initPlayer();
+        return;
+      }
     }
     this._db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
     this._storage = (typeof Auth !== 'undefined' && Auth.getStorage) ? Auth.getStorage() : null;
@@ -72,6 +80,7 @@ const BandPlayer = {
       this._showScreen1();
     }
     this.initialized = true;
+    this._uid = currentUid;
 
     // Debug: log auth state for troubleshooting
     var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
@@ -463,17 +472,22 @@ const BandPlayer = {
             clearTimeout(saveTimer);
             // Send sensitive bank details to server (not Firestore)
             if (method === 'direct_deposit') {
-              var routing = (document.getElementById('pay-routing') || {}).value || '';
-              var account = (document.getElementById('pay-account') || {}).value || '';
-              if (routing || account) {
-                self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
-              }
+              try {
+                var routing = (document.getElementById('pay-routing') || {}).value || '';
+                var account = (document.getElementById('pay-account') || {}).value || '';
+                if (routing || account) {
+                  self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
+                }
+              } catch(_) {}
             }
-            saveBtn.disabled = false;
-            saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
+            // Reset button — use getElementById in case DOM reference is stale
+            var btn = document.getElementById('screen2-btn');
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
+            }
             if (isEdit) {
               if (typeof Toast !== 'undefined') Toast.success('Payment info updated!');
-              // Only reinit player if we're on the Band Player page (not payment-settings)
               if (document.getElementById('band-player-container')) {
                 self._initPlayer();
               }
