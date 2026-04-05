@@ -374,7 +374,7 @@ const BandPlayer = {
                 '<i class="fa-solid fa-triangle-exclamation" style="color:#d29922;font-size:18px;"></i>' +
                 '<h3 style="font-size:var(--text-base);color:#d29922;margin:0;">' + (isEdit ? '' : 'Step 3: ') + 'Tax Information (W-9)</h3>' +
               '</div>' +
-              '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;"><strong>Required for payments over $2,000 within a calendar year.</strong> The IRS requires us to file a 1099-NEC for independent contractors paid $600+ annually. Please provide your W-9 info so we can pay you without delay.</p>' +
+              '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-sm);line-height:1.5;"><strong>Required for payments over $2,000 within a calendar year.</strong> The IRS requires us to file a 1099-NEC for independent contractors paid $2,000+ annually. Please provide your W-9 info so we can pay you without delay.</p>' +
               '<div style="display:grid;gap:10px;">' +
                 '<div><label style="' + LS + '">Legal Full Name <span style="color:var(--color-gold);">*</span></label><input id="w9-name" type="text" style="' + IS + '" placeholder="As it appears on your tax return" /></div>' +
                 '<div><label style="' + LS + '">Mailing Address</label><input id="w9-address" type="text" style="' + IS + '" placeholder="Street, City, State, ZIP" /></div>' +
