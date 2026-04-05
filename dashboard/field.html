@@ -418,11 +418,19 @@
     return d.innerHTML;
   }
 
+  var _fieldIsLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
   function fieldFetch(url) {
+    // On remote (iPhone/public site), LAN API is unreachable — reject immediately
+    if (!_fieldIsLocal) return Promise.reject(new Error('remote'));
     var token = localStorage.getItem('gbe-session-token') || '';
     var headers = {};
     if (token) headers['X-GBE-Session'] = token;
-    return fetch(url, { headers: headers });
+    // 3-second timeout so LAN hiccups don't block the UI
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 3000);
+    return fetch(url, { headers: headers, signal: controller.signal })
+      .finally(function() { clearTimeout(timer); });
   }
 
   function stageLabel(stage) {
