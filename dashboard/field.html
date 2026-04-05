@@ -744,6 +744,13 @@
     var approveLbl = document.getElementById('field-approve-label');
     if (!card || !body) return;
 
+    var _approvalRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : '';
+    var _canSwitchToAdmin = (typeof Auth !== 'undefined' && Auth.getLinkedRoles)
+      ? Auth.getLinkedRoles().indexOf('admin') !== -1 : false;
+
+    // Only show for admin role, or as a nudge for dual-role users who can switch to admin
+    if (_approvalRole !== 'admin' && !_canSwitchToAdmin) { card.style.display = 'none'; return; }
+
     var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
     if (!db) return;
 
@@ -757,6 +764,22 @@
 
         card.style.display = '';
         if (badge) badge.textContent = count + ' pending';
+
+        // Band manager sees a nudge to switch roles at HomeOffice — not the full list
+        if (_approvalRole !== 'admin') {
+          if (approveLbl) approveLbl.textContent = 'Pending (' + count + ')';
+          body.innerHTML =
+            '<div style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:8px;' +
+                 'background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.15);">' +
+              '<i class="fa-solid fa-user-clock" style="color:#d29922;font-size:18px;"></i>' +
+              '<div>' +
+                '<div style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.85);">' + count + ' user' + (count > 1 ? 's' : '') + ' awaiting approval</div>' +
+                '<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;">Switch to Admin at HomeOffice to approve</div>' +
+              '</div>' +
+            '</div>';
+          return;
+        }
+
         if (approveLbl) approveLbl.textContent = 'Approve (' + count + ')';
 
         var users = [];

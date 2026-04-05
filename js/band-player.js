@@ -504,72 +504,82 @@ const BandPlayer = {
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving...';
 
-        var paymentData = { method: method };
-        if (method === 'direct_deposit') {
-          paymentData.bankName = (document.getElementById('pay-bank') || {}).value || '';
-        } else if (method === 'venmo' || method === 'zelle' || method === 'cashapp') {
-          paymentData.handle = (document.getElementById('pay-handle') || {}).value || '';
-        } else if (method === 'check') {
-          paymentData.checkAddress = (document.getElementById('pay-check-address') || {}).value || '';
-        } else if (method === 'other') {
-          paymentData.description = (document.getElementById('pay-other') || {}).value || '';
-        }
-
-        // Encrypt payment fields before Firestore write
-        var encKey = await self._fetchEncryptionKey();
-        var methodEnc = encKey ? await self._encryptField(paymentData.method, encKey) : paymentData.method;
-        var handleEnc = encKey && paymentData.handle ? await self._encryptField(paymentData.handle, encKey) : (paymentData.handle || '');
-        var bankEnc = encKey && paymentData.bankName ? await self._encryptField(paymentData.bankName, encKey) : (paymentData.bankName || '');
-        var checkEnc = encKey && paymentData.checkAddress ? await self._encryptField(paymentData.checkAddress, encKey) : (paymentData.checkAddress || '');
-
-        var updateData = {
-          paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
-          // Encrypted fields (Firestore = cache, HomeOffice decrypts on sync)
-          payment_method_enc: methodEnc,
-          payment_handle_enc: handleEnc,
-          bank_name_enc: bankEnc,
-          check_address_enc: checkEnc,
-          // Keep plain text method name for BM visibility (not sensitive)
-          paymentMethod: paymentData.method,
-          paymentOther: paymentData.description || '',
-          onboardingComplete: true
+        var _resetBtn = function() {
+          saveBtn.disabled = false;
+          saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
         };
-        // Save Freelance Musician Agreement acceptance
-        if (hbaCheckbox && hbaCheckbox.checked && !data.freelanceAgreementAcceptedAt && !data.houseBandAgreedAt) {
-          updateData.freelanceAgreementAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
-          updateData.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
-          updateData.houseBandAgreementVersion = '1.0';
-        }
-        // Save W-9 if fields are present and filled
-        var w9Name = (document.getElementById('w9-name') || {}).value || '';
-        var w9Addr = (document.getElementById('w9-address') || {}).value || '';
-        if (w9Name.trim()) {
-          updateData.w9LegalName = w9Name;
-          updateData.w9Address = w9Addr;
+
+        if (!user || !self._db) {
+          if (typeof Toast !== 'undefined') Toast.error('Not signed in. Please refresh and try again.');
+          _resetBtn();
+          return;
         }
 
-        if (user && self._db) {
-          self._db.collection('users').doc(user.uid).update(updateData).then(function() {
-            // Send sensitive bank details to server (not Firestore)
-            if (method === 'direct_deposit') {
-              var routing = (document.getElementById('pay-routing') || {}).value || '';
-              var account = (document.getElementById('pay-account') || {}).value || '';
-              if (routing || account) {
-                self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
-              }
+        try {
+          var paymentData = { method: method };
+          if (method === 'direct_deposit') {
+            paymentData.bankName = (document.getElementById('pay-bank') || {}).value || '';
+          } else if (method === 'venmo' || method === 'zelle' || method === 'cashapp') {
+            paymentData.handle = (document.getElementById('pay-handle') || {}).value || '';
+          } else if (method === 'check') {
+            paymentData.checkAddress = (document.getElementById('pay-check-address') || {}).value || '';
+          } else if (method === 'other') {
+            paymentData.description = (document.getElementById('pay-other') || {}).value || '';
+          }
+
+          // Encrypt payment fields before Firestore write
+          var encKey = await self._fetchEncryptionKey();
+          var methodEnc = encKey ? await self._encryptField(paymentData.method, encKey) : paymentData.method;
+          var handleEnc = encKey && paymentData.handle ? await self._encryptField(paymentData.handle, encKey) : (paymentData.handle || '');
+          var bankEnc = encKey && paymentData.bankName ? await self._encryptField(paymentData.bankName, encKey) : (paymentData.bankName || '');
+          var checkEnc = encKey && paymentData.checkAddress ? await self._encryptField(paymentData.checkAddress, encKey) : (paymentData.checkAddress || '');
+
+          var updateData = {
+            paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
+            // Encrypted fields (Firestore = cache, HomeOffice decrypts on sync)
+            payment_method_enc: methodEnc,
+            payment_handle_enc: handleEnc,
+            bank_name_enc: bankEnc,
+            check_address_enc: checkEnc,
+            // Keep plain text method name for BM visibility (not sensitive)
+            paymentMethod: paymentData.method,
+            paymentOther: paymentData.description || '',
+            onboardingComplete: true
+          };
+          // Save Freelance Musician Agreement acceptance
+          if (hbaCheckbox && hbaCheckbox.checked && !data.freelanceAgreementAcceptedAt && !data.houseBandAgreedAt) {
+            updateData.freelanceAgreementAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
+            updateData.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
+            updateData.houseBandAgreementVersion = '1.0';
+          }
+          // Save W-9 if fields are present and filled
+          var w9Name = (document.getElementById('w9-name') || {}).value || '';
+          var w9Addr = (document.getElementById('w9-address') || {}).value || '';
+          if (w9Name.trim()) {
+            updateData.w9LegalName = w9Name;
+            updateData.w9Address = w9Addr;
+          }
+
+          await self._db.collection('users').doc(user.uid).update(updateData);
+
+          // Send sensitive bank details to server (not Firestore)
+          if (method === 'direct_deposit') {
+            var routing = (document.getElementById('pay-routing') || {}).value || '';
+            var account = (document.getElementById('pay-account') || {}).value || '';
+            if (routing || account) {
+              self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
             }
-            if (isEdit) {
-              if (typeof Toast !== 'undefined') Toast.success('Payment info updated!');
-              self._initPlayer();
-            } else {
-              self._showSetupComplete();
-            }
-          }).catch(function(err) {
-            console.error('[BandPlayer] Screen 2 save failed:', err);
-            if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
-            saveBtn.disabled = false;
-            saveBtn.textContent = isEdit ? 'Save Changes' : 'Save Payment Info & Agreement';
-          });
+          }
+          if (isEdit) {
+            if (typeof Toast !== 'undefined') Toast.success('Payment info updated!');
+            self._initPlayer();
+          } else {
+            self._showSetupComplete();
+          }
+        } catch (err) {
+          console.error('[BandPlayer] Screen 2 save failed:', err);
+          if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
+          _resetBtn();
         }
       });
     }
