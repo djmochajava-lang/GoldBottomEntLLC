@@ -166,7 +166,7 @@ const Sidebar = {
 
   startInboxBadge() {
     // Only poll on LAN (where the server API is reachable)
-    if (typeof Auth !== 'undefined' && Auth.isLocalDashboard && !Auth.isLocalDashboard()) return;
+    if (!Auth.isLocalDashboard || !Auth.isLocalDashboard()) return;
 
     this.refreshInboxBadge();
     this._inboxPollTimer = setInterval(() => this.refreshInboxBadge(), 60000);
@@ -176,11 +176,13 @@ const Sidebar = {
     const badge = document.getElementById('inbox-unread-badge');
     if (!badge) return;
 
-    const headers = {};
-    const token = localStorage.getItem('gbe-session-token');
-    if (token) headers['Authorization'] = 'Bearer ' + token;
+    // Skip immediately on remote — no server API available
+    if (!Auth.isLocalDashboard || !Auth.isLocalDashboard()) {
+      badge.style.display = 'none';
+      return;
+    }
 
-    fetch(window.location.origin + '/api/v1/inbox/stats', { headers })
+    Utils.apiFetch('/api/v1/inbox/stats')
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!data) { badge.style.display = 'none'; return; }
