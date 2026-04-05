@@ -314,13 +314,7 @@
       // 1. Try server endpoint (HomeOffice only)
       if (isLocal) {
         try {
-          var headers = { 'Content-Type': 'application/json' };
-          var token = localStorage.getItem('gbe-session-token');
-          var apiKey = localStorage.getItem('gbe-api-key');
-          if (token) headers['X-GBE-Session'] = token;
-          if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
-
-          var resp = await fetch('/api/v1/auth/encryption-key', { headers: headers });
+          var resp = await Utils.apiFetch('/api/v1/auth/encryption-key', { headers: { 'Content-Type': 'application/json' } });
           if (resp.ok) {
             var data = await resp.json();
             if (data.key) {
@@ -329,7 +323,7 @@
               return;
             }
           }
-        } catch (e) { /* server unavailable, fall through */ }
+        } catch (e) { /* server unavailable or remote, fall through */ }
       }
 
       // 2. Try Firestore config doc (works from field — Firestore-first)
@@ -513,15 +507,9 @@
       // Try SMTP via HomeOffice server if available
       if (isLocal) {
         try {
-          var headers = { 'Content-Type': 'application/json' };
-          var token = localStorage.getItem('gbe-session-token');
-          var apiKey = localStorage.getItem('gbe-api-key');
-          if (token) headers['X-GBE-Session'] = token;
-          if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
-
-          var resp = await fetch('/api/v1/email/send', {
+          var resp = await Utils.apiFetch('/api/v1/email/send', {
             method: 'POST',
-            headers: headers,
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               to: m._email,
               subject: subject,

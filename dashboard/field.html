@@ -991,13 +991,9 @@
         var note    = (document.getElementById('fc-note')    || {}).value || '';
         if (!name.trim()) { Toast.error('Name is required'); return; }
 
-        var token = localStorage.getItem('gbe-session-token') || '';
-        var headers = { 'Content-Type': 'application/json' };
-        if (token) headers['X-GBE-Session'] = token;
-
-        fetch('/api/v1/contacts', {
+        Utils.apiFetch('/api/v1/contacts', {
           method: 'POST',
-          headers: headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: name, email: email, phone: phone, company: company, notes: note, source: 'field-view' })
         })
         .then(function(r) { return r.json(); })

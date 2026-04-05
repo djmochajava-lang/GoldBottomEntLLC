@@ -269,6 +269,16 @@
   var token = localStorage.getItem('gbe-session-token') || '';
   var expressHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
 
+  function tFetch(path, opts) {
+    if (!API) return Promise.reject(new Error('Remote — LAN required'));
+    opts = opts || {};
+    if (!opts.headers) opts.headers = expressHeaders;
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 5000);
+    opts.signal = controller.signal;
+    return fetch(API + path, opts).finally(function() { clearTimeout(timer); });
+  }
+
   // ── LAN gate message for Orders/Promos/Door/Analytics tabs ──
   var lanGateHtml = '<div class="tix-lan-msg">' +
     '<i class="fa-solid fa-wifi"></i>' +
@@ -628,7 +638,7 @@
       var params = new URLSearchParams();
       if (orderEventFilter.value) params.set('eventId', orderEventFilter.value);
       if (orderStatusFilter.value) params.set('status', orderStatusFilter.value);
-      fetch(API + '/orders?' + params, { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+      tFetch('/orders?' + params).then(function(r) { return r.json(); }).then(function(data) {
         var orders = data.orders || [];
         var tbody = document.getElementById('tix-orders-body');
         var empty = document.getElementById('tix-orders-empty');
@@ -658,7 +668,7 @@
 
     window._tixCancelOrder = function(id) {
       Modal.confirm('Cancel this order?', function() {
-        fetch(API + '/orders/' + id + '/cancel', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+        tFetch('/orders/' + id + '/cancel', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(data) {
           if (data.error) { Toast.error(data.error); return; }
           Toast.success('Order cancelled'); loadOrders();
         }).catch(function(err) { Toast.error(err.message); });
@@ -667,7 +677,7 @@
 
     window._tixRefundOrder = function(id) {
       Modal.confirm('Refund this order? Tickets will be voided.', function() {
-        fetch(API + '/orders/' + id + '/refund', { method: 'POST', headers: expressHeaders, body: JSON.stringify({ reason: 'Admin refund' }) }).then(function(r) { return r.json(); }).then(function(data) {
+        tFetch('/orders/' + id + '/refund', { method: 'POST', body: JSON.stringify({ reason: 'Admin refund' }) }).then(function(r) { return r.json(); }).then(function(data) {
           if (data.error) { Toast.error(data.error); return; }
           Toast.success('Order refunded'); loadOrders();
         }).catch(function(err) { Toast.error(err.message); });
@@ -675,14 +685,14 @@
     };
 
     window._tixReissueOrder = function(id) {
-      fetch(API + '/orders/' + id + '/reissue', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+      tFetch('/orders/' + id + '/reissue', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(data) {
         if (data.error) { Toast.error(data.error); return; }
         Toast.success('New tickets issued'); loadOrders();
       }).catch(function(err) { Toast.error(err.message); });
     };
 
     window._tixResendOrder = function(id) {
-      fetch(API + '/orders/' + id + '/resend', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+      tFetch('/orders/' + id + '/resend', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(data) {
         if (data.error) { Toast.error(data.error); return; }
         Toast.success('Confirmation email resent');
       }).catch(function(err) { Toast.error(err.message); });
@@ -690,7 +700,7 @@
 
     // ── PROMOS (Express — LAN only) ──
     function loadPromos() {
-      fetch(API + '/promos', { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+      tFetch('/promos').then(function(r) { return r.json(); }).then(function(data) {
         var promos = data.promos || [];
         var tbody = document.getElementById('tix-promos-body');
         var empty = document.getElementById('tix-promos-empty');
@@ -741,7 +751,7 @@
               expiresAt: document.getElementById('promo-expires').value || null
             };
             if (!body.code || isNaN(body.discountValue)) { Toast.error('Code and value required'); return; }
-            fetch(API + '/promos', { method: 'POST', headers: expressHeaders, body: JSON.stringify(body) }).then(function(r) {
+            tFetch('/promos', { method: 'POST', body: JSON.stringify(body) }).then(function(r) {
               if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || d.message); });
               Modal.close(); Toast.success('Promo created'); loadPromos();
             }).catch(function(err) { Toast.error(err.message); });
@@ -760,7 +770,7 @@
     });
 
     function loadDoorList(eventId) {
-      fetch(API + '/door-list/' + eventId, { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+      tFetch('/door-list/' + eventId).then(function(r) { return r.json(); }).then(function(data) {
         var list = data.doorList || [];
         var tbody = document.getElementById('tix-door-body');
         var empty = document.getElementById('tix-door-empty');
@@ -787,7 +797,7 @@
     }
 
     window._tixCheckIn = function(entryId, eventId) {
-      fetch(API + '/door-list/' + entryId + '/check-in', { method: 'POST', headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(data) {
+      tFetch('/door-list/' + entryId + '/check-in', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(data) {
         if (data.error) { Toast.error(data.error); return; }
         Toast.success('Checked in!'); loadDoorList(eventId);
       }).catch(function(err) { Toast.error(err.message); });
@@ -809,8 +819,8 @@
           { text: 'Add', class: 'btn btn-primary', action: function() {
             var guestName = document.getElementById('guest-name').value.trim();
             if (!guestName) { Toast.error('Name required'); return; }
-            fetch(API + '/door-list/' + doorEventSel.value, {
-              method: 'POST', headers: expressHeaders,
+            tFetch('/door-list/' + doorEventSel.value, {
+              method: 'POST',
               body: JSON.stringify({ guestName: guestName, tierName: document.getElementById('guest-tier').value.trim() })
             }).then(function() { Modal.close(); Toast.success('Guest added'); loadDoorList(doorEventSel.value); }).catch(function(err) { Toast.error(err.message); });
           }}
@@ -820,7 +830,7 @@
 
     // ── ANALYTICS (Express — LAN only) ──
     function loadAnalytics() {
-      fetch(API + '/stats', { headers: expressHeaders }).then(function(r) { return r.json(); }).then(function(stats) {
+      tFetch('/stats').then(function(r) { return r.json(); }).then(function(stats) {
         document.getElementById('tix-analytics-global').innerHTML =
           '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">' + fmt(stats.totalRevenue || 0) + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Total Revenue</div></div>' +
           '<div class="glass-card" style="padding:var(--space-md);text-align:center;"><div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">' + (stats.ticketsSold || 0) + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">Tickets Sold</div></div>' +

@@ -439,4 +439,30 @@ if (document.readyState === 'loading') {
   Utils.init();
 }
 
+/**
+ * Global API fetch wrapper — rejects immediately on remote (iPhone/public site)
+ * and enforces a timeout on LAN to prevent UI hangs.
+ *
+ * @param {string} url - API URL (absolute or relative like '/api/v1/...')
+ * @param {object} [opts] - fetch options (method, headers, body, etc.)
+ * @param {number} [timeoutMs=5000] - abort timeout in ms
+ * @returns {Promise<Response>}
+ */
+Utils.apiFetch = function(url, opts, timeoutMs) {
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+  if (!isLocal) return Promise.reject(new Error('remote'));
+  opts = opts || {};
+  var token = localStorage.getItem('gbe-session-token') || '';
+  if (token && !opts.headers) {
+    opts.headers = { 'X-GBE-Session': token };
+  } else if (token && opts.headers && !opts.headers['X-GBE-Session'] && !opts.headers['Authorization']) {
+    opts.headers['X-GBE-Session'] = token;
+  }
+  var ms = timeoutMs || 5000;
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, ms);
+  opts.signal = controller.signal;
+  return fetch(url, opts).finally(function() { clearTimeout(timer); });
+};
+
 if (typeof module !== 'undefined' && module.exports) module.exports = Utils;

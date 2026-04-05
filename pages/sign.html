@@ -421,6 +421,8 @@
     })
     .catch(function(err) {
       if (typeof Toast !== 'undefined') Toast.error('Failed to sign: ' + err.message);
+    })
+    .finally(function() {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-pen-nib"></i> Sign Agreement'; }
     });
   };

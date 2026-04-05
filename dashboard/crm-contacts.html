@@ -60,13 +60,7 @@
     if (searchQuery) params.push('q=' + encodeURIComponent(searchQuery));
     var url = API_BASE + (params.length ? '?' + params.join('&') : '');
 
-    var headers = { 'Accept': 'application/json' };
-    var token = localStorage.getItem('gbe-session-token');
-    if (token) headers['X-GBE-Session'] = token;
-    var apiKey = localStorage.getItem('gbe-api-key');
-    if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
-
-    fetch(url, { headers: headers })
+    Utils.apiFetch(url)
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -225,31 +219,22 @@
   }
 
   /* ---- API helpers ---- */
-  function apiHeaders() {
-    var h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-    var token = localStorage.getItem('gbe-session-token');
-    if (token) h['X-GBE-Session'] = token;
-    var apiKey = localStorage.getItem('gbe-api-key');
-    if (apiKey) h['Authorization'] = 'Bearer ' + apiKey;
-    return h;
-  }
-
   function apiPost(data, cb) {
-    fetch(API_BASE, { method: 'POST', headers: apiHeaders(), body: JSON.stringify(data) })
+    Utils.apiFetch(API_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(res) { cb(null, res); })
       .catch(function(err) { cb(err); });
   }
 
   function apiPut(id, data, cb) {
-    fetch(API_BASE + '/' + encodeURIComponent(id), { method: 'PUT', headers: apiHeaders(), body: JSON.stringify(data) })
+    Utils.apiFetch(API_BASE + '/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(res) { cb(null, res); })
       .catch(function(err) { cb(err); });
   }
 
   function apiDelete(id, cb) {
-    fetch(API_BASE + '/' + encodeURIComponent(id), { method: 'DELETE', headers: apiHeaders() })
+    Utils.apiFetch(API_BASE + '/' + encodeURIComponent(id), { method: 'DELETE' })
       .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(res) { cb(null, res); })
       .catch(function(err) { cb(err); });

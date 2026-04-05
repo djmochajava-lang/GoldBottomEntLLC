@@ -219,11 +219,19 @@
     return h;
   }
   async function apiFetch(path, opts) {
+    if (typeof Auth !== 'undefined' && Auth.isLocalDashboard && !Auth.isLocalDashboard()) throw new Error('Remote — LAN required');
     opts = opts || {};
     opts.headers = apiHeaders();
-    var resp = await fetch(apiUrl() + path, opts);
-    if (!resp.ok) throw new Error('API ' + resp.status);
-    return resp.json();
+    var controller = new AbortController();
+    var timeout = setTimeout(function() { controller.abort(); }, 5000);
+    opts.signal = controller.signal;
+    try {
+      var resp = await fetch(apiUrl() + path, opts);
+      if (!resp.ok) throw new Error('API ' + resp.status);
+      return resp.json();
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   /* ---- Utilities ---- */
@@ -1014,6 +1022,8 @@
         if (typeof Toast !== 'undefined') Toast.success('Booking added');
         loadPipeline();
       } catch (e) {
+        this.disabled = false;
+        this.textContent = 'Add Booking';
         alert('Failed to add: ' + e.message);
       }
     });

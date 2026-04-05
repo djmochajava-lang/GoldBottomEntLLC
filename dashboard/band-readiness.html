@@ -125,12 +125,7 @@
     try {
       var isLocal = Auth.isLocalDashboard && Auth.isLocalDashboard();
       if (isLocal) {
-        var token = localStorage.getItem('gbe-session-token');
-        var apiKey = localStorage.getItem('gbe-api-key');
-        var headers = { 'Content-Type': 'application/json' };
-        if (token) headers['X-GBE-Session'] = token;
-        if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
-        var resp = await fetch('/api/v1/gigs/musicians', { headers: headers });
+        var resp = await Utils.apiFetch('/api/v1/gigs/musicians');
         var data = await resp.json();
         (data.musicians || []).forEach(function(m) { musicianNames[m.id] = m.name; });
       }
@@ -262,14 +257,8 @@
     }
 
     try {
-      var token = localStorage.getItem('gbe-session-token');
-      var apiKey = localStorage.getItem('gbe-api-key');
-      var headers = { 'Content-Type': 'application/json' };
-      if (token) headers['X-GBE-Session'] = token;
-      if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
-
       // Look up musician email
-      var resp = await fetch('/api/v1/gigs/musicians', { headers: headers });
+      var resp = await Utils.apiFetch('/api/v1/gigs/musicians');
       var data = await resp.json();
       var musician = (data.musicians || []).find(function(m) { return m.id === musicianId; });
 
@@ -279,9 +268,8 @@
       }
 
       // Send reminder via email endpoint
-      await fetch('/api/v1/email/send', {
+      await Utils.apiFetch('/api/v1/email/send', {
         method: 'POST',
-        headers: headers,
         body: JSON.stringify({
           to: musician.email,
           subject: 'Readiness Reminder — ' + gigTitle,

@@ -98,11 +98,7 @@
         metricCard('fa-bag-shopping',       '#d4a017', Utils.formatCurrency(m.merchSales),         'Merch Sales');
       /* Inbox count */
       mHtml += metricCard('fa-envelope','#d4a017','—','Unread Inquiries','if(typeof Router!==\'undefined\')Router.navigateTo(\'dashboard-inbox\')');
-      var sess=localStorage.getItem('gbe-session-token');
-      var hdr={'Content-Type':'application/json'};
-      if(sess) hdr['X-GBE-Session']=sess;
-      if(typeof SiteConfig!=='undefined'&&SiteConfig.server&&SiteConfig.server.apiKey) hdr['Authorization']='Bearer '+SiteConfig.server.apiKey;
-      fetch('/api/v1/inbox/stats',{headers:hdr})
+      Utils.apiFetch('/api/v1/inbox/stats')
         .then(function(r){return r.ok?r.json():null;})
         .then(function(s){var el=document.getElementById('inbox-metric-count');if(el&&s)el.textContent=s.unread;})
         .catch(function(){});
@@ -135,6 +131,8 @@
     if(db){
       db.collection('users').where('status','==','pending').get()
         .then(function(snap){
+          var _currentRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : '';
+          if (_currentRole !== 'admin' && _currentRole !== 'band_manager') return;
           var card = document.getElementById('admin-approvals');
           if(!card||snap.size===0) return;
           card.style.display='';

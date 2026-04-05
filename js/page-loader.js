@@ -117,7 +117,15 @@ const PageLoader = {
 
     // Fetch from server (cache-bust to avoid stale CDN/browser cache)
     const bustUrl = pageUrl + (pageUrl.includes('?') ? '&' : '?') + '_v=' + Date.now();
-    const response = await fetch(bustUrl, fetchOpts);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    fetchOpts.signal = controller.signal;
+    let response;
+    try {
+      response = await fetch(bustUrl, fetchOpts);
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
