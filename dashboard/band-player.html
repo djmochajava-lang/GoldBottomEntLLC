@@ -254,7 +254,13 @@
     if (typeof BandPlayer === 'undefined') return;
     var hasDb = (typeof Auth !== 'undefined') && Auth._db;
     if (hasDb) {
-      BandPlayer.init();
+      if (BandPlayer.initialized) {
+        // SPA re-navigation: module already initialized but DOM is fresh.
+        // Re-run player init to repopulate the new DOM elements.
+        BandPlayer._initPlayer();
+      } else {
+        BandPlayer.init();
+      }
       updateManagerButtons();
     } else if (attempts < 20) {
       setTimeout(function() { tryInit(attempts + 1); }, 500);

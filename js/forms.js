@@ -384,24 +384,11 @@ const Forms = {
       });
     }
 
-    // Strategy 3: localStorage queue
-    function saveLocal() {
-      try {
-        var queue = JSON.parse(localStorage.getItem('gbe-contact-queue') || '[]');
-        payload.submittedAt = new Date().toISOString();
-        payload._savedLocally = true;
-        queue.push(payload);
-        localStorage.setItem('gbe-contact-queue', JSON.stringify(queue));
-        return Promise.resolve({ ok: true, method: 'local' });
-      } catch (e) {
-        return Promise.reject('localStorage not available');
-      }
-    }
-
-    // Try in order: server → firestore → localStorage
+    // Try in order: server → firestore → fail with clear message
+    // No localStorage fallback — business workflow data must reach
+    // Firestore or the server. Silent local saves are invisible to the BM.
     return tryServer()
-      .catch(function () { return tryFirestore(); })
-      .catch(function () { return saveLocal(); });
+      .catch(function () { return tryFirestore(); });
   },
 
   /**

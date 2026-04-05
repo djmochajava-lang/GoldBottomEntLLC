@@ -1591,15 +1591,15 @@ const Auth = {
             'font-family:inherit;outline:none;box-sizing:border-box;' +
             'transition:border-color 0.2s;" />' +
           // Email input
-          '<input id="auth-email-input" type="email" placeholder="Email address" ' +
-            'autocomplete="off" style="width:100%;padding:10px 14px;margin-bottom:8px;' +
+          '<input id="auth-email-input" type="email" name="gbe-auth-email-' + Date.now() + '" placeholder="Email address" ' +
+            'autocomplete="off" readonly onfocus="this.removeAttribute(\'readonly\')" style="width:100%;padding:10px 14px;margin-bottom:8px;' +
             'border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
             'background:rgba(255,255,255,0.05);color:#e6edf3;font-size:14px;' +
             'font-family:inherit;outline:none;box-sizing:border-box;' +
             'transition:border-color 0.2s;" />' +
           // Password input
-          '<input id="auth-email-password" type="password" placeholder="Password" ' +
-            'autocomplete="off" style="width:100%;padding:10px 14px;margin-bottom:4px;' +
+          '<input id="auth-email-password" type="password" name="gbe-auth-pw-' + Date.now() + '" placeholder="Password" ' +
+            'autocomplete="new-password" readonly onfocus="this.removeAttribute(\'readonly\')" style="width:100%;padding:10px 14px;margin-bottom:4px;' +
             'border-radius:8px;border:1px solid rgba(255,255,255,0.15);' +
             'background:rgba(255,255,255,0.05);color:#e6edf3;font-size:14px;' +
             'font-family:inherit;outline:none;box-sizing:border-box;' +
