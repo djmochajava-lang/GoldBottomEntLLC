@@ -56,7 +56,7 @@ const BandPlayer = {
     } else if (user && this._db) {
       this._db.collection('users').doc(user.uid).get().then(function(doc) {
         var data = doc.exists ? doc.data() : {};
-        if (!data.confidentialityAcceptedAt && !data.ndaAcceptedAt) {
+        if (!data.confidentialityAcceptedAt) {
           self._showScreen1();
         } else {
           self._initPlayer();
@@ -240,7 +240,6 @@ const BandPlayer = {
           // Update user doc: confidentiality acceptance + roster fields
           self._db.collection('users').doc(user.uid).update({
             confidentialityAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
             roster_tier: 'on_call',
             activity: 'active'
           }).then(function() {

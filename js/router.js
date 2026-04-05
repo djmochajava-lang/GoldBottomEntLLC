@@ -46,7 +46,6 @@ const Router = {
     'dashboard-contracts': 'dashboard/contracts.html',
     'dashboard-finances': 'dashboard/finances.html',
     'dashboard-booking': 'dashboard/booking.html',
-    'dashboard-gigs': 'dashboard/gigs.html',
     'dashboard-band-readiness': 'dashboard/band-readiness.html',
     'dashboard-inbox': 'dashboard/inbox.html',
     'dashboard-leads': 'dashboard/leads.html',
@@ -282,7 +281,6 @@ const Router = {
         var _rolePageAccess = {
           'dashboard-roster':       ['admin', 'band_manager'],
           'dashboard-booking':      ['admin', 'band_manager'],
-          'dashboard-gigs':         ['admin', 'band_manager'],
           'dashboard-band-readiness': ['admin', 'band_manager'],
           'dashboard-quotes':       ['admin', 'band_manager'],
           'dashboard-inbox':        ['admin', 'band_manager'],
@@ -572,7 +570,6 @@ const Router = {
       'dashboard-contracts': 'Contracts',
       'dashboard-finances': 'Finances & Accounting',
       'dashboard-booking': 'Booking Pipeline',
-      'dashboard-gigs': 'Band Gigs',
       'dashboard-band-readiness': 'Band Readiness',
       'dashboard-inbox': 'Contact Queue',
       'dashboard-leads': 'Venue Leads',
