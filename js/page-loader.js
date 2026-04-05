@@ -11,7 +11,9 @@ const PageLoader = {
   dashboardContainer: null,
   cache: {},
   loadingClass: 'page-loading',
-  transitionDuration: 250,
+  transitionDuration: 120,
+  _navigating: false,
+  _navigationId: 0,
 
   /**
    * Initialize page loader — get references to both content containers
@@ -44,10 +46,17 @@ const PageLoader = {
    * Load a page into the active container
    */
   async loadPage(pageName, pageUrl) {
+    // Navigation lock — cancel any in-flight navigation so rapid taps
+    // don't race and corrupt the DOM. Each call gets a unique ID; if a
+    // newer call starts, the older one bails at the next await point.
+    const navId = ++this._navigationId;
+    this._navigating = true;
+
     const container = this.getActiveContainer();
 
     if (!container) {
       console.error('No active container for layout');
+      this._navigating = false;
       return;
     }
 
@@ -57,9 +66,11 @@ const PageLoader = {
 
       // Get page content (from cache or fetch)
       const content = await this.getPageContent(pageName, pageUrl);
+      if (navId !== this._navigationId) return; // superseded by newer nav
 
       // Fade out current content
       await this.fadeOut(container);
+      if (navId !== this._navigationId) return; // superseded
 
       // Insert new content
       container.innerHTML = content;
@@ -79,9 +90,11 @@ const PageLoader = {
 
       // Hide loading state
       this.hideLoading();
+      this._navigating = false;
 
       console.log(`📄 Loaded: ${pageName}`);
     } catch (error) {
+      this._navigating = false;
       console.error('Error loading page:', error);
       this.showError(container, `Failed to load page "${pageName}". Please try again.`);
     }
