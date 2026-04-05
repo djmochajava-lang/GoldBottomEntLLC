@@ -302,6 +302,18 @@ const Auth = {
       Auth._user = user;
 
       if (user) {
+        // 24-hour sliding expiry: check last_activity in localStorage
+        var lastActivity = localStorage.getItem('gbe-last-activity');
+        var TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        if (lastActivity && (Date.now() - parseInt(lastActivity, 10)) > TWENTY_FOUR_HOURS) {
+          console.log('[Auth] Session expired (24hr inactivity). Signing out.');
+          localStorage.removeItem('gbe-last-activity');
+          Auth._auth.signOut();
+          return;
+        }
+        // Update last_activity (sliding window)
+        localStorage.setItem('gbe-last-activity', String(Date.now()));
+
         // Check Firestore registration + approval status
         Auth._checkRegistration(user).then(function(status) {
           // Handle duplicate detection (IDP-001 §4.2)
@@ -613,6 +625,7 @@ const Auth = {
     this._activeRole = null;
     this._clearActiveRoleStorage();
     localStorage.removeItem('gbe-session-token');
+    localStorage.removeItem('gbe-last-activity');
 
     // Verify it's actually gone
     var stillThere = localStorage.getItem('gbe-session-token');
@@ -1350,6 +1363,7 @@ const Auth = {
     }
 
     // Firebase auth logout
+    localStorage.removeItem('gbe-last-activity');
     if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
     return this._auth.signOut();
   },
