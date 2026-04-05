@@ -97,6 +97,18 @@ const Router = {
     // Claude Agent Dashboard (FRD-16)
     'dashboard-claude-agent': 'dashboard/claude-agent.html',
 
+    // Musicians Log (potential musician pipeline)
+    'dashboard-musicians-log': 'dashboard/musicians-log.html',
+
+    // Band Roster (onboarded freelance artists — Firestore-sourced)
+    'dashboard-band-roster': 'dashboard/band-roster.html',
+
+    // Sessions (unified: gig, rehearsal, studio, sectional)
+    'dashboard-sessions': 'dashboard/sessions.html',
+
+    // My Portal (musician's hub for non-music interactions)
+    'dashboard-my-portal': 'dashboard/my-portal.html',
+
     // Agreement Signing (public, token-based)
     'sign': 'pages/sign.html',
 
@@ -298,6 +310,10 @@ const Router = {
           'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'band_member', 'venue_owner', 'promoter'],
           'dashboard-claude-agent': ['admin'],
+          'dashboard-musicians-log': ['admin', 'band_manager'],
+          'dashboard-band-roster': ['admin', 'band_manager'],
+          'dashboard-sessions': ['admin', 'band_manager'],
+          'dashboard-my-portal': ['admin', 'band_manager', 'artist', 'band_member'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
         var _currentRole = Auth.getRole ? Auth.getRole() : 'member';
@@ -581,6 +597,10 @@ const Router = {
       'dashboard-quotes': 'Quote Pipeline',
       'dashboard-tickets': 'Ticket Sales',
       'dashboard-agreements': 'Agreements',
+      'dashboard-musicians-log': 'Musicians Log',
+      'dashboard-band-roster': 'Band Roster',
+      'dashboard-sessions': 'Sessions',
+      'dashboard-my-portal': 'My Portal',
     };
 
     const label = labels[pageName] || 'Dashboard';

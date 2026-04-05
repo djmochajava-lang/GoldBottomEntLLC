@@ -1,0 +1,330 @@
+<!-- dashboard/band-roster.html — Band Roster (Firestore-sourced freelance artists) -->
+<div class="dashboard-page" id="dash-band-roster">
+
+  <!-- Page Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-lg);">
+    <div>
+      <h1 style="display:flex;align-items:center;gap:var(--space-sm);">
+        <i class="fa-solid fa-users" style="color:var(--color-gold);"></i>
+        Band Roster
+        <span id="br-count-badge" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);border-radius:var(--radius-full);padding:2px 10px;font-size:var(--text-sm);margin-left:var(--space-xs);">0</span>
+      </h1>
+      <p class="text-muted" style="margin:0;font-size:var(--text-sm);">Freelance artists who have completed onboarding.</p>
+    </div>
+  </div>
+
+  <!-- Tier Tabs -->
+  <div id="br-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <button class="br-tab active" data-filter="active" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;white-space:nowrap;">
+      Active
+    </button>
+    <button class="br-tab" data-filter="on_call" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
+      On Call
+    </button>
+    <button class="br-tab" data-filter="alumni" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
+      Alumni
+    </button>
+  </div>
+
+  <!-- Card Container -->
+  <div id="br-cards" style="display:grid;grid-template-columns:1fr;gap:var(--space-md);">
+    <div style="text-align:center;padding:48px;color:var(--color-text-muted);">
+      <i class="fa-solid fa-spinner fa-spin"></i> Loading roster...
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .br-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .br-tier-core { background: rgba(212,160,23,0.15); color: #d4a017; }
+  .br-tier-on_call { background: rgba(88,166,255,0.12); color: #58a6ff; }
+  .br-tier-alumni { background: rgba(139,148,158,0.12); color: #8b949e; }
+  .br-activity-active { background: rgba(63,185,80,0.12); color: #3fb950; }
+  .br-activity-inactive { background: rgba(210,153,34,0.12); color: #d29922; }
+
+  .br-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+  }
+  .br-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 48px;
+  }
+  .br-card-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: rgba(212,160,23,0.18);
+    color: var(--color-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--fw-bold);
+    font-size: var(--text-sm);
+    flex-shrink: 0;
+  }
+  .br-card-info { flex: 1; min-width: 0; }
+  .br-card-name {
+    font-size: 15px;
+    font-weight: var(--fw-semibold);
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .br-card-detail {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+  }
+
+  @media (min-width: 768px) {
+    #br-cards { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var fdb = null;
+  var _roster = [];
+  var _filter = 'active'; // default tab: show active artists
+
+  var TIER_LABELS = { core: 'Core', on_call: 'On Call', alumni: 'Alumni' };
+  var ACTIVITY_LABELS = { active: 'Active', inactive: 'Inactive' };
+
+  function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  function initials(name) {
+    if (!name) return '?';
+    var p = String(name).trim().split(/\s+/);
+    return (p.length >= 2 ? p[0][0] + p[p.length - 1][0] : (p[0][0] || '?')).toUpperCase();
+  }
+
+  async function loadRoster() {
+    var container = document.getElementById('br-cards');
+    if (!fdb) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-database" style="font-size:2rem;margin-bottom:12px;display:block;opacity:0.3;"></i>Firestore not available.</div>';
+      return;
+    }
+
+    try {
+      // Query all users that have a roster_tier field (onboarded freelance artists)
+      var snap = await fdb.collection('users').where('roster_tier', 'in', ['core', 'on_call', 'alumni']).get();
+      _roster = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        d.uid = doc.id;
+        _roster.push(d);
+      });
+
+      updateCountBadge();
+      renderCards();
+    } catch (e) {
+      console.error('[Band Roster] Load failed:', e);
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:#f85149;"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  function updateCountBadge() {
+    var badge = document.getElementById('br-count-badge');
+    if (badge) badge.textContent = getFiltered().length;
+  }
+
+  function getFiltered() {
+    if (_filter === 'active') {
+      // Active tab: core (always active) + on_call with activity=active
+      return _roster.filter(function(m) {
+        return (m.roster_tier === 'core') || (m.roster_tier === 'on_call' && m.activity === 'active');
+      });
+    } else if (_filter === 'on_call') {
+      // On Call tab: on_call tier only (active and inactive)
+      return _roster.filter(function(m) { return m.roster_tier === 'on_call'; });
+    } else if (_filter === 'alumni') {
+      return _roster.filter(function(m) { return m.roster_tier === 'alumni'; });
+    }
+    return _roster;
+  }
+
+  function renderCards() {
+    var container = document.getElementById('br-cards');
+    var list = getFiltered();
+
+    if (!list.length) {
+      var msgs = {
+        active: 'No active freelance artists yet.',
+        on_call: 'No on-call freelance artists.',
+        alumni: 'No alumni.'
+      };
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-users" style="font-size:2.5rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;"></i>' + esc(msgs[_filter] || 'No results.') + '</div>';
+      return;
+    }
+
+    var html = '';
+    list.forEach(function(m) {
+      var displayName = m.displayName || m.email || 'Unknown';
+      var tierClass = 'br-tier-' + (m.roster_tier || 'on_call');
+      var tierLabel = TIER_LABELS[m.roster_tier] || m.roster_tier || 'On Call';
+      var activityClass = 'br-activity-' + (m.activity || 'active');
+      var activityLabel = ACTIVITY_LABELS[m.activity] || m.activity || 'Active';
+
+      html += '<div class="br-card" data-uid="' + esc(m.uid) + '">';
+      html += '<div class="br-card-header">';
+      html += '<div class="br-card-avatar">' + initials(displayName) + '</div>';
+      html += '<div class="br-card-info">';
+      html += '<div class="br-card-name">' + esc(displayName) + '</div>';
+      html += '<div class="br-card-detail">';
+      html += '<span class="br-tier-badge ' + tierClass + '">' + esc(tierLabel) + '</span>';
+      if (m.roster_tier !== 'alumni') {
+        html += '<span class="br-tier-badge ' + activityClass + '">' + esc(activityLabel) + '</span>';
+      }
+      html += '</div>';
+      html += '</div>';
+
+      // Off-board button (admin/band_manager only, not for alumni)
+      if (m.roster_tier !== 'alumni') {
+        html += '<button class="br-offboard-btn" onclick="window._brOffboard(\'' + esc(m.uid) + '\')" title="Off-board" style="background:none;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;color:#f85149;font-size:13px;min-height:44px;"><i class="fa-solid fa-user-minus"></i></button>';
+      } else {
+        html += '<button onclick="window._brReinstate(\'' + esc(m.uid) + '\')" title="Reinstate" style="background:none;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;color:#3fb950;font-size:13px;min-height:44px;"><i class="fa-solid fa-user-plus"></i></button>';
+      }
+
+      html += '</div>';
+
+      // Details row
+      if (m.confidentialityAcceptedAt || m.offboarded_at) {
+        html += '<div style="margin-top:var(--space-sm);padding-top:var(--space-sm);border-top:1px solid var(--color-border);font-size:12px;color:var(--color-text-muted);">';
+        if (m.confidentialityAcceptedAt) {
+          var date = m.confidentialityAcceptedAt.toDate ? m.confidentialityAcceptedAt.toDate() : new Date(m.confidentialityAcceptedAt);
+          html += 'Onboarded: ' + date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        if (m.offboarded_at) {
+          var offDate = m.offboarded_at.toDate ? m.offboarded_at.toDate() : new Date(m.offboarded_at);
+          html += ' &middot; Off-boarded: ' + offDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          if (m.offboard_reason) html += ' (' + esc(m.offboard_reason) + ')';
+        }
+        html += '</div>';
+      }
+
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+    updateCountBadge();
+  }
+
+  // ═══ OFF-BOARDING ═══
+
+  window._brOffboard = function(uid) {
+    if (!fdb) return;
+    // Show reason modal
+    var reasons = ['Not a fit', 'Scheduling conflicts', 'Moved away', 'Personal reasons', 'Other'];
+    var modalHtml = '<div style="padding:var(--space-lg);max-width:400px;">';
+    modalHtml += '<h3 style="margin:0 0 var(--space-md);font-size:var(--text-lg);">Off-board Freelance Artist</h3>';
+    modalHtml += '<label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Reason</label>';
+    modalHtml += '<select id="br-offboard-reason" style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;margin-bottom:var(--space-md);">';
+    reasons.forEach(function(r) { modalHtml += '<option value="' + r + '">' + r + '</option>'; });
+    modalHtml += '</select>';
+    modalHtml += '<label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Notes (optional)</label>';
+    modalHtml += '<textarea id="br-offboard-notes" rows="2" style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;resize:vertical;margin-bottom:var(--space-lg);"></textarea>';
+    modalHtml += '<div style="display:flex;gap:var(--space-sm);justify-content:flex-end;">';
+    modalHtml += '<button onclick="Modal.close()" style="background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 20px;cursor:pointer;color:var(--color-text-secondary);font-size:var(--text-sm);min-height:44px;">Cancel</button>';
+    modalHtml += '<button id="br-offboard-confirm" style="background:#f85149;color:#fff;border:none;border-radius:var(--radius-md);padding:12px 20px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);min-height:44px;">Off-board</button>';
+    modalHtml += '</div></div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open(modalHtml);
+      document.getElementById('br-offboard-confirm').addEventListener('click', async function() {
+        var reason = document.getElementById('br-offboard-reason').value;
+        var notes = document.getElementById('br-offboard-notes').value.trim();
+        try {
+          await fdb.collection('users').doc(uid).update({
+            roster_tier: 'alumni',
+            activity: 'inactive',
+            offboarded_at: firebase.firestore.FieldValue.serverTimestamp(),
+            offboard_reason: reason,
+            offboard_notes: notes || ''
+          });
+          Modal.close();
+          if (typeof Toast !== 'undefined') Toast.success('Freelance artist off-boarded.');
+          await loadRoster();
+        } catch (e) {
+          if (typeof Toast !== 'undefined') Toast.error('Off-board failed: ' + e.message);
+        }
+      });
+    }
+  };
+
+  // ═══ REINSTATEMENT ═══
+
+  window._brReinstate = async function(uid) {
+    if (!fdb) return;
+    try {
+      await fdb.collection('users').doc(uid).update({
+        roster_tier: 'on_call',
+        activity: 'inactive',
+        reinstated_at: firebase.firestore.FieldValue.serverTimestamp(),
+        offboarded_at: firebase.firestore.FieldValue.delete(),
+        offboard_reason: firebase.firestore.FieldValue.delete(),
+        offboard_notes: firebase.firestore.FieldValue.delete()
+      });
+      if (typeof Toast !== 'undefined') Toast.success('Freelance artist reinstated as On Call (inactive).');
+      await loadRoster();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Reinstate failed: ' + e.message);
+    }
+  };
+
+  // ═══ TAB SWITCHING ═══
+
+  var tabs = document.querySelectorAll('.br-tab');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabs.forEach(function(t) {
+        t.classList.remove('active');
+        t.style.color = 'var(--color-text-muted)';
+        t.style.borderBottomColor = 'transparent';
+      });
+      this.classList.add('active');
+      this.style.color = 'var(--color-text)';
+      this.style.borderBottomColor = 'var(--color-gold)';
+      _filter = this.getAttribute('data-filter');
+      renderCards();
+    });
+  });
+
+  // ═══ INIT ═══
+
+  function init() {
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      document.getElementById('br-cards').innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);">Firestore not available.</div>';
+      return;
+    }
+    fdb = Auth._db;
+    loadRoster();
+  }
+
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { init(); });
+  } else {
+    init();
+  }
+})();
+</script>

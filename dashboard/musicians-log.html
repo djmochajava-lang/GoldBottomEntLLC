@@ -1,0 +1,716 @@
+<!-- dashboard/musicians-log.html — Musicians Log (Potential Musician Pipeline) -->
+<div class="dashboard-page" id="dash-musicians-log">
+
+  <!-- Page Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-lg);">
+    <div>
+      <h1 style="display:flex;align-items:center;gap:var(--space-sm);">
+        <i class="fa-solid fa-address-book" style="color:var(--color-gold);"></i>
+        Musicians Log
+        <span id="ml-count-badge" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);border-radius:var(--radius-full);padding:2px 10px;font-size:var(--text-sm);margin-left:var(--space-xs);">0</span>
+      </h1>
+      <p class="text-muted" style="margin:0;font-size:var(--text-sm);">Track potential musicians from the field.</p>
+    </div>
+  </div>
+
+  <!-- Offline Warning Banner -->
+  <div id="ml-offline-banner" style="display:none;background:rgba(210,153,34,0.12);border:1px solid rgba(210,153,34,0.3);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-md);font-size:var(--text-sm);color:#d29922;">
+    <i class="fa-solid fa-triangle-exclamation"></i> <strong>Encryption key unavailable.</strong> PII fields will be queued for encryption when the server is back online.
+  </div>
+
+  <!-- Status Filter Tabs -->
+  <div id="ml-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <button class="ml-tab active" data-filter="all" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;white-space:nowrap;">
+      All
+    </button>
+    <button class="ml-tab" data-filter="potential" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
+      Potential
+    </button>
+    <button class="ml-tab" data-filter="contacted" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
+      Contacted
+    </button>
+    <button class="ml-tab" data-filter="invite_sent" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
+      Invite Sent
+    </button>
+    <button class="ml-tab" data-filter="onboarded" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
+      Onboarded
+    </button>
+  </div>
+
+  <!-- Card Container -->
+  <div id="ml-cards" style="display:grid;grid-template-columns:1fr;gap:var(--space-md);">
+    <div style="text-align:center;padding:48px;color:var(--color-text-muted);">
+      <i class="fa-solid fa-spinner fa-spin"></i> Loading musicians...
+    </div>
+  </div>
+
+  <!-- Floating Action Button — Add Contact -->
+  <button id="ml-fab" style="position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:var(--color-gold);color:#000;border:none;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:100;transition:transform 0.15s;">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- Add/Edit Modal -->
+  <div id="ml-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+    <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:460px;margin:var(--space-lg);max-height:90vh;overflow-y:auto;">
+      <h2 id="ml-modal-title" style="margin:0 0 var(--space-lg);font-size:var(--text-lg);">Add Musician</h2>
+      <div style="display:grid;gap:var(--space-md);">
+        <div>
+          <label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Full Name *</label>
+          <input id="ml-field-name" type="text" placeholder="First and Last Name"
+            style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Email</label>
+          <input id="ml-field-email" type="email" placeholder="musician@example.com"
+            style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Phone</label>
+          <input id="ml-field-phone" type="tel" placeholder="(555) 123-4567"
+            style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Instrument *</label>
+          <select id="ml-field-instrument"
+            style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;-webkit-appearance:none;">
+            <option value="">Select instrument...</option>
+            <option value="Vocals">Vocals</option>
+            <option value="Guitar">Guitar</option>
+            <option value="Bass">Bass</option>
+            <option value="Drums">Drums</option>
+            <option value="Keys">Keys</option>
+            <option value="Saxophone">Saxophone</option>
+            <option value="Trumpet">Trumpet</option>
+            <option value="Trombone">Trombone</option>
+            <option value="Violin">Violin</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div id="ml-field-status-group" style="display:none;">
+          <label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Status</label>
+          <select id="ml-field-status"
+            style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;-webkit-appearance:none;">
+            <option value="potential">Potential</option>
+            <option value="contacted">Contacted</option>
+            <option value="invite_sent">Invite Sent</option>
+            <option value="onboarded">Onboarded</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px;">Notes</label>
+          <textarea id="ml-field-notes" rows="3" placeholder="Where did you meet? What did they play?"
+            style="width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px;resize:vertical;"></textarea>
+          <p style="margin:4px 0 0;font-size:11px;color:#d29922;"><i class="fa-solid fa-shield-halved"></i> Do not include phone numbers or emails in notes</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:var(--space-sm);justify-content:flex-end;margin-top:var(--space-lg);">
+        <button id="ml-modal-cancel" style="background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 20px;cursor:pointer;color:var(--color-text-secondary);font-size:var(--text-sm);min-height:44px;">Cancel</button>
+        <button id="ml-modal-save" style="background:var(--color-gold);color:#000;border:none;border-radius:var(--radius-md);padding:12px 20px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);min-height:44px;">Save</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  /* Status badge colors */
+  .ml-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .ml-status-potential { background: rgba(88,166,255,0.12); color: #58a6ff; }
+  .ml-status-contacted { background: rgba(210,153,34,0.12); color: #d29922; }
+  .ml-status-invite_sent { background: rgba(163,113,247,0.12); color: #a371f7; }
+  .ml-status-onboarded { background: rgba(63,185,80,0.12); color: #3fb950; }
+
+  /* Musician card */
+  .ml-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    transition: background 80ms;
+  }
+  .ml-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 48px;
+  }
+  .ml-card-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: rgba(212,160,23,0.18);
+    color: var(--color-gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--fw-bold);
+    font-size: var(--text-sm);
+    flex-shrink: 0;
+  }
+  .ml-card-info { flex: 1; min-width: 0; }
+  .ml-card-name {
+    font-size: 15px;
+    font-weight: var(--fw-semibold);
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ml-card-instrument {
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+  .ml-card-actions {
+    display: flex;
+    gap: var(--space-xs);
+    flex-shrink: 0;
+  }
+  .ml-card-details {
+    display: none;
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+  .ml-card-details.open { display: block; }
+
+  .ml-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 8px 14px;
+    min-height: 44px;
+    min-width: 44px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .ml-btn:hover { background: rgba(255,255,255,0.06); }
+  .ml-btn-invite {
+    border-color: rgba(63,185,80,0.3);
+    background: rgba(63,185,80,0.08);
+    color: #3fb950;
+  }
+  .ml-btn-invite:hover { background: rgba(63,185,80,0.16); }
+  .ml-btn-invite:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* FAB hover */
+  #ml-fab:active { transform: scale(0.92); }
+
+  /* Mobile-first: single column by default, 2 cols on tablets+ */
+  @media (min-width: 768px) {
+    #ml-cards { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var fdb = null;
+  var _musicians = [];
+  var _filter = 'all';
+  var _editId = null;
+  var _encKey = null; // CryptoKey for AES-256-GCM
+
+  var STATUS_LABELS = {
+    potential: 'Potential',
+    contacted: 'Contacted',
+    invite_sent: 'Invite Sent',
+    onboarded: 'Onboarded'
+  };
+
+  function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  function initials(name) {
+    if (!name) return '?';
+    var p = String(name).trim().split(/\s+/);
+    return (p.length >= 2 ? p[0][0] + p[p.length - 1][0] : (p[0][0] || '?')).toUpperCase();
+  }
+
+  // ═══ AES-256-GCM ENCRYPTION (Web Crypto API) ═══
+
+  /**
+   * Import a hex key string into a CryptoKey for AES-256-GCM.
+   */
+  async function importKey(hexKey) {
+    var raw = new Uint8Array(hexKey.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
+    return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  }
+
+  /**
+   * Encrypt a string. Returns "enc:v1:<iv_hex>:<authTag_hex>:<ciphertext_hex>"
+   */
+  async function encryptField(plaintext, key) {
+    if (!plaintext || !key) return '';
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    var encoded = new TextEncoder().encode(plaintext);
+    var encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, tagLength: 128 }, key, encoded);
+    // Last 16 bytes of the result are the auth tag
+    var encBytes = new Uint8Array(encrypted);
+    var ciphertext = encBytes.slice(0, encBytes.length - 16);
+    var authTag = encBytes.slice(encBytes.length - 16);
+    return 'enc:v1:' + toHex(iv) + ':' + toHex(authTag) + ':' + toHex(ciphertext);
+  }
+
+  /**
+   * Decrypt a string in format "enc:v1:<iv_hex>:<authTag_hex>:<ciphertext_hex>"
+   */
+  async function decryptField(encStr, key) {
+    if (!encStr || !key || encStr.indexOf('enc:v1:') !== 0) return encStr || '';
+    try {
+      var parts = encStr.split(':');
+      if (parts.length < 5) return '[encrypted]';
+      var iv = fromHex(parts[2]);
+      var authTag = fromHex(parts[3]);
+      var ciphertext = fromHex(parts[4]);
+      // Reconstruct: ciphertext + authTag (Web Crypto expects them concatenated)
+      var combined = new Uint8Array(ciphertext.length + authTag.length);
+      combined.set(ciphertext, 0);
+      combined.set(authTag, ciphertext.length);
+      var decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv, tagLength: 128 }, key, combined);
+      return new TextDecoder().decode(decrypted);
+    } catch (e) {
+      console.warn('[Musicians Log] Decrypt failed:', e.message);
+      return '[encrypted]';
+    }
+  }
+
+  function toHex(arr) {
+    return Array.from(arr).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function fromHex(hex) {
+    return new Uint8Array(hex.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
+  }
+
+  // ═══ ENCRYPTION KEY MANAGEMENT ═══
+
+  async function fetchEncryptionKey() {
+    // Strategy: server endpoint (if local) → Firestore config doc → sessionStorage cache
+    try {
+      var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
+
+      // 1. Try server endpoint (HomeOffice only)
+      if (isLocal) {
+        try {
+          var headers = { 'Content-Type': 'application/json' };
+          var token = localStorage.getItem('gbe-session-token');
+          var apiKey = localStorage.getItem('gbe-api-key');
+          if (token) headers['X-GBE-Session'] = token;
+          if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+
+          var resp = await fetch('/api/v1/auth/encryption-key', { headers: headers });
+          if (resp.ok) {
+            var data = await resp.json();
+            if (data.key) {
+              _encKey = await importKey(data.key);
+              sessionStorage.setItem('gbe-enc-key', data.key);
+              return;
+            }
+          }
+        } catch (e) { /* server unavailable, fall through */ }
+      }
+
+      // 2. Try Firestore config doc (works from field — Firestore-first)
+      if (fdb) {
+        try {
+          var configDoc = await fdb.collection('config').doc('encryption').get();
+          if (configDoc.exists && configDoc.data().key) {
+            _encKey = await importKey(configDoc.data().key);
+            sessionStorage.setItem('gbe-enc-key', configDoc.data().key);
+            return;
+          }
+        } catch (e) { /* Firestore config not available, fall through */ }
+      }
+
+      // 3. Try sessionStorage cache (offline fallback)
+      var cached = sessionStorage.getItem('gbe-enc-key');
+      if (cached) {
+        _encKey = await importKey(cached);
+        return;
+      }
+
+      // No key available — show offline banner
+      document.getElementById('ml-offline-banner').style.display = 'block';
+    } catch (e) {
+      console.warn('[Musicians Log] Encryption key unavailable:', e.message);
+      document.getElementById('ml-offline-banner').style.display = 'block';
+    }
+  }
+
+  // ═══ FIRESTORE OPERATIONS ═══
+
+  async function loadMusicians() {
+    var container = document.getElementById('ml-cards');
+    if (!fdb) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-database" style="font-size:2rem;margin-bottom:12px;display:block;opacity:0.3;"></i>Firestore not available.</div>';
+      return;
+    }
+
+    try {
+      var snap = await fdb.collection('musicians-log').orderBy('created_at', 'desc').get();
+      _musicians = [];
+      var decryptPromises = [];
+
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        d.id = doc.id;
+        _musicians.push(d);
+      });
+
+      // Decrypt PII fields
+      for (var i = 0; i < _musicians.length; i++) {
+        var m = _musicians[i];
+        if (_encKey) {
+          m._fullName = await decryptField(m.full_name_enc, _encKey);
+          m._email = await decryptField(m.email_enc, _encKey);
+          m._phone = await decryptField(m.phone_enc, _encKey);
+        } else {
+          m._fullName = m.first_name || '[encrypted]';
+          m._email = m.email_enc ? '[encrypted]' : '';
+          m._phone = m.phone_enc ? '[encrypted]' : '';
+        }
+      }
+
+      updateCountBadge();
+      renderCards();
+    } catch (e) {
+      console.error('[Musicians Log] Load failed:', e);
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:#f85149;"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  function updateCountBadge() {
+    var badge = document.getElementById('ml-count-badge');
+    if (badge) badge.textContent = _musicians.length;
+  }
+
+  function getFiltered() {
+    if (_filter === 'all') return _musicians;
+    return _musicians.filter(function(m) { return m.status === _filter; });
+  }
+
+  function renderCards() {
+    var container = document.getElementById('ml-cards');
+    var list = getFiltered();
+
+    if (!list.length) {
+      var msg = _filter === 'all' ? 'No musicians yet. Tap + to add one.' : 'No musicians with status "' + (STATUS_LABELS[_filter] || _filter) + '".';
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-address-book" style="font-size:2.5rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;"></i>' + esc(msg) + '</div>';
+      return;
+    }
+
+    var html = '';
+    list.forEach(function(m) {
+      var displayName = m._fullName || m.first_name || 'Unknown';
+      var canInvite = m.status === 'potential' || m.status === 'contacted';
+      var statusClass = 'ml-status-' + (m.status || 'potential');
+      var statusLabel = STATUS_LABELS[m.status] || m.status || 'Potential';
+      var ts = m.created_at && m.created_at.toDate ? m.created_at.toDate() : (m.created_at ? new Date(m.created_at) : null);
+      var dateStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+      html += '<div class="ml-card" data-id="' + esc(m.id) + '">';
+
+      // Header row
+      html += '<div class="ml-card-header">';
+      html += '<div class="ml-card-avatar">' + initials(displayName) + '</div>';
+      html += '<div class="ml-card-info">';
+      html += '<div class="ml-card-name">' + esc(displayName) + '</div>';
+      html += '<div class="ml-card-instrument">' + esc(m.instrument || '—') + ' <span class="ml-status-badge ' + statusClass + '">' + esc(statusLabel) + '</span></div>';
+      html += '</div>';
+      html += '<div class="ml-card-actions">';
+      html += '<button class="ml-btn" onclick="window._mlExpand(\'' + esc(m.id) + '\')" title="Details"><i class="fa-solid fa-chevron-down"></i></button>';
+      html += '<button class="ml-btn" onclick="window._mlEdit(\'' + esc(m.id) + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>';
+      html += '</div>';
+      html += '</div>';
+
+      // Actions row
+      html += '<div style="margin-top:var(--space-sm);display:flex;gap:var(--space-xs);flex-wrap:wrap;">';
+      html += '<button class="ml-btn ml-btn-invite" ' + (canInvite ? '' : 'disabled') + ' onclick="window._mlSendInvite(\'' + esc(m.id) + '\')"><i class="fa-solid fa-paper-plane"></i> Send Rehearsal Invite</button>';
+      html += '</div>';
+
+      // Details (expandable)
+      html += '<div class="ml-card-details" id="ml-detail-' + esc(m.id) + '">';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-bottom:var(--space-sm);">';
+      html += '<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);">Email</span><br>' + esc(m._email || '—') + '</div>';
+      html += '<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);">Phone</span><br>' + esc(m._phone || '—') + '</div>';
+      html += '</div>';
+      if (m.notes) {
+        html += '<div style="margin-bottom:var(--space-sm);"><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);">Notes</span><br>' + esc(m.notes) + '</div>';
+      }
+      if (dateStr) {
+        html += '<div style="font-size:11px;color:var(--color-text-muted);">Added ' + dateStr + '</div>';
+      }
+      html += '</div>';
+
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  // ═══ CARD ACTIONS ═══
+
+  window._mlExpand = function(id) {
+    var el = document.getElementById('ml-detail-' + id);
+    if (el) el.classList.toggle('open');
+  };
+
+  window._mlEdit = function(id) {
+    var m = _musicians.find(function(x) { return x.id === id; });
+    if (!m) return;
+    _editId = id;
+    document.getElementById('ml-modal-title').textContent = 'Edit Musician';
+    document.getElementById('ml-field-name').value = m._fullName || '';
+    document.getElementById('ml-field-email').value = m._email || '';
+    document.getElementById('ml-field-phone').value = m._phone || '';
+    document.getElementById('ml-field-instrument').value = m.instrument || '';
+    document.getElementById('ml-field-notes').value = m.notes || '';
+    document.getElementById('ml-field-status').value = m.status || 'potential';
+    document.getElementById('ml-field-status-group').style.display = 'block';
+    document.getElementById('ml-modal').style.display = 'flex';
+  };
+
+  window._mlSendInvite = async function(id) {
+    var m = _musicians.find(function(x) { return x.id === id; });
+    if (!m) return;
+
+    if (!m._email || m._email === '[encrypted]') {
+      if (typeof Toast !== 'undefined') Toast.error('No email available for this musician.');
+      return;
+    }
+
+    var displayName = m._fullName || m.first_name || 'there';
+    var subject = 'L.A. Young Soul Society — Confirm Your Availability for Upcoming Band Rehearsal';
+    var bodyText = 'Hi ' + displayName + ',\n\nWe are putting together a rehearsal and would like to confirm your availability. Please reply to this email and let us know.\n\nBest regards,\nGold Bottom Ent. LLC';
+    var bodyHtml = '<p>Hi ' + displayName + ',</p><p>We are putting together a rehearsal and would like to confirm your availability. Please reply to this email and let us know.</p><p>Best regards,<br/>Gold Bottom Ent. LLC</p>';
+    var sendMethod = 'sent_manual'; // default: mailto (field)
+
+    var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
+
+    try {
+      // Try SMTP via HomeOffice server if available
+      if (isLocal) {
+        try {
+          var headers = { 'Content-Type': 'application/json' };
+          var token = localStorage.getItem('gbe-session-token');
+          var apiKey = localStorage.getItem('gbe-api-key');
+          if (token) headers['X-GBE-Session'] = token;
+          if (apiKey) headers['Authorization'] = 'Bearer ' + apiKey;
+
+          var resp = await fetch('/api/v1/email/send', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+              to: m._email,
+              subject: subject,
+              account: 'band_manager',
+              text: bodyText,
+              html: bodyHtml
+            })
+          });
+
+          if (resp.ok) {
+            sendMethod = 'sent_auto';
+          } else {
+            throw new Error('SMTP failed: ' + resp.status);
+          }
+        } catch (smtpErr) {
+          // SMTP failed — fall back to mailto
+          console.warn('[Musicians Log] SMTP unavailable, using mailto:', smtpErr.message);
+          window.open('mailto:' + encodeURIComponent(m._email)
+            + '?subject=' + encodeURIComponent(subject)
+            + '&body=' + encodeURIComponent(bodyText));
+          sendMethod = 'sent_manual';
+        }
+      } else {
+        // Remote (field) — use mailto: link (opens native mail on BM's phone)
+        window.open('mailto:' + encodeURIComponent(m._email)
+          + '?subject=' + encodeURIComponent(subject)
+          + '&body=' + encodeURIComponent(bodyText));
+        sendMethod = 'sent_manual';
+      }
+
+      // Log to Firestore email-logs
+      if (fdb) {
+        var logData = {
+          to_email_enc: m.email_enc || '',
+          template_name: 'rehearsal_invite',
+          status: sendMethod,
+          sent_by: (typeof Auth !== 'undefined' && Auth.getUser) ? (Auth.getUser().displayName || Auth.getUser().email || 'unknown') : 'unknown',
+          sent_via: sendMethod === 'sent_auto' ? 'smtp' : 'native_mail',
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        await fdb.collection('email-logs').add(logData);
+      }
+
+      // Update status to invite_sent
+      await fdb.collection('musicians-log').doc(id).update({
+        status: 'invite_sent',
+        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      m.status = 'invite_sent';
+      renderCards();
+
+      var methodLabel = sendMethod === 'sent_auto' ? 'sent via server' : 'opened in mail app';
+      if (typeof Toast !== 'undefined') Toast.success('Rehearsal invite ' + methodLabel + ' for ' + (m._fullName || m.first_name));
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Failed to send invite: ' + e.message);
+    }
+  };
+
+  // ═══ ADD / SAVE ═══
+
+  async function saveMusician() {
+    var fullName = document.getElementById('ml-field-name').value.trim();
+    var email = document.getElementById('ml-field-email').value.trim();
+    var phone = document.getElementById('ml-field-phone').value.trim();
+    var instrument = document.getElementById('ml-field-instrument').value;
+    var notes = document.getElementById('ml-field-notes').value.trim();
+    var status = _editId ? document.getElementById('ml-field-status').value : 'potential';
+
+    if (!fullName) { alert('Full Name is required.'); return; }
+    if (!instrument) { alert('Instrument is required.'); return; }
+
+    // Extract first name for plain text field
+    var firstName = fullName.split(/\s+/)[0];
+
+    // Encrypt PII fields
+    var fullNameEnc = '';
+    var emailEnc = '';
+    var phoneEnc = '';
+
+    if (_encKey) {
+      fullNameEnc = await encryptField(fullName, _encKey);
+      if (email) emailEnc = await encryptField(email, _encKey);
+      if (phone) phoneEnc = await encryptField(phone, _encKey);
+    } else {
+      // Queue — store raw in sessionStorage temporarily, mark for later encryption
+      fullNameEnc = 'pending:' + fullName;
+      if (email) emailEnc = 'pending:' + email;
+      if (phone) phoneEnc = 'pending:' + phone;
+    }
+
+    // Get current user for created_by
+    var currentUser = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+    var createdBy = currentUser ? (currentUser.displayName || currentUser.email || currentUser.uid) : 'unknown';
+
+    var docData = {
+      first_name: firstName,
+      instrument: instrument,
+      status: status,
+      notes: notes,
+      full_name_enc: fullNameEnc,
+      email_enc: emailEnc,
+      phone_enc: phoneEnc,
+      updated_at: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      if (_editId) {
+        await fdb.collection('musicians-log').doc(_editId).update(docData);
+        if (typeof Toast !== 'undefined') Toast.success('Musician updated.');
+      } else {
+        docData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        docData.created_by = createdBy;
+        await fdb.collection('musicians-log').add(docData);
+        if (typeof Toast !== 'undefined') Toast.success('Musician added.');
+      }
+
+      closeModal();
+      await loadMusicians();
+    } catch (e) {
+      console.error('[Musicians Log] Save failed:', e);
+      if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + e.message);
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('ml-modal').style.display = 'none';
+    _editId = null;
+    document.getElementById('ml-field-name').value = '';
+    document.getElementById('ml-field-email').value = '';
+    document.getElementById('ml-field-phone').value = '';
+    document.getElementById('ml-field-instrument').value = '';
+    document.getElementById('ml-field-notes').value = '';
+    document.getElementById('ml-field-status').value = 'potential';
+    document.getElementById('ml-field-status-group').style.display = 'none';
+  }
+
+  // ═══ TAB SWITCHING ═══
+
+  var tabs = document.querySelectorAll('.ml-tab');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabs.forEach(function(t) {
+        t.classList.remove('active');
+        t.style.color = 'var(--color-text-muted)';
+        t.style.borderBottomColor = 'transparent';
+      });
+      this.classList.add('active');
+      this.style.color = 'var(--color-text)';
+      this.style.borderBottomColor = 'var(--color-gold)';
+      _filter = this.getAttribute('data-filter');
+      renderCards();
+    });
+  });
+
+  // ═══ MODAL EVENTS ═══
+
+  document.getElementById('ml-fab').addEventListener('click', function() {
+    _editId = null;
+    document.getElementById('ml-modal-title').textContent = 'Add Musician';
+    document.getElementById('ml-field-status-group').style.display = 'none';
+    document.getElementById('ml-modal').style.display = 'flex';
+    document.getElementById('ml-field-name').focus();
+  });
+
+  document.getElementById('ml-modal-cancel').addEventListener('click', closeModal);
+
+  document.getElementById('ml-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  document.getElementById('ml-modal-save').addEventListener('click', saveMusician);
+
+  // ═══ INIT ═══
+
+  async function init() {
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      document.getElementById('ml-cards').innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);">Firestore not available.</div>';
+      return;
+    }
+    fdb = Auth._db;
+
+    await fetchEncryptionKey();
+    await loadMusicians();
+  }
+
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { init(); });
+  } else {
+    init();
+  }
+})();
+</script>

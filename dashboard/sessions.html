@@ -1,0 +1,526 @@
+<!-- dashboard/sessions.html — Sessions Management (gig, rehearsal, studio, sectional) -->
+<div class="dashboard-page" id="dash-sessions">
+
+  <!-- Page Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-lg);">
+    <div>
+      <h1 style="display:flex;align-items:center;gap:var(--space-sm);">
+        <i class="fa-solid fa-calendar-check" style="color:var(--color-gold);"></i>
+        Sessions
+        <span id="sess-count-badge" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);border-radius:var(--radius-full);padding:2px 10px;font-size:var(--text-sm);margin-left:var(--space-xs);">0</span>
+      </h1>
+      <p class="text-muted" style="margin:0;font-size:var(--text-sm);">Manage gigs, rehearsals, studio sessions, and sectionals.</p>
+    </div>
+  </div>
+
+  <!-- Status Filter Tabs -->
+  <div id="sess-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <button class="sess-tab active" data-filter="upcoming" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;white-space:nowrap;">Upcoming</button>
+    <button class="sess-tab" data-filter="draft" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">Drafts</button>
+    <button class="sess-tab" data-filter="completed" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">Completed</button>
+    <button class="sess-tab" data-filter="all" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">All</button>
+  </div>
+
+  <!-- Card Container -->
+  <div id="sess-cards" style="display:grid;grid-template-columns:1fr;gap:var(--space-md);">
+    <div style="text-align:center;padding:48px;color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading sessions...</div>
+  </div>
+
+  <!-- FAB — Create Session -->
+  <button id="sess-fab" style="position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:var(--color-gold);color:#000;border:none;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);z-index:100;">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- Create/Edit Modal -->
+  <div id="sess-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+    <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:520px;margin:var(--space-lg);max-height:90vh;overflow-y:auto;">
+      <h2 id="sess-modal-title" style="margin:0 0 var(--space-lg);font-size:var(--text-lg);">Create Session</h2>
+      <div style="display:grid;gap:var(--space-md);" id="sess-form">
+        <!-- Common fields -->
+        <div>
+          <label class="sess-label">Title *</label>
+          <input id="sess-title" type="text" placeholder="Friday Night at Blue Note" class="sess-input" />
+        </div>
+        <div>
+          <label class="sess-label">Session Type *</label>
+          <select id="sess-type" class="sess-input">
+            <option value="gig">Gig</option>
+            <option value="rehearsal">Rehearsal</option>
+            <option value="studio">Studio</option>
+            <option value="sectional">Sectional</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
+          <div><label class="sess-label">Date *</label><input id="sess-date" type="date" class="sess-input" /></div>
+          <div><label class="sess-label">Time</label><input id="sess-time" type="time" class="sess-input" /></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
+          <div><label class="sess-label">Duration</label><input id="sess-duration" type="text" placeholder="3h" class="sess-input" /></div>
+          <div><label class="sess-label">Status</label>
+            <select id="sess-status" class="sess-input">
+              <option value="draft">Draft</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="invites_sent">Invites Sent</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div><label class="sess-label">Venue</label><input id="sess-venue" type="text" placeholder="Blue Note Jazz Club" class="sess-input" /></div>
+        <div><label class="sess-label">Address</label><input id="sess-address" type="text" placeholder="131 W 3rd St" class="sess-input" /></div>
+        <div><label class="sess-label">Notes</label><textarea id="sess-notes" rows="2" class="sess-input" style="resize:vertical;"></textarea></div>
+
+        <!-- Type-specific fields (toggled by session type) -->
+        <div id="sess-gig-fields">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
+            <div><label class="sess-label">Pay / Musician ($)</label><input id="sess-pay" type="number" placeholder="250" class="sess-input" /></div>
+            <div><label class="sess-label">Dress Code</label><input id="sess-dress" type="text" placeholder="All black" class="sess-input" /></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-top:var(--space-sm);">
+            <div><label class="sess-label">Load-in Time</label><input id="sess-loadin" type="time" class="sess-input" /></div>
+            <div><label class="sess-label">Set Times</label><input id="sess-sets" type="text" placeholder="20:00-21:00, 21:30-22:30" class="sess-input" /></div>
+          </div>
+        </div>
+        <div id="sess-studio-fields" style="display:none;">
+          <div><label class="sess-label">Engineer</label><input id="sess-engineer" type="text" class="sess-input" /></div>
+          <div style="margin-top:var(--space-sm);"><label class="sess-label">Studio Name</label><input id="sess-studio-name" type="text" class="sess-input" /></div>
+          <div style="margin-top:var(--space-sm);"><label class="sess-label">Recording Plan</label><textarea id="sess-rec-plan" rows="2" class="sess-input" style="resize:vertical;"></textarea></div>
+        </div>
+        <div id="sess-rehearsal-fields" style="display:none;">
+          <div><label class="sess-label">Focus Areas</label><input id="sess-focus" type="text" placeholder="Transitions, new arrangements" class="sess-input" /></div>
+          <div style="margin-top:var(--space-sm);"><label class="sess-label">Run-Through List</label><textarea id="sess-runthrough" rows="2" class="sess-input" style="resize:vertical;"></textarea></div>
+        </div>
+        <div id="sess-sectional-fields" style="display:none;">
+          <div><label class="sess-label">Section</label>
+            <select id="sess-section" class="sess-input">
+              <option value="rhythm">Rhythm</option>
+              <option value="vocals">Vocals</option>
+              <option value="horns">Horns</option>
+              <option value="full">Full</option>
+            </select>
+          </div>
+          <div style="margin-top:var(--space-sm);"><label class="sess-label">Focus Areas</label><input id="sess-sec-focus" type="text" class="sess-input" /></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:var(--space-sm);justify-content:flex-end;margin-top:var(--space-lg);">
+        <button id="sess-cancel" class="sess-btn-secondary">Cancel</button>
+        <button id="sess-save" class="sess-btn-primary">Save Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assign Musicians Modal -->
+  <div id="sess-assign-modal" style="display:none;position:fixed;inset:0;z-index:9001;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+    <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:460px;margin:var(--space-lg);max-height:90vh;overflow-y:auto;">
+      <h2 style="margin:0 0 var(--space-lg);font-size:var(--text-lg);">Assign Freelance Artists</h2>
+      <div id="sess-assign-shortcuts" style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-md);">
+        <button class="sess-btn-secondary" onclick="window._sessInviteGroup('core')">Invite Core</button>
+        <button class="sess-btn-secondary" onclick="window._sessInviteGroup('active')">Invite Active</button>
+        <button class="sess-btn-secondary" onclick="window._sessInviteGroup('all')">Invite All</button>
+      </div>
+      <div id="sess-assign-list" style="display:grid;gap:var(--space-sm);max-height:300px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:var(--space-sm);justify-content:flex-end;margin-top:var(--space-lg);">
+        <button onclick="document.getElementById('sess-assign-modal').style.display='none'" class="sess-btn-secondary">Cancel</button>
+        <button id="sess-send-invites" class="sess-btn-primary">Send Booking Requests</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .sess-label { display:block;font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:4px; }
+  .sess-input { width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);color:var(--color-text);font-size:16px; }
+  .sess-btn-primary { background:var(--color-gold);color:#000;border:none;border-radius:var(--radius-md);padding:12px 20px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);min-height:44px; }
+  .sess-btn-secondary { background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 20px;cursor:pointer;color:var(--color-text-secondary);font-size:var(--text-sm);min-height:44px; }
+
+  .sess-type-badge { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:12px;font-weight:600;white-space:nowrap; }
+  .sess-type-gig { background:rgba(212,160,23,0.15);color:#d4a017; }
+  .sess-type-rehearsal { background:rgba(88,166,255,0.12);color:#58a6ff; }
+  .sess-type-studio { background:rgba(163,113,247,0.12);color:#a371f7; }
+  .sess-type-sectional { background:rgba(63,185,80,0.12);color:#3fb950; }
+
+  .sess-status-badge { display:inline-flex;padding:3px 10px;border-radius:var(--radius-full);font-size:11px;font-weight:600; }
+  .sess-status-draft { background:rgba(139,148,158,0.12);color:#8b949e; }
+  .sess-status-scheduled { background:rgba(88,166,255,0.12);color:#58a6ff; }
+  .sess-status-invites_sent { background:rgba(210,153,34,0.12);color:#d29922; }
+  .sess-status-confirmed { background:rgba(63,185,80,0.12);color:#3fb950; }
+  .sess-status-completed { background:rgba(63,185,80,0.12);color:#3fb950; }
+  .sess-status-cancelled { background:rgba(248,81,73,0.12);color:#f85149; }
+
+  .sess-card { background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md); }
+
+  .sess-assign-row { display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm);border-radius:var(--radius-md);background:var(--color-bg-tertiary); }
+  .sess-assign-row label { flex:1;cursor:pointer;font-size:var(--text-sm); }
+
+  @media (min-width: 768px) { #sess-cards { grid-template-columns: 1fr 1fr; } }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var fdb = null;
+  var _sessions = [];
+  var _filter = 'upcoming';
+  var _editId = null;
+  var _assignSessionId = null;
+  var _rosterUsers = [];
+
+  var TYPE_LABELS = { gig:'Gig', rehearsal:'Rehearsal', studio:'Studio', sectional:'Sectional' };
+  var STATUS_LABELS = { draft:'Draft', scheduled:'Scheduled', invites_sent:'Invites Sent', confirmed:'Confirmed', completed:'Completed', cancelled:'Cancelled' };
+
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // ═══ TYPE-SPECIFIC FIELD TOGGLE ═══
+  function toggleTypeFields() {
+    var type = document.getElementById('sess-type').value;
+    ['gig','studio','rehearsal','sectional'].forEach(function(t) {
+      var el = document.getElementById('sess-' + t + '-fields');
+      if (el) el.style.display = (t === type) ? 'block' : 'none';
+    });
+  }
+
+  // ═══ LOAD SESSIONS ═══
+  async function loadSessions() {
+    var container = document.getElementById('sess-cards');
+    if (!fdb) { container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);">Firestore not available.</div>'; return; }
+
+    try {
+      var snap = await fdb.collection('sessions').orderBy('date', 'desc').get();
+      _sessions = [];
+      snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; _sessions.push(d); });
+      updateCount();
+      renderCards();
+    } catch (e) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:#f85149;"><i class="fa-solid fa-triangle-exclamation"></i> ' + esc(e.message) + '</div>';
+    }
+  }
+
+  function updateCount() {
+    var el = document.getElementById('sess-count-badge');
+    if (el) el.textContent = getFiltered().length;
+  }
+
+  function getFiltered() {
+    var today = new Date().toISOString().split('T')[0];
+    if (_filter === 'upcoming') return _sessions.filter(function(s) { return s.date >= today && s.status !== 'completed' && s.status !== 'cancelled'; });
+    if (_filter === 'draft') return _sessions.filter(function(s) { return s.status === 'draft'; });
+    if (_filter === 'completed') return _sessions.filter(function(s) { return s.status === 'completed'; });
+    return _sessions;
+  }
+
+  function renderCards() {
+    var container = document.getElementById('sess-cards');
+    var list = getFiltered();
+    if (!list.length) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-calendar-check" style="font-size:2.5rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;"></i>No sessions found.</div>';
+      return;
+    }
+
+    var html = '';
+    list.forEach(function(s) {
+      var typeClass = 'sess-type-' + (s.session_type || 'gig');
+      var statusClass = 'sess-status-' + (s.status || 'draft');
+      var dateStr = s.date ? new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : '';
+      var timeStr = s.time || '';
+
+      html += '<div class="sess-card">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-sm);">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-size:15px;font-weight:var(--fw-semibold);color:var(--color-text);margin-bottom:4px;">' + esc(s.title || 'Untitled') + '</div>';
+      html += '<div style="display:flex;gap:var(--space-xs);flex-wrap:wrap;align-items:center;margin-bottom:var(--space-xs);">';
+      html += '<span class="sess-type-badge ' + typeClass + '">' + esc(TYPE_LABELS[s.session_type] || s.session_type) + '</span>';
+      html += '<span class="sess-status-badge ' + statusClass + '">' + esc(STATUS_LABELS[s.status] || s.status) + '</span>';
+      html += '</div>';
+      if (dateStr) html += '<div style="font-size:13px;color:var(--color-text-muted);"><i class="fa-solid fa-calendar" style="width:16px;"></i> ' + esc(dateStr) + (timeStr ? ' at ' + esc(timeStr) : '') + '</div>';
+      if (s.venue) html += '<div style="font-size:13px;color:var(--color-text-muted);"><i class="fa-solid fa-location-dot" style="width:16px;"></i> ' + esc(s.venue) + '</div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:var(--space-xs);flex-shrink:0;">';
+      html += '<button onclick="window._sessAssign(\'' + esc(s.id) + '\')" title="Assign artists" style="background:none;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;color:#3fb950;font-size:13px;min-height:44px;min-width:44px;"><i class="fa-solid fa-user-plus"></i></button>';
+      html += '<button onclick="window._sessEdit(\'' + esc(s.id) + '\')" title="Edit" style="background:none;border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;color:var(--color-text-secondary);font-size:13px;min-height:44px;min-width:44px;"><i class="fa-solid fa-pen"></i></button>';
+      html += '</div></div></div>';
+    });
+    container.innerHTML = html;
+    updateCount();
+  }
+
+  // ═══ CREATE / EDIT ═══
+  function getTypeSpecificData() {
+    var type = document.getElementById('sess-type').value;
+    var data = {};
+    if (type === 'gig') {
+      data.pay_per_musician = parseFloat(document.getElementById('sess-pay').value) || null;
+      data.dress_code = document.getElementById('sess-dress').value.trim();
+      data.load_in_time = document.getElementById('sess-loadin').value;
+      data.set_times = document.getElementById('sess-sets').value.trim();
+    } else if (type === 'studio') {
+      data.engineer = document.getElementById('sess-engineer').value.trim();
+      data.studio_name = document.getElementById('sess-studio-name').value.trim();
+      data.recording_plan = document.getElementById('sess-rec-plan').value.trim();
+    } else if (type === 'rehearsal') {
+      data.focus_areas = document.getElementById('sess-focus').value.trim();
+      data.run_through_list = document.getElementById('sess-runthrough').value.trim();
+    } else if (type === 'sectional') {
+      data.section = document.getElementById('sess-section').value;
+      data.focus_areas = document.getElementById('sess-sec-focus').value.trim();
+    }
+    return data;
+  }
+
+  async function saveSession() {
+    var title = document.getElementById('sess-title').value.trim();
+    var date = document.getElementById('sess-date').value;
+    if (!title || !date) { alert('Title and Date are required.'); return; }
+
+    var currentUser = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+    var docData = {
+      title: title,
+      session_type: document.getElementById('sess-type').value,
+      date: date,
+      time: document.getElementById('sess-time').value,
+      duration: document.getElementById('sess-duration').value.trim(),
+      status: document.getElementById('sess-status').value,
+      venue: document.getElementById('sess-venue').value.trim(),
+      address: document.getElementById('sess-address').value.trim(),
+      notes: document.getElementById('sess-notes').value.trim(),
+      type_specific_data: getTypeSpecificData(),
+      updated_at: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      if (_editId) {
+        await fdb.collection('sessions').doc(_editId).update(docData);
+        if (typeof Toast !== 'undefined') Toast.success('Session updated.');
+      } else {
+        docData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        docData.created_by = currentUser ? (currentUser.displayName || currentUser.email || currentUser.uid) : 'unknown';
+        await fdb.collection('sessions').add(docData);
+        if (typeof Toast !== 'undefined') Toast.success('Session created.');
+      }
+      closeModal();
+      await loadSessions();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + e.message);
+    }
+  }
+
+  window._sessEdit = function(id) {
+    var s = _sessions.find(function(x) { return x.id === id; });
+    if (!s) return;
+    _editId = id;
+    document.getElementById('sess-modal-title').textContent = 'Edit Session';
+    document.getElementById('sess-title').value = s.title || '';
+    document.getElementById('sess-type').value = s.session_type || 'gig';
+    document.getElementById('sess-date').value = s.date || '';
+    document.getElementById('sess-time').value = s.time || '';
+    document.getElementById('sess-duration').value = s.duration || '';
+    document.getElementById('sess-status').value = s.status || 'draft';
+    document.getElementById('sess-venue').value = s.venue || '';
+    document.getElementById('sess-address').value = s.address || '';
+    document.getElementById('sess-notes').value = s.notes || '';
+    var tsd = s.type_specific_data || {};
+    if (s.session_type === 'gig') {
+      document.getElementById('sess-pay').value = tsd.pay_per_musician || '';
+      document.getElementById('sess-dress').value = tsd.dress_code || '';
+      document.getElementById('sess-loadin').value = tsd.load_in_time || '';
+      document.getElementById('sess-sets').value = tsd.set_times || '';
+    }
+    toggleTypeFields();
+    document.getElementById('sess-modal').style.display = 'flex';
+  };
+
+  function closeModal() {
+    document.getElementById('sess-modal').style.display = 'none';
+    _editId = null;
+    ['sess-title','sess-date','sess-time','sess-duration','sess-venue','sess-address','sess-notes','sess-pay','sess-dress','sess-loadin','sess-sets','sess-engineer','sess-studio-name','sess-rec-plan','sess-focus','sess-runthrough','sess-sec-focus'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('sess-type').value = 'gig';
+    document.getElementById('sess-status').value = 'draft';
+    toggleTypeFields();
+  }
+
+  // ═══ ASSIGN MUSICIANS ═══
+  window._sessAssign = async function(sessionId) {
+    _assignSessionId = sessionId;
+    var listEl = document.getElementById('sess-assign-list');
+    listEl.innerHTML = '<div style="text-align:center;padding:var(--space-md);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+    document.getElementById('sess-assign-modal').style.display = 'flex';
+
+    try {
+      // Load roster (active freelance artists)
+      var snap = await fdb.collection('users').where('roster_tier', 'in', ['core', 'on_call']).get();
+      _rosterUsers = [];
+      snap.forEach(function(doc) { var d = doc.data(); d.uid = doc.id; _rosterUsers.push(d); });
+
+      // Load existing assignments for this session
+      var assignSnap = await fdb.collection('session-assignments').where('session_id', '==', sessionId).get();
+      var assigned = {};
+      assignSnap.forEach(function(doc) { assigned[doc.data().musician_uid] = doc.data().status; });
+
+      var html = '';
+      _rosterUsers.forEach(function(u) {
+        var name = u.displayName || u.email || 'Unknown';
+        var isAssigned = !!assigned[u.uid];
+        var statusLabel = assigned[u.uid] ? ' (' + assigned[u.uid] + ')' : '';
+        var tierLabel = u.roster_tier === 'core' ? 'Core' : 'On Call';
+        html += '<div class="sess-assign-row">';
+        html += '<input type="checkbox" id="assign-' + esc(u.uid) + '" value="' + esc(u.uid) + '" ' + (isAssigned ? 'checked disabled' : '') + ' style="width:20px;height:20px;" />';
+        html += '<label for="assign-' + esc(u.uid) + '">' + esc(name) + ' <span style="color:var(--color-text-muted);font-size:12px;">(' + tierLabel + ')' + statusLabel + '</span></label>';
+        html += '</div>';
+      });
+      if (!_rosterUsers.length) html = '<div style="padding:var(--space-md);color:var(--color-text-muted);">No freelance artists on the roster yet.</div>';
+      listEl.innerHTML = html;
+    } catch (e) {
+      listEl.innerHTML = '<div style="color:#f85149;">Failed to load roster: ' + esc(e.message) + '</div>';
+    }
+  };
+
+  window._sessInviteGroup = function(group) {
+    _rosterUsers.forEach(function(u) {
+      var cb = document.getElementById('assign-' + u.uid);
+      if (cb && !cb.disabled) {
+        if (group === 'all') cb.checked = true;
+        else if (group === 'core' && u.roster_tier === 'core') cb.checked = true;
+        else if (group === 'active' && u.activity === 'active') cb.checked = true;
+      }
+    });
+  };
+
+  async function sendBookingRequests() {
+    if (!_assignSessionId) return;
+    var session = _sessions.find(function(s) { return s.id === _assignSessionId; });
+    if (!session) return;
+
+    var selected = [];
+    _rosterUsers.forEach(function(u) {
+      var cb = document.getElementById('assign-' + u.uid);
+      if (cb && cb.checked && !cb.disabled) selected.push(u);
+    });
+
+    if (!selected.length) {
+      if (typeof Toast !== 'undefined') Toast.info('No new artists selected.');
+      return;
+    }
+
+    var tsd = session.type_specific_data || {};
+    var payAmount = tsd.pay_per_musician || null;
+
+    try {
+      var batch = fdb.batch();
+      var now = firebase.firestore.FieldValue.serverTimestamp();
+
+      for (var i = 0; i < selected.length; i++) {
+        var u = selected[i];
+
+        // Create session-assignment
+        var assignRef = fdb.collection('session-assignments').doc();
+        batch.set(assignRef, {
+          session_id: _assignSessionId,
+          musician_uid: u.uid,
+          status: 'invited',
+          invited_at: now,
+          responded_at: null,
+          pay_amount: payAmount,
+          attendance: null,
+          notes: ''
+        });
+
+        // Create notification
+        var notifRef = fdb.collection('notifications').doc(u.uid).collection('items').doc();
+        batch.set(notifRef, {
+          type: 'session_invite',
+          session_id: _assignSessionId,
+          title: 'Session Invite',
+          message: 'You have been invited to play: ' + (session.title || 'Untitled'),
+          status: 'unread',
+          created_at: now
+        });
+
+        // Auto-flip on_call+inactive → active (Story 4)
+        if (u.roster_tier === 'on_call' && u.activity === 'inactive') {
+          var userRef = fdb.collection('users').doc(u.uid);
+          batch.update(userRef, { activity: 'active' });
+        }
+
+        // Welcome email trigger: first session assignment ever
+        if (!u.welcomeEmailSentAt) {
+          var welcomeUserRef = fdb.collection('users').doc(u.uid);
+          batch.update(welcomeUserRef, { welcomeEmailSentAt: now });
+          // Queue welcome email in email-logs for HomeOffice to send
+          var welcomeLogRef = fdb.collection('email-logs').doc();
+          batch.set(welcomeLogRef, {
+            to_uid: u.uid,
+            template_name: 'welcome',
+            status: 'queued',
+            sent_via: 'queued',
+            sent_by: 'system',
+            created_at: now
+          });
+        }
+      }
+
+      // Update session status to invites_sent
+      var sessRef = fdb.collection('sessions').doc(_assignSessionId);
+      batch.update(sessRef, { status: 'invites_sent', updated_at: now });
+
+      await batch.commit();
+
+      document.getElementById('sess-assign-modal').style.display = 'none';
+      if (typeof Toast !== 'undefined') Toast.success('Booking requests sent to ' + selected.length + ' artist' + (selected.length > 1 ? 's' : '') + '.');
+      await loadSessions();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Failed to send requests: ' + e.message);
+    }
+  }
+
+  // ═══ TAB SWITCHING ═══
+  document.querySelectorAll('.sess-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.sess-tab').forEach(function(t) {
+        t.classList.remove('active');
+        t.style.color = 'var(--color-text-muted)';
+        t.style.borderBottomColor = 'transparent';
+      });
+      this.classList.add('active');
+      this.style.color = 'var(--color-text)';
+      this.style.borderBottomColor = 'var(--color-gold)';
+      _filter = this.getAttribute('data-filter');
+      renderCards();
+    });
+  });
+
+  // ═══ MODAL EVENTS ═══
+  document.getElementById('sess-fab').addEventListener('click', function() {
+    _editId = null;
+    document.getElementById('sess-modal-title').textContent = 'Create Session';
+    document.getElementById('sess-modal').style.display = 'flex';
+    toggleTypeFields();
+  });
+  document.getElementById('sess-cancel').addEventListener('click', closeModal);
+  document.getElementById('sess-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+  document.getElementById('sess-save').addEventListener('click', saveSession);
+  document.getElementById('sess-type').addEventListener('change', toggleTypeFields);
+  document.getElementById('sess-send-invites').addEventListener('click', sendBookingRequests);
+  document.getElementById('sess-assign-modal').addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+
+  // ═══ INIT ═══
+  function init() {
+    if (typeof Auth === 'undefined' || !Auth._db) {
+      document.getElementById('sess-cards').innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);">Firestore not available.</div>';
+      return;
+    }
+    fdb = Auth._db;
+    loadSessions();
+  }
+
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { init(); });
+  } else {
+    init();
+  }
+})();
+</script>

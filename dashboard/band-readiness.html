@@ -335,60 +335,64 @@
         }
       });
 
-      // Stats
+      // Stats — 3 compliance columns: Confidentiality, Freelance Agreement, Payment
       var totalMembers = members.length;
-      var agreedCount = members.filter(function(m) { return !!m.data.houseBandAgreedAt; }).length;
-      var w9Count = members.filter(function(m) { return !!(m.data.w9LegalName && m.data.w9LegalName.trim()); }).length;
-      var paymentCount = members.filter(function(m) { return !!m.data.paymentSetupAt; }).length;
-      var fullyCompliant = members.filter(function(m) { return m.data.houseBandAgreedAt && m.data.w9LegalName && m.data.paymentSetupAt; }).length;
+      var confCount = members.filter(function(m) { return !!(m.data.confidentialityAcceptedAt || m.data.ndaAcceptedAt); }).length;
+      var agreementCount = members.filter(function(m) { return !!(m.data.freelanceAgreementAcceptedAt || m.data.houseBandAgreedAt); }).length;
+      var paymentCount = members.filter(function(m) { return !!(m.data.paymentSetupAt || m.data.payment_method_enc); }).length;
+      var fullyCompliant = members.filter(function(m) {
+        var d = m.data;
+        return (d.confidentialityAcceptedAt || d.ndaAcceptedAt) && (d.freelanceAgreementAcceptedAt || d.houseBandAgreedAt) && (d.paymentSetupAt || d.payment_method_enc);
+      }).length;
 
       document.getElementById('comp-stats').innerHTML =
-        '<div class="br-stat-card"><div class="br-stat-value">' + totalMembers + '</div><div class="br-stat-label">Band Members</div></div>' +
-        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (agreedCount === totalMembers ? '#3fb950' : '#d29922') + ';">' + agreedCount + '/' + totalMembers + '</div><div class="br-stat-label">Agreement Signed</div></div>' +
-        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (w9Count === totalMembers ? '#3fb950' : '#d29922') + ';">' + w9Count + '/' + totalMembers + '</div><div class="br-stat-label">W-9 On File</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value">' + totalMembers + '</div><div class="br-stat-label">Freelance Artists</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (confCount === totalMembers ? '#3fb950' : '#d29922') + ';">' + confCount + '/' + totalMembers + '</div><div class="br-stat-label">Confidentiality</div></div>' +
+        '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (agreementCount === totalMembers ? '#3fb950' : '#d29922') + ';">' + agreementCount + '/' + totalMembers + '</div><div class="br-stat-label">Freelance Agreement</div></div>' +
         '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (paymentCount === totalMembers ? '#3fb950' : '#d29922') + ';">' + paymentCount + '/' + totalMembers + '</div><div class="br-stat-label">Payment Setup</div></div>' +
         '<div class="br-stat-card"><div class="br-stat-value" style="color:' + (fullyCompliant === totalMembers ? '#3fb950' : '#f85149') + ';">' + fullyCompliant + '/' + totalMembers + '</div><div class="br-stat-label">Fully Compliant</div></div>';
 
-      // Table
+      // Table — 3 compliance columns
       var html = '<div class="comp-row header">' +
-        '<div>Musician</div>' +
-        '<div>Agreement</div>' +
-        '<div class="comp-col-w9">W-9</div>' +
+        '<div>Freelance Artist</div>' +
+        '<div>Confidentiality</div>' +
+        '<div>Freelance Agreement</div>' +
         '<div class="comp-col-payment">Payment</div>' +
         '<div>Status</div>' +
       '</div>';
 
       members.sort(function(a, b) {
-        // Sort non-compliant first
-        var aOk = a.data.houseBandAgreedAt && a.data.w9LegalName && a.data.paymentSetupAt ? 1 : 0;
-        var bOk = b.data.houseBandAgreedAt && b.data.w9LegalName && b.data.paymentSetupAt ? 1 : 0;
+        var ad = a.data, bd = b.data;
+        var aOk = (ad.confidentialityAcceptedAt || ad.ndaAcceptedAt) && (ad.freelanceAgreementAcceptedAt || ad.houseBandAgreedAt) && (ad.paymentSetupAt || ad.payment_method_enc) ? 1 : 0;
+        var bOk = (bd.confidentialityAcceptedAt || bd.ndaAcceptedAt) && (bd.freelanceAgreementAcceptedAt || bd.houseBandAgreedAt) && (bd.paymentSetupAt || bd.payment_method_enc) ? 1 : 0;
         return aOk - bOk || (a.name || '').localeCompare(b.name || '');
       });
 
       members.forEach(function(m) {
         var d = m.data;
-        var agreed = !!d.houseBandAgreedAt;
-        var w9 = !!(d.w9LegalName && d.w9LegalName.trim());
-        var payment = !!d.paymentSetupAt;
-        var full = agreed && w9 && payment;
+        var conf = !!(d.confidentialityAcceptedAt || d.ndaAcceptedAt);
+        var agreement = !!(d.freelanceAgreementAcceptedAt || d.houseBandAgreedAt);
+        var payment = !!(d.paymentSetupAt || d.payment_method_enc);
+        var full = conf && agreement && payment;
 
-        var agreedDate = '';
-        if (agreed && d.houseBandAgreedAt && d.houseBandAgreedAt.toDate) {
-          agreedDate = d.houseBandAgreedAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        var confDate = '';
+        var confField = d.confidentialityAcceptedAt || d.ndaAcceptedAt;
+        if (conf && confField && confField.toDate) {
+          confDate = confField.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
-        var roleLabel = { band_member: 'Member', artist: 'Artist', band_manager: 'Manager' }[m.role] || m.role;
+        var roleLabel = { band_member: 'Artist', artist: 'Artist', band_manager: 'Manager' }[m.role] || m.role;
 
         html += '<div class="comp-row">' +
           '<div><strong>' + esc(m.name) + '</strong><br><span style="font-size:11px;color:var(--color-text-muted);">' + roleLabel + '</span></div>' +
-          '<div>' + (agreed
-            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> ' + agreedDate + '</span>'
+          '<div>' + (conf
+            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> ' + confDate + '</span>'
             : '<span class="comp-badge missing"><i class="fa-solid fa-circle-xmark"></i> Not signed</span>') + '</div>' +
-          '<div class="comp-col-w9">' + (w9
-            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> On file</span>'
-            : '<span class="comp-badge pending"><i class="fa-solid fa-triangle-exclamation"></i> Missing</span>') + '</div>' +
+          '<div>' + (agreement
+            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> Signed</span>'
+            : '<span class="comp-badge missing"><i class="fa-solid fa-circle-xmark"></i> Not signed</span>') + '</div>' +
           '<div class="comp-col-payment">' + (payment
-            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> ' + (d.paymentMethod || 'Set') + '</span>'
+            ? '<span class="comp-badge ok"><i class="fa-solid fa-circle-check"></i> Set up</span>'
             : '<span class="comp-badge missing"><i class="fa-solid fa-circle-xmark"></i> Not set</span>') + '</div>' +
           '<div>' + (full
             ? '<span class="comp-badge ok"><i class="fa-solid fa-shield-check"></i> Compliant</span>'

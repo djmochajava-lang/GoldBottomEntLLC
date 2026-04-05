@@ -1,0 +1,272 @@
+<!-- dashboard/my-portal.html — Musician's Hub (non-music interactions) -->
+<div class="dashboard-page" id="dash-my-portal">
+
+  <!-- Page Header -->
+  <div style="margin-bottom:var(--space-lg);">
+    <h1 style="display:flex;align-items:center;gap:var(--space-sm);">
+      <i class="fa-solid fa-id-badge" style="color:var(--color-gold);"></i>
+      My Portal
+    </h1>
+    <p class="text-muted" style="margin:0;font-size:var(--text-sm);">Your hub for sessions, agreements, and account settings.</p>
+  </div>
+
+  <!-- Pending Section -->
+  <div id="portal-pending" style="margin-bottom:var(--space-lg);">
+    <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
+      <i class="fa-solid fa-bell" style="color:#d29922;"></i> Pending
+      <span id="portal-pending-count" style="background:rgba(248,81,73,0.15);color:#f85149;border-radius:var(--radius-full);padding:2px 8px;font-size:12px;font-weight:700;"></span>
+    </h2>
+    <div id="portal-pending-list" style="display:grid;gap:var(--space-sm);">
+      <div style="text-align:center;padding:var(--space-lg);color:var(--color-text-muted);font-size:var(--text-sm);">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming Sessions -->
+  <div id="portal-upcoming" style="margin-bottom:var(--space-lg);">
+    <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
+      <i class="fa-solid fa-calendar" style="color:var(--color-gold);"></i> Upcoming Sessions
+    </h2>
+    <div id="portal-upcoming-list" style="display:grid;gap:var(--space-sm);"></div>
+  </div>
+
+  <!-- Quick Links -->
+  <div id="portal-links">
+    <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
+      <i class="fa-solid fa-link" style="color:var(--color-gold);"></i> Quick Links
+    </h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:var(--space-sm);">
+      <a href="#dashboard-payment-settings" class="portal-link-card"><i class="fa-solid fa-credit-card"></i> Payment Settings</a>
+      <a href="#dashboard-band-player" class="portal-link-card"><i class="fa-solid fa-music"></i> Band Player</a>
+      <a href="#dashboard-agreements" class="portal-link-card"><i class="fa-solid fa-file-signature"></i> Agreements</a>
+      <a href="#dashboard-calendar" class="portal-link-card"><i class="fa-solid fa-calendar-days"></i> Calendar</a>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .portal-link-card {
+    display:flex;align-items:center;gap:var(--space-sm);
+    padding:var(--space-md);
+    background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);
+    color:var(--color-text);text-decoration:none;font-size:var(--text-sm);font-weight:var(--fw-medium);
+    transition:background 80ms;min-height:48px;
+  }
+  .portal-link-card:hover { background:rgba(255,255,255,0.04); }
+  .portal-link-card i { color:var(--color-gold);font-size:16px;width:20px;text-align:center; }
+
+  .portal-invite-card {
+    background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md);
+  }
+  .portal-upcoming-card {
+    background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md);
+  }
+  .portal-accept-btn {
+    background:rgba(63,185,80,0.12);color:#3fb950;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);
+    padding:10px 20px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);min-height:44px;
+  }
+  .portal-decline-btn {
+    background:rgba(248,81,73,0.08);color:#f85149;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-md);
+    padding:10px 20px;cursor:pointer;font-size:var(--text-sm);min-height:44px;
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  var fdb = null;
+  var _uid = null;
+
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function loadPortal() {
+    if (!fdb || !_uid) return;
+
+    // Load pending notifications, assignments, and sessions in parallel
+    var [notifSnap, assignSnap] = await Promise.all([
+      fdb.collection('notifications').doc(_uid).collection('items').where('status', '==', 'unread').get(),
+      fdb.collection('session-assignments').where('musician_uid', '==', _uid).get()
+    ]);
+
+    // Get all session IDs from assignments
+    var sessionIds = [];
+    var assignments = {};
+    assignSnap.forEach(function(doc) {
+      var d = doc.data(); d._id = doc.id;
+      assignments[d.session_id] = d;
+      if (sessionIds.indexOf(d.session_id) === -1) sessionIds.push(d.session_id);
+    });
+
+    // Load sessions for assignments
+    var sessionsMap = {};
+    for (var i = 0; i < sessionIds.length; i++) {
+      try {
+        var sessDoc = await fdb.collection('sessions').doc(sessionIds[i]).get();
+        if (sessDoc.exists) sessionsMap[sessionIds[i]] = sessDoc.data();
+      } catch (e) { /* skip */ }
+    }
+
+    // Check payment setup
+    var userDoc = await fdb.collection('users').doc(_uid).get();
+    var userData = userDoc.exists ? userDoc.data() : {};
+    var hasPayment = !!(userData.paymentSetupAt || userData.payment_method_enc);
+
+    // ── Render Pending Section ──
+    var pendingHtml = '';
+    var pendingCount = 0;
+
+    // Payment setup prompt
+    if (!hasPayment) {
+      pendingCount++;
+      pendingHtml += '<div class="portal-invite-card">';
+      pendingHtml += '<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-sm);">';
+      pendingHtml += '<div><div style="font-weight:var(--fw-semibold);margin-bottom:4px;">Set Up Payment Info</div>';
+      pendingHtml += '<div style="font-size:13px;color:var(--color-text-muted);">Set up how you\'d like to get paid so we can pay you on time.</div></div>';
+      pendingHtml += '<a href="#dashboard-payment-settings" class="portal-accept-btn" style="text-decoration:none;white-space:nowrap;">Set Up</a>';
+      pendingHtml += '</div></div>';
+    }
+
+    // Session invites (status = invited)
+    Object.keys(assignments).forEach(function(sessId) {
+      var a = assignments[sessId];
+      if (a.status !== 'invited') return;
+      var sess = sessionsMap[sessId] || {};
+      pendingCount++;
+      var dateStr = sess.date ? new Date(sess.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : '';
+      var tsd = sess.type_specific_data || {};
+
+      pendingHtml += '<div class="portal-invite-card">';
+      pendingHtml += '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;">' + esc(sess.title || 'Session Invite') + '</div>';
+      pendingHtml += '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-sm);">';
+      if (dateStr) pendingHtml += '<div><i class="fa-solid fa-calendar" style="width:16px;"></i> ' + esc(dateStr) + (sess.time ? ' at ' + esc(sess.time) : '') + '</div>';
+      if (sess.venue) pendingHtml += '<div><i class="fa-solid fa-location-dot" style="width:16px;"></i> ' + esc(sess.venue) + '</div>';
+      if (tsd.dress_code) pendingHtml += '<div><i class="fa-solid fa-shirt" style="width:16px;"></i> ' + esc(tsd.dress_code) + '</div>';
+      if (tsd.load_in_time) pendingHtml += '<div><i class="fa-solid fa-truck-loading" style="width:16px;"></i> Load-in: ' + esc(tsd.load_in_time) + '</div>';
+      pendingHtml += '</div>';
+      pendingHtml += '<div style="display:flex;gap:var(--space-xs);">';
+      pendingHtml += '<button class="portal-accept-btn" onclick="window._portalAccept(\'' + esc(a._id) + '\',\'' + esc(sessId) + '\')">Accept</button>';
+      pendingHtml += '<button class="portal-decline-btn" onclick="window._portalDecline(\'' + esc(a._id) + '\')">Decline</button>';
+      pendingHtml += '</div></div>';
+    });
+
+    if (!pendingHtml) pendingHtml = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No pending items. You\'re all set!</div>';
+
+    document.getElementById('portal-pending-list').innerHTML = pendingHtml;
+    var countEl = document.getElementById('portal-pending-count');
+    countEl.textContent = pendingCount || '';
+    countEl.style.display = pendingCount ? 'inline' : 'none';
+
+    // Update sidebar badge
+    _updateSidebarBadge(pendingCount);
+
+    // ── Render Upcoming Sessions ──
+    var upcomingHtml = '';
+    var today = new Date().toISOString().split('T')[0];
+
+    Object.keys(assignments).forEach(function(sessId) {
+      var a = assignments[sessId];
+      if (a.status !== 'accepted') return;
+      var sess = sessionsMap[sessId] || {};
+      if (sess.date && sess.date < today) return; // past sessions
+
+      var dateStr = sess.date ? new Date(sess.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : '';
+      var tsd = sess.type_specific_data || {};
+
+      upcomingHtml += '<div class="portal-upcoming-card">';
+      upcomingHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+      upcomingHtml += '<div>';
+      upcomingHtml += '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;">' + esc(sess.title || 'Session') + '</div>';
+      upcomingHtml += '<div style="font-size:13px;color:var(--color-text-muted);">';
+      if (dateStr) upcomingHtml += '<div><i class="fa-solid fa-calendar" style="width:16px;"></i> ' + esc(dateStr) + (sess.time ? ' at ' + esc(sess.time) : '') + '</div>';
+      if (sess.venue) upcomingHtml += '<div><i class="fa-solid fa-location-dot" style="width:16px;"></i> ' + esc(sess.venue) + '</div>';
+      if (tsd.dress_code) upcomingHtml += '<div><i class="fa-solid fa-shirt" style="width:16px;"></i> ' + esc(tsd.dress_code) + '</div>';
+      if (tsd.load_in_time) upcomingHtml += '<div><i class="fa-solid fa-truck-loading" style="width:16px;"></i> Load-in: ' + esc(tsd.load_in_time) + '</div>';
+      upcomingHtml += '</div></div>';
+      // Show pay after acceptance
+      if (a.pay_amount) upcomingHtml += '<div style="font-size:var(--text-sm);font-weight:var(--fw-semibold);color:#3fb950;">$' + a.pay_amount + '</div>';
+      upcomingHtml += '</div></div>';
+    });
+
+    if (!upcomingHtml) upcomingHtml = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No upcoming sessions.</div>';
+    document.getElementById('portal-upcoming-list').innerHTML = upcomingHtml;
+  }
+
+  // ═══ ACCEPT / DECLINE ═══
+
+  window._portalAccept = async function(assignmentId, sessionId) {
+    try {
+      var batch = fdb.batch();
+      var now = firebase.firestore.FieldValue.serverTimestamp();
+
+      // Update assignment
+      batch.update(fdb.collection('session-assignments').doc(assignmentId), {
+        status: 'accepted',
+        responded_at: now
+      });
+
+      // Mark related notification as actioned
+      var notifSnap = await fdb.collection('notifications').doc(_uid).collection('items')
+        .where('session_id', '==', sessionId).where('status', '==', 'unread').get();
+      notifSnap.forEach(function(doc) {
+        batch.update(doc.ref, { status: 'actioned' });
+      });
+
+      await batch.commit();
+      if (typeof Toast !== 'undefined') Toast.success("You're booked!");
+      await loadPortal();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Accept failed: ' + e.message);
+    }
+  };
+
+  window._portalDecline = async function(assignmentId) {
+    try {
+      await fdb.collection('session-assignments').doc(assignmentId).update({
+        status: 'declined',
+        responded_at: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      if (typeof Toast !== 'undefined') Toast.info('Session declined.');
+      await loadPortal();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Decline failed: ' + e.message);
+    }
+  };
+
+  // ═══ SIDEBAR BADGE ═══
+
+  function _updateSidebarBadge(count) {
+    var link = document.querySelector('[data-page="dashboard-my-portal"]');
+    if (!link) return;
+    var existing = link.querySelector('.portal-badge');
+    if (existing) existing.remove();
+    if (count > 0) {
+      var badge = document.createElement('span');
+      badge.className = 'portal-badge';
+      badge.style.cssText = 'background:#f85149;color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-left:auto;';
+      badge.textContent = count;
+      link.appendChild(badge);
+    }
+  }
+
+  // ═══ INIT ═══
+
+  function init() {
+    if (typeof Auth === 'undefined' || !Auth._db || !Auth._user) {
+      document.getElementById('portal-pending-list').innerHTML = '<div style="padding:var(--space-md);color:var(--color-text-muted);">Sign in to view your portal.</div>';
+      return;
+    }
+    fdb = Auth._db;
+    _uid = Auth._user.uid;
+    loadPortal();
+  }
+
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { init(); });
+  } else {
+    init();
+  }
+})();
+</script>

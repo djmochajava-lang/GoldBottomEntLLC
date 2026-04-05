@@ -82,6 +82,96 @@ const BandPlayer = {
     this._loadCacheIndex();
     this.loadPlaylists();
     this.loadInventory();
+    this._checkPortalBanner();
+  },
+
+  _checkPortalBanner: function() {
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    if (!user || !this._db) return;
+    var self = this;
+    this._db.collection('notifications').doc(user.uid).collection('items')
+      .where('status', '==', 'unread').limit(1).get()
+      .then(function(snap) {
+        if (!snap.empty) {
+          var container = self._getContainer();
+          if (!container || document.getElementById('bp-portal-banner')) return;
+          var banner = document.createElement('div');
+          banner.id = 'bp-portal-banner';
+          banner.style.cssText = 'background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:#d29922;display:flex;align-items:center;gap:8px;';
+          banner.innerHTML = '<i class="fa-solid fa-bell"></i> You have items to review in <a href="#dashboard-my-portal" style="color:#d4a017;font-weight:600;">My Portal</a>';
+          container.insertBefore(banner, container.firstChild);
+        }
+      })
+      .catch(function() { /* silent */ });
+  },
+
+  // ── Roster + Playlist Helpers ──
+
+  _grantDefaultPlaylists: function(uid) {
+    if (!this._db) return;
+    var db = this._db;
+    // Find all playlists flagged as default and grant permissions
+    db.collection('playlists').where('isDefault', '==', true).get()
+      .then(function(snap) {
+        var batch = db.batch();
+        snap.forEach(function(doc) {
+          var permRef = db.collection('playlist-permissions').doc();
+          batch.set(permRef, {
+            user_uid: uid,
+            playlist_id: doc.id,
+            granted_at: firebase.firestore.FieldValue.serverTimestamp(),
+            granted_by: 'system_onboarding'
+          });
+        });
+        if (!snap.empty) {
+          return batch.commit();
+        }
+      })
+      .then(function() {
+        console.log('[BandPlayer] Default playlists granted for', uid);
+      })
+      .catch(function(err) {
+        console.warn('[BandPlayer] Failed to grant default playlists:', err.message);
+      });
+  },
+
+  // ── Payment Encryption Helpers ──
+
+  _encKey: null,
+
+  _fetchEncryptionKey: async function() {
+    if (this._encKey) return this._encKey;
+    // Try Firestore config doc
+    if (this._db) {
+      try {
+        var configDoc = await this._db.collection('config').doc('encryption').get();
+        if (configDoc.exists && configDoc.data().key) {
+          var raw = new Uint8Array(configDoc.data().key.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
+          this._encKey = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+          return this._encKey;
+        }
+      } catch (e) { /* fall through */ }
+    }
+    // Try sessionStorage
+    var cached = sessionStorage.getItem('gbe-enc-key');
+    if (cached) {
+      var raw2 = new Uint8Array(cached.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
+      this._encKey = await crypto.subtle.importKey('raw', raw2, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+      return this._encKey;
+    }
+    return null;
+  },
+
+  _encryptField: async function(plaintext, key) {
+    if (!plaintext || !key) return '';
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    var encoded = new TextEncoder().encode(plaintext);
+    var encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, tagLength: 128 }, key, encoded);
+    var encBytes = new Uint8Array(encrypted);
+    var ciphertext = encBytes.slice(0, encBytes.length - 16);
+    var authTag = encBytes.slice(encBytes.length - 16);
+    function toHex(arr) { return Array.from(arr).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); }
+    return 'enc:v1:' + toHex(iv) + ':' + toHex(authTag) + ':' + toHex(ciphertext);
   },
 
   // ── Onboarding Helpers ──
@@ -147,10 +237,15 @@ const BandPlayer = {
         btn.textContent = 'Saving...';
         var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
         if (user && self._db) {
+          // Update user doc: confidentiality acceptance + roster fields
           self._db.collection('users').doc(user.uid).update({
             confidentialityAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+            ndaAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            roster_tier: 'on_call',
+            activity: 'active'
           }).then(function() {
+            // Auto-grant default playlists
+            self._grantDefaultPlaylists(user.uid);
             if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society!');
             self._initPlayer();
           }).catch(function(err) {
@@ -389,7 +484,7 @@ const BandPlayer = {
 
     // Save handler
     if (saveBtn) {
-      saveBtn.addEventListener('click', function() {
+      saveBtn.addEventListener('click', async function() {
         var methodRadio = container.querySelector('input[name="pay-method"]:checked');
         if (!methodRadio) return;
         var method = methodRadio.value;
@@ -416,16 +511,28 @@ const BandPlayer = {
           paymentData.description = (document.getElementById('pay-other') || {}).value || '';
         }
 
+        // Encrypt payment fields before Firestore write
+        var encKey = await self._fetchEncryptionKey();
+        var methodEnc = encKey ? await self._encryptField(paymentData.method, encKey) : paymentData.method;
+        var handleEnc = encKey && paymentData.handle ? await self._encryptField(paymentData.handle, encKey) : (paymentData.handle || '');
+        var bankEnc = encKey && paymentData.bankName ? await self._encryptField(paymentData.bankName, encKey) : (paymentData.bankName || '');
+        var checkEnc = encKey && paymentData.checkAddress ? await self._encryptField(paymentData.checkAddress, encKey) : (paymentData.checkAddress || '');
+
         var updateData = {
           paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp(),
+          // Encrypted fields (Firestore = cache, HomeOffice decrypts on sync)
+          payment_method_enc: methodEnc,
+          payment_handle_enc: handleEnc,
+          bank_name_enc: bankEnc,
+          check_address_enc: checkEnc,
+          // Keep plain text method name for BM visibility (not sensitive)
           paymentMethod: paymentData.method,
-          paymentHandle: paymentData.handle || '',
-          paymentCheckAddress: paymentData.checkAddress || '',
           paymentOther: paymentData.description || '',
           onboardingComplete: true
         };
-        // Save agreement acceptance if checkbox was checked (onboarding or edit mode)
-        if (hbaCheckbox && hbaCheckbox.checked && !data.houseBandAgreedAt) {
+        // Save Freelance Musician Agreement acceptance
+        if (hbaCheckbox && hbaCheckbox.checked && !data.freelanceAgreementAcceptedAt && !data.houseBandAgreedAt) {
+          updateData.freelanceAgreementAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
           updateData.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
           updateData.houseBandAgreementVersion = '1.0';
         }
@@ -949,14 +1056,21 @@ const BandPlayer = {
     overlay.innerHTML =
       '<div style="position:relative;width:100%;max-width:720px;background:#f9f6f0;padding:50px 55px 60px;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.4);margin:auto 0;">' +
         '<button onclick="document.getElementById(\'bp-lyrics-overlay\').remove()" style="position:absolute;top:16px;right:20px;width:40px;height:40px;border:1px solid rgba(0,0,0,0.1);background:#f9f6f0;color:#2a2a2a;font-size:1.8rem;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>' +
+        '<div style="text-align:center;margin-bottom:8px;">' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:10px;color:#999;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">PROPRIETARY &amp; CONFIDENTIAL</p>' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:10px;color:#aaa;letter-spacing:1px;">Gold Bottom Entertainment</p>' +
+        '</div>' +
         '<div style="text-align:center;margin-bottom:30px;">' +
           '<img src="images/logo/gbe-logo.svg" style="width:60px;height:60px;margin-bottom:12px;opacity:0.15;" onerror="this.style.display=\'none\'">' +
           '<h2 style="font-family:\'Times New Roman\',Georgia,serif;font-size:22px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#2a2a2a;margin-bottom:8px;">' + this._escHtml(song.title) + '</h2>' +
           '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:13px;font-style:italic;color:#888;letter-spacing:1px;">Written by ' + this._escHtml(song.artist || 'L.A. Young') + '</p>' +
           '<div style="width:80px;height:1px;background:#ccc;margin:20px auto;"></div>' +
-          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:10px;color:#bbb;letter-spacing:1px;text-transform:uppercase;">Gold Bottom Ent. LLC</p>' +
         '</div>' +
         '<div style="text-align:center;">' + bodyHtml + '</div>' +
+        '<div style="text-align:center;margin-top:30px;padding-top:20px;border-top:1px solid #ddd;">' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:9px;color:#aaa;letter-spacing:1px;">&copy; 2026 Gold Bottom Ent LLC. All rights reserved.</p>' +
+          '<p style="font-family:\'Times New Roman\',Georgia,serif;font-size:9px;color:#aaa;letter-spacing:1px;">Unauthorized reproduction or distribution prohibited.</p>' +
+        '</div>' +
       '</div>';
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
