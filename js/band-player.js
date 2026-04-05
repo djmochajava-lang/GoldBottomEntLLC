@@ -384,6 +384,11 @@ const BandPlayer = {
             )) +
           '</div>' +
 
+          // Security notice
+          '<div style="background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2);border-radius:8px;padding:10px 14px;margin:16px 0;font-size:12px;color:#d29922;line-height:1.5;">' +
+            '<i class="fa-solid fa-shield-halved" style="margin-right:6px;"></i> For your security, never share banking or payment details over phone, text, or regular email. Always use your secure portal link.' +
+          '</div>' +
+
           // Save button
           '<div style="text-align:center;">' +
             '<button id="screen2-btn" disabled style="' + self._btnStyle + 'opacity:0.4;">' + (isEdit ? 'Save Changes' : 'Save Payment Info &amp; Agreement') + '</button>' +
