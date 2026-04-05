@@ -331,10 +331,11 @@ const Auth = {
 
           Auth._registrationStatus = status;
 
-          // Email/Password users: require email verification (IDP-001 §6.3)
+          // Email/Password users: require email verification for NEW accounts only (IDP-001 §6.3)
+          // Skip verification check if already approved in Firestore — admin has vetted them
           var isEmailPassword = user.providerData && user.providerData.length > 0 &&
             user.providerData[0].providerId === 'password';
-          if (isEmailPassword && !user.emailVerified) {
+          if (isEmailPassword && !user.emailVerified && status !== 'approved') {
             Auth._authorized = false;
             Auth._updateUI(user);
             Auth._notifyListeners(user);
