@@ -149,6 +149,12 @@
 (function() {
   'use strict';
 
+  // Guard against multiple executions (PageLoader may re-load this fragment)
+  // Reset when navigating back (DOM element will be fresh from new load)
+  var signEl = document.getElementById('sign-submit-btn');
+  if (window._signPageInitialized && signEl && signEl._boundBySign) return;
+  window._signPageInitialized = true;
+
   var db = null;
   var agreementId = null;
   var agreementData = null;
@@ -264,6 +270,10 @@
     setupTypedSignature();
     setupCanvas();
     setupSubmitButton();
+
+    // Mark button so guard can detect re-entry vs fresh load
+    var submitBtn = document.getElementById('sign-submit-btn');
+    if (submitBtn) submitBtn._boundBySign = true;
   }
 
   function setupTypedSignature() {

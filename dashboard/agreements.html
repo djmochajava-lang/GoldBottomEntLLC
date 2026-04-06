@@ -160,18 +160,23 @@
     filtered.forEach(function(a) {
       var sentDate = a.sentAt && a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : '';
       var signedDate = a.signedAt && a.signedAt.toDate ? a.signedAt.toDate().toLocaleDateString() : '';
-      var badgeClass = a.status === 'signed' ? 'agr-badge-signed' : a.status === 'pending' ? 'agr-badge-pending' : 'agr-badge-expired';
-      var statusLabel = a.status === 'signed' ? 'Signed' + (signedDate ? ' ' + signedDate : '') : a.status === 'pending' ? 'Pending' : a.status;
+      var badgeClass = a.status === 'completed' ? 'agr-badge-signed' : a.status === 'signed' ? 'agr-badge-signed' : a.status === 'pending' ? 'agr-badge-pending' : 'agr-badge-expired';
+      var statusLabel = a.status === 'completed' ? 'Completed' + (signedDate ? ' ' + signedDate : '') : a.status === 'signed' ? 'Signed' + (signedDate ? ' ' + signedDate : '') : a.status === 'pending' ? 'Pending' : a.status;
+
+      var actions = '<span class="agr-badge ' + badgeClass + '">' + statusLabel + '</span>';
+      if (a.status === 'signed' && !a.countersignedAt) {
+        actions += '<button class="btn-checkpoint" data-countersign="' + a._id + '" title="Countersign"><i class="fa-solid fa-pen-nib"></i></button>';
+      }
+      if (a.status === 'signed' || a.status === 'completed') {
+        actions += '<button class="btn-checkpoint" data-view-sig="' + a._id + '"><i class="fa-solid fa-eye"></i></button>';
+      }
 
       html += '<div class="agr-row">'
         + '<div class="agr-row-info">'
         + '<h3>' + esc(a.title || 'Agreement') + '</h3>'
         + '<p>' + esc(a.musicianId || 'Unknown musician') + (sentDate ? ' &middot; Sent ' + sentDate : '') + '</p>'
         + '</div>'
-        + '<div style="display:flex;align-items:center;gap:var(--space-sm);">'
-        + '<span class="agr-badge ' + badgeClass + '">' + statusLabel + '</span>'
-        + (a.status === 'signed' ? '<button class="btn-checkpoint" data-view-sig="' + a._id + '"><i class="fa-solid fa-eye"></i></button>' : '')
-        + '</div></div>';
+        + '<div style="display:flex;align-items:center;gap:var(--space-sm);">' + actions + '</div></div>';
     });
     el.innerHTML = html;
   }
@@ -180,6 +185,8 @@
   document.getElementById('dash-agreements').addEventListener('click', function(e) {
     var sigBtn = e.target.closest('[data-view-sig]');
     if (sigBtn) { window._viewSignature(sigBtn.getAttribute('data-view-sig')); return; }
+    var csBtn = e.target.closest('[data-countersign]');
+    if (csBtn) { window._countersign(csBtn.getAttribute('data-countersign')); return; }
     var tplBtn = e.target.closest('[data-use-tpl]');
     if (tplBtn) { window._useTemplate(tplBtn.getAttribute('data-use-tpl')); return; }
   });
@@ -269,33 +276,31 @@
 
             db.collection('agreements').add(agrData).then(function(ref) {
               if (typeof Modal !== 'undefined') Modal.close();
-              var signingLink = '#sign?id=' + ref.id;
+              var signingLink = window.location.origin + '/#sign?id=' + ref.id;
               var musician = musicianMap[musicianId] || {};
 
-              // Send signing link email via server API (LAN only, graceful fallback)
-              if (typeof Utils !== 'undefined' && Utils.apiFetch) {
-                Utils.apiFetch('/api/v1/agreements/' + ref.id + '/send', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    musicianEmail: musician.email,
-                    musicianName: musician.name,
-                    signingBaseUrl: window.location.origin
-                  })
-                }).then(function(r) { return r.json(); })
-                  .then(function(data) {
-                    if (data && data.emailSent) {
-                      if (typeof Toast !== 'undefined') Toast.success('Agreement emailed to ' + (musician.name || 'musician'));
-                    } else {
-                      if (typeof Toast !== 'undefined') Toast.info('Agreement created. Signing link: ' + signingLink);
-                    }
-                  })
-                  .catch(function() {
-                    if (typeof Toast !== 'undefined') Toast.success('Agreement created! Copy signing link: ' + signingLink);
-                  });
-              } else {
-                if (typeof Toast !== 'undefined') Toast.success('Agreement created! Signing link: ' + signingLink);
-              }
+              // Queue signing link email via Firestore email-queue (works from public site)
+              db.collection('email-queue').add({
+                to: musician.email || '',
+                subject: 'Agreement Ready for Signing — ' + (agrTitle || 'Performance Agreement'),
+                html: '<p>Hi ' + esc(musician.name || 'Musician') + ',</p>'
+                  + '<p>You have a new agreement to review and sign:</p>'
+                  + '<p><strong>' + esc(agrTitle) + '</strong></p>'
+                  + (agrData.terms.venue ? '<p>Venue: ' + esc(agrData.terms.venue) + '</p>' : '')
+                  + (agrData.terms.pay ? '<p>Compensation: ' + esc(agrData.terms.pay) + '</p>' : '')
+                  + '<p><a href="' + signingLink + '" style="display:inline-block;padding:12px 24px;background:#d4a017;color:#000;text-decoration:none;border-radius:6px;font-weight:bold;">Review &amp; Sign Agreement</a></p>'
+                  + '<p style="color:#666;font-size:13px;">Or copy this link: ' + signingLink + '</p>'
+                  + '<p>Thank you,<br/>Gold Bottom Ent. LLC</p>',
+                text: 'Hi ' + (musician.name || 'Musician') + ', you have a new agreement to sign: ' + (agrTitle || '') + '. Sign here: ' + signingLink,
+                status: 'pending',
+                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                source: 'agreements-dashboard',
+                agreementId: ref.id
+              }).then(function() {
+                if (typeof Toast !== 'undefined') Toast.success('Agreement sent to ' + (musician.name || 'musician'));
+              }).catch(function() {
+                if (typeof Toast !== 'undefined') Toast.info('Agreement created! Signing link: ' + signingLink);
+              });
               loadAgreements();
             }).catch(function(err) {
               if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
@@ -304,6 +309,49 @@
         });
       }
     });
+  };
+
+  // ── Countersign Agreement ──────────────────
+  window._countersign = function(agrId) {
+    var content = '<div style="display:flex;flex-direction:column;gap:12px;">'
+      + '<p>By countersigning, you confirm this agreement on behalf of Gold Bottom Ent. LLC.</p>'
+      + '<div><label class="form-label">Your Name (Band Manager)</label>'
+      + '<input id="cs-name" class="form-input" placeholder="Type your full name" /></div>'
+      + '<div><label><input type="checkbox" id="cs-agree" /> I confirm and countersign this agreement.</label></div>'
+      + '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Countersign Agreement',
+        content: content,
+        size: 'md',
+        saveText: 'Countersign',
+        onSave: function() {
+          var name = val('cs-name');
+          var checked = document.getElementById('cs-agree');
+          if (!name || !checked || !checked.checked) {
+            if (typeof Toast !== 'undefined') Toast.error('Name and confirmation required');
+            return;
+          }
+          db.collection('agreements').doc(agrId).update({
+            countersignedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            countersignatureData: {
+              type: 'typed',
+              value: name,
+              userAgent: navigator.userAgent,
+              signedFromUrl: window.location.href
+            },
+            status: 'completed'
+          }).then(function() {
+            if (typeof Modal !== 'undefined') Modal.close();
+            if (typeof Toast !== 'undefined') Toast.success('Agreement countersigned!');
+            loadAgreements();
+          }).catch(function(err) {
+            if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
+          });
+        }
+      });
+    }
   };
 
   window._useTemplate = function(templateId) {
