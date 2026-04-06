@@ -59,6 +59,15 @@ const BandPlayer = {
         if (!data.confidentialityAcceptedAt) {
           self._showScreen1();
         } else {
+          // Repair missing onboarding fields if needed (e.g. accepted before fields existed)
+          var repair = {};
+          if (!data.roster_tier) repair.roster_tier = 'on_call';
+          if (!data.activity) repair.activity = 'active';
+          if (Object.keys(repair).length > 0) {
+            self._db.collection('users').doc(user.uid).update(repair).catch(function() {});
+          }
+          // Ensure playlist permissions are granted
+          self._ensurePlaylistPermissions(user.uid);
           self._initPlayer();
         }
       }).catch(function() {
@@ -106,6 +115,19 @@ const BandPlayer = {
   },
 
   // ── Roster + Playlist Helpers ──
+
+  _ensurePlaylistPermissions: function(uid) {
+    if (!this._db) return;
+    var self = this;
+    var db = this._db;
+    db.collection('playlist-permissions').where('user_uid', '==', uid).limit(1).get()
+      .then(function(snap) {
+        if (snap.empty) {
+          self._grantDefaultPlaylists(uid);
+        }
+      })
+      .catch(function() { /* silent — permissions will work on next load */ });
+  },
 
   _grantDefaultPlaylists: function(uid) {
     if (!this._db) return;
