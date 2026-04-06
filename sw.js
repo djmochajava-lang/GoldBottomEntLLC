@@ -3,12 +3,12 @@
 // Audio files are cached separately by BandPlayer via the Cache API (bp-offline-audio).
 // Integrity: ASSET_HASHES verified via Web Crypto SHA-256 to prevent cache poisoning (M-4).
 
-var SHELL_CACHE = 'gbe-shell-v4';
+var SHELL_CACHE = 'gbe-shell-v5';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '01a7a7962857e8601976e92bf8d7740df8c2a058f0dbb79beb51d2839e803aa6',
+  './': '25d201a4e2ead50bfd3697e1a4394526ff4bccbc333bc794055f35ef090b55e6',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -18,22 +18,22 @@ var ASSET_HASHES = {
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': 'd57c05605001cbaf18e6278aef7383dffff6533ed07a69348f04580d803cc656',
   './js/config.js': '554df20227108457eba49f9e01645fefe2b0414fea2dea12c04335cfb2e84b6b',
-  './js/utils.js': '9f71919ea4f9ff936fad13fad608460f5e419a9c04c672b19667efa7ee94de4d',
+  './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
   './js/toast.js': '74bfec8e52dbd0cc437b09851756f642d268ba21c2b28cd3563c3ca703f146f4',
   './js/modal.js': 'fd60926db530a6855a03a486b48500a4463808bfae140a592cc86cffcc8b006b',
-  './js/auth.js': 'dbe15cc1d8466ed46977d36a6a4312331b87908d28d822ce312b136594f2a74f',
-  './js/page-loader.js': 'dbc669d86b358c6c4b9ec8f346a201d15bf4fcdc051da21a7ef80973cda588d3',
+  './js/auth.js': '2e559619d566d4f56017e93503ff6d34209426b6e31fec3367e702b2f17223a1',
+  './js/page-loader.js': '9d244b6d5a314c7b7915f35189f1079b56869fe7ad48dc9529e283a8ab475cb3',
   './js/scroll-animations.js': '765ee4aad4c8499874ce827c4705611a9f5d6ddece76d2607ba275271806267c',
-  './js/router.js': '543c2951040e003a2836218506f36d1d6e6f4f363ec9da262766d2635e50f938',
+  './js/router.js': 'f43b6cbf0093ae4bf28b7031b618f064fbc67aee3859cf5fd6b4eaee480bfb0e',
   './js/navigation.js': '57419e244635f61165b7e94ea451eef0642981c6f018ea9464209970248e410b',
-  './js/sidebar.js': '747cb02d5c6a204415c1e8e09f16cbe2938cb9d0f1db4f96165067d7a69ff0ed',
+  './js/sidebar.js': '22f78ac9fbdc4efc58e7f3b2fb93353370ca23c897b3defd0bfed7451b9fdb74',
   './js/data-store.js': 'ffa4b8001aabde2c4740a129c85832976c20feffecbadbad617cce0117456d1e',
   './js/forms.js': 'e2d1c64425f89e50c9f3bbeb0a5ae16eeef967c5eeec3122824630c0a504ea14',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',
-  './js/band-player.js': 'b1c029c45662e05034dc8e939d1fae432610a22a284b88355763cc69afc3b442',
+  './js/band-player.js': '004ca8a3824e30323d688a0a01b1365e572476d1266528212767cfce992a287d',
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './dashboard/band-player.html': '602febe52a1f7b748d556588e3a4304ef0a64bd639981f34e7f9ad9f11af54c9',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee'
