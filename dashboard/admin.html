@@ -1,0 +1,115 @@
+<!-- dashboard/admin.html — Admin Dashboard (system-wide overview) -->
+<div class="dashboard-page" id="dash-admin">
+
+  <div class="dashboard-page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="text-muted">Administrator · Full System Access</p>
+    </div>
+  </div>
+
+  <!-- Metrics row -->
+  <div id="admin-metrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-lg);"></div>
+
+  <!-- Activity feed + System controls -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">
+    <div class="card" id="admin-activity" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
+    <div class="card" id="admin-system" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">
+      <h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-shield-halved" style="color:#58a6ff;"></i> System Controls</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);" id="admin-sys-grid"></div>
+    </div>
+  </div>
+
+  <!-- Pending approvals -->
+  <div class="card" id="admin-approvals" style="display:none;background:var(--color-bg-secondary);border:1px solid rgba(210,153,34,0.35);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>
+
+</div>
+
+<script>
+(function(){
+  if (typeof DataStore === 'undefined') return;
+
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  /* ── Helpers ── */
+  function hexToRGB(hex) { hex = hex.replace('#',''); return parseInt(hex.substring(0,2),16)+','+parseInt(hex.substring(2,4),16)+','+parseInt(hex.substring(4,6),16); }
+  function _isZeroValue(v) { if (v===0||v==='0') return true; if (typeof v==='string'&&/^\$?0(\.00)?$/.test(v.trim())) return true; return false; }
+
+  function metricCard(icon, color, value, label, onclick) {
+    var emptyHint = _isZeroValue(value) ? '<div style="font-size:var(--text-xs);color:var(--color-text-muted);opacity:0.7;margin-top:2px;font-style:italic;">No data yet</div>' : '';
+    return '<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);'+(onclick?'cursor:pointer;':'')+'" '+(onclick?'onclick="'+onclick+'"':'')+'>'+
+      '<div style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(color)+',0.15);color:'+color+';">'+
+      '<i class="fa-solid '+icon+'"></i></div>'+
+      '<div><div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+value+'</div>'+
+      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+label+'</div>'+emptyHint+'</div></div>';
+  }
+
+  function qaBtn(href, icon, color, label) {
+    return '<a href="'+href+'" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);"><i class="fa-solid '+icon+'" style="font-size:var(--text-lg);color:'+color+';"></i><span>'+label+'</span></a>';
+  }
+
+  /* ── Metrics ── */
+  var m = DataStore.getMetrics();
+  var mHtml =
+    metricCard('fa-users',              '#d4a017', m.totalRoster,                              'Roster') +
+    metricCard('fa-file-signature',     '#58a6ff', m.activeContracts,                          'Active Contracts') +
+    metricCard('fa-calendar-days',      '#d29922', m.upcomingEvents,                           'Upcoming Events');
+  if (isLocal) {
+    mHtml +=
+      metricCard('fa-chart-line',         '#3fb950', Utils.formatCurrency(m.revenueYTD),         'Revenue YTD') +
+      metricCard('fa-file-invoice-dollar','#f85149', Utils.formatCurrency(m.outstandingInvoices),'Outstanding Invoices') +
+      metricCard('fa-bag-shopping',       '#d4a017', Utils.formatCurrency(m.merchSales),         'Merch Sales');
+    mHtml += metricCard('fa-envelope','#d4a017','—','Unread Inquiries','if(typeof Router!==\'undefined\')Router.navigateTo(\'dashboard-inbox\')');
+    Utils.apiFetch('/api/v1/inbox/stats')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(s){ var el = document.getElementById('inbox-metric-count'); if (el&&s) el.textContent = s.unread; })
+      .catch(function(){});
+  }
+  var am = document.getElementById('admin-metrics');
+  if (am) am.innerHTML = mHtml;
+
+  /* ── Activity feed ── */
+  if (typeof DashboardWidgets !== 'undefined') DashboardWidgets.renderActivityFeed('admin-activity');
+
+  /* ── System controls ── */
+  var sysGrid = document.getElementById('admin-sys-grid');
+  if (sysGrid) {
+    var sysItems = [
+      { href:'#dashboard-team',         icon:'fa-users-gear',   color:'#d29922', label:'Team Mgmt' },
+      { href:'#dashboard-settings',     icon:'fa-gear',         color:'#8b949e', label:'Settings' },
+      { href:'#dashboard-integrations', icon:'fa-plug',         color:'#58a6ff', label:'Integrations' },
+      { href:'#dashboard-documents',    icon:'fa-folder-open',  color:'#d4a017', label:'Documents' },
+    ];
+    if (isLocal) {
+      sysItems.push({ href:'#dashboard-architecture', icon:'fa-diagram-project', color:'#c778d9', label:'Architecture' });
+      sysItems.push({ href:'#dashboard-credentials',  icon:'fa-key',             color:'#f0883e', label:'Credentials' });
+      sysItems.push({ href:'#dashboard-servers',       icon:'fa-server',          color:'#3fb950', label:'Servers' });
+      sysItems.push({ href:'#dashboard-finances',      icon:'fa-dollar-sign',     color:'#3fb950', label:'Finances' });
+    }
+    sysGrid.innerHTML = sysItems.map(function(a){ return qaBtn(a.href, a.icon, a.color, a.label); }).join('');
+  }
+
+  /* ── Pending approvals ── */
+  var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
+  if (db) {
+    db.collection('users').where('status','==','pending').get()
+      .then(function(snap) {
+        var card = document.getElementById('admin-approvals');
+        if (!card || snap.size === 0) return;
+        card.style.display = '';
+        var html = '<h3 style="margin-bottom:var(--space-md);color:#d29922;"><i class="fa-solid fa-user-clock"></i> '+snap.size+' Pending Approval'+(snap.size>1?'s':'')+'</h3>'+
+          '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid rgba(210,153,34,0.2);">'+
+            '<div><div style="font-weight:600;">'+Utils.escapeHtml(d.displayName||'Unknown')+'</div>'+
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+Utils.escapeHtml(d.email||'')+'</div></div>'+
+            '<a href="#dashboard-team" style="padding:6px 14px;border-radius:var(--radius-md);background:#d29922;color:#0d1117;font-size:var(--text-sm);font-weight:700;text-decoration:none;">Review</a></div>';
+        });
+        html += '</div>';
+        card.innerHTML = html;
+      }).catch(function(){});
+  }
+
+})();
+</script>

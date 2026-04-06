@@ -40,7 +40,11 @@ const Router = {
     'biz-about': 'pages/enterprise/about.html',
     'biz-contact': 'pages/enterprise/contact.html',
 
-    // Dashboard pages (unchanged)
+    // Dashboard pages — role-specific landing pages
+    'dashboard-admin': 'dashboard/admin.html',
+    'dashboard-manager': 'dashboard/manager.html',
+    'dashboard-musician': 'dashboard/musician.html',
+    'dashboard-artist': 'dashboard/artist.html',
     'dashboard-home': 'dashboard/home.html',
     'dashboard-roster': 'dashboard/roster.html',
     'dashboard-contracts': 'dashboard/contracts.html',

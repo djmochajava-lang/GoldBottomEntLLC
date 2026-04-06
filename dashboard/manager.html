@@ -1,0 +1,283 @@
+<!-- dashboard/manager.html — Band Manager Dashboard (operations) -->
+<div class="dashboard-page" id="dash-manager">
+
+  <div class="dashboard-page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="text-muted">Band Manager · Day-to-Day Operations</p>
+    </div>
+  </div>
+
+  <!-- Ops metrics -->
+  <div id="bm-metrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--space-lg);"></div>
+
+  <!-- Pipeline + Quick Actions -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">
+    <div class="card" id="bm-pipeline" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
+    <div class="card" id="bm-qa-wrap" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">
+      <h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt text-gold"></i> Quick Actions</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm);" id="bm-qa-grid"></div>
+    </div>
+  </div>
+
+  <!-- Pending Agreements -->
+  <div class="card" id="bm-pending-agreements" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>
+
+  <!-- Upcoming shows -->
+  <div class="card" id="bm-upcoming" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>
+
+  <!-- Band Readiness -->
+  <div class="card" id="bm-band-readiness" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);"></div>
+
+</div>
+
+<script>
+(function(){
+  if (typeof DataStore === 'undefined') return;
+
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  /* ── Helpers ── */
+  function hexToRGB(hex) { hex = hex.replace('#',''); return parseInt(hex.substring(0,2),16)+','+parseInt(hex.substring(2,4),16)+','+parseInt(hex.substring(4,6),16); }
+  function _isZeroValue(v) { if (v===0||v==='0') return true; if (typeof v==='string'&&/^\$?0(\.00)?$/.test(v.trim())) return true; return false; }
+
+  function metricCard(icon, color, value, label) {
+    var emptyHint = _isZeroValue(value) ? '<div style="font-size:var(--text-xs);color:var(--color-text-muted);opacity:0.7;margin-top:2px;font-style:italic;">No data yet</div>' : '';
+    return '<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);">'+
+      '<div style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(color)+',0.15);color:'+color+';">'+
+      '<i class="fa-solid '+icon+'"></i></div>'+
+      '<div><div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+value+'</div>'+
+      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+label+'</div>'+emptyHint+'</div></div>';
+  }
+
+  function qaBtn(href, icon, color, label) {
+    return '<a href="'+href+'" class="quick-action-btn glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);"><i class="fa-solid '+icon+'" style="font-size:var(--text-lg);color:'+color+';"></i><span>'+label+'</span></a>';
+  }
+
+  var m        = DataStore.getMetrics();
+  var bookings = DataStore.getBookings ? DataStore.getBookings() : [];
+  var contracts= DataStore.getContracts ? DataStore.getContracts() : [];
+  var now      = new Date();
+  var todayStr = now.toISOString().slice(0,10);
+
+  var actionStages = ['proposed','negotiating','confirmed'];
+  var pipelineItems = bookings.filter(function(b){ return actionStages.indexOf(b.stage) !== -1; })
+    .sort(function(a,b){ var p = {negotiating:0,proposed:1,confirmed:2}; return (p[a.stage]||9) - (p[b.stage]||9); });
+
+  var pendingContracts = contracts.filter(function(c){
+    var s = (c.status||'').toLowerCase();
+    return s==='pending'||s==='pending-signature'||s==='sent'||s==='draft';
+  });
+
+  var staleFollowups = bookings.filter(function(b){
+    if (b.stage !== 'proposed') return false;
+    var diff = (Date.now() - new Date(b.updatedAt||b.createdAt||0).getTime()) / 86400000;
+    return diff >= 3;
+  });
+
+  /* ── Ops metrics ── */
+  var bmHtml =
+    metricCard('fa-filter',           '#f0883e', pipelineItems.length,    'Pipeline Actions') +
+    metricCard('fa-file-signature',   '#3fb950', m.activeContracts,       'Active Contracts') +
+    metricCard('fa-pen-nib',          '#d29922', pendingContracts.length,  'Pending Signatures') +
+    metricCard('fa-calendar-days',    '#d29922', m.upcomingEvents,        'Upcoming Shows') +
+    metricCard('fa-clock-rotate-left','#c778d9', staleFollowups.length,   'Follow-ups Due') +
+    metricCard('fa-users',            '#d4a017', m.totalRoster,           'Roster');
+  if (isLocal) {
+    bmHtml += metricCard('fa-chart-line','#3fb950', Utils.formatCurrency(m.revenueYTD), 'Revenue YTD');
+  }
+  var bmm = document.getElementById('bm-metrics');
+  if (bmm) bmm.innerHTML = bmHtml;
+
+  /* ── Pipeline card ── */
+  var bmp = document.getElementById('bm-pipeline');
+  if (bmp) {
+    var stageColors = {lead:'#8b949e',qualified:'#58a6ff',proposed:'#d4a017',negotiating:'#f0883e',confirmed:'#3fb950',contracted:'#3fb950',completed:'#3fb950',closed:'#f85149'};
+    var stageLabels = {lead:'New Lead',qualified:'Qualified',proposed:'Proposed',negotiating:'Negotiating',confirmed:'Confirmed',contracted:'Contracted',completed:'Completed',closed:'Closed'};
+    var pHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-filter" style="color:#f0883e;"></i> Pipeline — Needs Action</h3>';
+    if (!pipelineItems.length) {
+      pHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i>Pipeline is clear</p>';
+    } else {
+      pHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+      pipelineItems.slice(0,5).forEach(function(b){
+        var color = stageColors[b.stage]||'#8b949e';
+        pHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+color+';">'+
+          '<div><div style="font-weight:600;">'+Utils.escapeHtml(b.clientName||b.venue||'Client')+'</div>'+
+          '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+(b.eventDate?Utils.formatDate(b.eventDate):'')+' '+Utils.escapeHtml(b.venue||'')+'</div></div>'+
+          '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba('+hexToRGB(color)+',0.15);color:'+color+';font-weight:600;white-space:nowrap;">'+stageLabels[b.stage]+'</span></div>';
+      });
+      pHtml += '</div>';
+      if (pipelineItems.length > 5) pHtml += '<p style="margin-top:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">+' + (pipelineItems.length-5) + ' more</p>';
+    }
+    pHtml += '<a href="#dashboard-booking" style="display:inline-flex;align-items:center;gap:6px;margin-top:var(--space-md);font-size:var(--text-sm);color:#f0883e;text-decoration:none;font-weight:600;">Full Pipeline <i class="fa-solid fa-arrow-right"></i></a>';
+    bmp.innerHTML = pHtml;
+  }
+
+  /* ── Quick actions ── */
+  var qaGrid = document.getElementById('bm-qa-grid');
+  if (qaGrid) {
+    var qaItems = [
+      { href:'#dashboard-booking',   icon:'fa-ticket',         color:'#f0883e', label:'New Booking' },
+      { href:'#dashboard-contracts', icon:'fa-file-signature', color:'#3fb950', label:'Contracts' },
+      { href:'#dashboard-roster',    icon:'fa-users',          color:'#d4a017', label:'Roster' },
+      { href:'#dashboard-calendar',  icon:'fa-calendar-plus',  color:'#d29922', label:'Calendar' },
+      { href:'#dashboard-leads',     icon:'fa-binoculars',     color:'#c778d9', label:'Leads' },
+      { href:'#dashboard-contacts',  icon:'fa-address-book',   color:'#58a6ff', label:'Contacts' },
+    ];
+    if (isLocal) qaItems.push({ href:'#dashboard-finances', icon:'fa-dollar-sign', color:'#3fb950', label:'Finances' });
+    qaGrid.innerHTML = qaItems.map(function(a){ return qaBtn(a.href, a.icon, a.color, a.label); }).join('');
+  }
+
+  /* ── Pending Agreements (Firestore) ── */
+  var pendAgEl = document.getElementById('bm-pending-agreements');
+  if (pendAgEl && typeof Auth !== 'undefined' && Auth._db) {
+    Auth._db.collection('agreements')
+      .where('status', 'in', ['sent', 'pending'])
+      .orderBy('sentAt', 'desc')
+      .limit(10)
+      .get()
+      .then(function(snap) {
+        var paHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-file-signature" style="color:#d29922;"></i> Pending Agreements</h3>';
+        if (snap.empty) {
+          paHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i> All agreements signed</p>';
+        } else {
+          paHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+          snap.forEach(function(doc) {
+            var a = doc.data();
+            var sentDate = a.sentAt && a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : '';
+            var statusColor = a.status === 'sent' ? '#d29922' : '#f0883e';
+            paHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+statusColor+';">'
+              + '<div><div style="font-weight:600;">'+Utils.escapeHtml(a.title||a.templateTitle||'Agreement')+'</div>'
+              + '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+Utils.escapeHtml(a.musicianName||'Unknown')+(sentDate ? ' · Sent '+sentDate : '')+'</div></div>'
+              + '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba('+hexToRGB(statusColor)+',0.15);color:'+statusColor+';font-weight:600;">'+Utils.escapeHtml(a.status)+'</span></div>';
+          });
+          paHtml += '</div>';
+          paHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--space-md);">'
+            + '<span style="font-size:var(--text-sm);color:var(--color-text-muted);">'+snap.size+' awaiting signature</span>'
+            + '<a href="#dashboard-contracts" style="font-size:var(--text-sm);color:#d29922;text-decoration:none;font-weight:600;">View All <i class="fa-solid fa-arrow-right"></i></a></div>';
+        }
+        pendAgEl.innerHTML = paHtml;
+      })
+      .catch(function(err) {
+        pendAgEl.innerHTML = '<h3><i class="fa-solid fa-file-signature" style="color:#d29922;"></i> Pending Agreements</h3><p class="text-muted">Could not load: '+err.message+'</p>';
+      });
+  } else if (pendAgEl) {
+    var paHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-file-signature" style="color:#d29922;"></i> Pending Agreements</h3>';
+    if (!pendingContracts.length) {
+      paHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i> All agreements signed</p>';
+    } else {
+      paHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+      pendingContracts.slice(0,5).forEach(function(c) {
+        paHtml += '<div style="padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid #d29922;">'
+          + '<div style="font-weight:600;">'+Utils.escapeHtml(c.title||c.name||'Contract')+'</div>'
+          + '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+Utils.escapeHtml(c.party||'')+'</div></div>';
+      });
+      paHtml += '</div>';
+      paHtml += '<a href="#dashboard-contracts" style="display:inline-flex;align-items:center;gap:6px;margin-top:var(--space-md);font-size:var(--text-sm);color:#d29922;text-decoration:none;font-weight:600;">View All <i class="fa-solid fa-arrow-right"></i></a>';
+    }
+    pendAgEl.innerHTML = paHtml;
+  }
+
+  /* ── Upcoming shows ── */
+  var upc = document.getElementById('bm-upcoming');
+  if (upc) {
+    var events   = DataStore.getEvents ? DataStore.getEvents() : [];
+    var upcoming = events.filter(function(e){ return new Date(e.date) >= now; }).slice(0,5);
+    var confirmedShows = bookings.filter(function(b){
+      return (b.stage==='confirmed'||b.stage==='contracted') && (b.eventDate||b.date) >= todayStr;
+    }).sort(function(a,b){ return (a.eventDate||a.date) > (b.eventDate||b.date) ? 1 : -1; }).slice(0,5);
+
+    var uHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days text-gold"></i> Upcoming Shows & Events</h3>';
+    var allUp = confirmedShows.concat(upcoming).slice(0,6);
+    if (!allUp.length) { uHtml += '<p class="text-muted">No upcoming shows scheduled.</p>'; }
+    else {
+      uHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-sm);">';
+      allUp.forEach(function(item){
+        var isBooking = !!item.stage;
+        var title = item.clientName||item.name||item.title||'Event';
+        var venue = item.venue||item.location||'';
+        var date  = Utils.formatDate(item.eventDate||item.date);
+        var color = isBooking ? '#3fb950' : '#d4a017';
+        uHtml += '<div style="padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+color+';">'+
+          '<div style="font-weight:600;">'+Utils.escapeHtml(title)+'</div>'+
+          '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+date+(venue?' · '+Utils.escapeHtml(venue):'')+'</div>'+
+          (isBooking?'<span style="font-size:var(--text-xs);padding:2px 8px;border-radius:var(--radius-full);background:rgba(63,185,80,0.12);color:#3fb950;font-weight:600;">'+Utils.escapeHtml(item.stage)+'</span>':'')+'</div>';
+      });
+      uHtml += '</div>';
+    }
+    upc.innerHTML = uHtml;
+  }
+
+  /* ── Band Readiness (Firestore) ── */
+  var readinessEl = document.getElementById('bm-band-readiness');
+  if (readinessEl && typeof Auth !== 'undefined' && Auth._db) {
+    var fdb = Auth._db;
+    fdb.collection('gigs').where('status', '==', 'upcoming').orderBy('date', 'asc').limit(5).get()
+      .then(function(gigsSnap) {
+        if (gigsSnap.empty) {
+          readinessEl.innerHTML = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-users-viewfinder" style="color:#3fb950;"></i> Band Readiness</h3><p class="text-muted">No upcoming gigs published to Firestore.</p>';
+          return;
+        }
+        var gigIds = []; var gigsMap = {};
+        gigsSnap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; gigsMap[doc.id] = d; gigIds.push(doc.id); });
+
+        Promise.all([
+          fdb.collection('rehearsal-checkpoints').get(),
+          fdb.collection('playback-events').where('eventType', '==', 'complete').get(),
+          fdb.collection('track-notes').where('flagged', '==', true).get()
+        ]).then(function(results) {
+          var checkpoints = {};
+          results[0].forEach(function(doc) { var d = doc.data(); if (!checkpoints[d.gigId]) checkpoints[d.gigId] = []; checkpoints[d.gigId].push(d); });
+          var practiceByUser = {};
+          results[1].forEach(function(doc) { var d = doc.data(); if (!practiceByUser[d.userId]) practiceByUser[d.userId] = new Set(); practiceByUser[d.userId].add(d.trackId); });
+          var flaggedNotes = [];
+          results[2].forEach(function(doc) { flaggedNotes.push(doc.data()); });
+
+          var rHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-users-viewfinder" style="color:#3fb950;"></i> Band Readiness</h3>';
+          gigIds.forEach(function(gigId) {
+            var gig = gigsMap[gigId];
+            var gigDate = gig.date && gig.date.toDate ? gig.date.toDate() : new Date(gig.date);
+            var gCps = checkpoints[gigId] || [];
+            var musicians = gig.assignedMusicians || [];
+            rHtml += '<div style="margin-bottom:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);">';
+            rHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);"><strong>'+(gig.title||'Gig')+'</strong>';
+            rHtml += '<span style="font-size:var(--text-xs);color:var(--color-text-muted);">'+gigDate.toLocaleDateString()+'</span></div>';
+            if (!musicians.length) { rHtml += '<p style="font-size:var(--text-sm);color:var(--color-text-muted);">No musicians assigned.</p>'; }
+            else {
+              rHtml += '<div style="display:flex;flex-direction:column;gap:4px;">';
+              musicians.forEach(function(uid) {
+                var cp = gCps.find(function(c) { return c.musicianId === uid; });
+                var tracksPlayed = practiceByUser[uid] ? practiceByUser[uid].size : 0;
+                var cpDone = cp ? (cp.setlistReady && cp.gearReady && cp.travelReady) : false;
+                rHtml += '<div style="display:flex;align-items:center;gap:var(--space-sm);font-size:var(--text-sm);">';
+                rHtml += '<i class="fa-solid '+(cpDone?'fa-circle-check':'fa-circle')+'" style="color:'+(cpDone?'#3fb950':'#8b949e')+';"></i>';
+                rHtml += '<span style="flex:1;">'+uid.slice(0,8)+'...</span>';
+                rHtml += '<span style="color:var(--color-text-muted);">'+tracksPlayed+' tracks</span>';
+                if (cp) rHtml += '<span style="color:#d4a017;font-size:11px;">'+(cp.selfRating||'?')+'/5</span>';
+                rHtml += '</div>';
+              });
+              rHtml += '</div>';
+            }
+            rHtml += '</div>';
+          });
+
+          if (flaggedNotes.length > 0) {
+            rHtml += '<div style="margin-top:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2);">';
+            rHtml += '<h4 style="margin:0 0 var(--space-sm);font-size:var(--text-sm);color:#d29922;"><i class="fa-solid fa-flag"></i> Flagged Notes ('+flaggedNotes.length+')</h4>';
+            flaggedNotes.slice(0,5).forEach(function(n) {
+              rHtml += '<div style="font-size:var(--text-sm);padding:3px 0;border-bottom:1px solid var(--color-border);"><strong>'+(n.songTitle||'Track')+'</strong> — '+(n.userName||'Musician');
+              if (n.notes) rHtml += '<div style="color:var(--color-text-muted);font-style:italic;">"'+n.notes.slice(0,100)+'"</div>';
+              rHtml += '</div>';
+            });
+            rHtml += '</div>';
+          }
+          readinessEl.innerHTML = rHtml;
+        });
+      })
+      .catch(function(err) {
+        readinessEl.innerHTML = '<h3><i class="fa-solid fa-users-viewfinder" style="color:#3fb950;"></i> Band Readiness</h3><p class="text-muted">Could not load: '+err.message+'</p>';
+      });
+  }
+
+})();
+</script>

@@ -1,0 +1,274 @@
+<!-- dashboard/artist.html — Artist Dashboard (creative + personal hub) -->
+<div class="dashboard-page" id="dash-artist">
+
+  <div class="dashboard-page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="text-muted">Artist · Your sessions, creative work, and account.</p>
+    </div>
+  </div>
+
+  <!-- Schedule + Contracts -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);">
+    <div class="card" id="art-schedule" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
+    <div class="card" id="art-contracts" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
+  </div>
+
+  <!-- Pending Section -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
+      <i class="fa-solid fa-bell" style="color:#d29922;"></i> Pending
+      <span id="art-pending-count" style="background:rgba(248,81,73,0.15);color:#f85149;border-radius:var(--radius-full);padding:2px 8px;font-size:12px;font-weight:700;"></span>
+    </h2>
+    <div id="art-pending-list" style="display:grid;gap:var(--space-sm);">
+      <div style="text-align:center;padding:var(--space-lg);color:var(--color-text-muted);font-size:var(--text-sm);">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming Sessions -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
+      <i class="fa-solid fa-calendar" style="color:var(--color-gold);"></i> Upcoming Sessions
+    </h2>
+    <div id="art-sessions-list" style="display:grid;gap:var(--space-sm);"></div>
+  </div>
+
+  <!-- Quick Links -->
+  <div style="margin-top:var(--space-lg);">
+    <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
+      <i class="fa-solid fa-link" style="color:var(--color-gold);"></i> Quick Links
+    </h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:var(--space-sm);">
+      <a href="#dashboard-payment-settings" class="art-link-card"><i class="fa-solid fa-credit-card"></i> Payment Settings</a>
+      <a href="#dashboard-band-player" class="art-link-card"><i class="fa-solid fa-music"></i> Band Player</a>
+      <a href="#dashboard-agreements" class="art-link-card"><i class="fa-solid fa-file-signature"></i> Agreements</a>
+      <a href="#dashboard-calendar" class="art-link-card"><i class="fa-solid fa-calendar-days"></i> Calendar</a>
+      <a href="#dashboard-distribution" class="art-link-card"><i class="fa-solid fa-tower-broadcast"></i> Distribution</a>
+      <a href="#dashboard-ip" class="art-link-card"><i class="fa-solid fa-copyright"></i> IP &amp; Rights</a>
+      <a href="#dashboard-merch" class="art-link-card"><i class="fa-solid fa-bag-shopping"></i> Merch</a>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .art-link-card {
+    display:flex;align-items:center;gap:var(--space-sm);
+    padding:var(--space-md);
+    background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);
+    color:var(--color-text);text-decoration:none;font-size:var(--text-sm);font-weight:var(--fw-medium);
+    transition:background 80ms;min-height:48px;
+  }
+  .art-link-card:hover { background:rgba(255,255,255,0.04); }
+  .art-link-card i { color:var(--color-gold);font-size:16px;width:20px;text-align:center; }
+  .art-invite-card {
+    background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md);
+  }
+  .art-session-card {
+    background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md);
+  }
+  .art-accept-btn {
+    background:rgba(63,185,80,0.12);color:#3fb950;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);
+    padding:10px 20px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);min-height:44px;
+  }
+  .art-decline-btn {
+    background:rgba(248,81,73,0.08);color:#f85149;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-md);
+    padding:10px 20px;cursor:pointer;font-size:var(--text-sm);min-height:44px;
+  }
+</style>
+
+<script>
+(function(){
+  'use strict';
+
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  /* ── Schedule + Contracts (DataStore) ── */
+  if (typeof DataStore !== 'undefined') {
+    var events = DataStore.getEvents ? DataStore.getEvents() : [];
+    var now = new Date();
+    var upcoming = events.filter(function(e){ return new Date(e.date) >= now; }).slice(0,5);
+    var contracts = DataStore.getContracts ? DataStore.getContracts().filter(function(c){ return c.status === 'active'; }) : [];
+
+    var schedEl = document.getElementById('art-schedule');
+    if (schedEl) {
+      var sHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days" style="color:#d4a017;"></i> My Schedule</h3>';
+      if (!upcoming.length) { sHtml += '<p class="text-muted">No upcoming shows scheduled.</p>'; }
+      else {
+        sHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+        upcoming.forEach(function(e){
+          sHtml += '<div style="padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);">'+
+            '<div style="font-weight:600;">'+esc(e.title||e.name||'Show')+'</div>'+
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+Utils.formatDate(e.date)+(e.venue?' · '+esc(e.venue):'')+'</div></div>';
+        });
+        sHtml += '</div>';
+      }
+      schedEl.innerHTML = sHtml;
+    }
+
+    var contrEl = document.getElementById('art-contracts');
+    if (contrEl) {
+      var cHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-file-signature" style="color:#58a6ff;"></i> My Contracts</h3>';
+      if (!contracts.length) { cHtml += '<p class="text-muted">No active contracts.</p>'; }
+      else {
+        cHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+        contracts.slice(0,4).forEach(function(c){
+          cHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);">'+
+            '<div style="font-weight:600;">'+esc(c.title||c.artist||'Contract')+'</div>'+
+            '<span style="font-size:var(--text-xs);padding:3px 8px;border-radius:var(--radius-full);background:rgba(63,185,80,0.15);color:#3fb950;font-weight:600;">Active</span></div>';
+        });
+        cHtml += '</div>';
+      }
+      contrEl.innerHTML = cHtml;
+    }
+  }
+
+  /* ── Firestore: Pending + Sessions (shared with musician) ── */
+  var fdb = null, _uid = null;
+
+  async function loadFirestoreData() {
+    if (!fdb || !_uid) {
+      document.getElementById('art-pending-list').innerHTML = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No pending items.</div>';
+      document.getElementById('art-sessions-list').innerHTML = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No upcoming sessions.</div>';
+      return;
+    }
+
+    var [notifSnap, assignSnap] = await Promise.all([
+      fdb.collection('notifications').doc(_uid).collection('items').where('status','==','unread').get(),
+      fdb.collection('session-assignments').where('musician_uid','==',_uid).get()
+    ]);
+
+    var sessionIds = [], assignments = {};
+    assignSnap.forEach(function(doc) {
+      var d = doc.data(); d._id = doc.id;
+      assignments[d.session_id] = d;
+      if (sessionIds.indexOf(d.session_id) === -1) sessionIds.push(d.session_id);
+    });
+
+    var sessionsMap = {};
+    for (var i = 0; i < sessionIds.length; i++) {
+      try {
+        var sessDoc = await fdb.collection('sessions').doc(sessionIds[i]).get();
+        if (sessDoc.exists) sessionsMap[sessionIds[i]] = sessDoc.data();
+      } catch (e) { /* skip */ }
+    }
+
+    var userDoc = await fdb.collection('users').doc(_uid).get();
+    var userData = userDoc.exists ? userDoc.data() : {};
+    var hasPayment = !!(userData.paymentSetupAt || userData.payment_method_enc);
+
+    /* ── Pending ── */
+    var pendingHtml = '', pendingCount = 0;
+
+    if (!hasPayment) {
+      pendingCount++;
+      pendingHtml += '<div class="art-invite-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-sm);">'+
+        '<div><div style="font-weight:var(--fw-semibold);margin-bottom:4px;">Set Up Payment Info</div>'+
+        '<div style="font-size:13px;color:var(--color-text-muted);">Set up how you\'d like to get paid so we can pay you on time.</div></div>'+
+        '<a href="#dashboard-payment-settings" class="art-accept-btn" style="text-decoration:none;white-space:nowrap;">Set Up</a></div></div>';
+    }
+
+    Object.keys(assignments).forEach(function(sessId) {
+      var a = assignments[sessId];
+      if (a.status !== 'invited') return;
+      var sess = sessionsMap[sessId] || {};
+      pendingCount++;
+      var dateStr = sess.date ? new Date(sess.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : '';
+      var tsd = sess.type_specific_data || {};
+
+      pendingHtml += '<div class="art-invite-card">';
+      pendingHtml += '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;">'+esc(sess.title||'Session Invite')+'</div>';
+      pendingHtml += '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-sm);">';
+      if (dateStr) pendingHtml += '<div><i class="fa-solid fa-calendar" style="width:16px;"></i> '+esc(dateStr)+(sess.time?' at '+esc(sess.time):'')+'</div>';
+      if (sess.venue) pendingHtml += '<div><i class="fa-solid fa-location-dot" style="width:16px;"></i> '+esc(sess.venue)+'</div>';
+      if (tsd.dress_code) pendingHtml += '<div><i class="fa-solid fa-shirt" style="width:16px;"></i> '+esc(tsd.dress_code)+'</div>';
+      if (tsd.load_in_time) pendingHtml += '<div><i class="fa-solid fa-truck-loading" style="width:16px;"></i> Load-in: '+esc(tsd.load_in_time)+'</div>';
+      pendingHtml += '</div>';
+      pendingHtml += '<div style="display:flex;gap:var(--space-xs);">';
+      pendingHtml += '<button class="art-accept-btn" onclick="window._artAccept(\''+esc(a._id)+'\',\''+esc(sessId)+'\')">Accept</button>';
+      pendingHtml += '<button class="art-decline-btn" onclick="window._artDecline(\''+esc(a._id)+'\')">Decline</button>';
+      pendingHtml += '</div></div>';
+    });
+
+    if (!pendingHtml) pendingHtml = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No pending items. You\'re all set!</div>';
+    document.getElementById('art-pending-list').innerHTML = pendingHtml;
+    var countEl = document.getElementById('art-pending-count');
+    countEl.textContent = pendingCount || '';
+    countEl.style.display = pendingCount ? 'inline' : 'none';
+
+    /* ── Upcoming Sessions ── */
+    var upHtml = '', today = new Date().toISOString().split('T')[0];
+    Object.keys(assignments).forEach(function(sessId) {
+      var a = assignments[sessId];
+      if (a.status !== 'accepted') return;
+      var sess = sessionsMap[sessId] || {};
+      if (sess.date && sess.date < today) return;
+      var dateStr = sess.date ? new Date(sess.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : '';
+      var tsd = sess.type_specific_data || {};
+
+      upHtml += '<div class="art-session-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div>';
+      upHtml += '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;">'+esc(sess.title||'Session')+'</div>';
+      upHtml += '<div style="font-size:13px;color:var(--color-text-muted);">';
+      if (dateStr) upHtml += '<div><i class="fa-solid fa-calendar" style="width:16px;"></i> '+esc(dateStr)+(sess.time?' at '+esc(sess.time):'')+'</div>';
+      if (sess.venue) upHtml += '<div><i class="fa-solid fa-location-dot" style="width:16px;"></i> '+esc(sess.venue)+'</div>';
+      if (tsd.dress_code) upHtml += '<div><i class="fa-solid fa-shirt" style="width:16px;"></i> '+esc(tsd.dress_code)+'</div>';
+      if (tsd.load_in_time) upHtml += '<div><i class="fa-solid fa-truck-loading" style="width:16px;"></i> Load-in: '+esc(tsd.load_in_time)+'</div>';
+      upHtml += '</div></div>';
+      if (a.pay_amount) upHtml += '<div style="font-size:var(--text-sm);font-weight:var(--fw-semibold);color:#3fb950;">$'+a.pay_amount+'</div>';
+      upHtml += '</div></div>';
+    });
+
+    if (!upHtml) upHtml = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No upcoming sessions.</div>';
+    document.getElementById('art-sessions-list').innerHTML = upHtml;
+  }
+
+  /* ── Accept / Decline ── */
+  window._artAccept = async function(assignmentId, sessionId) {
+    try {
+      var batch = fdb.batch();
+      var now = firebase.firestore.FieldValue.serverTimestamp();
+      batch.update(fdb.collection('session-assignments').doc(assignmentId), { status:'accepted', responded_at:now });
+      var notifSnap = await fdb.collection('notifications').doc(_uid).collection('items')
+        .where('session_id','==',sessionId).where('status','==','unread').get();
+      notifSnap.forEach(function(doc) { batch.update(doc.ref, { status:'actioned' }); });
+      await batch.commit();
+      if (typeof Toast !== 'undefined') Toast.success("You're booked!");
+      await loadFirestoreData();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Accept failed: '+e.message);
+    }
+  };
+
+  window._artDecline = async function(assignmentId) {
+    try {
+      await fdb.collection('session-assignments').doc(assignmentId).update({
+        status:'declined', responded_at:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      if (typeof Toast !== 'undefined') Toast.info('Session declined.');
+      await loadFirestoreData();
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Decline failed: '+e.message);
+    }
+  };
+
+  /* ── Init ── */
+  function init() {
+    if (typeof Auth !== 'undefined' && Auth._db && Auth._user) {
+      fdb = Auth._db;
+      _uid = Auth._user.uid;
+      loadFirestoreData();
+    } else {
+      document.getElementById('art-pending-list').innerHTML = '<div style="padding:var(--space-md);color:var(--color-text-muted);">Sign in to view your dashboard.</div>';
+      document.getElementById('art-sessions-list').innerHTML = '';
+    }
+  }
+
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
+    Auth.whenReady(function() { init(); });
+  } else {
+    init();
+  }
+})();
+</script>

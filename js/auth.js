@@ -363,11 +363,9 @@ const Auth = {
                 Router.navigateTo(route, true);
               }
             } else {
-              // Session restore (returning to site) — send band members to My Portal
+              // Session restore — send to role-appropriate dashboard
               var _restoreRole = Auth._activeRole || Auth._role || '';
-              if (_restoreRole === 'band_member' || _restoreRole === 'artist') {
-                if (typeof Router !== 'undefined') Router.navigateTo('dashboard-musician-home', true);
-              }
+              if (typeof Router !== 'undefined') Router.navigateTo(Auth._roleLandingPage(_restoreRole), true);
             }
           } else if (status === 'pending') {
             console.log('[Auth] Signed in (pending approval)');
@@ -1134,6 +1132,19 @@ const Auth = {
    * @param {string} newRole
    * @returns {boolean} true if switch succeeded
    */
+  /**
+   * Returns the dashboard landing route for a given role.
+   */
+  _roleLandingPage: function(role) {
+    var map = {
+      admin: 'dashboard-admin',
+      band_manager: 'dashboard-manager',
+      band_member: 'dashboard-musician',
+      artist: 'dashboard-artist'
+    };
+    return map[role] || 'dashboard-home';
+  },
+
   switchRole: function(newRole) {
     if (!this.isAuthenticated()) return false;
     if (this._linkedRoles.indexOf(newRole) === -1) {
@@ -1154,6 +1165,8 @@ const Auth = {
     }
     console.log('[Auth] Switched to role:', newRole);
     document.dispatchEvent(new CustomEvent('gbe:role-switched', { detail: { role: newRole } }));
+    // Navigate to the new role's landing page
+    if (typeof Router !== 'undefined') Router.navigateTo(this._roleLandingPage(newRole));
     return true;
   },
 
@@ -2217,7 +2230,7 @@ const Auth = {
               Auth._pendingRoute = null;
               if (typeof Router !== 'undefined') Router.navigateTo(route, true);
             } else {
-              if (typeof Router !== 'undefined') Router.navigateTo('dashboard-home');
+              if (typeof Router !== 'undefined') Router.navigateTo(Auth._roleLandingPage(Auth._activeRole || Auth._role || ''));
             }
           }, 1200);
         } else if (data.status === 'denied') {
@@ -2388,7 +2401,7 @@ const Auth = {
                 Auth._pendingRoute = null;
                 if (typeof Router !== 'undefined') Router.navigateTo(route);
               } else if (Auth._authorized) {
-                if (typeof Router !== 'undefined') Router.navigateTo('dashboard-home');
+                if (typeof Router !== 'undefined') Router.navigateTo(Auth._roleLandingPage(Auth._activeRole || Auth._role || ''));
               }
             }).catch(function() {
               Auth._updateUI(user);
