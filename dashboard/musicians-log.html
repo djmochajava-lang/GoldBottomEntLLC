@@ -504,7 +504,7 @@
     var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
 
     try {
-      // Try SMTP via HomeOffice server if available
+      // Try SMTP via HomeOffice server if available (direct API call)
       if (isLocal) {
         try {
           var resp = await Utils.apiFetch('/api/v1/email/send', {
@@ -525,19 +525,33 @@
             throw new Error('SMTP failed: ' + resp.status);
           }
         } catch (smtpErr) {
-          // SMTP failed — fall back to mailto
-          console.warn('[Musicians Log] SMTP unavailable, using mailto:', smtpErr.message);
-          window.open('mailto:' + encodeURIComponent(m._email)
-            + '?subject=' + encodeURIComponent(subject)
-            + '&body=' + encodeURIComponent(bodyText));
-          sendMethod = 'sent_manual';
+          // SMTP direct call failed — queue via Firestore for server pickup
+          console.warn('[Musicians Log] Direct SMTP unavailable, queuing via Firestore:', smtpErr.message);
+          await fdb.collection('email-queue').add({
+            to: m._email,
+            subject: subject,
+            text: bodyText,
+            html: bodyHtml,
+            account: 'band_manager',
+            status: 'pending',
+            queued_by: (typeof Auth !== 'undefined' && Auth.getUser) ? (Auth.getUser().displayName || Auth.getUser().email || 'unknown') : 'unknown',
+            created_at: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          sendMethod = 'sent_auto';
         }
       } else {
-        // Remote (field) — use mailto: link (opens native mail on BM's phone)
-        window.open('mailto:' + encodeURIComponent(m._email)
-          + '?subject=' + encodeURIComponent(subject)
-          + '&body=' + encodeURIComponent(bodyText));
-        sendMethod = 'sent_manual';
+        // Remote (field) — queue email via Firestore for server SMTP relay
+        await fdb.collection('email-queue').add({
+          to: m._email,
+          subject: subject,
+          text: bodyText,
+          html: bodyHtml,
+          account: 'band_manager',
+          status: 'pending',
+          queued_by: (typeof Auth !== 'undefined' && Auth.getUser) ? (Auth.getUser().displayName || Auth.getUser().email || 'unknown') : 'unknown',
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        sendMethod = 'sent_auto';
       }
 
       // Log to Firestore email-logs
