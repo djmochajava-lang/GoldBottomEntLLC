@@ -1151,28 +1151,211 @@ const BandPlayer = {
 
   _showChartPicker: function(song, charts) {
     var self = this;
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    var isManager = (role === 'admin' || role === 'band_manager');
+
+    // Load chart review status from Firestore, then render
+    var reviewsPromise = this._db ?
+      this._db.collection('chart-reviews').where('songId', '==', song.id).get() :
+      Promise.resolve({ docs: [] });
+
+    reviewsPromise.then(function(snap) {
+      var reviews = {};
+      snap.docs.forEach(function(doc) {
+        var data = doc.data();
+        reviews[data.instrument] = data;
+      });
+      self._renderChartPickerModal(song, charts, reviews, isManager);
+    }).catch(function() {
+      self._renderChartPickerModal(song, charts, {}, isManager);
+    });
+  },
+
+  _renderChartPickerModal: function(song, charts, reviews, isManager) {
     var LABELS = { drums: 'Drums', bass: 'Bass', other: 'Keys / Guitar', vocals: 'Vocals' };
     var ICONS  = { drums: 'fa-drum', bass: 'fa-guitar-electric', other: 'fa-piano-keyboard', vocals: 'fa-microphone' };
+    var songId = song.id;
 
     var html = '<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
     Object.keys(charts).forEach(function(key) {
       var label = LABELS[key] || (key.charAt(0).toUpperCase() + key.slice(1));
       var icon  = ICONS[key] || 'fa-music';
-      html += '<button onclick="BandPlayer._openChartFile(\'' + BandPlayer._escHtml(charts[key]) + '\',\'' + BandPlayer._escHtml(song.title + ' \u2014 ' + label) + '\');Modal.close();" ' +
-        'style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.85);font-size:15px;cursor:pointer;text-align:left;width:100%;transition:background 0.15s;" ' +
-        'onmouseover="this.style.background=\'rgba(255,255,255,0.08)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.04)\'">' +
-        '<i class="fa-solid ' + icon + '" style="width:20px;text-align:center;color:rgba(255,255,255,0.4);"></i>' +
-        label + '<span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,0.3);">PDF &rarr;</span></button>';
+      var review = reviews[key] || {};
+      var status = review.status || 'pending';
+      var version = review.version || 1;
+
+      // Status badge
+      var badge = '';
+      if (status === 'approved') {
+        badge = '<span style="font-size:11px;background:rgba(63,185,80,0.15);color:#3fb950;padding:2px 8px;border-radius:10px;margin-left:8px;"><i class="fa-solid fa-check" style="margin-right:3px;"></i>Approved</span>';
+      } else if (status === 'flagged') {
+        badge = '<span style="font-size:11px;background:rgba(248,81,73,0.15);color:#f85149;padding:2px 8px;border-radius:10px;margin-left:8px;"><i class="fa-solid fa-flag" style="margin-right:3px;"></i>Flagged</span>';
+      }
+      if (version > 1) {
+        badge += '<span style="font-size:10px;color:rgba(255,255,255,0.3);margin-left:6px;">v' + version + '</span>';
+      }
+
+      // Chart row — view button
+      var borderColor = status === 'flagged' ? 'rgba(248,81,73,0.3)' : status === 'approved' ? 'rgba(63,185,80,0.2)' : 'rgba(255,255,255,0.1)';
+      html += '<div style="background:rgba(255,255,255,0.04);border:1px solid ' + borderColor + ';border-radius:8px;padding:12px 14px;">';
+      html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+      html += '<i class="fa-solid ' + icon + '" style="width:20px;text-align:center;color:rgba(255,255,255,0.4);"></i>';
+      html += '<span style="font-size:15px;color:rgba(255,255,255,0.85);flex:1;">' + label + badge + '</span>';
+      html += '<button onclick="BandPlayer._openChartFile(\'' + BandPlayer._escHtml(charts[key]) + '\',\'' + BandPlayer._escHtml(song.title + ' \u2014 ' + label) + '\');" ' +
+        'style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:rgba(255,255,255,0.6);padding:4px 10px;cursor:pointer;font-size:12px;">View PDF</button>';
+      html += '</div>';
+
+      // Action buttons row
+      html += '<div style="display:flex;gap:8px;margin-top:6px;">';
+
+      // Approve button (all band team except when already approved by this user)
+      html += '<button id="chart-approve-' + key + '" onclick="BandPlayer.reviewChart(\'' + songId + '\',\'' + key + '\',\'approved\')" ' +
+        'style="flex:1;padding:6px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid ' +
+        (status === 'approved' ? 'rgba(63,185,80,0.4);background:rgba(63,185,80,0.15);color:#3fb950;' : 'rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.6);') + '">' +
+        '<i class="fa-solid fa-check" style="margin-right:4px;"></i>' + (status === 'approved' ? 'Approved' : 'Approve') + '</button>';
+
+      // Flag button
+      html += '<button id="chart-flag-' + key + '" onclick="BandPlayer.reviewChart(\'' + songId + '\',\'' + key + '\',\'flagged\')" ' +
+        'style="flex:1;padding:6px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid ' +
+        (status === 'flagged' ? 'rgba(248,81,73,0.4);background:rgba(248,81,73,0.15);color:#f85149;' : 'rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.6);') + '">' +
+        '<i class="fa-solid fa-flag" style="margin-right:4px;"></i>' + (status === 'flagged' ? 'Flagged' : 'Flag') + '</button>';
+
+      // Re-upload button (band_manager only, visible for flagged charts)
+      if (isManager) {
+        html += '<button onclick="BandPlayer.reuploadChart(\'' + songId + '\',\'' + key + '\')" ' +
+          'style="padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid rgba(210,153,34,0.3);background:rgba(210,153,34,0.1);color:#d29922;">' +
+          '<i class="fa-solid fa-upload" style="margin-right:4px;"></i>Re-upload</button>';
+      }
+
+      html += '</div></div>';
     });
     html += '</div>';
 
     if (typeof Modal !== 'undefined') {
       Modal.open({
         title: '\u266A ' + this._escHtml(this._titleCase(song.title)),
-        size: 'sm',
+        size: 'md',
         content: html,
         saveText: '',
         cancelText: 'Close'
+      });
+    }
+  },
+
+  // ── Chart Review (approve / flag per instrument) ────
+
+  reviewChart: function(songId, instrument, status) {
+    var self = this;
+    var user = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user : null;
+    if (!user || !this._db) return;
+
+    var docId = songId + '_' + instrument;
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+
+    // Load existing review to preserve version
+    this._db.collection('chart-reviews').doc(docId).get().then(function(doc) {
+      var existing = doc.exists ? doc.data() : {};
+      var version = existing.version || 1;
+
+      return self._db.collection('chart-reviews').doc(docId).set({
+        songId: songId,
+        instrument: instrument,
+        status: status,
+        version: version,
+        reviewedBy: user.uid,
+        reviewerName: user.displayName || user.email || '',
+        reviewerRole: role,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }).then(function() {
+      if (typeof Toast !== 'undefined') {
+        Toast.success(instrument.charAt(0).toUpperCase() + instrument.slice(1) + ' chart ' + (status === 'approved' ? 'approved' : 'flagged'));
+      }
+      // Update button states in the modal without closing it
+      var approveBtn = document.getElementById('chart-approve-' + instrument);
+      var flagBtn = document.getElementById('chart-flag-' + instrument);
+      if (approveBtn) {
+        approveBtn.style.borderColor = status === 'approved' ? 'rgba(63,185,80,0.4)' : 'rgba(255,255,255,0.12)';
+        approveBtn.style.background = status === 'approved' ? 'rgba(63,185,80,0.15)' : 'rgba(255,255,255,0.03)';
+        approveBtn.style.color = status === 'approved' ? '#3fb950' : 'rgba(255,255,255,0.6)';
+        approveBtn.innerHTML = '<i class="fa-solid fa-check" style="margin-right:4px;"></i>' + (status === 'approved' ? 'Approved' : 'Approve');
+      }
+      if (flagBtn) {
+        flagBtn.style.borderColor = status === 'flagged' ? 'rgba(248,81,73,0.4)' : 'rgba(255,255,255,0.12)';
+        flagBtn.style.background = status === 'flagged' ? 'rgba(248,81,73,0.15)' : 'rgba(255,255,255,0.03)';
+        flagBtn.style.color = status === 'flagged' ? '#f85149' : 'rgba(255,255,255,0.6)';
+        flagBtn.innerHTML = '<i class="fa-solid fa-flag" style="margin-right:4px;"></i>' + (status === 'flagged' ? 'Flagged' : 'Flag');
+      }
+    }).catch(function(err) {
+      if (typeof Toast !== 'undefined') Toast.error('Review failed: ' + err.message);
+    });
+  },
+
+  // ── Chart Re-upload (band_manager corrects flagged chart) ──
+
+  reuploadChart: function(songId, instrument) {
+    var self = this;
+    if (!this._db || !this._storage) return;
+    var song = this._allSongsMap[songId];
+    if (!song) return;
+
+    var LABELS = { drums: 'Drums', bass: 'Bass', other: 'Keys / Guitar', vocals: 'Vocals' };
+    var label = LABELS[instrument] || instrument;
+
+    var content = '<div style="display:flex;flex-direction:column;gap:12px;">' +
+      '<p style="font-size:14px;color:rgba(255,255,255,0.7);">Upload a corrected chart for <strong>' + this._escHtml(label) + '</strong>.</p>' +
+      '<input id="bp-reupload-file" type="file" accept=".pdf,.png,.jpg,.jpeg" class="form-input" />' +
+      '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Re-upload Chart — ' + label,
+        size: 'sm',
+        content: content,
+        buttons: [
+          { label: 'Cancel', class: 'btn-secondary', close: true },
+          { label: 'Upload', class: 'btn-primary', callback: function() {
+            var fileInput = document.getElementById('bp-reupload-file');
+            if (!fileInput || !fileInput.files.length) {
+              if (typeof Toast !== 'undefined') Toast.error('Please select a file');
+              return;
+            }
+            var file = fileInput.files[0];
+            var ext = file.name.split('.').pop().toLowerCase();
+            var storagePath = 'band-media/charts/' + songId + '/' + instrument + '.' + ext;
+            var ref = self._storage.ref(storagePath);
+
+            if (typeof Toast !== 'undefined') Toast.info('Uploading...');
+
+            ref.put(file).then(function() {
+              // Update song charts in Firestore
+              var chartUpdate = {};
+              chartUpdate['charts.' + instrument] = storagePath;
+              return self._db.collection('songs').doc(songId).update(chartUpdate);
+            }).then(function() {
+              // Increment version and clear flagged status in chart-reviews
+              var docId = songId + '_' + instrument;
+              return self._db.collection('chart-reviews').doc(docId).get().then(function(doc) {
+                var existing = doc.exists ? doc.data() : {};
+                var newVersion = (existing.version || 1) + 1;
+                return self._db.collection('chart-reviews').doc(docId).set({
+                  songId: songId,
+                  instrument: instrument,
+                  status: 'pending',
+                  version: newVersion,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+              });
+            }).then(function() {
+              if (typeof Modal !== 'undefined') Modal.close();
+              if (typeof Toast !== 'undefined') Toast.success(label + ' chart updated — awaiting re-review');
+              // Update local cache
+              if (song.charts) song.charts[instrument] = storagePath;
+            }).catch(function(err) {
+              if (typeof Toast !== 'undefined') Toast.error('Upload failed: ' + err.message);
+            });
+          }}
+        ]
       });
     }
   },
