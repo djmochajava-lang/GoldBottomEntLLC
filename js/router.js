@@ -305,6 +305,7 @@ const Router = {
           'dashboard-merch':        ['admin', 'band_manager', 'artist'],
           'dashboard-ip':           ['admin', 'band_manager', 'artist'],
           'dashboard-distribution': ['admin', 'band_manager', 'artist'],
+          'dashboard-musician': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-musician-home': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-calendar':     ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-band-player': ['admin', 'band_manager', 'artist', 'band_member'],
