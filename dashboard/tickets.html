@@ -441,35 +441,33 @@
         title: isEdit ? 'Edit Event' : 'Create Event',
         content: html,
         size: 'md',
-        buttons: [
-          { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
-          { text: isEdit ? 'Save' : 'Create', class: 'btn btn-primary', action: function() {
-            var data = {
-              eventName: document.getElementById('ev-name').value.trim(),
-              eventDate: document.getElementById('ev-date').value,
-              venueName: document.getElementById('ev-venue').value.trim(),
-              maxCapacity: parseInt(document.getElementById('ev-cap').value) || null,
-              description: document.getElementById('ev-desc').value.trim(),
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            if (!data.eventName || !data.eventDate) { Toast.error('Name and date are required'); return; }
-            var promise;
-            if (isEdit) {
-              promise = eventsRef.doc(ev.id).update(data);
-            } else {
-              data.status = 'draft';
-              data.tiers = [];
-              data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-              data.createdBy = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'unknown';
-              promise = eventsRef.doc(genId()).set(data);
-            }
-            promise.then(function() {
-              Modal.close();
-              Toast.success(isEdit ? 'Event updated' : 'Event created');
-              loadEvents();
-            }).catch(function(err) { Toast.error(err.message); });
-          }}
-        ]
+        saveText: isEdit ? 'Save' : 'Create',
+        onSave: function() {
+          var data = {
+            eventName: document.getElementById('ev-name').value.trim(),
+            eventDate: document.getElementById('ev-date').value,
+            venueName: document.getElementById('ev-venue').value.trim(),
+            maxCapacity: parseInt(document.getElementById('ev-cap').value) || null,
+            description: document.getElementById('ev-desc').value.trim(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+          if (!data.eventName || !data.eventDate) { Toast.error('Name and date are required'); return; }
+          var promise;
+          if (isEdit) {
+            promise = eventsRef.doc(ev.id).update(data);
+          } else {
+            data.status = 'draft';
+            data.tiers = [];
+            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            data.createdBy = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'unknown';
+            promise = eventsRef.doc(genId()).set(data);
+          }
+          promise.then(function() {
+            Modal.close();
+            Toast.success(isEdit ? 'Event updated' : 'Event created');
+            loadEvents();
+          }).catch(function(err) { Toast.error(err.message); });
+        }
       });
     }
   }

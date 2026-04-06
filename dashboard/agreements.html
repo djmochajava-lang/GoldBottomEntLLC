@@ -7,7 +7,7 @@
       <p class="text-muted">Manage templates, send agreements, and track signing status.</p>
     </div>
     <div style="display:flex;gap:var(--space-sm);">
-      <button class="btn btn-primary" onclick="window._showSendAgreement()">
+      <button class="btn btn-primary" id="agr-send-btn">
         <i class="fa-solid fa-paper-plane"></i> Send Agreement
       </button>
     </div>
@@ -35,10 +35,10 @@
 
   <!-- Filter Tabs -->
   <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg);">
-    <button class="btn-filter active" onclick="window._filterAgreements('all', this)">All</button>
-    <button class="btn-filter" onclick="window._filterAgreements('pending', this)">Pending</button>
-    <button class="btn-filter" onclick="window._filterAgreements('signed', this)">Signed</button>
-    <button class="btn-filter" onclick="window._filterAgreements('expired', this)">Expired</button>
+    <button class="btn-filter active" data-filter="all">All</button>
+    <button class="btn-filter" data-filter="pending">Pending</button>
+    <button class="btn-filter" data-filter="signed">Signed</button>
+    <button class="btn-filter" data-filter="expired">Expired</button>
   </div>
 
   <!-- Agreement List -->
@@ -57,7 +57,7 @@
   <div class="musician-section" style="margin-top:var(--space-2xl);">
     <h2><i class="fa-solid fa-file-lines"></i> Agreement Templates</h2>
     <div id="agr-templates-list"></div>
-    <button class="btn btn-secondary" style="margin-top:var(--space-md);" onclick="window._showCreateTemplate()">
+    <button class="btn btn-secondary" style="margin-top:var(--space-md);" id="agr-create-tpl-btn">
       <i class="fa-solid fa-plus"></i> Create Template
     </button>
   </div>
@@ -99,6 +99,18 @@
   var currentFilter = 'all';
 
   function init() {
+    // Bind buttons via addEventListener (CSP-safe, no inline onclick)
+    var sendBtn = document.getElementById('agr-send-btn');
+    if (sendBtn) sendBtn.addEventListener('click', function() { window._showSendAgreement(); });
+
+    var createTplBtn = document.getElementById('agr-create-tpl-btn');
+    if (createTplBtn) createTplBtn.addEventListener('click', function() { window._showCreateTemplate(); });
+
+    // Filter tab delegation
+    document.querySelectorAll('.btn-filter[data-filter]').forEach(function(btn) {
+      btn.addEventListener('click', function() { window._filterAgreements(btn.getAttribute('data-filter'), btn); });
+    });
+
     loadAgreements();
     loadTemplates();
     loadHouseBandAgreements();
@@ -112,6 +124,11 @@
         snap.forEach(function(doc) { allAgreements.push(Object.assign({ _id: doc.id }, doc.data())); });
         updateStats();
         renderAgreements();
+      })
+      .catch(function(err) {
+        console.warn('[Agreements] Load failed:', err.message);
+        var el = document.getElementById('agr-list');
+        if (el) el.innerHTML = '<p class="text-muted">Could not load agreements: ' + err.message + '</p>';
       });
   }
 
@@ -153,11 +170,19 @@
         + '</div>'
         + '<div style="display:flex;align-items:center;gap:var(--space-sm);">'
         + '<span class="agr-badge ' + badgeClass + '">' + statusLabel + '</span>'
-        + (a.status === 'signed' ? '<button class="btn-checkpoint" onclick="window._viewSignature(\'' + a._id + '\')"><i class="fa-solid fa-eye"></i></button>' : '')
+        + (a.status === 'signed' ? '<button class="btn-checkpoint" data-view-sig="' + a._id + '"><i class="fa-solid fa-eye"></i></button>' : '')
         + '</div></div>';
     });
     el.innerHTML = html;
   }
+
+  // Event delegation for dynamic buttons (CSP-safe)
+  document.getElementById('dash-agreements').addEventListener('click', function(e) {
+    var sigBtn = e.target.closest('[data-view-sig]');
+    if (sigBtn) { window._viewSignature(sigBtn.getAttribute('data-view-sig')); return; }
+    var tplBtn = e.target.closest('[data-use-tpl]');
+    if (tplBtn) { window._useTemplate(tplBtn.getAttribute('data-use-tpl')); return; }
+  });
 
   window._filterAgreements = function(status, btn) {
     currentFilter = status;
@@ -177,7 +202,7 @@
         snap.forEach(function(doc) {
           var t = doc.data();
           html += '<div class="tpl-row"><div><h4>' + esc(t.name || 'Template') + '</h4><p>' + esc(t.type || 'custom') + '</p></div>'
-            + '<button class="btn-checkpoint" onclick="window._useTemplate(\'' + doc.id + '\')"><i class="fa-solid fa-paper-plane"></i> Use</button></div>';
+            + '<button class="btn-checkpoint" data-use-tpl="' + doc.id + '"><i class="fa-solid fa-paper-plane"></i> Use</button></div>';
         });
         el.innerHTML = html;
       })
@@ -190,7 +215,12 @@
   // ── Send Agreement Modal ───────────────────
   window._showSendAgreement = function(templateId) {
     // Load musicians from Firestore users collection
-    db.collection('users').where('role', 'in', ['band_member', 'artist']).get().then(function(snap) {
+    db.collection('users').where('role', 'in', ['band_member', 'artist']).get().catch(function(err) {
+      // Fallback: try loading all approved users if role query fails
+      console.warn('[Agreements] Role query failed, trying status query:', err.message);
+      return db.collection('users').where('status', '==', 'approved').get();
+    }).then(function(snap) {
+      if (!snap) snap = { forEach: function(){}, size: 0 };
       var musicianOpts = '';
       snap.forEach(function(doc) {
         var u = doc.data();
@@ -211,40 +241,38 @@
       if (typeof Modal !== 'undefined') {
         Modal.open({
           title: 'Send Agreement',
-          body: content,
+          content: content,
           size: 'lg',
-          buttons: [
-            { label: 'Cancel', class: 'btn-secondary', close: true },
-            { label: 'Send', class: 'btn-primary', callback: function() {
-              var musicianId = val('agr-musician');
-              var title = val('agr-title');
-              if (!musicianId || !title) { if (typeof Toast !== 'undefined') Toast.error('Musician and title are required'); return; }
+          saveText: 'Send',
+          onSave: function() {
+            var musicianId = val('agr-musician');
+            var agrTitle = val('agr-title');
+            if (!musicianId || !agrTitle) { if (typeof Toast !== 'undefined') Toast.error('Musician and title are required'); return; }
 
-              var agrData = {
-                musicianId: musicianId,
-                title: title,
-                content: val('agr-content') || '<p>Standard performance agreement. Terms as discussed.</p>',
-                terms: {
-                  pay: val('agr-pay') ? '$' + val('agr-pay') : '',
-                  callTime: val('agr-calltime') || '',
-                  setLength: val('agr-setlength') || '',
-                  venue: val('agr-venue') || ''
-                },
-                status: 'pending',
-                sentAt: firebase.firestore.FieldValue.serverTimestamp(),
-                signedAt: null,
-                signatureData: null
-              };
+            var agrData = {
+              musicianId: musicianId,
+              title: agrTitle,
+              content: val('agr-content') || '<p>Standard performance agreement. Terms as discussed.</p>',
+              terms: {
+                pay: val('agr-pay') ? '$' + val('agr-pay') : '',
+                callTime: val('agr-calltime') || '',
+                setLength: val('agr-setlength') || '',
+                venue: val('agr-venue') || ''
+              },
+              status: 'pending',
+              sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+              signedAt: null,
+              signatureData: null
+            };
 
-              db.collection('agreements').add(agrData).then(function(ref) {
-                if (typeof Modal !== 'undefined') Modal.close();
-                if (typeof Toast !== 'undefined') Toast.success('Agreement sent! Signing link: #sign?id=' + ref.id);
-                loadAgreements();
-              }).catch(function(err) {
-                if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
-              });
-            }}
-          ]
+            db.collection('agreements').add(agrData).then(function(ref) {
+              if (typeof Modal !== 'undefined') Modal.close();
+              if (typeof Toast !== 'undefined') Toast.success('Agreement sent! Signing link: #sign?id=' + ref.id);
+              loadAgreements();
+            }).catch(function(err) {
+              if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
+            });
+          }
         });
       }
     });
@@ -279,25 +307,25 @@
     if (typeof Modal !== 'undefined') {
       Modal.open({
         title: 'Create Agreement Template',
-        body: content,
+        content: content,
         size: 'md',
-        buttons: [
-          { label: 'Cancel', class: 'btn-secondary', close: true },
-          { label: 'Save Template', class: 'btn-primary', callback: function() {
-            var name = val('tpl-name');
-            if (!name) { if (typeof Toast !== 'undefined') Toast.error('Template name required'); return; }
-            db.collection('agreement-templates').add({
-              name: name,
-              type: val('tpl-type') || 'custom',
-              content: val('tpl-content') || '',
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(function() {
-              if (typeof Modal !== 'undefined') Modal.close();
-              if (typeof Toast !== 'undefined') Toast.success('Template created!');
-              loadTemplates();
-            });
-          }}
-        ]
+        saveText: 'Save Template',
+        onSave: function() {
+          var name = val('tpl-name');
+          if (!name) { if (typeof Toast !== 'undefined') Toast.error('Template name required'); return; }
+          db.collection('agreement-templates').add({
+            name: name,
+            type: val('tpl-type') || 'custom',
+            content: val('tpl-content') || '',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            if (typeof Modal !== 'undefined') Modal.close();
+            if (typeof Toast !== 'undefined') Toast.success('Template created!');
+            loadTemplates();
+          }).catch(function(err) {
+            if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
+          });
+        }
       });
     }
   };
