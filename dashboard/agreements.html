@@ -222,8 +222,10 @@
     }).then(function(snap) {
       if (!snap) snap = { forEach: function(){}, size: 0 };
       var musicianOpts = '';
+      var musicianMap = {};
       snap.forEach(function(doc) {
         var u = doc.data();
+        musicianMap[doc.id] = { name: u.displayName || u.email || doc.id, email: u.email || '' };
         musicianOpts += '<option value="' + doc.id + '">' + esc(u.displayName || u.email || doc.id) + '</option>';
       });
 
@@ -267,7 +269,33 @@
 
             db.collection('agreements').add(agrData).then(function(ref) {
               if (typeof Modal !== 'undefined') Modal.close();
-              if (typeof Toast !== 'undefined') Toast.success('Agreement sent! Signing link: #sign?id=' + ref.id);
+              var signingLink = '#sign?id=' + ref.id;
+              var musician = musicianMap[musicianId] || {};
+
+              // Send signing link email via server API (LAN only, graceful fallback)
+              if (typeof Utils !== 'undefined' && Utils.apiFetch) {
+                Utils.apiFetch('/api/v1/agreements/' + ref.id + '/send', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    musicianEmail: musician.email,
+                    musicianName: musician.name,
+                    signingBaseUrl: window.location.origin
+                  })
+                }).then(function(r) { return r.json(); })
+                  .then(function(data) {
+                    if (data && data.emailSent) {
+                      if (typeof Toast !== 'undefined') Toast.success('Agreement emailed to ' + (musician.name || 'musician'));
+                    } else {
+                      if (typeof Toast !== 'undefined') Toast.info('Agreement created. Signing link: ' + signingLink);
+                    }
+                  })
+                  .catch(function() {
+                    if (typeof Toast !== 'undefined') Toast.success('Agreement created! Copy signing link: ' + signingLink);
+                  });
+              } else {
+                if (typeof Toast !== 'undefined') Toast.success('Agreement created! Signing link: ' + signingLink);
+              }
               loadAgreements();
             }).catch(function(err) {
               if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
