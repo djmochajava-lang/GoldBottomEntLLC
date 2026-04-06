@@ -570,6 +570,7 @@ const BandPlayer = {
               self._sendBankDetails(user.uid, paymentData.bankName, routing, account);
             }
           }
+          _resetBtn();
           if (isEdit) {
             if (typeof Toast !== 'undefined') Toast.success('Payment info updated!');
             self._initPlayer();
