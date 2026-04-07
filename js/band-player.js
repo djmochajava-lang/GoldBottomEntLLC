@@ -2673,6 +2673,13 @@ const BandPlayer = {
         }
       });
 
+      // Add Set button at bottom of edit mode
+      editHtml += '<div style="padding:16px 24px;text-align:center;">' +
+        '<button onclick="BandPlayer.addSet()" style="padding:10px 24px;border-radius:8px;border:1px dashed rgba(212,160,23,0.3);background:rgba(212,160,23,0.06);color:#d4a017;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;width:100%;transition:background 120ms;">' +
+          '<i class="fa-solid fa-plus" style="margin-right:8px;"></i>Add Set' +
+        '</button>' +
+      '</div>';
+
       el.innerHTML = editHtml;
       return;
     }
