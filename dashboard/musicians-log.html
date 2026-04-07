@@ -37,6 +37,15 @@
     </button>
   </div>
 
+  <!-- Instrument Filter -->
+  <div style="margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-sm);">
+    <label style="font-size:var(--text-sm);color:var(--color-text-muted);white-space:nowrap;"><i class="fa-solid fa-guitar" style="margin-right:4px;"></i>Instrument</label>
+    <select id="ml-instrument-filter"
+      style="flex:1;max-width:240px;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px 12px;color:var(--color-text);font-size:14px;-webkit-appearance:none;appearance:none;">
+      <option value="">All Instruments</option>
+    </select>
+  </div>
+
   <!-- Card Container -->
   <div id="ml-cards" style="display:grid;grid-template-columns:1fr;gap:var(--space-md);">
     <div style="text-align:center;padding:48px;color:var(--color-text-muted);">
@@ -231,6 +240,7 @@
   var fdb = null;
   var _musicians = [];
   var _filter = 'all';
+  var _instrumentFilter = '';
   var _editId = null;
   var _encKey = null; // CryptoKey for AES-256-GCM
 
@@ -389,6 +399,7 @@
       }
 
       updateCountBadge();
+      populateInstrumentFilter();
       renderCards();
     } catch (e) {
       console.error('[Musicians Log] Load failed:', e);
@@ -401,9 +412,41 @@
     if (badge) badge.textContent = _musicians.length;
   }
 
+  function populateInstrumentFilter() {
+    var sel = document.getElementById('ml-instrument-filter');
+    if (!sel) return;
+    var instruments = {};
+    _musicians.forEach(function(m) {
+      var inst = (m.instrument || '').trim();
+      if (inst) {
+        var key = inst.toLowerCase();
+        if (!instruments[key]) instruments[key] = { label: inst, count: 0 };
+        instruments[key].count++;
+      }
+    });
+    var sorted = Object.keys(instruments).sort(function(a, b) {
+      return instruments[b].count - instruments[a].count;
+    });
+    var html = '<option value="">All Instruments</option>';
+    sorted.forEach(function(key) {
+      var i = instruments[key];
+      html += '<option value="' + esc(i.label) + '">' + esc(i.label) + ' (' + i.count + ')</option>';
+    });
+    sel.innerHTML = html;
+    sel.value = _instrumentFilter;
+  }
+
   function getFiltered() {
-    if (_filter === 'all') return _musicians;
-    return _musicians.filter(function(m) { return m.status === _filter; });
+    var list = _musicians;
+    if (_filter !== 'all') {
+      list = list.filter(function(m) { return m.status === _filter; });
+    }
+    if (_instrumentFilter) {
+      list = list.filter(function(m) {
+        return (m.instrument || '').toLowerCase() === _instrumentFilter.toLowerCase();
+      });
+    }
+    return list;
   }
 
   function renderCards() {
@@ -677,6 +720,13 @@
       _filter = this.getAttribute('data-filter');
       renderCards();
     });
+  });
+
+  // ═══ INSTRUMENT FILTER ═══
+
+  document.getElementById('ml-instrument-filter').addEventListener('change', function() {
+    _instrumentFilter = this.value;
+    renderCards();
   });
 
   // ═══ MODAL EVENTS ═══
