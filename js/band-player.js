@@ -1861,6 +1861,73 @@ const BandPlayer = {
     this.renderTrackList();
   },
 
+  moveToSet: function(fromSetIndex, position, songIndex) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || sets.length < 2) return;
+
+    var fromSet = sets[fromSetIndex];
+    var songId;
+    if (position === 'intro') songId = fromSet.intro;
+    else if (position === 'outro') songId = fromSet.outro;
+    else songId = (fromSet.songs || [])[songIndex];
+    if (!songId) return;
+
+    var song = this._allSongsMap[songId];
+    var title = song ? this._escHtml(this._titleCase(song.title)) : 'this song';
+    var self = this;
+
+    var html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+    sets.forEach(function(set, si) {
+      if (si === fromSetIndex) return;
+      html += '<button onclick="BandPlayer._executeMoveTo(' + fromSetIndex + ',\'' + position + '\',' + songIndex + ',' + si + ')" ' +
+        'style="padding:12px 16px;border-radius:8px;border:1px solid rgba(88,166,255,0.2);background:rgba(88,166,255,0.06);color:#58a6ff;cursor:pointer;font-size:14px;font-weight:600;font-family:inherit;text-align:left;transition:background 120ms;">' +
+        '<i class="fa-solid fa-arrow-right" style="margin-right:8px;"></i>' + self._escHtml(set.label || ('Set ' + (si + 1))) +
+        '<span style="color:rgba(255,255,255,0.3);font-weight:400;margin-left:8px;">' + ((set.songs || []).length) + ' songs</span>' +
+      '</button>';
+    });
+    html += '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Move "' + title + '" to...',
+        size: 'sm',
+        content: html,
+        saveText: 'Cancel',
+        onSave: function() { Modal.close(); }
+      });
+    }
+  },
+
+  _executeMoveTo: function(fromSetIndex, position, songIndex, toSetIndex) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets) return;
+
+    var fromSet = sets[fromSetIndex];
+    var songId;
+
+    // Remove from source
+    if (position === 'intro') {
+      songId = fromSet.intro;
+      fromSet.intro = null;
+    } else if (position === 'outro') {
+      songId = fromSet.outro;
+      fromSet.outro = null;
+    } else {
+      songId = (fromSet.songs || [])[songIndex];
+      if (fromSet.songs) fromSet.songs.splice(songIndex, 1);
+    }
+
+    // Add to destination set's songs array
+    if (songId && sets[toSetIndex]) {
+      sets[toSetIndex].songs.push(songId);
+    }
+
+    this._editDirty = true;
+    this._rebuildFlatFromSets();
+    if (typeof Modal !== 'undefined') Modal.close();
+    this.renderTrackList();
+  },
+
   _rebuildFlatFromSets: function() {
     var sets = this._currentPlaylist ? this._currentPlaylist.sets : [];
     var playOrder = this._flattenSets(sets);
@@ -2607,6 +2674,7 @@ const BandPlayer = {
               '<div class="bp-track-artist">' + self._escHtml(introSong.artist || 'Unknown') + '</div>' +
             '</div>' +
             '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
+              (multiSet ? '<button class="bp-edit-btn" onclick="BandPlayer.moveToSet(' + si + ',\'intro\',0)" title="Move to set" style="color:#58a6ff;border-color:rgba(88,166,255,0.2);"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>' : '') +
               '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.clearIntro(' + si + ')" title="Clear intro"><i class="fa-solid fa-xmark"></i></button>' +
             '</div>' +
           '</div>';
@@ -2640,6 +2708,7 @@ const BandPlayer = {
             '</div>' +
             '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
               stemBtn +
+              (multiSet ? '<button class="bp-edit-btn" onclick="BandPlayer.moveToSet(' + si + ',\'song\',' + songIdx + ')" title="Move to set" style="color:#58a6ff;border-color:rgba(88,166,255,0.2);"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>' : '') +
               '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + si + ',\'song\',' + songIdx + ',-1)" title="Move up"' +
                 (isFirstSong ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
                 '<i class="fa-solid fa-chevron-up"></i></button>' +
@@ -2663,6 +2732,7 @@ const BandPlayer = {
               '<div class="bp-track-artist">' + self._escHtml(outroSong.artist || 'Unknown') + '</div>' +
             '</div>' +
             '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
+              (multiSet ? '<button class="bp-edit-btn" onclick="BandPlayer.moveToSet(' + si + ',\'outro\',0)" title="Move to set" style="color:#58a6ff;border-color:rgba(88,166,255,0.2);"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>' : '') +
               '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.clearOutro(' + si + ')" title="Clear outro"><i class="fa-solid fa-xmark"></i></button>' +
             '</div>' +
           '</div>';
