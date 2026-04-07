@@ -4,10 +4,10 @@
   <!-- Page Header -->
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-lg);">
     <div>
-      <h1 style="display:flex;align-items:center;gap:var(--space-sm);">
+      <h1 style="display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap;font-size:clamp(18px, 5vw, 24px);">
         <i class="fa-solid fa-address-book" style="color:var(--color-gold);"></i>
         Musicians Log
-        <span id="ml-count-badge" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);border-radius:var(--radius-full);padding:2px 10px;font-size:var(--text-sm);margin-left:var(--space-xs);">0</span>
+        <span id="ml-count-badge" style="background:var(--color-bg-tertiary);color:var(--color-text-muted);border-radius:var(--radius-full);padding:2px 10px;font-size:var(--text-sm);">0</span>
       </h1>
       <p class="text-muted" style="margin:0;font-size:var(--text-sm);">Track potential musicians from the field.</p>
     </div>
@@ -138,6 +138,12 @@
   .ml-status-invite_sent { background: rgba(163,113,247,0.12); color: #a371f7; }
   .ml-status-onboarded { background: rgba(63,185,80,0.12); color: #3fb950; }
 
+  /* Page container — prevent horizontal overflow on mobile */
+  #dash-musicians-log {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
   /* Musician card */
   .ml-card {
     background: var(--color-bg-secondary);
@@ -145,16 +151,19 @@
     border-radius: var(--radius-lg);
     padding: var(--space-md);
     transition: background 80ms;
+    overflow: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .ml-card-header {
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
+    gap: var(--space-xs);
     min-height: 48px;
   }
   .ml-card-avatar {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: var(--radius-full);
     background: rgba(212,160,23,0.18);
     color: var(--color-gold);
@@ -162,12 +171,12 @@
     align-items: center;
     justify-content: center;
     font-weight: var(--fw-bold);
-    font-size: var(--text-sm);
+    font-size: 12px;
     flex-shrink: 0;
   }
-  .ml-card-info { flex: 1; min-width: 0; }
+  .ml-card-info { flex: 1; min-width: 0; overflow: hidden; }
   .ml-card-name {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: var(--fw-semibold);
     color: var(--color-text);
     overflow: hidden;
@@ -175,13 +184,16 @@
     white-space: nowrap;
   }
   .ml-card-instrument {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: var(--fw-semibold);
     color: var(--color-gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .ml-card-actions {
     display: flex;
-    gap: var(--space-xs);
+    gap: 4px;
     flex-shrink: 0;
   }
   .ml-card-details {
@@ -193,6 +205,7 @@
     color: var(--color-text-secondary);
   }
   .ml-card-details.open { display: block; }
+  .ml-card-details { word-break: break-word; overflow-wrap: break-word; }
 
   .ml-btn {
     display: inline-flex;
@@ -204,10 +217,10 @@
     background: var(--color-bg-tertiary);
     color: var(--color-text-secondary);
     cursor: pointer;
-    font-size: 13px;
-    padding: 8px 14px;
-    min-height: 44px;
-    min-width: 44px;
+    font-size: 12px;
+    padding: 6px 10px;
+    min-height: 36px;
+    min-width: 36px;
     transition: all 0.15s;
     white-space: nowrap;
   }
