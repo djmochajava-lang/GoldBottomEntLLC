@@ -213,11 +213,11 @@
   }
   .ml-btn:hover { background: rgba(255,255,255,0.06); }
   .ml-btn-invite {
-    border-color: rgba(63,185,80,0.3);
-    background: rgba(63,185,80,0.08);
-    color: #3fb950;
+    border-color: rgba(212,160,23,0.3);
+    background: rgba(212,160,23,0.1);
+    color: #d4a017;
   }
-  .ml-btn-invite:hover { background: rgba(63,185,80,0.16); }
+  .ml-btn-invite:hover { background: rgba(212,160,23,0.2); }
   .ml-btn-invite:disabled {
     opacity: 0.35;
     cursor: not-allowed;
@@ -478,14 +478,10 @@
       html += '<div class="ml-card-instrument">' + esc(m.instrument || '—') + ' <span class="ml-status-badge ' + statusClass + '">' + esc(statusLabel) + '</span></div>';
       html += '</div>';
       html += '<div class="ml-card-actions">';
+      html += '<button class="ml-btn ml-btn-invite" ' + (canInvite ? '' : 'disabled') + ' onclick="window._mlSendInvite(\'' + esc(m.id) + '\')" title="Send Rehearsal Invite"><i class="fa-solid fa-paper-plane"></i></button>';
       html += '<button class="ml-btn" onclick="window._mlExpand(\'' + esc(m.id) + '\')" title="Details"><i class="fa-solid fa-chevron-down"></i></button>';
       html += '<button class="ml-btn" onclick="window._mlEdit(\'' + esc(m.id) + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>';
       html += '</div>';
-      html += '</div>';
-
-      // Actions row
-      html += '<div style="margin-top:var(--space-sm);display:flex;gap:var(--space-xs);flex-wrap:wrap;">';
-      html += '<button class="ml-btn ml-btn-invite" ' + (canInvite ? '' : 'disabled') + ' onclick="window._mlSendInvite(\'' + esc(m.id) + '\')"><i class="fa-solid fa-paper-plane"></i> Send Rehearsal Invite</button>';
       html += '</div>';
 
       // Details (expandable)
