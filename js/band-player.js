@@ -25,6 +25,7 @@ const BandPlayer = {
   _cacheIndex: null, // { songId: { savedAt, title } }
   _completedTracks: {}, // trackId → true (practiced to >=80%)
   _loggedThisSession: {}, // trackId → true (debounce: one log per track per session)
+  _playOrder: [], // parallel to _songs: { songId, setIndex, position: 'intro'|'song'|'outro' }
 
   init: function() {
     if (this.initialized) return;
@@ -112,6 +113,54 @@ const BandPlayer = {
         }
       })
       .catch(function() { /* silent */ });
+  },
+
+  // ── Set Arrangement Helpers ──────────────────────────
+
+  _migratePlaylistToSets: function(pl) {
+    if (pl.sets && pl.sets.length > 0) return;
+    if (pl.songOrder && pl.songOrder.length > 0) {
+      pl.sets = [{ label: 'Set 1', intro: null, songs: pl.songOrder.slice(), outro: null }];
+    } else {
+      pl.sets = [{ label: 'Set 1', intro: null, songs: [], outro: null }];
+    }
+  },
+
+  _flattenSets: function(sets) {
+    var flat = [];
+    (sets || []).forEach(function(set, si) {
+      if (set.intro) flat.push({ songId: set.intro, setIndex: si, position: 'intro' });
+      (set.songs || []).forEach(function(id) {
+        flat.push({ songId: id, setIndex: si, position: 'song' });
+      });
+      if (set.outro) flat.push({ songId: set.outro, setIndex: si, position: 'outro' });
+    });
+    return flat;
+  },
+
+  _allSongIdsFromSets: function(sets) {
+    var ids = {};
+    (sets || []).forEach(function(set) {
+      if (set.intro) ids[set.intro] = true;
+      (set.songs || []).forEach(function(id) { ids[id] = true; });
+      if (set.outro) ids[set.outro] = true;
+    });
+    return Object.keys(ids);
+  },
+
+  _setsToSongOrder: function(sets) {
+    var order = [];
+    (sets || []).forEach(function(set) {
+      if (set.intro) order.push(set.intro);
+      (set.songs || []).forEach(function(id) { order.push(id); });
+      if (set.outro) order.push(set.outro);
+    });
+    return order;
+  },
+
+  _findSongInSets: function(flatIndex) {
+    if (!this._playOrder || !this._playOrder[flatIndex]) return null;
+    return this._playOrder[flatIndex];
   },
 
   // ── Roster + Playlist Helpers ──
@@ -761,20 +810,27 @@ const BandPlayer = {
     this._currentPlaylist = pl;
     this._currentIndex = -1;
     this._songs = [];
+    this._playOrder = [];
     this._loggedThisSession = {};
     this._completedTracks = {};
 
-    var songOrder = pl.songOrder || [];
-    if (songOrder.length === 0) {
+    // Migrate legacy flat playlists to sets
+    this._migratePlaylistToSets(pl);
+
+    var playOrder = this._flattenSets(pl.sets);
+    var uniqueIds = this._allSongIdsFromSets(pl.sets);
+
+    if (uniqueIds.length === 0) {
       self._songs = [];
+      self._playOrder = [];
       self.renderTrackList();
       return;
     }
 
-    // Batch-fetch songs (Firestore in queries max 30 per batch)
+    // Batch-fetch songs (Firestore in queries max 10 per batch)
     var batches = [];
-    for (var i = 0; i < songOrder.length; i += 10) {
-      batches.push(songOrder.slice(i, i + 10));
+    for (var i = 0; i < uniqueIds.length; i += 10) {
+      batches.push(uniqueIds.slice(i, i + 10));
     }
 
     Promise.all(batches.map(function(batch) {
@@ -789,12 +845,15 @@ const BandPlayer = {
           self._allSongsMap[doc.id] = data;
         });
       });
-      // Maintain playlist order (dedup in case of duplicate IDs)
-      var seen = {};
-      self._songs = songOrder.map(function(id) { return songMap[id]; }).filter(function(s) {
-        if (!s || seen[s.id]) return false;
-        seen[s.id] = true;
-        return true;
+      // Build _songs and _playOrder in flattened set order
+      self._playOrder = [];
+      self._songs = [];
+      playOrder.forEach(function(entry) {
+        var song = songMap[entry.songId];
+        if (song) {
+          self._songs.push(song);
+          self._playOrder.push(entry);
+        }
       });
       self.renderTrackList();
       self._loadCompletedTracks(playlistId);
@@ -1586,7 +1645,6 @@ const BandPlayer = {
   _exitEditMode: function() {
     var self = this;
     this._editMode = false;
-    // Update toggle button
     var btn = document.getElementById('bp-edit-toggle');
     if (btn) {
       btn.style.background = 'rgba(255,255,255,0.04)';
@@ -1594,53 +1652,229 @@ const BandPlayer = {
       btn.style.borderColor = 'rgba(255,255,255,0.1)';
       btn.innerHTML = '<i class="fa-solid fa-pen"></i>';
     }
-    // Save order to Firestore if changed
+    // Save sets to Firestore if changed
     if (this._editDirty && this._currentPlaylist) {
-      var newOrder = this._songs.map(function(s) { return s.id; });
+      var sets = this._currentPlaylist.sets || [];
+      var flatOrder = this._setsToSongOrder(sets);
       this._db.collection('playlists').doc(this._currentPlaylist.id).update({
-        songOrder: newOrder,
+        sets: sets,
+        songOrder: flatOrder,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).then(function() {
-        self._currentPlaylist.songOrder = newOrder;
-        if (typeof Toast !== 'undefined') Toast.success('Playlist order saved');
+        self._currentPlaylist.songOrder = flatOrder;
+        if (typeof Toast !== 'undefined') Toast.success('Set arrangement saved');
       }).catch(function(e) {
-        console.error('[BandPlayer] Failed to save order:', e);
-        if (typeof Toast !== 'undefined') Toast.error('Failed to save order');
+        console.error('[BandPlayer] Failed to save sets:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Failed to save arrangement');
       });
     }
     this._editDirty = false;
+    // Rebuild flat arrays from current sets
+    var playOrder = this._flattenSets(this._currentPlaylist ? this._currentPlaylist.sets : []);
+    var songMap = this._allSongsMap;
+    this._playOrder = [];
+    this._songs = [];
+    var self2 = this;
+    playOrder.forEach(function(entry) {
+      var song = songMap[entry.songId];
+      if (song) {
+        self2._songs.push(song);
+        self2._playOrder.push(entry);
+      }
+    });
     this.renderTrackList();
   },
 
-  moveSong: function(fromIndex, direction) {
-    var toIndex = fromIndex + direction;
-    if (toIndex < 0 || toIndex >= this._songs.length) return;
-    var temp = this._songs[fromIndex];
-    this._songs[fromIndex] = this._songs[toIndex];
-    this._songs[toIndex] = temp;
+  moveSong: function(setIndex, position, songIndex, direction) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || !sets[setIndex]) return;
+    var arr = sets[setIndex].songs;
+    if (position !== 'song' || !arr) return;
+    var toIndex = songIndex + direction;
+    if (toIndex < 0 || toIndex >= arr.length) return;
+    var temp = arr[songIndex];
+    arr[songIndex] = arr[toIndex];
+    arr[toIndex] = temp;
     this._editDirty = true;
+    this._rebuildFlatFromSets();
     this.renderTrackList();
   },
 
-  removeSong: function(index) {
-    var song = this._songs[index];
-    if (!song) return;
+  removeSong: function(setIndex, position, songIndex) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || !sets[setIndex]) return;
+    var set = sets[setIndex];
+    var songId = (position === 'intro') ? set.intro : (position === 'outro') ? set.outro : (set.songs || [])[songIndex];
+    var song = this._allSongsMap[songId];
+    var title = song ? this._escHtml(song.title) : 'this song';
+
+    var self = this;
     if (typeof Modal !== 'undefined') {
-      var self = this;
       Modal.open({
         title: 'Remove Song',
         size: 'sm',
-        content: '<p style="color:#e6edf3;font-size:15px;">Remove <strong>' + this._escHtml(song.title) + '</strong> from this playlist?</p>' +
-          '<p style="color:rgba(255,255,255,0.45);font-size:13px;margin-top:8px;">The song file won\'t be deleted — it can be added back later.</p>',
+        content: '<p style="color:#e6edf3;font-size:15px;">Remove <strong>' + title + '</strong> from this set?</p>' +
+          '<p style="color:rgba(255,255,255,0.45);font-size:13px;margin-top:8px;">The song won\'t be deleted — it can be added back later.</p>',
         saveText: 'Remove',
         onSave: function() {
-          self._songs.splice(index, 1);
+          if (position === 'intro') set.intro = null;
+          else if (position === 'outro') set.outro = null;
+          else if (set.songs) set.songs.splice(songIndex, 1);
           self._editDirty = true;
+          self._rebuildFlatFromSets();
           Modal.close();
           self.renderTrackList();
         }
       });
     }
+  },
+
+  // ── Set Management ──────────────────────────────────────
+
+  addSet: function() {
+    if (!this._currentPlaylist) return;
+    this._migratePlaylistToSets(this._currentPlaylist);
+    var sets = this._currentPlaylist.sets;
+    sets.push({ label: 'Set ' + (sets.length + 1), intro: null, songs: [], outro: null });
+    this._editDirty = true;
+    this._rebuildFlatFromSets();
+    this.renderTrackList();
+  },
+
+  removeSet: function(setIndex) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || !sets[setIndex]) return;
+    var self = this;
+    var label = sets[setIndex].label || ('Set ' + (setIndex + 1));
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Remove Set',
+        size: 'sm',
+        content: '<p style="color:#e6edf3;font-size:15px;">Remove <strong>' + this._escHtml(label) + '</strong> and all its songs from this arrangement?</p>' +
+          '<p style="color:rgba(255,255,255,0.45);font-size:13px;margin-top:8px;">Songs won\'t be deleted from inventory.</p>',
+        saveText: 'Remove',
+        onSave: function() {
+          sets.splice(setIndex, 1);
+          // Always keep at least one set
+          if (sets.length === 0) sets.push({ label: 'Set 1', intro: null, songs: [], outro: null });
+          // Re-label default-named sets
+          sets.forEach(function(s, i) { if (/^Set \d+$/.test(s.label)) s.label = 'Set ' + (i + 1); });
+          self._editDirty = true;
+          self._rebuildFlatFromSets();
+          Modal.close();
+          self.renderTrackList();
+        }
+      });
+    }
+  },
+
+  moveSet: function(setIndex, direction) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets) return;
+    var toIndex = setIndex + direction;
+    if (toIndex < 0 || toIndex >= sets.length) return;
+    var temp = sets[setIndex];
+    sets[setIndex] = sets[toIndex];
+    sets[toIndex] = temp;
+    // Re-label default-named sets
+    sets.forEach(function(s, i) { if (/^Set \d+$/.test(s.label)) s.label = 'Set ' + (i + 1); });
+    this._editDirty = true;
+    this._rebuildFlatFromSets();
+    this.renderTrackList();
+  },
+
+  assignIntro: function(setIndex) {
+    this._assignSlot(setIndex, 'intro');
+  },
+
+  assignOutro: function(setIndex) {
+    this._assignSlot(setIndex, 'outro');
+  },
+
+  _assignSlot: function(setIndex, slot) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || !sets[setIndex]) return;
+    var self = this;
+
+    // Build picker from inventory
+    var assigned = {};
+    this._allSongIdsFromSets(sets).forEach(function(id) { assigned[id] = true; });
+    var available = this._inventory.filter(function(s) { return !assigned[s.id]; });
+
+    if (available.length === 0) {
+      if (typeof Toast !== 'undefined') Toast.info('No available songs. Upload or remove songs from other slots first.');
+      return;
+    }
+
+    var html = '<div style="max-height:60vh;overflow-y:auto;">';
+    available.forEach(function(song) {
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:rgba(212,160,23,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+          '<i class="fa-solid fa-music" style="color:#d4a017;font-size:14px;"></i></div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:14px;font-weight:600;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + self._escHtml(self._titleCase(song.title)) + '</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">' + self._escHtml(song.artist || 'Unknown') + '</div>' +
+        '</div>' +
+        '<button onclick="BandPlayer._selectSlotSong(' + setIndex + ',\'' + slot + '\',\'' + song.id + '\')" ' +
+          'style="padding:6px 14px;border-radius:6px;border:1px solid rgba(212,160,23,0.25);background:rgba(212,160,23,0.1);color:#d4a017;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;white-space:nowrap;">' +
+          'Select</button>' +
+      '</div>';
+    });
+    html += '</div>';
+
+    if (typeof Modal !== 'undefined') {
+      Modal.open({
+        title: 'Choose ' + (slot === 'intro' ? 'Intro' : 'Outro') + ' for ' + (sets[setIndex].label || 'Set ' + (setIndex + 1)),
+        size: 'md',
+        content: html,
+        saveText: 'Cancel',
+        onSave: function() { Modal.close(); }
+      });
+    }
+  },
+
+  _selectSlotSong: function(setIndex, slot, songId) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || !sets[setIndex]) return;
+    sets[setIndex][slot] = songId;
+    this._editDirty = true;
+    this._rebuildFlatFromSets();
+    if (typeof Modal !== 'undefined') Modal.close();
+    this.renderTrackList();
+  },
+
+  clearIntro: function(setIndex) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || !sets[setIndex]) return;
+    sets[setIndex].intro = null;
+    this._editDirty = true;
+    this._rebuildFlatFromSets();
+    this.renderTrackList();
+  },
+
+  clearOutro: function(setIndex) {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : null;
+    if (!sets || !sets[setIndex]) return;
+    sets[setIndex].outro = null;
+    this._editDirty = true;
+    this._rebuildFlatFromSets();
+    this.renderTrackList();
+  },
+
+  _rebuildFlatFromSets: function() {
+    var sets = this._currentPlaylist ? this._currentPlaylist.sets : [];
+    var playOrder = this._flattenSets(sets);
+    var songMap = this._allSongsMap;
+    this._playOrder = [];
+    this._songs = [];
+    var self = this;
+    playOrder.forEach(function(entry) {
+      var song = songMap[entry.songId];
+      if (song) {
+        self._songs.push(song);
+        self._playOrder.push(entry);
+      }
+    });
   },
 
   // ── Stem Separation (band_manager / admin only) ───────
@@ -1938,6 +2172,7 @@ const BandPlayer = {
             name: name,
             description: desc,
             albumArt: albumArt || '',
+            sets: [{ label: 'Set 1', intro: null, songs: [], outro: null }],
             songOrder: [],
             gigId: gigId || null,
             createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'pin',
@@ -2183,7 +2418,7 @@ const BandPlayer = {
     }
 
     var self = this;
-    var currentIds = (this._currentPlaylist.songOrder || []);
+    var currentIds = this._allSongIdsFromSets(this._currentPlaylist.sets || []);
 
     // Filter to songs not already in this playlist
     var available = this._inventory.filter(function(song) {
@@ -2240,9 +2475,18 @@ const BandPlayer = {
     var self = this;
     if (!this._currentPlaylist) return;
 
-    var newOrder = (this._currentPlaylist.songOrder || []).slice();
-    if (newOrder.indexOf(songId) !== -1) return; // already there
-    newOrder.push(songId);
+    // Ensure sets exist
+    this._migratePlaylistToSets(this._currentPlaylist);
+    var sets = this._currentPlaylist.sets;
+
+    // Check if already in any set
+    var allIds = this._allSongIdsFromSets(sets);
+    if (allIds.indexOf(songId) !== -1) return;
+
+    // Add to last set's songs array
+    var lastSet = sets[sets.length - 1];
+    lastSet.songs.push(songId);
+    var flatOrder = this._setsToSongOrder(sets);
 
     // Disable button immediately
     if (btnEl) {
@@ -2255,16 +2499,21 @@ const BandPlayer = {
     }
 
     this._db.collection('playlists').doc(this._currentPlaylist.id).update({
-      songOrder: newOrder,
+      sets: sets,
+      songOrder: flatOrder,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function() {
-      self._currentPlaylist.songOrder = newOrder;
+      self._currentPlaylist.songOrder = flatOrder;
       var song = self._allSongsMap[songId];
-      if (song) self._songs.push(song);
+      if (song) {
+        self._songs.push(song);
+        self._playOrder.push({ songId: songId, setIndex: sets.length - 1, position: 'song' });
+      }
       self.renderTrackList();
     }).catch(function(e) {
+      // Revert on failure
+      lastSet.songs.pop();
       if (typeof Toast !== 'undefined') Toast.error('Failed to add song: ' + e.message);
-      // Re-enable button on failure
       if (btnEl) {
         btnEl.disabled = false;
         btnEl.innerHTML = '<i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add';
@@ -2294,22 +2543,19 @@ const BandPlayer = {
     var el = document.getElementById('bp-tracklist');
     if (!el) return;
 
-    // Update playlist description (name already in dropdown)
+    // Update playlist description
     var plHeader = document.getElementById('bp-playlist-header');
     var plDescEl = document.getElementById('bp-playlist-header-desc');
     if (plHeader && this._currentPlaylist) {
       var desc = this._currentPlaylist.description || '';
-      if (desc) {
-        plHeader.style.display = '';
-        if (plDescEl) plDescEl.textContent = desc;
-      } else {
-        plHeader.style.display = 'none';
-      }
-    } else if (plHeader) {
-      plHeader.style.display = 'none';
-    }
+      if (desc) { plHeader.style.display = ''; if (plDescEl) plDescEl.textContent = desc; }
+      else { plHeader.style.display = 'none'; }
+    } else if (plHeader) { plHeader.style.display = 'none'; }
 
-    if (this._songs.length === 0) {
+    var sets = (this._currentPlaylist && this._currentPlaylist.sets) || [];
+    var totalSongsInSets = this._allSongIdsFromSets(sets).length;
+
+    if (this._songs.length === 0 && totalSongsInSets === 0) {
       el.innerHTML = '<div style="padding:30px;text-align:center;color:rgba(255,255,255,0.35);font-size:15px;">' +
         '<i class="fa-solid fa-music" style="font-size:28px;display:block;margin-bottom:10px;color:rgba(255,255,255,0.15);"></i>' +
         (this._currentPlaylist ? 'No songs in this playlist yet.' : 'Select or create a playlist to get started.') +
@@ -2322,53 +2568,116 @@ const BandPlayer = {
     var artThumb = plArt
       ? '<div class="bp-track-art"><img src="' + this._escHtml(plArt) + '" alt="" style="width:100%;height:100%;object-fit:cover;" /></div>'
       : '<div class="bp-track-art"><img src="images/logo/gbe-square.svg" alt="GBE" style="width:100%;height:100%;object-fit:cover;" /></div>';
+    var multiSet = sets.length > 1;
 
     if (this._editMode) {
-      // Edit mode — reorder + remove controls
+      // ── EDIT MODE: per-set sections ──
       var editHtml = '<div class="bp-edit-banner">' +
-        '<span><i class="fa-solid fa-arrows-up-down" style="margin-right:6px;"></i>Editing — reorder or remove songs</span>' +
-        '<span style="color:rgba(255,255,255,0.4);font-weight:400;">' + this._songs.length + ' song' + (this._songs.length !== 1 ? 's' : '') + '</span>' +
+        '<span><i class="fa-solid fa-layer-group" style="margin-right:6px;"></i>Set Arrangement</span>' +
+        '<span style="color:rgba(255,255,255,0.4);font-weight:400;">' + sets.length + ' set' + (sets.length !== 1 ? 's' : '') + ' · ' + this._songs.length + ' song' + (this._songs.length !== 1 ? 's' : '') + '</span>' +
         '</div>';
 
-      editHtml += this._songs.map(function(song, i) {
-        var isFirst = (i === 0);
-        var isLast = (i === self._songs.length - 1);
-        var stemInfo = self._stemStatusLabel(song.id);
-        var stemBtn = song.audioPath
-          ? (stemInfo
-            ? '<button class="bp-edit-btn" onclick="BandPlayer.requestStems(\'' + song.id + '\')" title="Stems: ' + stemInfo.label + '" style="color:' + stemInfo.color + ';border-color:' + stemInfo.color.replace(')', ',0.25)').replace('rgb', 'rgba') + ';">' +
-                '<i class="fa-solid ' + stemInfo.icon + '"></i></button>'
-            : '<button class="bp-edit-btn" onclick="BandPlayer.requestStems(\'' + song.id + '\')" title="Separate stems">' +
-                '<i class="fa-solid fa-code-branch"></i></button>')
-          : '';
+      sets.forEach(function(set, si) {
+        var isFirstSet = (si === 0);
+        var isLastSet = (si === sets.length - 1);
 
-        return '<div class="bp-track" style="cursor:default;">' +
-          '<div class="bp-track-num"><span>' + (i + 1) + '</span></div>' +
-          artThumb +
-          '<div class="bp-track-info">' +
-            '<div class="bp-track-title">' + BandPlayer._escHtml(BandPlayer._titleCase(song.title)) + '</div>' +
-            '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
-          '</div>' +
-          '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
-            stemBtn +
-            '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + i + ',-1)" title="Move up"' +
-              (isFirst ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
+        // Set header
+        editHtml += '<div class="bp-set-divider">' +
+          '<span class="bp-set-label">' + self._escHtml(set.label || ('Set ' + (si + 1))) + '</span>' +
+          '<div class="bp-set-actions">' +
+            '<button class="bp-edit-btn" onclick="BandPlayer.moveSet(' + si + ',-1)" title="Move set up"' +
+              (isFirstSet ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
               '<i class="fa-solid fa-chevron-up"></i></button>' +
-            '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + i + ',1)" title="Move down"' +
-              (isLast ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
+            '<button class="bp-edit-btn" onclick="BandPlayer.moveSet(' + si + ',1)" title="Move set down"' +
+              (isLastSet ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
               '<i class="fa-solid fa-chevron-down"></i></button>' +
-            '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.removeSong(' + i + ')" title="Remove">' +
+            '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.removeSet(' + si + ')" title="Remove set">' +
               '<i class="fa-solid fa-trash"></i></button>' +
           '</div>' +
         '</div>';
-      }).join('');
+
+        // Intro slot
+        var introSong = set.intro ? self._allSongsMap[set.intro] : null;
+        if (introSong) {
+          editHtml += '<div class="bp-track bp-slot-row" style="cursor:default;">' +
+            '<div class="bp-track-num"><span class="bp-slot-badge bp-slot-intro">IN</span></div>' +
+            artThumb +
+            '<div class="bp-track-info">' +
+              '<div class="bp-track-title">' + self._escHtml(self._titleCase(introSong.title)) + '</div>' +
+              '<div class="bp-track-artist">' + self._escHtml(introSong.artist || 'Unknown') + '</div>' +
+            '</div>' +
+            '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
+              '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.clearIntro(' + si + ')" title="Clear intro"><i class="fa-solid fa-xmark"></i></button>' +
+            '</div>' +
+          '</div>';
+        } else {
+          editHtml += '<div class="bp-slot-empty" onclick="BandPlayer.assignIntro(' + si + ')">' +
+            '<i class="fa-solid fa-arrow-right-to-bracket" style="margin-right:6px;"></i>Tap to assign intro' +
+          '</div>';
+        }
+
+        // Songs
+        (set.songs || []).forEach(function(songId, songIdx) {
+          var song = self._allSongsMap[songId];
+          if (!song) return;
+          var isFirstSong = (songIdx === 0);
+          var isLastSong = (songIdx === (set.songs || []).length - 1);
+          var stemInfo = self._stemStatusLabel(song.id);
+          var stemBtn = song.audioPath
+            ? (stemInfo
+              ? '<button class="bp-edit-btn" onclick="BandPlayer.requestStems(\'' + song.id + '\')" title="Stems: ' + stemInfo.label + '" style="color:' + stemInfo.color + ';border-color:' + stemInfo.color.replace(')', ',0.25)').replace('rgb', 'rgba') + ';">' +
+                  '<i class="fa-solid ' + stemInfo.icon + '"></i></button>'
+              : '<button class="bp-edit-btn" onclick="BandPlayer.requestStems(\'' + song.id + '\')" title="Separate stems">' +
+                  '<i class="fa-solid fa-code-branch"></i></button>')
+            : '';
+
+          editHtml += '<div class="bp-track" style="cursor:default;">' +
+            '<div class="bp-track-num"><span style="color:rgba(255,255,255,0.3);font-size:12px;">' + (songIdx + 1) + '</span></div>' +
+            artThumb +
+            '<div class="bp-track-info">' +
+              '<div class="bp-track-title">' + self._escHtml(self._titleCase(song.title)) + '</div>' +
+              '<div class="bp-track-artist">' + self._escHtml(song.artist || 'Unknown') + '</div>' +
+            '</div>' +
+            '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
+              stemBtn +
+              '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + si + ',\'song\',' + songIdx + ',-1)" title="Move up"' +
+                (isFirstSong ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
+                '<i class="fa-solid fa-chevron-up"></i></button>' +
+              '<button class="bp-edit-btn" onclick="BandPlayer.moveSong(' + si + ',\'song\',' + songIdx + ',1)" title="Move down"' +
+                (isLastSong ? ' disabled style="opacity:0.2;cursor:default;"' : '') + '>' +
+                '<i class="fa-solid fa-chevron-down"></i></button>' +
+              '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.removeSong(' + si + ',\'song\',' + songIdx + ')" title="Remove">' +
+                '<i class="fa-solid fa-trash"></i></button>' +
+            '</div>' +
+          '</div>';
+        });
+
+        // Outro slot
+        var outroSong = set.outro ? self._allSongsMap[set.outro] : null;
+        if (outroSong) {
+          editHtml += '<div class="bp-track bp-slot-row" style="cursor:default;">' +
+            '<div class="bp-track-num"><span class="bp-slot-badge bp-slot-outro">OUT</span></div>' +
+            artThumb +
+            '<div class="bp-track-info">' +
+              '<div class="bp-track-title">' + self._escHtml(self._titleCase(outroSong.title)) + '</div>' +
+              '<div class="bp-track-artist">' + self._escHtml(outroSong.artist || 'Unknown') + '</div>' +
+            '</div>' +
+            '<div class="bp-track-edit-actions" onclick="event.stopPropagation()">' +
+              '<button class="bp-edit-btn bp-edit-btn-danger" onclick="BandPlayer.clearOutro(' + si + ')" title="Clear outro"><i class="fa-solid fa-xmark"></i></button>' +
+            '</div>' +
+          '</div>';
+        } else {
+          editHtml += '<div class="bp-slot-empty" onclick="BandPlayer.assignOutro(' + si + ')">' +
+            '<i class="fa-solid fa-arrow-right-from-bracket" style="margin-right:6px;"></i>Tap to assign outro' +
+          '</div>';
+        }
+      });
 
       el.innerHTML = editHtml;
       return;
     }
 
-    // Listen mode — track list with inline progress under active track
-    // Completion summary
+    // ── LISTEN MODE: track list with set dividers ──
     var completedCount = 0;
     for (var c = 0; c < this._songs.length; c++) {
       if (this._completedTracks[this._songs[c].id]) completedCount++;
@@ -2380,7 +2689,11 @@ const BandPlayer = {
         + '<span style="color:#3fb950;font-weight:600;">' + Math.round(completedCount / this._songs.length * 100) + '%</span>'
         + '</div>';
     }
+
+    var trackNum = 0;
+    var lastSetIndex = -1;
     this._songs.forEach(function(song, i) {
+      var po = self._playOrder[i];
       var isActive = (i === self._currentIndex);
       var hasLyrics = !!(song.lyrics);
       var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
@@ -2388,17 +2701,29 @@ const BandPlayer = {
       var duration = song.duration ? self._formatTime(song.duration) : '';
       var practiced = self._completedTracks[song.id];
 
+      // Set divider (only for multi-set playlists)
+      if (multiSet && po && po.setIndex !== lastSetIndex) {
+        var setLabel = sets[po.setIndex] ? (sets[po.setIndex].label || ('Set ' + (po.setIndex + 1))) : '';
+        html += '<div class="bp-set-divider-listen"><span>' + self._escHtml(setLabel) + '</span></div>';
+        lastSetIndex = po.setIndex;
+      }
+
+      trackNum++;
+      var positionBadge = '';
+      if (po && po.position === 'intro') positionBadge = '<span class="bp-slot-badge bp-slot-intro" style="margin-left:6px;">Intro</span>';
+      else if (po && po.position === 'outro') positionBadge = '<span class="bp-slot-badge bp-slot-outro" style="margin-left:6px;">Outro</span>';
+
       html += '<div class="bp-track' + (isActive ? ' bp-track-active' : '') + '" onclick="BandPlayer.play(' + i + ')">' +
         '<div class="bp-track-num">' +
           (isActive && self._isPlaying
             ? '<div class="bp-eq"><span></span><span></span><span></span><span></span></div>'
             : practiced
               ? '<i class="fa-solid fa-check-circle" style="color:#3fb950;font-size:14px;" title="Practiced"></i>'
-              : '<span>' + (i + 1) + '</span>') +
+              : '<span>' + trackNum + '</span>') +
         '</div>' +
         artThumb +
         '<div class="bp-track-info">' +
-          '<div class="bp-track-title">' + BandPlayer._escHtml(BandPlayer._titleCase(song.title)) +
+          '<div class="bp-track-title">' + BandPlayer._escHtml(BandPlayer._titleCase(song.title)) + positionBadge +
             (cached ? ' <i class="fa-solid fa-cloud-arrow-down" style="font-size:10px;color:#3fb950;margin-left:4px;" title="Saved offline"></i>' : '') +
           '</div>' +
           '<div class="bp-track-artist">' + BandPlayer._escHtml(song.artist || 'Unknown') + '</div>' +
@@ -2415,7 +2740,6 @@ const BandPlayer = {
         '</div>' +
       '</div>';
 
-      // Inline progress bar after active track (like LA Young)
       if (isActive) {
         html += '<div class="bp-progress-row">' +
           '<span id="bp-prog-current" style="min-width:32px;">0:00</span>' +

@@ -99,6 +99,12 @@
         <i class="fa-solid fa-pen"></i>
       </button>
     </div>
+    <div id="bp-arrange-actions" style="display:none;gap:6px;">
+      <button onclick="BandPlayer.addSet()" title="Add Set"
+              style="width:28px;height:28px;border-radius:6px;border:1px solid rgba(212,160,23,0.2);background:rgba(212,160,23,0.1);color:#d4a017;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;">
+        <i class="fa-solid fa-layer-group"></i>
+      </button>
+    </div>
   </div>
 
   <!-- ── Playlist Selector ──────────── -->
@@ -212,6 +218,53 @@
     border-bottom: 1px solid rgba(88,166,255,0.15);
     font-size: 13px; font-weight: 600; color: #58a6ff;
   }
+  /* Set arrangement — dividers, slots, badges */
+  .bp-set-divider {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 24px; margin-top: 4px;
+    background: rgba(88,166,255,0.06);
+    border-top: 1px solid rgba(88,166,255,0.15);
+    border-bottom: 1px solid rgba(88,166,255,0.08);
+  }
+  .bp-set-label {
+    font-size: 13px; font-weight: 700; color: #58a6ff;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .bp-set-actions { display: flex; gap: 4px; }
+  .bp-set-divider-listen {
+    padding: 8px 24px; margin-top: 8px;
+    border-top: 1px solid rgba(88,166,255,0.12);
+    font-size: 11px; font-weight: 700; color: rgba(88,166,255,0.6);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .bp-slot-badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    padding: 2px 5px; border-radius: 3px; text-transform: uppercase;
+    letter-spacing: 0.04em; vertical-align: middle;
+  }
+  .bp-slot-intro {
+    background: rgba(63,185,80,0.12); color: #3fb950;
+    border: 1px solid rgba(63,185,80,0.2);
+  }
+  .bp-slot-outro {
+    background: rgba(248,81,73,0.12); color: #f85149;
+    border: 1px solid rgba(248,81,73,0.2);
+  }
+  .bp-slot-empty {
+    padding: 12px 24px; margin: 2px 0;
+    border: 1px dashed rgba(255,255,255,0.1);
+    border-radius: 6px; margin-left: 24px; margin-right: 24px;
+    color: rgba(255,255,255,0.25); font-size: 13px;
+    cursor: pointer; text-align: center;
+    transition: background 120ms, border-color 120ms;
+  }
+  .bp-slot-empty:hover, .bp-slot-empty:active {
+    background: rgba(212,160,23,0.06);
+    border-color: rgba(212,160,23,0.2);
+    color: rgba(212,160,23,0.6);
+  }
+  .bp-slot-row { background: rgba(255,255,255,0.02); }
+
   /* Lyrics paper styles */
   .bp-lyric-line {
     font-family: 'Times New Roman', Georgia, 'Palatino Linotype', serif;
@@ -237,9 +290,20 @@
 
   function updateManagerButtons() {
     var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    var isManager = (role === 'admin' || role === 'band_manager');
+    var canArrange = isManager || role === 'artist';
     var mgrActions = document.getElementById('bp-mgr-actions');
-    if (mgrActions) {
-      mgrActions.style.display = (role === 'admin' || role === 'band_manager') ? 'flex' : 'none';
+    var arrangeActions = document.getElementById('bp-arrange-actions');
+    if (mgrActions) mgrActions.style.display = isManager ? 'flex' : 'none';
+    if (arrangeActions) arrangeActions.style.display = canArrange ? 'flex' : 'none';
+    // Also show edit toggle for artist
+    var editToggle = document.getElementById('bp-edit-toggle');
+    if (editToggle && !isManager && canArrange) {
+      editToggle.style.display = 'flex';
+      // Move it to arrange-actions if not already there
+      if (arrangeActions && editToggle.parentNode !== arrangeActions) {
+        arrangeActions.insertBefore(editToggle, arrangeActions.firstChild);
+      }
     }
   }
   updateManagerButtons();
