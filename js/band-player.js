@@ -1616,6 +1616,10 @@ const BandPlayer = {
   // ── Edit Mode (band_manager / admin only) ─────────────
 
   toggleEditMode: function() {
+    // Only band_manager, admin, or artist can enter edit mode
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    var canEdit = (role === 'admin' || role === 'band_manager' || role === 'artist');
+    if (!canEdit) return;
     if (this._editMode) {
       this._exitEditMode();
     } else {
@@ -1732,6 +1736,8 @@ const BandPlayer = {
   // ── Set Management ──────────────────────────────────────
 
   addSet: function() {
+    var role = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+    if (role !== 'admin' && role !== 'band_manager' && role !== 'artist') return;
     if (!this._currentPlaylist) return;
     this._migratePlaylistToSets(this._currentPlaylist);
     var sets = this._currentPlaylist.sets;
@@ -2636,6 +2642,14 @@ const BandPlayer = {
       ? '<div class="bp-track-art"><img src="' + this._escHtml(plArt) + '" alt="" style="width:100%;height:100%;object-fit:cover;" /></div>'
       : '<div class="bp-track-art"><img src="images/logo/gbe-square.svg" alt="GBE" style="width:100%;height:100%;object-fit:cover;" /></div>';
     var multiSet = sets.length > 1;
+
+    // Verify role before rendering edit mode (defense-in-depth)
+    if (this._editMode) {
+      var editRole = (typeof Auth !== 'undefined' && Auth.getRole) ? Auth.getRole() : 'member';
+      if (editRole !== 'admin' && editRole !== 'band_manager' && editRole !== 'artist') {
+        this._editMode = false;
+      }
+    }
 
     if (this._editMode) {
       // ── EDIT MODE: per-set sections ──

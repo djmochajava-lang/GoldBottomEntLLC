@@ -312,6 +312,10 @@
     updateManagerButtons();
     if (BandPlayer.initialized) BandPlayer.renderTrackList();
   });
+  // Re-check when auth state resolves (role may load async from Firestore)
+  if (typeof Auth !== 'undefined' && Auth.onAuthStateChanged) {
+    Auth.onAuthStateChanged(function() { updateManagerButtons(); });
+  }
 
   // Init — wait for Auth/Firestore
   function tryInit(attempts) {
