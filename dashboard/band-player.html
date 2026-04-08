@@ -265,6 +265,56 @@
   }
   .bp-slot-row { background: rgba(255,255,255,0.02); }
 
+  /* Stem sub-tracks */
+  .bp-stems-toggle {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 24px 6px 48px; cursor: pointer;
+    font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4);
+    transition: color 150ms, background 150ms;
+    user-select: none; -webkit-user-select: none;
+  }
+  .bp-stems-toggle:hover, .bp-stems-toggle:active {
+    color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.03);
+  }
+  .bp-stems-panel {
+    padding: 4px 24px 8px 48px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .bp-stem-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    transition: background 120ms;
+  }
+  .bp-stem-row:active { background: rgba(255,255,255,0.06); }
+  .bp-stem-play {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; font-size: 11px;
+    transition: background 120ms, border-color 120ms;
+  }
+  .bp-stem-play:active { background: rgba(255,255,255,0.1); }
+  .bp-stem-info {
+    display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;
+  }
+  .bp-stem-label {
+    font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.7);
+  }
+  .bp-stem-chart-btn {
+    width: 30px; height: 30px; border-radius: 6px;
+    border: 1px solid rgba(212,160,23,0.2); background: rgba(212,160,23,0.06);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; font-size: 12px;
+    transition: background 120ms;
+  }
+  .bp-stem-chart-btn:active { background: rgba(212,160,23,0.15); }
+
+  @media (max-width: 480px) {
+    .bp-stems-toggle { padding-left: 36px; }
+    .bp-stems-panel { padding-left: 36px; }
+  }
+
   /* Lyrics paper styles */
   .bp-lyric-line {
     font-family: 'Times New Roman', Georgia, 'Palatino Linotype', serif;

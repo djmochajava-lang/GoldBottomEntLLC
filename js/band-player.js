@@ -2840,6 +2840,48 @@ const BandPlayer = {
           '<span id="bp-prog-total" style="min-width:32px;text-align:right;">' + (duration || '0:00') + '</span>' +
         '</div>';
       }
+
+      // Stem sub-tracks (expandable panel below the song)
+      var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
+      if (hasStems) {
+        var STEM_LABELS = { drums: 'Drums', bass: 'Bass', other: 'Keys / Guitar', vocals: 'Vocals' };
+        var STEM_ICONS  = { drums: 'fa-drum', bass: 'fa-guitar', other: 'fa-keyboard', vocals: 'fa-microphone' };
+        var STEM_COLORS = { drums: '#c0392b', bass: '#2980b9', other: '#8e44ad', vocals: '#27ae60' };
+        var stemExpanded = self._expandedStems && self._expandedStems[song.id];
+
+        html += '<div class="bp-stems-toggle" onclick="event.stopPropagation();BandPlayer.toggleStems(\'' + song.id + '\')">' +
+          '<i class="fa-solid fa-waveform-lines" style="margin-right:6px;font-size:11px;"></i>' +
+          '<span>Stems (' + Object.keys(song.stems).length + ')</span>' +
+          '<i class="fa-solid ' + (stemExpanded ? 'fa-chevron-up' : 'fa-chevron-down') + '" style="margin-left:auto;font-size:10px;opacity:0.5;"></i>' +
+        '</div>';
+
+        if (stemExpanded) {
+          html += '<div class="bp-stems-panel">';
+          Object.keys(song.stems).forEach(function(stemName) {
+            var label = STEM_LABELS[stemName] || stemName.charAt(0).toUpperCase() + stemName.slice(1);
+            var icon = STEM_ICONS[stemName] || 'fa-music';
+            var color = STEM_COLORS[stemName] || '#8b949e';
+            var stemChart = (song.charts && song.charts[stemName]) ? song.charts[stemName] : null;
+            var isStemPlaying = self._playingStemId === song.id + '_' + stemName;
+
+            html += '<div class="bp-stem-row" style="border-left:3px solid ' + color + ';">' +
+              '<button class="bp-stem-play" onclick="event.stopPropagation();BandPlayer.playStem(\'' + song.id + '\',\'' + stemName + '\')" title="Play ' + label + ' stem">' +
+                '<i class="fa-solid ' + (isStemPlaying ? 'fa-pause' : 'fa-play') + '" style="color:' + color + ';"></i>' +
+              '</button>' +
+              '<div class="bp-stem-info">' +
+                '<i class="fa-solid ' + icon + '" style="color:' + color + ';width:16px;text-align:center;font-size:12px;"></i>' +
+                '<span class="bp-stem-label">' + label + '</span>' +
+              '</div>' +
+              (stemChart
+                ? '<button class="bp-stem-chart-btn" onclick="event.stopPropagation();BandPlayer._openChartFile(\'' + BandPlayer._escHtml(stemChart) + '\',\'' + BandPlayer._escHtml(song.title + ' — ' + label) + '\')" title="View ' + label + ' chart">' +
+                    '<i class="fa-solid fa-file-pdf" style="color:#d4a017;"></i>' +
+                  '</button>'
+                : '') +
+            '</div>';
+          });
+          html += '</div>';
+        }
+      }
     });
 
     el.innerHTML = html;
@@ -2863,6 +2905,86 @@ const BandPlayer = {
           : '<div style="font-size:14px;">Your band manager hasn\'t set up any playlists yet.</div>') +
         '</div>';
     }
+  },
+
+  // ── Stem Playback ──────────────────────────────────
+
+  _expandedStems: {},   // songId → true/false
+  _stemAudio: null,     // HTMLAudioElement for stem playback
+  _playingStemId: null,  // "songId_stemName" currently playing
+
+  toggleStems: function(songId) {
+    if (!this._expandedStems) this._expandedStems = {};
+    this._expandedStems[songId] = !this._expandedStems[songId];
+    this.renderTrackList();
+  },
+
+  playStem: function(songId, stemName) {
+    var self = this;
+    var stemId = songId + '_' + stemName;
+
+    // If this stem is already playing, stop it
+    if (this._playingStemId === stemId && this._stemAudio) {
+      this.stopStem();
+      return;
+    }
+
+    // Stop any existing stem playback
+    this.stopStem();
+
+    // Pause the main player if playing
+    if (this._isPlaying && this._audio) {
+      this._audio.pause();
+      this._isPlaying = false;
+      this.updateNowPlaying();
+    }
+
+    var song = this._allSongsMap[songId];
+    if (!song || !song.stems || !song.stems[stemName]) {
+      if (typeof Toast !== 'undefined') Toast.error('Stem not available');
+      return;
+    }
+
+    var storagePath = song.stems[stemName];
+    var storage = (typeof Auth !== 'undefined' && Auth.getStorage) ? Auth.getStorage() : null;
+    if (!storage) {
+      if (typeof Toast !== 'undefined') Toast.error('Storage not available');
+      return;
+    }
+
+    var ref = storagePath.startsWith('gs://') || storagePath.startsWith('https://')
+      ? storage.refFromURL(storagePath)
+      : storage.ref(storagePath);
+
+    if (typeof Toast !== 'undefined') Toast.info('Loading ' + stemName + ' stem...');
+
+    ref.getDownloadURL().then(function(url) {
+      self._stemAudio = new Audio(url);
+      self._playingStemId = stemId;
+      self._stemAudio.play().then(function() {
+        self.renderTrackList();
+      }).catch(function(e) {
+        console.error('[BandPlayer] Stem playback failed:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Could not play stem');
+        self._playingStemId = null;
+      });
+      self._stemAudio.addEventListener('ended', function() {
+        self._playingStemId = null;
+        self._stemAudio = null;
+        self.renderTrackList();
+      });
+    }).catch(function(e) {
+      console.error('[BandPlayer] Stem URL failed:', e);
+      if (typeof Toast !== 'undefined') Toast.error('Could not load stem: ' + e.message);
+    });
+  },
+
+  stopStem: function() {
+    if (this._stemAudio) {
+      this._stemAudio.pause();
+      this._stemAudio = null;
+    }
+    this._playingStemId = null;
   },
 
   // ── Offline Cache ────────────────────────────────────
