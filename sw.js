@@ -33,9 +33,9 @@ var ASSET_HASHES = {
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',
-  './js/band-player.js': 'd1f5e4fad2c48e9b70736aee9dd0d678bf597628e819cd2e2d983f5fb2301894',
+  './js/band-player.js': 'b1b7768c54ddcd9f16265ea6bac6d10334cfc6cf6ce0c0388daf8e5fe797405b',
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
-  './dashboard/band-player.html': 'a1bab372a007bfe3284220c58d22ac8ebc1ffd83e3810d92d3e6ced4eda0d47a',
+  './dashboard/band-player.html': 'd7e8c42ca1dfed30609ea891d57739aab44db0b3ba575eec1d8097d9c274ade5',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee'
 };
 
