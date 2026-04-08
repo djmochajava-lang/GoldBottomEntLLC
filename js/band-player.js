@@ -2061,7 +2061,7 @@ const BandPlayer = {
         '<div style="display:flex;flex-direction:column;gap:14px;">' +
           '<div><label class="form-label">Song Title *</label><input id="bp-u-title" class="form-input" placeholder="e.g. No One Can Love You More" /></div>' +
           '<div><label class="form-label">Artist</label><input id="bp-u-artist" class="form-input" value="L.A. Young" /></div>' +
-          '<div><label class="form-label">Audio File (MP3) *</label><input id="bp-u-audio" type="file" accept=".mp3,audio/mpeg" class="form-input" /></div>' +
+          '<div><label class="form-label">Audio File *</label><input id="bp-u-audio" type="file" accept=".mp3,.m4a,.aac,.wav,.flac,audio/mpeg,audio/mp4,audio/aac,audio/wav,audio/flac" class="form-input" /></div>' +
           '<div><label class="form-label">Lyrics (optional)</label><textarea id="bp-u-lyrics" class="form-input" rows="4" placeholder="Paste lyrics here..."></textarea></div>' +
           '<details style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;">' +
             '<summary style="cursor:pointer;font-weight:600;font-size:14px;color:rgba(255,255,255,0.7);">' +
@@ -2095,11 +2095,12 @@ const BandPlayer = {
     var lyrics = (document.getElementById('bp-u-lyrics') || {}).value || '';
 
     if (!title.trim()) { Toast.error('Song title is required'); return Promise.resolve(); }
-    if (!audioInput || !audioInput.files || !audioInput.files[0]) { Toast.error('Please select an MP3 file'); return Promise.resolve(); }
+    if (!audioInput || !audioInput.files || !audioInput.files[0]) { Toast.error('Please select an audio file'); return Promise.resolve(); }
 
     var audioFile = audioInput.files[0];
+    var ext = audioFile.name.split('.').pop().toLowerCase() || 'mp3';
     var songId = 'song_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
-    var audioPath = 'band-media/audio/' + songId + '.mp3';
+    var audioPath = 'band-media/audio/' + songId + '.' + ext;
 
     // Collect chart files
     var chartFiles = {};
@@ -3042,7 +3043,8 @@ const BandPlayer = {
       this._storage.ref(song.audioPath).getDownloadURL().then(function(url) {
         var a = document.createElement('a');
         a.href = url;
-        a.download = (song.title || 'track') + '.mp3';
+        var dlExt = song.audioPath ? '.' + song.audioPath.split('.').pop() : '.mp3';
+        a.download = (song.title || 'track') + dlExt;
         a.target = '_blank';
         document.body.appendChild(a);
         a.click();
