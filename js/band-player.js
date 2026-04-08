@@ -1231,8 +1231,8 @@ const BandPlayer = {
   },
 
   _renderChartPickerModal: function(song, charts, reviews, isManager) {
-    var LABELS = { drums: 'Drums', bass: 'Bass', other: 'Keys / Guitar', vocals: 'Vocals' };
-    var ICONS  = { drums: 'fa-drum', bass: 'fa-guitar-electric', other: 'fa-piano-keyboard', vocals: 'fa-microphone' };
+    var LABELS = { drums: 'Drums', bass: 'Bass', other: 'Other', vocals: 'Vocals', guitar: 'Guitar', piano: 'Keys / Piano' };
+    var ICONS  = { drums: 'fa-drum', bass: 'fa-guitar', other: 'fa-sliders', vocals: 'fa-microphone', guitar: 'fa-guitar', piano: 'fa-keyboard' };
     var songId = song.id;
 
     var html = '<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
@@ -2845,9 +2845,9 @@ const BandPlayer = {
       // Stem sub-tracks (expandable panel below the song)
       var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
       if (hasStems) {
-        var STEM_LABELS = { drums: 'Drums', bass: 'Bass', other: 'Keys / Guitar', vocals: 'Vocals' };
-        var STEM_ICONS  = { drums: 'fa-drum', bass: 'fa-guitar', other: 'fa-keyboard', vocals: 'fa-microphone' };
-        var STEM_COLORS = { drums: '#c0392b', bass: '#2980b9', other: '#8e44ad', vocals: '#27ae60' };
+        var STEM_LABELS = { drums: 'Drums', bass: 'Bass', other: 'Other', vocals: 'Vocals', guitar: 'Guitar', piano: 'Keys / Piano' };
+        var STEM_ICONS  = { drums: 'fa-drum', bass: 'fa-guitar', other: 'fa-sliders', vocals: 'fa-microphone', guitar: 'fa-guitar', piano: 'fa-keyboard' };
+        var STEM_COLORS = { drums: '#c0392b', bass: '#2980b9', other: '#8e44ad', vocals: '#27ae60', guitar: '#e67e22', piano: '#9b59b6' };
         var stemExpanded = self._expandedStems && self._expandedStems[song.id];
 
         html += '<div class="bp-stems-toggle" onclick="event.stopPropagation();BandPlayer.toggleStems(\'' + song.id + '\')">' +
