@@ -250,14 +250,19 @@ const Auth = {
       // Initialize Firestore
       if (typeof firebase.firestore === 'function') {
         this._db = firebase.firestore();
-        // Enable offline persistence so Music Player works in airplane mode
-        this._db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-          if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-            console.warn('[Auth] Firestore offline persistence error:', err.code);
-          }
-        });
+        // Only enable offline persistence on LAN (home server) where airplane-mode
+        // access matters. On the public site (GitHub Pages), persistence causes
+        // heavy IndexedDB writes that block the main thread on mobile Safari,
+        // making menus and navigation unresponsive for 10-15 seconds.
+        if (this._serverUrl) {
+          this._db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+            if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+              console.warn('[Auth] Firestore offline persistence error:', err.code);
+            }
+          });
+        }
         this._flushReadyCallbacks();
-        console.log('[Auth] Firestore connected');
+        console.log('[Auth] Firestore connected' + (this._serverUrl ? ' (with offline persistence)' : ''));
       } else {
         console.warn('[Auth] Firestore SDK not loaded — registration disabled');
       }
@@ -448,9 +453,10 @@ const Auth = {
 
       if (typeof firebase.firestore === 'function') {
         this._db = firebase.firestore();
+        // PIN path is always on LAN — safe to enable offline persistence
         this._db.enablePersistence({ synchronizeTabs: true }).catch(function() {});
         this._flushReadyCallbacks();
-        console.log('[Auth] Firestore connected (PIN auth path)');
+        console.log('[Auth] Firestore connected (PIN auth path, with offline persistence)');
       }
       if (typeof firebase.storage === 'function') {
         this._storage = firebase.storage();
