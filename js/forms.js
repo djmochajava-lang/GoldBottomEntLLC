@@ -376,7 +376,17 @@ const Forms = {
       }
       var fsPayload = {};
       for (var k in payload) {
-        if (payload.hasOwnProperty(k)) fsPayload[k] = payload[k];
+        if (payload.hasOwnProperty(k)) {
+          var val = payload[k];
+          // DEF-049: Ensure no DOM elements leak into Firestore — extract .value from form elements
+          if (val && typeof val === 'object' && val.nodeType) {
+            val = val.value || '';
+          }
+          // Only include serializable primitives
+          if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+            fsPayload[k] = val;
+          }
+        }
       }
       fsPayload.submittedAt = firebase.firestore.FieldValue.serverTimestamp();
       return Auth._db.collection('contact_submissions').add(fsPayload).then(function () {

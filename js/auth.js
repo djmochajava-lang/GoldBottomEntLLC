@@ -1595,8 +1595,11 @@ const Auth = {
           '<span style="color:rgba(255,255,255,0.3);font-size:12px;">or use email</span>' +
           '<div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>' +
         '</div>' +
-        // Email/Password form (IDP-001 §6)
-        '<div id="auth-email-section" style="max-width:300px;margin:0 auto;">' +
+        // Email/Password form (IDP-001 §6) — wrapped in form to control autocomplete
+        '<form id="auth-email-section" autocomplete="off" onsubmit="return false;" style="max-width:300px;margin:0 auto;">' +
+          // Honeypot fields: hidden decoys that attract browser autofill away from real inputs (DEF-047)
+          '<input type="email" name="email" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" />' +
+          '<input type="password" name="password" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" />' +
           // Display name (register mode only — hidden by default)
           '<input id="auth-email-name" type="text" placeholder="Display name" ' +
             'style="display:none;width:100%;padding:10px 14px;margin-bottom:8px;' +
@@ -1637,7 +1640,7 @@ const Auth = {
             '<a id="auth-email-forgot" href="#" style="color:rgba(255,255,255,0.4);font-size:12px;' +
               'text-decoration:none;transition:opacity 0.2s;">Forgot password?</a>' +
           '</div>' +
-        '</div>' +
+        '</form>' +
         // Error area
         '<div id="auth-error" style="display:none;margin-top:16px;' +
           'padding:10px;border-radius:8px;background:rgba(220,53,69,0.15);color:#ff6b6b;font-size:13px;">' +
@@ -1660,6 +1663,14 @@ const Auth = {
 
     // Bind click handlers after modal renders
     setTimeout(function() {
+      // DEF-047: Force-clear all login fields to defeat browser autofill
+      var _emailField = document.getElementById('auth-email-input');
+      var _pwField = document.getElementById('auth-email-password');
+      var _nameField = document.getElementById('auth-email-name');
+      if (_emailField) _emailField.value = '';
+      if (_pwField) _pwField.value = '';
+      if (_nameField) _nameField.value = '';
+
       // ── PIN handlers (LAN only) ──
       if (isLocal) {
         var pinInput = document.getElementById('auth-pin-input');
