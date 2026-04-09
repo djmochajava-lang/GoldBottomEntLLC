@@ -3,7 +3,7 @@
 // Audio files are cached separately by BandPlayer via the Cache API (bp-offline-audio).
 // Integrity: ASSET_HASHES verified via Web Crypto SHA-256 to prevent cache poisoning (M-4).
 
-var SHELL_CACHE = 'gbe-shell-v13';
+var SHELL_CACHE = 'gbe-shell-v14';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
@@ -33,7 +33,7 @@ var ASSET_HASHES = {
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',
-  './js/band-player.js': 'b1b7768c54ddcd9f16265ea6bac6d10334cfc6cf6ce0c0388daf8e5fe797405b',
+  './js/band-player.js': 'd486f34389d284b7c6a8bd91f68bf87ff501724a9005ec03879b68339d432efc',
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './dashboard/band-player.html': 'd7e8c42ca1dfed30609ea891d57739aab44db0b3ba575eec1d8097d9c274ade5',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee'

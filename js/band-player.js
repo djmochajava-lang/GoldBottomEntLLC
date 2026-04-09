@@ -2851,9 +2851,9 @@ const BandPlayer = {
         var stemExpanded = self._expandedStems && self._expandedStems[song.id];
 
         html += '<div class="bp-stems-toggle" onclick="event.stopPropagation();BandPlayer.toggleStems(\'' + song.id + '\')">' +
-          '<i class="fa-solid fa-waveform-lines" style="margin-right:6px;font-size:11px;"></i>' +
-          '<span>Stems (' + Object.keys(song.stems).length + ')</span>' +
-          '<i class="fa-solid ' + (stemExpanded ? 'fa-chevron-up' : 'fa-chevron-down') + '" style="margin-left:auto;font-size:10px;opacity:0.5;"></i>' +
+          '<i class="fa-solid fa-waveform-lines" style="margin-right:6px;font-size:14px;"></i>' +
+          '<span style="font-size:14px;font-weight:600;">Stems (' + Object.keys(song.stems).length + ')</span>' +
+          '<i class="fa-solid ' + (stemExpanded ? 'fa-chevron-up' : 'fa-chevron-down') + '" style="margin-left:auto;font-size:12px;opacity:0.5;"></i>' +
         '</div>';
 
         if (stemExpanded) {
