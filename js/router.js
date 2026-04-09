@@ -328,12 +328,10 @@ const Router = {
               if (typeof Toast !== 'undefined') {
                 Toast.error('Your role does not have access to this section.');
               }
-              // Redirect to role-appropriate home
-              if (_currentRole === 'band_member' || _currentRole === 'artist') {
-                this.navigateTo('dashboard-musician-home');
-              } else {
-                this.navigateTo('dashboard-home');
-              }
+              // Redirect to role-appropriate home (replace hash immediately to prevent URL leak)
+              var _roleDest = (_currentRole === 'band_member' || _currentRole === 'artist') ? 'dashboard-musician-home' : 'dashboard-home';
+              window.history.replaceState({ page: _roleDest }, '', '#' + _roleDest);
+              this.navigateTo(_roleDest, true);
               return;
             }
           } else {
@@ -342,11 +340,9 @@ const Router = {
               if (typeof Toast !== 'undefined') {
                 Toast.error('Your role does not have access to this section.');
               }
-              if (_currentRole === 'band_member' || _currentRole === 'artist') {
-                this.navigateTo('dashboard-musician-home');
-              } else {
-                this.navigateTo('dashboard-home');
-              }
+              var _roleDest2 = (_currentRole === 'band_member' || _currentRole === 'artist') ? 'dashboard-musician-home' : 'dashboard-home';
+              window.history.replaceState({ page: _roleDest2 }, '', '#' + _roleDest2);
+              this.navigateTo(_roleDest2, true);
               return;
             }
           }
@@ -355,7 +351,8 @@ const Router = {
           if (typeof Toast !== 'undefined') {
             Toast.error('Your role does not have access to this section.');
           }
-          this.navigateTo('dashboard-home');
+          window.history.replaceState({ page: 'dashboard-home' }, '', '#dashboard-home');
+          this.navigateTo('dashboard-home', true);
           return;
         }
       }
@@ -365,13 +362,15 @@ const Router = {
         if (typeof Toast !== 'undefined') {
           Toast.error('This section is only available on the local dashboard.');
         }
-        this.navigateTo('dashboard-home');
+        window.history.replaceState({ page: 'dashboard-home' }, '', '#dashboard-home');
+        this.navigateTo('dashboard-home', true);
         return;
       }
 
       // Environment guard — block public-only routes on local (private) dashboard
       if (this.localBlockedRoutes.includes(pageName) && Auth.isLocalDashboard()) {
-        this.navigateTo('dashboard-home');
+        window.history.replaceState({ page: 'dashboard-home' }, '', '#dashboard-home');
+        this.navigateTo('dashboard-home', true);
         return;
       }
     }
