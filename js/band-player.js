@@ -266,8 +266,8 @@ const BandPlayer = {
     var self = this;
 
     container.innerHTML =
-      '<div style="max-width:560px;margin:var(--space-xl) auto;padding:var(--space-lg);">' +
-        '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
+      '<div class="bp-onboarding bp-onboarding-screen1" style="max-width:560px;margin:var(--space-xl) auto;padding:var(--space-lg);">' +
+        '<div class="bp-onboarding-card" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
           '<div style="width:56px;height:56px;border-radius:50%;background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
             '<i class="fa-solid fa-shield-halved" style="font-size:24px;color:var(--color-gold);"></i>' +
           '</div>' +
@@ -349,8 +349,8 @@ const BandPlayer = {
     var prefill = function(data) {
 
     container.innerHTML =
-      '<div style="max-width:600px;margin:var(--space-xl) auto;padding:var(--space-lg);">' +
-        '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
+      '<div class="bp-onboarding bp-onboarding-screen2' + (isEdit ? ' bp-onboarding-edit' : '') + '" style="max-width:600px;margin:var(--space-xl) auto;padding:var(--space-lg);">' +
+        '<div class="bp-onboarding-card" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);">' +
           (isEdit ? '<div style="margin-bottom:var(--space-md);"><a href="#" id="pay-back-btn" style="color:var(--color-text-secondary);font-size:var(--text-sm);text-decoration:none;"><i class="fa-solid fa-arrow-left" style="margin-right:4px;"></i> Back to Player</a></div>' : '') +
           '<div style="width:56px;height:56px;border-radius:50%;background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
             '<i class="fa-solid fa-credit-card" style="font-size:24px;color:var(--color-gold);"></i>' +
@@ -2018,6 +2018,21 @@ const BandPlayer = {
           progress: data.progress,
           error: data.error
         };
+
+        // FRD-20 FR-4.2.3: feed the resumable progress UI. BPProgress persists
+        // to localStorage so refresh-in-the-middle recovers gracefully.
+        if (typeof BPProgress !== 'undefined' && BPProgress && BPProgress.update) {
+          try {
+            BPProgress.update(songId, {
+              status: data.status,
+              progress: data.progress,
+              humanStage: data.humanStage,
+              error: data.error,
+              traceId: data.traceId
+            });
+          } catch (e) { /* never block the poller on UI failure */ }
+        }
+
         self.renderTrackList();
 
         if (data.status === 'complete' || data.status === 'error') {
@@ -2029,7 +2044,10 @@ const BandPlayer = {
             Toast.error('Stem separation failed: ' + (data.error || 'unknown error'));
           }
         }
-      }).catch(function() { /* ignore transient errors */ });
+      }).catch(function(err) {
+        // Scoped error logging replaces the prior silent catch (SR-5.2.x)
+        console.warn('[BandPlayer] stem status poll failed:', err && err.message);
+      });
     }, 10000);
   },
 
@@ -2880,12 +2898,38 @@ const BandPlayer = {
                 : '') +
             '</div>';
           });
+          // FRD-20: Pro mixer mount point. Only renders when BPIntegration is
+          // loaded (additive — legacy stem rows above still work if modules fail).
+          html += '<div id="bp-mixer-host-' + BandPlayer._escHtml(song.id) + '" class="bp-mixer-host"></div>';
           html += '</div>';
         }
       }
     });
 
     el.innerHTML = html;
+
+    // FRD-20: After DOM is in, mount BPIntegration on each song with stems.
+    // Graceful degradation: no-op if BPIntegration isn't loaded.
+    try {
+      if (typeof BPIntegration !== 'undefined' && BPIntegration && BPIntegration.mount) {
+        var songList = self._songs || [];
+        songList.forEach(function(song) {
+          if (!song || !song.stems || !Object.keys(song.stems).length) return;
+          if (!(self._expandedStems && self._expandedStems[song.id])) return;
+          var host = document.getElementById('bp-mixer-host-' + song.id);
+          if (!host) return;
+          var userId = (typeof Auth !== 'undefined' && Auth.currentUserId) ? Auth.currentUserId() : null;
+          BPIntegration.mount({
+            host: host,
+            songId: song.id,
+            userId: userId,
+            stems: song.stems
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('[BandPlayer] BPIntegration mount skipped:', err && err.message);
+    }
   },
 
   updateNowPlaying: function() {
