@@ -2037,8 +2037,33 @@ const BandPlayer = {
 
         if (data.status === 'complete' || data.status === 'error') {
           clearInterval(timer);
-          if (data.status === 'complete' && typeof Toast !== 'undefined') {
-            Toast.success('Stems ready for: ' + (data.title || songId));
+          if (data.status === 'complete') {
+            // Re-read the song from Firestore to get the stems, charts, and analysis
+            // that the pipeline wrote. This fixes the stale data issue where the
+            // in-memory song object was loaded before processing completed.
+            if (self._db) {
+              self._db.collection('songs').doc(songId).get().then(function(doc) {
+                if (doc.exists) {
+                  var fresh = doc.data();
+                  // Update all in-memory references with fresh Firestore data
+                  if (self._allSongsMap && self._allSongsMap[songId]) {
+                    Object.assign(self._allSongsMap[songId], fresh);
+                  }
+                  if (self._songs) {
+                    for (var i = 0; i < self._songs.length; i++) {
+                      if (self._songs[i] && self._songs[i].id === songId) {
+                        Object.assign(self._songs[i], fresh);
+                        break;
+                      }
+                    }
+                  }
+                  self.renderTrackList();
+                }
+              }).catch(function() { /* best-effort refresh */ });
+            }
+            if (typeof Toast !== 'undefined') {
+              Toast.success('Stems ready for: ' + (data.title || songId));
+            }
           }
           if (data.status === 'error' && typeof Toast !== 'undefined') {
             Toast.error('Stem separation failed: ' + (data.error || 'unknown error'));
