@@ -211,6 +211,22 @@
     }
   };
 
+  // ── Auto-cleanup: stop metronome when page is hidden or unloaded ──
+  // Prevents the click track from playing forever in the background
+  // when the user switches tabs, minimizes, or navigates away.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && _metroEnabled) {
+        BPPractice.metronomeOff();
+      }
+    });
+    if (typeof global.addEventListener === 'function') {
+      global.addEventListener('beforeunload', function() {
+        if (_metroEnabled) BPPractice.metronomeOff();
+      });
+    }
+  }
+
   // ── Export ────────────────────────────────────
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = BPPractice;

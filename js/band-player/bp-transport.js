@@ -304,6 +304,17 @@
     }
   };
 
+  // ── Auto-cleanup: suspend AudioContext when page is hidden ──
+  // Releases audio hardware and stops any playing stems when the
+  // user switches tabs, minimizes, or navigates away.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && _stemsPlaying) {
+        BPTransport.pause();
+      }
+    });
+  }
+
   // ── Export ────────────────────────────────────
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = BPTransport;
