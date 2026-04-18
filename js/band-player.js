@@ -2923,7 +2923,8 @@ const BandPlayer = {
             host: host,
             songId: song.id,
             userId: userId,
-            stems: song.stems
+            stems: song.stems,
+            barTimings: song.barTimings || null
           });
         });
       }

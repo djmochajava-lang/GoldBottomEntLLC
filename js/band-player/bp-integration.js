@@ -322,6 +322,16 @@
         try { global.BPTransport.applyMixer(opts.songId); } catch (e) { /* ignore */ }
       }
 
+      // FRD-20: Wire detected bar timings + BPM to practice module
+      // barTimings comes from Essentia analysis via Firestore songs/{songId}.barTimings
+      if (global.BPPractice && opts.barTimings && Array.isArray(opts.barTimings)) {
+        try {
+          // Convert flat seconds array to the {bar, t} format BPPractice expects
+          var boundaries = opts.barTimings.map(function(t, i) { return { bar: i + 1, t: t }; });
+          if (global.BPPractice.setBarBoundaries) global.BPPractice.setBarBoundaries(boundaries);
+        } catch (e) { /* ignore */ }
+      }
+
       _current = {
         host: host,
         songId: opts.songId,
