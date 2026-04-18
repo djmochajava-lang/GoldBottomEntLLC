@@ -35,7 +35,8 @@
     bass:   'Bass',
     other:  'Other',
     guitar: 'Guitar',
-    piano:  'Keys / Piano'
+    piano:  'Keys / Piano',
+    instrumental: 'Instrumental'
   };
 
   var STEM_COLORS = {
@@ -44,7 +45,8 @@
     bass:   '#2980b9',
     other:  '#8e44ad',
     guitar: '#e67e22',
-    piano:  '#9b59b6'
+    piano:  '#9b59b6',
+    instrumental: '#2c3e50'
   };
 
   // Module-level state: one mount active at a time (simple, matches SPA)
