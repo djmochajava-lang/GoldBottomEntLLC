@@ -150,6 +150,76 @@
       Modal.open({ title: 'Song Inventory (' + songs.length + ')', size: 'md', content: html, saveText: 'Close', onSave: function() { Modal.close(); } });
     },
 
+    showAddToPlaylistModal: function() {
+      var c = _c();
+      if (!c || typeof Modal === 'undefined') return;
+      var pl = c.ref('currentPlaylist');
+      if (!pl) {
+        if (typeof Toast !== 'undefined') Toast.error('Select a playlist first');
+        return;
+      }
+      var songs = c.ref('inventory') || [];
+      if (songs.length === 0) {
+        Modal.open({
+          title: 'Add Song to ' + (pl.title || pl.name || 'Playlist'),
+          size: 'md',
+          content: '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);"><i class="fa-solid fa-box-open" style="font-size:32px;display:block;margin-bottom:10px;"></i>No songs in inventory. Upload songs first.</div>',
+          saveText: 'Close', onSave: function() { Modal.close(); }
+        });
+        return;
+      }
+
+      // Determine which songs are already in this playlist
+      var alreadyInPl = {};
+      var sets = pl.sets || [];
+      sets.forEach(function(set) {
+        if (set.intro) alreadyInPl[set.intro] = true;
+        (set.songs || []).forEach(function(id) { alreadyInPl[id] = true; });
+        if (set.outro) alreadyInPl[set.outro] = true;
+      });
+
+      var esc = global.BP2Utils ? global.BP2Utils.esc : function(s) { return s; };
+      var tc = global.BP2Utils ? global.BP2Utils.titleCase : function(s) { return s; };
+      var html = '<div style="max-height:60vh;overflow-y:auto;">';
+      songs.forEach(function(song) {
+        var inPl = !!alreadyInPl[song.id];
+        html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+          '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#e6edf3;">' + esc(tc(song.title || '')) + '</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">' + esc(song.artist || 'Unknown') + '</div></div>' +
+          (inPl
+            ? '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">In playlist</span>'
+            : '<button data-action="add-to-playlist" data-song="' + song.id + '" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(212,160,23,0.3);background:rgba(212,160,23,0.1);color:#d4a017;cursor:pointer;font-size:12px;font-weight:600;"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add</button>') +
+        '</div>';
+      });
+      html += '</div>';
+      Modal.open({
+        title: 'Add Song to ' + (pl.title || pl.name || 'Playlist'),
+        size: 'md',
+        content: html,
+        saveText: 'Done',
+        onSave: function() { Modal.close(); }
+      });
+
+      // Delegate clicks on Add buttons
+      setTimeout(function() {
+        var modal = document.querySelector('.modal-overlay.modal-active');
+        if (!modal) return;
+        modal.addEventListener('click', function(e) {
+          var btn = e.target.closest('[data-action="add-to-playlist"]');
+          if (!btn) return;
+          var sid = btn.getAttribute('data-song');
+          if (!sid || !global.BP2Playlist) return;
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+          global.BP2Playlist.addSongToPlaylist(sid);
+          // Optimistic UI: replace button with "In playlist" badge after a tick
+          setTimeout(function() {
+            btn.outerHTML = '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">Added</span>';
+          }, 400);
+        });
+      }, 100);
+    },
+
     deleteSong: function(songId) {
       var c = _c();
       if (!c || !c.getDb()) return;

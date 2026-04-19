@@ -6,7 +6,7 @@
 // FRD-20 SR-5.4.1/5.4.2: bumped for band-player module additions + CSS.
 // Activate handler deletes any cache that starts with 'gbe-shell-' but isn't the
 // current version, so older shells auto-evict on next activation.
-var SHELL_CACHE = 'gbe-shell-v21';
+var SHELL_CACHE = 'gbe-shell-v22';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
@@ -39,12 +39,12 @@ var ASSET_HASHES = {
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
   './css/band-player-v2.css': '879f1e5edde058bcf04dc2456d76a63a0ecd2c5985def54504ac39c6ed390ef7',
-  './dashboard/band-player-v2.html': '047bdcd84f57aefb50be03c7acac171c36fb496d12ddc627fe4b561f8f3f73a3',
+  './dashboard/band-player-v2.html': 'cee085d8d104fd0eb3c7800dc0fa47c89f34c69ed003cd78eda409107a289a97',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
   './js/band-player-v2/bp2-playlist.js': 'a7d0d715321f026601e9a53fe14cedcc49f6e563f9d2200c76f36e3d376ba298',
-  './js/band-player-v2/bp2-render.js': 'a0e9579dbd1ab5624c1f8a09430640a530914ff0dc666d1b70caddcbb7b3f3ec',
+  './js/band-player-v2/bp2-render.js': '78c4638711cc9a7f31a920251e13ac97b973e228ca9246221c50aa1acd067039',
   './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
   './js/band-player-v2/bp2-offline.js': '76b070ab9310e574316838dcc0a38e4847415b0eb8aa554469e66c30ff70eba9',
@@ -55,7 +55,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-charts.js': 'cb995c50235615429cc62cda55e16312c161c3414434428a4789a7f0b2286091',
   './js/band-player-v2/bp2-lyrics.js': '5ae039ad37a25542b33cf807f0f2ce7505f53a1573b031e732d2b110f6552cb5',
   './js/band-player-v2/bp2-notes.js': '71ef2fc765b3077f427c466f81e89b25a2b1e32e3de6d053d3f1add9c248c3d7',
-  './js/band-player-v2/bp2-upload.js': '36409599340ed962d9cb13440423f0aafcc14b3793bb5933f54e4ec89f6c28d6',
+  './js/band-player-v2/bp2-upload.js': 'ff2a9286ee18dcc2aa7707cb9ea0f777f4e75d4c5a31581b70afcea6723f3fb3',
   './js/band-player-v2/bp2-permissions.js': '3ddaff2487249c6cee9d0d1f2ea82c416a853c2b43a8ea6059a6d652d8921920',
   './js/band-player-v2/bp2-edit.js': '1acd460ab0923f707543f0d8f4a3b3f3146448e8a56959390d1f4e80be012df3',
   './js/band-player-v2/bp2-integration.js': '52c8877dca65340c525fd324456f8bdd4c46704a42eeb65c09fa1a0e0b55f642',

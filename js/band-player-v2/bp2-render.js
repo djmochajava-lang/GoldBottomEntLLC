@@ -349,6 +349,16 @@
       }
     });
 
+    // Manager selector actions — Add song to current playlist
+    var addSongBtn = document.getElementById('bp2-btn-add-song');
+    if (addSongBtn) addSongBtn.addEventListener('click', function() {
+      if (global.BP2Upload && typeof global.BP2Upload.showAddToPlaylistModal === 'function') {
+        global.BP2Upload.showAddToPlaylistModal();
+      } else if (typeof Toast !== 'undefined') {
+        Toast.error('Add-song module not loaded');
+      }
+    });
+
     // Timeline seek
     var timeline = document.getElementById('bp2-timeline-track');
     if (timeline) {
