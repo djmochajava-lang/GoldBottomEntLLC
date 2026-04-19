@@ -90,6 +90,10 @@
       var uid = c.getUser() ? c.getUser().uid : 'band_manager';
       var role = c.getRole();
 
+      // Optimistically mark as processing BEFORE async call — prevents duplicate clicks
+      statuses[songId] = { status: 'processing' };
+      c.emit('render:tracklist');
+
       c.getDb().collection('stem-requests').doc(songId).set({
         status: 'pending',
         songId: songId,
@@ -101,10 +105,12 @@
       }).then(function() {
         statuses[songId] = { status: 'queued' };
         c.emit('render:tracklist');
-        if (typeof Toast !== 'undefined') Toast.success('Stem request sent');
+        if (typeof Toast !== 'undefined') Toast.success('Stem request sent — processing will begin shortly');
         BP2Stems._pollStatus(songId);
       }).catch(function(e) {
         console.error('[BP2Stems] Failed:', e);
+        delete statuses[songId];
+        c.emit('render:tracklist');
         if (typeof Toast !== 'undefined') Toast.error('Failed to send stem request');
       });
     },
