@@ -11,7 +11,7 @@ var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete th
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': 'dda4d7389b6361760804f22b129e11a263ae05700732d0d81bd861f6f344b53c',
+  './': 'c5a7b9534a20a608ce40f58d9fcbf1c82e58bcfee34db6eacd81e81c0ecdbfba',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
