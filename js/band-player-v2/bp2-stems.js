@@ -39,6 +39,32 @@
       c.on('stems:request', function(d) { BP2Stems.requestStems(d.songId); });
       c.on('stems:play', function(d) { BP2Stems.playStem(d.songId, d.stemName); });
       c.on('stems:stop', function() { BP2Stems.stopStem(); });
+
+      // Check for in-progress stem requests when playlist is selected
+      c.on('playlist:selected', function() { BP2Stems.checkPendingRequests(); });
+    },
+
+    checkPendingRequests: function() {
+      var c = _c();
+      if (!c || !c.getDb()) return;
+      var songs = c.ref('songs') || [];
+      var statuses = c.ref('stemStatuses');
+
+      songs.forEach(function(song) {
+        // Skip songs that already have stems
+        if (song.stems && Object.keys(song.stems).length > 0) return;
+        // Skip songs we're already tracking
+        if (statuses[song.id]) return;
+
+        c.getDb().collection('stem-requests').doc(song.id).get().then(function(doc) {
+          if (!doc.exists) return;
+          var data = doc.data();
+          if (data.status === 'complete' || data.status === 'error') return;
+          statuses[song.id] = { status: data.status || 'queued' };
+          c.emit('render:tracklist');
+          BP2Stems._pollStatus(song.id);
+        }).catch(function() {});
+      });
     },
 
     requestStems: function(songId) {

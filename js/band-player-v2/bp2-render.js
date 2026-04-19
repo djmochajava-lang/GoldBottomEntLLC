@@ -212,6 +212,8 @@
       // LED state
       var ledClass = isActive ? ' on' : (practiced ? ' practiced' : '');
       var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
+      var stemStatus = c.ref('stemStatuses') ? c.ref('stemStatuses')[song.id] : null;
+      var isProcessing = stemStatus && stemStatus.status && stemStatus.status !== 'complete' && stemStatus.status !== 'error';
 
       // Track number cell
       var numHtml;
@@ -237,9 +239,11 @@
           (duration ? '<span class="bp2-rack-time">' + duration + '</span>' : '') +
           (hasStems
             ? '<button data-action="toggle-stems" data-song="' + song.id + '" title="Toggle stems" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(232,160,18,0.08);border:1px solid rgba(232,160,18,0.15);color:#e8a012;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-music"></i></button>'
-            : (c.canEdit && c.canEdit()
-                ? '<button data-action="request-stems" data-song="' + song.id + '" title="Process stems" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(82,196,26,0.06);border:1px dashed rgba(82,196,26,0.25);color:#52c41a;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-wand-magic-sparkles"></i></button>'
-                : '')) +
+            : (isProcessing
+                ? '<span title="Stems processing" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(88,166,255,0.08);border:1px solid rgba(88,166,255,0.15);color:#58a6ff;font-size:12px;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-gear fa-spin"></i></span>'
+                : (c.canEdit && c.canEdit()
+                    ? '<button data-action="request-stems" data-song="' + song.id + '" title="Process stems" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(82,196,26,0.06);border:1px dashed rgba(82,196,26,0.25);color:#52c41a;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-wand-magic-sparkles"></i></button>'
+                    : ''))) +
         '</div>';
 
       // Tool drawer — only on the ACTIVE track (not every track)
