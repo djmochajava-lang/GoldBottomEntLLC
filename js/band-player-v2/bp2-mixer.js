@@ -35,7 +35,7 @@
   }
 
   function _ensure(songId) {
-    if (!songId) throw new Error('songId required');
+    if (!songId) return _default();
     if (!_state[songId]) _state[songId] = _default();
     return _state[songId];
   }

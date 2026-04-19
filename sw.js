@@ -38,7 +38,7 @@ var ASSET_HASHES = {
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
-  './css/band-player-v2.css': '879f1e5edde058bcf04dc2456d76a63a0ecd2c5985def54504ac39c6ed390ef7',
+  './css/band-player-v2.css': '2f042674fdba041a72635b292b8a311e6e284c0f247fa9cba9c48203ad09a7fc',
   './dashboard/band-player-v2.html': '10c8b3a0e7cd7afcfc1511d39421acf97e42f41a3d825b04fa5d8751e28e3fc2',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
@@ -49,7 +49,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
   './js/band-player-v2/bp2-offline.js': 'f8f658739b48821f1471a26d873bbee5a6f20dec37ff0d07bd7f641182efefd7',
   './js/band-player-v2/bp2-stems.js': '23311a4461c9937bf13320731e33d52dff99c6c45de7714da45677528655fcd6',
-  './js/band-player-v2/bp2-mixer.js': '791832933eac1370df85821e25e2ebbdd402eab5e2c53df6ce274f9039455c77',
+  './js/band-player-v2/bp2-mixer.js': 'e0acf817ab8082075894608b06d38407b51ff3f55d175dd6578129b277276b89',
   './js/band-player-v2/bp2-transport.js': '6d4077a56487fd45ee1680714158d79d57b7ee1f2dcb102c349a8bda8690ac2a',
   './js/band-player-v2/bp2-practice.js': '4b4428730733e4ed2e903464f454261cb7c0bd7f051a5158cf24e99794120158',
   './js/band-player-v2/bp2-charts.js': '9abb8f8f4f5bf2c602e1a09960ed0d5b10a29a5ed60c317e421eb81e9af10f7e',
@@ -58,7 +58,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-upload.js': 'b6a93c26ea19e23260fc3d4d165781e94d35798097f2fbcb5c78e3b702e37e00',
   './js/band-player-v2/bp2-permissions.js': '3ddaff2487249c6cee9d0d1f2ea82c416a853c2b43a8ea6059a6d652d8921920',
   './js/band-player-v2/bp2-edit.js': '1acd460ab0923f707543f0d8f4a3b3f3146448e8a56959390d1f4e80be012df3',
-  './js/band-player-v2/bp2-integration.js': '52c8877dca65340c525fd324456f8bdd4c46704a42eeb65c09fa1a0e0b55f642',
+  './js/band-player-v2/bp2-integration.js': '39dc6c19aa0591d8d4378ee8d9d6c9478269763743b15d20ae9d60735e24e9e1',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
   './js/band-player-v2/bp2-auth.js': '82a5d9894002bad689b14d5d02f87806949322bf13aaf06ff939c600153acda6'
 };

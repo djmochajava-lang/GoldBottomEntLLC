@@ -154,16 +154,22 @@
           if (global.BP2Practice.isMetronomeOn()) {
             global.BP2Practice.metronomeOff();
             btn.classList.remove('is-on');
+            btn.classList.remove('is-active');
+            btn.setAttribute('aria-pressed', 'false');
           } else {
             global.BP2Practice.setAudioContextRef(function() {
               return global.BP2Transport ? global.BP2Transport.getAudioContext() : null;
             });
             global.BP2Practice.metronomeOn();
             btn.classList.add('is-on');
+            btn.classList.add('is-active');
+            btn.setAttribute('aria-pressed', 'true');
           }
         } else if (prole === 'loop' && global.BP2Practice) {
           var enabled = global.BP2Practice.toggleLoopEnabled();
           btn.classList.toggle('is-on', enabled);
+          btn.classList.toggle('is-active', enabled);
+          btn.setAttribute('aria-pressed', String(enabled));
         } else if (prole === 'speed' && global.BP2Practice) {
           var order = [1.0, 0.85, 0.75];
           var cur = global.BP2Practice.getSpeed();
