@@ -350,6 +350,7 @@
     if (typeof BP2Charts !== 'undefined') BP2Charts.init();
     if (typeof BP2Edit !== 'undefined') BP2Edit.init();
     if (typeof BP2Auth !== 'undefined') BP2Auth.init();
+    if (typeof BP2Offline !== 'undefined' && BP2Offline.init) BP2Offline.init();
     // Core init triggers all events — must be last
     BP2Core.init({ db: db, storage: storage, user: user, role: role });
   }

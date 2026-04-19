@@ -6,12 +6,12 @@
 // FRD-20 SR-5.4.1/5.4.2: bumped for band-player module additions + CSS.
 // Activate handler deletes any cache that starts with 'gbe-shell-' but isn't the
 // current version, so older shells auto-evict on next activation.
-var SHELL_CACHE = 'gbe-shell-v29';
+var SHELL_CACHE = 'gbe-shell-v30';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '7543aeb4289a48bfc07ec7ea630c94c7ec524eb79b6ef3dff30c6957cc00aa8c',
+  './': 'a634980b13611f97cbbf1b6de479818a694414551c8613d9de57c8938e9810f6',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -39,7 +39,7 @@ var ASSET_HASHES = {
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
   './css/band-player-v2.css': '879f1e5edde058bcf04dc2456d76a63a0ecd2c5985def54504ac39c6ed390ef7',
-  './dashboard/band-player-v2.html': '5dbe4d7ed699b411bcdcf9c99fe6adf61779bc9ddf56a94d6088752407ba4638',
+  './dashboard/band-player-v2.html': '10c8b3a0e7cd7afcfc1511d39421acf97e42f41a3d825b04fa5d8751e28e3fc2',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
@@ -47,7 +47,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-render.js': '1d9f80d3536b7f136ebb6503846c85d707631d2c3e79b78bab818b77fa0a973f',
   './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
-  './js/band-player-v2/bp2-offline.js': '76b070ab9310e574316838dcc0a38e4847415b0eb8aa554469e66c30ff70eba9',
+  './js/band-player-v2/bp2-offline.js': 'f8f658739b48821f1471a26d873bbee5a6f20dec37ff0d07bd7f641182efefd7',
   './js/band-player-v2/bp2-stems.js': '23311a4461c9937bf13320731e33d52dff99c6c45de7714da45677528655fcd6',
   './js/band-player-v2/bp2-mixer.js': '791832933eac1370df85821e25e2ebbdd402eab5e2c53df6ce274f9039455c77',
   './js/band-player-v2/bp2-transport.js': '6d4077a56487fd45ee1680714158d79d57b7ee1f2dcb102c349a8bda8690ac2a',

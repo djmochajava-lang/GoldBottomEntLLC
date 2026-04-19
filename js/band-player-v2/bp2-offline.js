@@ -33,7 +33,43 @@
     catch (e) { /* quota */ }
   }
 
+  var _initialized = false;
+  var _core = null;
+  function _c() {
+    if (!_core && global.BP2Core) _core = global.BP2Core;
+    return _core;
+  }
+
   var BP2Offline = {
+    init: function() {
+      if (_initialized) return;
+      _initialized = true;
+      var c = _c();
+      if (!c) return;
+      // tool:offline — toggle save-for-offline on clicked song
+      c.on('tool:offline', function(d) {
+        var songId = d && d.songId;
+        if (!songId) return;
+        var songsMap = c.ref('allSongsMap');
+        var storage = c.getStorage ? c.getStorage() : null;
+        var render = function() { c.emit('render:tracklist'); };
+        if (BP2Offline.isCached(songId)) {
+          BP2Offline.removeOffline(songId, songsMap, render);
+        } else {
+          BP2Offline.saveOffline(songId, songsMap, storage, render);
+        }
+      });
+      // tool:download — download the track file to user's device
+      c.on('tool:download', function(d) {
+        var songId = d && d.songId;
+        if (!songId) return;
+        var songsMap = c.ref('allSongsMap');
+        var playlist = c.ref('currentPlaylist');
+        var storage = c.getStorage ? c.getStorage() : null;
+        BP2Offline.downloadTrack(songId, songsMap, playlist, storage);
+      });
+    },
+
     loadCacheIndex: function() { _loadIndex(); },
 
     isCached: function(songId) {
