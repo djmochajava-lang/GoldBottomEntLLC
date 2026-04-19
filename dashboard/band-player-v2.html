@@ -16,9 +16,9 @@
 /* LCD Module */
 .bp2-lcd-module{background:#111318;padding:16px 12px 12px;border-bottom:3px solid #050507;position:relative;overflow:hidden}
 
-/* Ambient glow behind the display */
-.bp2-display-glow{position:absolute;top:-40px;left:50%;width:300px;height:300px;transform:translateX(-50%);background:radial-gradient(circle,rgba(232,160,18,0.12) 0%,rgba(51,255,102,0.04) 40%,transparent 70%);pointer-events:none;animation:bp2glow 4s ease-in-out infinite}
-@keyframes bp2glow{0%,100%{opacity:0.6;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.1)}}
+/* Ambient glow behind the display — GOLD to match Gold Bottom Ent */
+.bp2-display-glow{position:absolute;top:-40px;left:50%;width:300px;height:300px;transform:translateX(-50%);background:radial-gradient(circle,rgba(232,160,18,0.18) 0%,rgba(212,160,23,0.06) 40%,transparent 70%);pointer-events:none;animation:bp2glow 4s ease-in-out infinite}
+@keyframes bp2glow{0%,100%{opacity:0.6;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.15)}}
 .bp2-lcd-bezel{background:#060606;border-radius:10px;padding:3px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),0 2px 8px rgba(0,0,0,0.6)}
 .bp2-lcd{background:#0a1a0a;border-radius:8px;padding:14px 16px;background-image:linear-gradient(#0a1a0a 50%,rgba(0,0,0,0.15) 50%);background-size:100% 3px;position:relative;overflow:hidden}
 .bp2-lcd::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(51,255,102,0.03),transparent 70%);pointer-events:none}
@@ -26,10 +26,10 @@
 .bp2-lcd-badge,.bp2-lcd-signal{font-family:'SF Mono','Courier New',monospace;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#1a6633}
 /* Art wrapper with glow ring */
 .bp2-lcd-art-wrapper{width:110px;height:110px;margin:0 auto 14px;position:relative}
-.bp2-lcd-art-wrapper::before{content:'';position:absolute;inset:-6px;border-radius:12px;background:conic-gradient(from 0deg,#33ff66,#1a6633,#33ff66,#1a6633,#33ff66);opacity:0.4;animation:bp2ring 6s linear infinite;filter:blur(2px)}
+.bp2-lcd-art-wrapper::before{content:'';position:absolute;inset:-6px;border-radius:12px;background:conic-gradient(from 0deg,#e8a012,#9e6e0a,#ffc940,#9e6e0a,#e8a012);opacity:0.5;animation:bp2ring 6s linear infinite;filter:blur(3px)}
 @keyframes bp2ring{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .bp2-lcd-art-wrapper::after{content:'';position:absolute;inset:-4px;border-radius:11px;background:#0a1a0a}
-.bp2-lcd-art{width:110px;height:110px;border-radius:8px;overflow:hidden;border:2px solid #1a6633;box-shadow:0 0 20px rgba(51,255,102,0.15),inset 0 0 20px rgba(0,0,0,0.3);position:relative;z-index:1}
+.bp2-lcd-art{width:110px;height:110px;border-radius:8px;overflow:hidden;border:2px solid rgba(232,160,18,0.4);box-shadow:0 0 24px rgba(232,160,18,0.2),inset 0 0 20px rgba(0,0,0,0.3);position:relative;z-index:1}
 .bp2-lcd-art img{width:100%;height:100%;object-fit:cover;filter:saturate(0.5) brightness(0.9)}
 
 /* Song info — larger, more presence */
@@ -37,15 +37,15 @@
 .bp2-lcd-artist{font-family:'SF Mono','Courier New',monospace;font-size:11px;color:#33ff66;text-align:center;letter-spacing:0.15em;margin-top:6px;opacity:0.5}
 
 /* Decorative frequency bars — visual filler */
-.bp2-lcd-freq{display:flex;align-items:flex-end;justify-content:center;gap:2px;height:24px;margin:12px auto 4px;max-width:200px;opacity:0.25}
-.bp2-lcd-freq span{flex:1;background:linear-gradient(180deg,#33ff66,#1a6633);border-radius:1px 1px 0 0;animation:bp2freq 1.2s ease-in-out infinite;min-width:3px}
+.bp2-lcd-freq{display:flex;align-items:flex-end;justify-content:center;gap:2px;height:24px;margin:12px auto 4px;max-width:200px;opacity:0.35}
+.bp2-lcd-freq span{flex:1;background:linear-gradient(180deg,#ffc940,#e8a012,#9e6e0a);border-radius:1px 1px 0 0;animation:bp2freq 1.2s ease-in-out infinite;min-width:3px}
 .bp2-lcd-freq span:nth-child(odd){animation-delay:0.15s}
 .bp2-lcd-freq span:nth-child(3n){animation-delay:0.3s}
 .bp2-lcd-freq span:nth-child(5n){animation-delay:0.5s}
 @keyframes bp2freq{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
 
 /* Brand watermark at bottom of LCD */
-.bp2-lcd-brand{font-family:'SF Mono','Courier New',monospace;font-size:8px;font-weight:700;letter-spacing:0.2em;color:rgba(51,255,102,0.12);text-align:center;margin-top:10px}
+.bp2-lcd-brand{font-family:'SF Mono','Courier New',monospace;font-size:8px;font-weight:700;letter-spacing:0.2em;color:rgba(232,160,18,0.15);text-align:center;margin-top:10px}
 .bp2-lcd-timeline{display:flex;align-items:center;gap:8px;margin-top:14px}
 .bp2-lcd-time{font-family:'SF Mono','Courier New',monospace;font-size:11px;color:#33ff66;min-width:34px;font-variant-numeric:tabular-nums;text-shadow:0 0 6px rgba(51,255,102,0.3)}
 .bp2-lcd-progress{flex:1;height:4px;background:#1a6633;border-radius:2px;position:relative;overflow:visible}
