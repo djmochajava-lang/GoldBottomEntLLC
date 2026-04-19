@@ -278,9 +278,17 @@
     var tracklist = document.getElementById('bp2-tracklist');
     if (tracklist) {
       tracklist.addEventListener('click', function(e) {
+        // Stems badge click → toggle stems
+        var stemsBadge = e.target.closest('[data-action="toggle-stems"]');
+        if (stemsBadge) {
+          e.stopPropagation();
+          c.emit('stems:toggle', { songId: stemsBadge.getAttribute('data-song') });
+          return;
+        }
+
         // Track row click → play
         var rackUnit = e.target.closest('.bp2-rack-unit');
-        if (rackUnit && !e.target.closest('.bp2-tool-btn') && !e.target.closest('.bp2-stems-header')) {
+        if (rackUnit && !e.target.closest('.bp2-tool-btn')) {
           var idx = parseInt(rackUnit.getAttribute('data-index'), 10);
           if (!isNaN(idx)) c.emit('player:play', { index: idx });
           return;
