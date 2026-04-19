@@ -359,6 +359,16 @@
       }
     });
 
+    // Manager selector actions — Toggle Edit mode on current playlist
+    var editBtn = document.getElementById('bp2-btn-edit-playlist');
+    if (editBtn) editBtn.addEventListener('click', function() {
+      if (!c.canEdit || !c.canEdit()) {
+        if (typeof Toast !== 'undefined') Toast.error('Edit requires band manager access');
+        return;
+      }
+      c.emit('edit:toggle');
+    });
+
     // Timeline seek
     var timeline = document.getElementById('bp2-timeline-track');
     if (timeline) {

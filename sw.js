@@ -6,12 +6,12 @@
 // FRD-20 SR-5.4.1/5.4.2: bumped for band-player module additions + CSS.
 // Activate handler deletes any cache that starts with 'gbe-shell-' but isn't the
 // current version, so older shells auto-evict on next activation.
-var SHELL_CACHE = 'gbe-shell-v25';
+var SHELL_CACHE = 'gbe-shell-v26';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': 'f5da87dd22dd1e217cb1160a9d6e44ba27cb34ab259222167e3261152082fd5f',
+  './': '0ea9d068a6aeea39b15ecb635ee1eba7056efa162954c3dd9a91285ca38e3fc7',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -39,12 +39,12 @@ var ASSET_HASHES = {
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
   './css/band-player-v2.css': '879f1e5edde058bcf04dc2456d76a63a0ecd2c5985def54504ac39c6ed390ef7',
-  './dashboard/band-player-v2.html': 'cee085d8d104fd0eb3c7800dc0fa47c89f34c69ed003cd78eda409107a289a97',
+  './dashboard/band-player-v2.html': 'c4242831c2b4d092a51876a080adf1cdadf3e2e02dbfbeece04e7c09e5b68b70',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
   './js/band-player-v2/bp2-playlist.js': 'a7d0d715321f026601e9a53fe14cedcc49f6e563f9d2200c76f36e3d376ba298',
-  './js/band-player-v2/bp2-render.js': '78c4638711cc9a7f31a920251e13ac97b973e228ca9246221c50aa1acd067039',
+  './js/band-player-v2/bp2-render.js': '0509201e1ec782f5e7c578a4b539c0d61de134d00fba20ddb31d1953ee6844b7',
   './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
   './js/band-player-v2/bp2-offline.js': '76b070ab9310e574316838dcc0a38e4847415b0eb8aa554469e66c30ff70eba9',
