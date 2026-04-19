@@ -32,21 +32,21 @@
     var engageHtml = '<button class="bp2-console-engage" data-role="engage" aria-pressed="false"><span class="bp2-console-engage-led"></span><span>ENGAGE MIXER</span></button>';
 
     // Channel strips
-    var channelsHtml = '<div class="bp2-console-channels">';
+    var channelsHtml = '<div class="bp2-console-channels" style="display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;">';
     var names = Object.keys(stems);
     names.forEach(function(name) {
       var label = (STEM_LABELS[name] || name).substring(0, 3).toUpperCase();
       var color = STEM_COLORS[name] || '#8b949e';
       channelsHtml +=
-        '<div class="bp2-console-ch">' +
-          '<div class="bp2-console-ch-label" style="color:' + color + ';">' + label + '</div>' +
-          '<div class="bp2-console-fader-track">' +
-            '<input type="range" class="bp2-console-fader" min="0" max="100" value="80" data-stem="' + _esc(name) + '">' +
-            '<div class="bp2-console-fader-bg"></div>' +
+        '<div class="bp2-console-ch" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:44px;flex:0 0 auto;">' +
+          '<div class="bp2-console-ch-label" style="color:' + color + ';font-size:8px;font-weight:900;letter-spacing:0.08em;">' + label + '</div>' +
+          '<div class="bp2-console-fader-track" style="position:relative;width:28px;height:80px;display:flex;align-items:center;justify-content:center;">' +
+            '<input type="range" class="bp2-console-fader" min="0" max="100" value="80" data-stem="' + _esc(name) + '" style="-webkit-appearance:none!important;appearance:none!important;width:70px;height:28px;background:transparent!important;cursor:pointer;transform:rotate(-90deg);transform-origin:center center;position:relative;z-index:1;">' +
+            '<div class="bp2-console-fader-bg" style="position:absolute;width:3px;height:60px;background:#282c36;border-radius:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.4);"></div>' +
           '</div>' +
-          '<div class="bp2-console-ch-btns">' +
-            '<button class="bp2-console-s" data-stem="' + _esc(name) + '" data-role="solo">S</button>' +
-            '<button class="bp2-console-m" data-stem="' + _esc(name) + '" data-role="mute">M</button>' +
+          '<div style="display:flex;gap:2px;">' +
+            '<button class="bp2-console-s" data-stem="' + _esc(name) + '" data-role="solo" style="width:20px;height:20px;border-radius:3px!important;border:1px solid rgba(255,255,255,0.06)!important;background:#181b22!important;color:#4a4f5a;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;">S</button>' +
+            '<button class="bp2-console-m" data-stem="' + _esc(name) + '" data-role="mute" style="width:20px;height:20px;border-radius:3px!important;border:1px solid rgba(255,255,255,0.06)!important;background:#181b22!important;color:#4a4f5a;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;">M</button>' +
           '</div>' +
         '</div>';
     });
