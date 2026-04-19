@@ -89,6 +89,9 @@
         html += '<div style="display:flex;gap:8px;">';
         html += '<button data-action="review-chart" data-song="' + songId + '" data-inst="' + key + '" data-status="approved" style="flex:1;padding:6px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid ' + (status === 'approved' ? 'rgba(63,185,80,0.4);background:rgba(63,185,80,0.15);color:#3fb950;' : 'rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.6);') + '"><i class="fa-solid fa-check" style="margin-right:4px;"></i>' + (status === 'approved' ? 'Approved' : 'Approve') + '</button>';
         html += '<button data-action="review-chart" data-song="' + songId + '" data-inst="' + key + '" data-status="flagged" style="flex:1;padding:6px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid ' + (status === 'flagged' ? 'rgba(248,81,73,0.4);background:rgba(248,81,73,0.15);color:#f85149;' : 'rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.6);') + '"><i class="fa-solid fa-flag" style="margin-right:4px;"></i>' + (status === 'flagged' ? 'Flagged' : 'Flag') + '</button>';
+        if (isManager) {
+          html += '<button data-action="reupload-chart" data-song="' + songId + '" data-inst="' + key + '" data-path="' + _esc(charts[key]) + '" style="flex:1;padding:6px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;border:1px solid rgba(201,162,39,0.4);background:rgba(201,162,39,0.15);color:#c9a227;"><i class="fa-solid fa-arrow-up-from-bracket" style="margin-right:4px;"></i>Re-upload</button>';
+        }
         html += '</div></div>';
       });
       html += '</div>';
@@ -115,6 +118,11 @@
             var reviewBtn = e.target.closest('[data-action="review-chart"]');
             if (reviewBtn) {
               BP2Charts.reviewChart(reviewBtn.getAttribute('data-song'), reviewBtn.getAttribute('data-inst'), reviewBtn.getAttribute('data-status'));
+              return;
+            }
+            var reuploadBtn = e.target.closest('[data-action="reupload-chart"]');
+            if (reuploadBtn) {
+              BP2Charts.reuploadChart(reuploadBtn.getAttribute('data-song'), reuploadBtn.getAttribute('data-inst'), reuploadBtn.getAttribute('data-path'));
             }
           });
         }, 100);
@@ -160,6 +168,66 @@
       }).catch(function(err) {
         if (typeof Toast !== 'undefined') Toast.error('Review failed: ' + err.message);
       });
+    },
+
+    reuploadChart: function(songId, instrument, oldPath) {
+      var c = _c();
+      if (!c || !c.isManager()) return;
+
+      // Create a hidden file input for PDF selection
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/pdf';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+
+      input.addEventListener('change', function() {
+        var file = input.files && input.files[0];
+        document.body.removeChild(input);
+        if (!file) return;
+        if (file.type !== 'application/pdf') {
+          if (typeof Toast !== 'undefined') Toast.error('Please select a PDF file');
+          return;
+        }
+
+        var storage = c.getStorage();
+        var db = c.getDb();
+        if (!storage || !db) return;
+
+        // Upload to same path (overwrite)
+        var storagePath = oldPath || ('band-media/charts/' + songId + '/' + instrument + '.pdf');
+        if (storagePath.startsWith('gs://') || storagePath.startsWith('https://')) {
+          // Extract relative path from full URL
+          var match = storagePath.match(/\/o\/(.+?)(\?|$)/);
+          storagePath = match ? decodeURIComponent(match[1]) : storagePath;
+        }
+
+        if (typeof Toast !== 'undefined') Toast.info('Uploading ' + instrument + ' chart...');
+        var ref = storage.ref(storagePath);
+        ref.put(file, { contentType: 'application/pdf' }).then(function() {
+          // Bump chart version in reviews
+          var docId = songId + '_' + instrument;
+          return db.collection('chart-reviews').doc(docId).get().then(function(doc) {
+            var existing = doc.exists ? doc.data() : {};
+            var newVersion = (existing.version || 1) + 1;
+            return db.collection('chart-reviews').doc(docId).set({
+              songId: songId,
+              instrument: instrument,
+              status: 'pending',
+              version: newVersion,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+          });
+        }).then(function() {
+          if (typeof Toast !== 'undefined') Toast.success(instrument + ' chart re-uploaded — pending review');
+          // Re-open picker to show updated state
+          BP2Charts.showPicker(songId);
+        }).catch(function(err) {
+          if (typeof Toast !== 'undefined') Toast.error('Upload failed: ' + err.message);
+        });
+      });
+
+      input.click();
     },
 
     // Annotation CRUD
