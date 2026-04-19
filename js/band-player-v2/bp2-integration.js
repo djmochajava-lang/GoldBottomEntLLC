@@ -32,7 +32,7 @@
     var engageHtml = '<button class="bp2-console-engage" data-role="engage" aria-pressed="false"><span class="bp2-console-engage-led"></span><span>ENGAGE MIXER</span></button>';
 
     // Channel strips
-    var channelsHtml = '<div class="bp2-console-channels" style="display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;">';
+    var channelsHtml = '<div class="bp2-console-channels" style="display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:4px 8px 8px;justify-content:center;">';
     var names = Object.keys(stems);
     names.forEach(function(name) {
       var label = (STEM_LABELS[name] || name).substring(0, 3).toUpperCase();
