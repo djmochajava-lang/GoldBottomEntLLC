@@ -200,9 +200,10 @@
         onSave: function() { Modal.close(); }
       });
 
-      // Attach delegate once (idempotent) at document level so timing vs Modal.open() doesn't matter.
-      if (!BP2Upload._addDelegateAttached) {
-        document.addEventListener('click', function(e) {
+      // Attach delegate to the modal overlay (Modal.js calls stopPropagation on overlay click — can't use document-level delegation). Overlay exists synchronously after Modal.open().
+      var mo = document.getElementById('modal-overlay');
+      if (mo && !mo._bp2AddHandlerAttached) {
+        mo.addEventListener('click', function(e) {
           var btn = e.target.closest('[data-action="add-to-playlist"]');
           if (!btn || btn.disabled) return;
           var sid = btn.getAttribute('data-song');
@@ -214,7 +215,7 @@
             btn.outerHTML = '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">Added</span>';
           }, 400);
         });
-        BP2Upload._addDelegateAttached = true;
+        mo._bp2AddHandlerAttached = true;
       }
     },
 
