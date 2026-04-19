@@ -336,6 +336,7 @@
     // Reset before re-init — PageLoader destroys the DOM on navigate-away,
     // so we must re-bind listeners when the fragment loads again.
     if (typeof BP2Core !== 'undefined' && BP2Core._reset) BP2Core._reset();
+    if (typeof BP2Render !== 'undefined' && BP2Render._reset) BP2Render._reset();
     if (typeof BP2Stems !== 'undefined' && BP2Stems._reset) BP2Stems._reset();
 
     // Init all modules (order matters — core last since it triggers events)

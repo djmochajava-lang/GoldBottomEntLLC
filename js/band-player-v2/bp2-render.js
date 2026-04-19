@@ -412,7 +412,8 @@
 
     render: _render,
     renderTracklist: _renderTracklist,
-    updateTransportDisplay: _updateTransportDisplay
+    updateTransportDisplay: _updateTransportDisplay,
+    _reset: function() { _rInitialized = false; _core = null; }
   };
 
   if (typeof module !== 'undefined' && module.exports) {
