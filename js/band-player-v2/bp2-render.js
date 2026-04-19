@@ -339,6 +339,16 @@
       });
     }
 
+    // Manager selector actions — Upload
+    var uploadBtn = document.getElementById('bp2-btn-upload');
+    if (uploadBtn) uploadBtn.addEventListener('click', function() {
+      if (global.BP2Upload && typeof global.BP2Upload.showUploadModal === 'function') {
+        global.BP2Upload.showUploadModal();
+      } else if (typeof Toast !== 'undefined') {
+        Toast.error('Upload module not loaded');
+      }
+    });
+
     // Timeline seek
     var timeline = document.getElementById('bp2-timeline-track');
     if (timeline) {
