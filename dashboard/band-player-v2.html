@@ -1,279 +1,360 @@
 <!-- ============================================================
      dashboard/band-player-v2.html — Soul Society Player v2.0
-     Hardware-inspired design. Feels like music equipment.
+     Designed to look and feel like a physical piece of music hardware.
      band_manager + admin only.
      ============================================================ -->
 
 <link rel="stylesheet" href="../css/band-player-v2.css">
 
-<div class="dashboard-page bp2-player" id="dash-band-player-v2" style="padding:0;max-width:900px;margin:0 auto;">
+<div class="dashboard-page bp2-device" id="dash-band-player-v2" style="padding:0;max-width:900px;margin:0 auto;">
 
-  <!-- ── Transport (Now Playing) ─────────────────────── -->
-  <div class="bp2-transport is-playing">
-
-    <div class="bp2-transport-art">
-      <img src="../images/logo/gbe-square.svg" alt="Album art">
+  <!-- ═══════════════════════════════════════════════
+       TOP MODULE: LCD Display + Transport
+       Like the screen on an MPC or Maschine
+       ═══════════════════════════════════════════════ -->
+  <div class="bp2-lcd-module">
+    <div class="bp2-lcd-bezel">
+      <!-- LCD Screen -->
+      <div class="bp2-lcd">
+        <div class="bp2-lcd-top-bar">
+          <span class="bp2-lcd-badge">SOUL SOCIETY</span>
+          <span class="bp2-lcd-signal"><i class="fa-solid fa-signal"></i> ONLINE</span>
+        </div>
+        <div class="bp2-lcd-art">
+          <img src="../images/logo/gbe-square.svg" alt="Now Playing">
+        </div>
+        <div class="bp2-lcd-song">Those Bluesy Nights</div>
+        <div class="bp2-lcd-artist">L.A. YOUNG</div>
+        <div class="bp2-lcd-timeline">
+          <span class="bp2-lcd-time">1:32</span>
+          <div class="bp2-lcd-progress">
+            <div class="bp2-lcd-progress-fill" style="width:45%;"></div>
+            <div class="bp2-lcd-playhead" style="left:45%;"></div>
+          </div>
+          <span class="bp2-lcd-time">3:24</span>
+        </div>
+      </div>
     </div>
 
-    <div>
-      <h2 class="bp2-transport-title">Those Bluesy Nights</h2>
-      <div class="bp2-transport-artist">L.A. Young</div>
-
-      <div class="bp2-timeline">
-        <span class="bp2-timeline-time">1:32</span>
-        <div class="bp2-timeline-track">
-          <div class="bp2-timeline-fill" style="width: 45%;"></div>
-        </div>
-        <span class="bp2-timeline-time bp2-timeline-time-end">3:24</span>
-      </div>
-
-      <div class="bp2-transport-controls">
-        <button class="bp2-transport-btn" title="Previous">
-          <i class="fa-solid fa-backward-step"></i>
-        </button>
-        <button class="bp2-transport-btn bp2-transport-play" title="Pause">
-          <i class="fa-solid fa-pause"></i>
-        </button>
-        <button class="bp2-transport-btn" title="Next">
-          <i class="fa-solid fa-forward-step"></i>
-        </button>
-      </div>
-
-      <div class="bp2-transport-secondary">
-        <button class="bp2-indicator-btn is-on" title="Repeat All">
-          <i class="fa-solid fa-repeat"></i>
-        </button>
-        <div class="bp2-volume-group">
-          <button class="bp2-indicator-btn" title="Mute">
-            <i class="fa-solid fa-volume-high"></i>
-          </button>
-          <input type="range" class="bp2-volume-slider" min="0" max="100" value="80">
-        </div>
+    <!-- Hardware transport buttons below the screen -->
+    <div class="bp2-hw-transport">
+      <button class="bp2-hw-btn bp2-hw-secondary" title="Previous">
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+      <button class="bp2-hw-btn bp2-hw-play" title="Play/Pause">
+        <i class="fa-solid fa-pause"></i>
+      </button>
+      <button class="bp2-hw-btn bp2-hw-secondary" title="Next">
+        <i class="fa-solid fa-forward-step"></i>
+      </button>
+      <div class="bp2-hw-spacer"></div>
+      <button class="bp2-hw-btn bp2-hw-small is-on" title="Repeat">
+        <i class="fa-solid fa-repeat"></i>
+        <span class="bp2-hw-led"></span>
+      </button>
+      <div class="bp2-hw-knob-group">
+        <label class="bp2-hw-knob-label">VOL</label>
+        <input type="range" class="bp2-hw-knob" min="0" max="100" value="80">
       </div>
     </div>
   </div>
 
-  <!-- ── Playlist Strip ──────────────────────────────── -->
-  <div class="bp2-playlist-strip">
-    <select class="bp2-playlist-select">
+  <!-- ═══════════════════════════════════════════════
+       SELECTOR STRIP: Playlist + Manager Actions
+       Like the channel selector on a console
+       ═══════════════════════════════════════════════ -->
+  <div class="bp2-selector-strip">
+    <select class="bp2-selector-dropdown">
       <option>LA Young Originals</option>
       <option>Mocha Java</option>
       <option>Phyllis Hyman Tribute</option>
     </select>
-    <button class="bp2-strip-btn" title="New Playlist"><i class="fa-solid fa-plus"></i></button>
-    <button class="bp2-strip-btn" title="Upload Song"><i class="fa-solid fa-upload"></i></button>
-    <button class="bp2-strip-btn" title="Add from Inventory"><i class="fa-solid fa-folder-plus"></i></button>
-    <button class="bp2-strip-btn" title="Edit Mode"><i class="fa-solid fa-pen"></i></button>
+    <div class="bp2-selector-btns">
+      <button class="bp2-hw-btn bp2-hw-tiny" title="New"><i class="fa-solid fa-plus"></i></button>
+      <button class="bp2-hw-btn bp2-hw-tiny" title="Upload"><i class="fa-solid fa-upload"></i></button>
+      <button class="bp2-hw-btn bp2-hw-tiny" title="Add"><i class="fa-solid fa-folder-plus"></i></button>
+      <button class="bp2-hw-btn bp2-hw-tiny" title="Edit"><i class="fa-solid fa-pen"></i></button>
+    </div>
   </div>
 
-  <!-- ── Practice Stats ──────────────────────────────── -->
-  <div class="bp2-stats">
-    <span><i class="fa-solid fa-check-circle" style="color:var(--bp2-led-green);margin-right:4px;"></i>5 of 14 practiced</span>
+  <!-- Practice stats -->
+  <div class="bp2-stats-strip">
+    <span><i class="fa-solid fa-check-circle" style="color:var(--bp2-led-green);"></i> 5 / 14 PRACTICED</span>
+    <span class="bp2-stats-meter">
+      <span class="bp2-stats-meter-fill" style="width:36%;"></span>
+    </span>
     <span class="bp2-stats-pct">36%</span>
   </div>
 
-  <!-- ── Tracklist ───────────────────────────────────── -->
-  <div class="bp2-tracklist">
+  <!-- ═══════════════════════════════════════════════
+       TRACK RACK: Tracklist as rack-mounted modules
+       ═══════════════════════════════════════════════ -->
+  <div class="bp2-rack">
 
-    <div class="bp2-set-divider"><span>Set 1</span></div>
+    <div class="bp2-rack-divider"><span>SET 1</span></div>
 
-    <!-- Track 1 — Active/Playing -->
-    <div class="bp2-track is-active">
-      <div class="bp2-track-num">
+    <!-- Track 1 — Active -->
+    <div class="bp2-rack-unit is-active">
+      <div class="bp2-rack-led on"></div>
+      <div class="bp2-rack-num">
         <div class="bp2-eq"><span></span><span></span><span></span><span></span></div>
       </div>
-      <div class="bp2-track-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
-      <div class="bp2-track-info">
-        <div class="bp2-track-title">Those Bluesy Nights <span class="bp2-badge bp2-badge-intro">Intro</span></div>
-        <div class="bp2-track-artist">L.A. Young</div>
+      <div class="bp2-rack-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
+      <div class="bp2-rack-info">
+        <div class="bp2-rack-title">Those Bluesy Nights <span class="bp2-tag bp2-tag-intro">INTRO</span></div>
+        <div class="bp2-rack-meta">L.A. YOUNG</div>
       </div>
-      <span class="bp2-track-duration">3:24</span>
-    </div>
-    <div class="bp2-track-actions">
-      <button class="bp2-action-btn" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>
-      <button class="bp2-action-btn has-content" title="Charts"><i class="fa-solid fa-music"></i></button>
-      <button class="bp2-action-btn" title="Notes"><i class="fa-solid fa-comment-dots"></i></button>
-      <button class="bp2-action-btn" title="Download"><i class="fa-solid fa-download"></i></button>
-      <button class="bp2-action-btn" title="Save Offline"><i class="fa-regular fa-cloud-arrow-down"></i></button>
+      <span class="bp2-rack-time">3:24</span>
     </div>
 
-    <!-- Stems toggle -->
-    <div class="bp2-stems-toggle">
-      <i class="fa-solid fa-waveform-lines"></i>
-      <span>Stems</span>
-      <span class="bp2-stems-count">7</span>
-      <i class="fa-solid fa-chevron-up" style="margin-left:auto;opacity:0.4;"></i>
+    <!-- Track tools drawer -->
+    <div class="bp2-tool-drawer">
+      <button class="bp2-tool-btn" title="Lyrics"><i class="fa-solid fa-align-left"></i><span>LYR</span></button>
+      <button class="bp2-tool-btn is-lit" title="Charts"><i class="fa-solid fa-music"></i><span>CHT</span></button>
+      <button class="bp2-tool-btn" title="Notes"><i class="fa-solid fa-comment-dots"></i><span>NOTE</span></button>
+      <button class="bp2-tool-btn" title="Download"><i class="fa-solid fa-download"></i><span>DL</span></button>
+      <button class="bp2-tool-btn" title="Offline"><i class="fa-regular fa-cloud-arrow-down"></i><span>SAVE</span></button>
     </div>
 
-    <!-- Stems panel (expanded) -->
-    <div class="bp2-stems-panel">
-      <div class="bp2-stem-row is-playing" style="border-left-color: var(--bp2-ch-vocals);">
-        <button class="bp2-stem-play" style="color: var(--bp2-ch-vocals); border-color: var(--bp2-ch-vocals);">
-          <i class="fa-solid fa-pause"></i>
-        </button>
-        <span class="bp2-stem-label"><i class="fa-solid fa-microphone" style="color:var(--bp2-ch-vocals);margin-right:6px;"></i>Vocals</span>
-        <button class="bp2-stem-chart-btn has-chart"><i class="fa-solid fa-file-pdf"></i></button>
+    <!-- Stems module -->
+    <div class="bp2-stems-module">
+      <div class="bp2-stems-header">
+        <i class="fa-solid fa-waveform-lines"></i>
+        <span>STEMS</span>
+        <span class="bp2-stems-badge">7</span>
+        <i class="fa-solid fa-chevron-up" style="margin-left:auto;opacity:0.4;font-size:10px;"></i>
       </div>
-      <div class="bp2-stem-progress">
-        <span class="bp2-stem-progress-time">1:32</span>
-        <div class="bp2-stem-progress-track">
-          <div class="bp2-stem-progress-fill" style="width:45%;background:var(--bp2-ch-vocals);"></div>
+
+      <div class="bp2-channel-rack">
+        <!-- Vocals — playing -->
+        <div class="bp2-channel-unit is-playing">
+          <div class="bp2-ch-indicator" style="background:var(--bp2-ch-vocals);box-shadow:0 0 6px var(--bp2-ch-vocals);"></div>
+          <button class="bp2-ch-play" style="color:var(--bp2-ch-vocals);border-color:var(--bp2-ch-vocals);"><i class="fa-solid fa-pause"></i></button>
+          <span class="bp2-ch-name">Vocals</span>
+          <div class="bp2-ch-meter"><div class="bp2-ch-meter-fill" style="width:65%;background:var(--bp2-ch-vocals);"></div></div>
+          <button class="bp2-ch-pdf has-chart"><i class="fa-solid fa-file-pdf"></i></button>
         </div>
-        <span class="bp2-stem-progress-time">3:24</span>
-      </div>
-
-      <div class="bp2-stem-row" style="border-left-color: var(--bp2-ch-drums);">
-        <button class="bp2-stem-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-drums);"></i></button>
-        <span class="bp2-stem-label"><i class="fa-solid fa-drum" style="color:var(--bp2-ch-drums);margin-right:6px;"></i>Drums</span>
-        <button class="bp2-stem-chart-btn has-chart"><i class="fa-solid fa-file-pdf"></i></button>
-      </div>
-
-      <div class="bp2-stem-row" style="border-left-color: var(--bp2-ch-bass);">
-        <button class="bp2-stem-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-bass);"></i></button>
-        <span class="bp2-stem-label"><i class="fa-solid fa-guitar" style="color:var(--bp2-ch-bass);margin-right:6px;"></i>Bass</span>
-        <button class="bp2-stem-chart-btn has-chart"><i class="fa-solid fa-file-pdf"></i></button>
-      </div>
-
-      <div class="bp2-stem-row" style="border-left-color: var(--bp2-ch-guitar);">
-        <button class="bp2-stem-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-guitar);"></i></button>
-        <span class="bp2-stem-label"><i class="fa-solid fa-guitar" style="color:var(--bp2-ch-guitar);margin-right:6px;"></i>Guitar</span>
-        <button class="bp2-stem-chart-btn"><i class="fa-solid fa-file-pdf"></i></button>
-      </div>
-
-      <div class="bp2-stem-row" style="border-left-color: var(--bp2-ch-piano);">
-        <button class="bp2-stem-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-piano);"></i></button>
-        <span class="bp2-stem-label"><i class="fa-solid fa-keyboard" style="color:var(--bp2-ch-piano);margin-right:6px;"></i>Keys / Piano</span>
-        <button class="bp2-stem-chart-btn has-chart"><i class="fa-solid fa-file-pdf"></i></button>
-      </div>
-
-      <div class="bp2-stem-row" style="border-left-color: var(--bp2-ch-other);">
-        <button class="bp2-stem-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-other);"></i></button>
-        <span class="bp2-stem-label"><i class="fa-solid fa-sliders" style="color:var(--bp2-ch-other);margin-right:6px;"></i>Other</span>
-        <button class="bp2-stem-chart-btn"><i class="fa-solid fa-file-pdf"></i></button>
-      </div>
-
-      <div class="bp2-stem-row" style="border-left-color: var(--bp2-ch-instrumental);">
-        <button class="bp2-stem-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-instrumental);"></i></button>
-        <span class="bp2-stem-label"><i class="fa-solid fa-compact-disc" style="color:var(--bp2-ch-instrumental);margin-right:6px;"></i>Instrumental</span>
-      </div>
-
-      <!-- Mixer Console -->
-      <div class="bp2-mixer" style="margin-top:8px;">
-        <button class="bp2-engage-btn">
-          <i class="fa-solid fa-sliders"></i>
-          <span>Engage Mixer</span>
-        </button>
-
-        <div class="bp2-channel">
-          <div class="bp2-channel-stripe" style="background:var(--bp2-ch-vocals);box-shadow:0 0 4px var(--bp2-ch-vocals);"></div>
-          <div class="bp2-channel-label">Vocals</div>
-          <input type="range" class="bp2-fader" min="0" max="100" value="80">
-          <button class="bp2-console-btn" data-role="solo">S</button>
-          <button class="bp2-console-btn" data-role="mute">M</button>
+        <!-- Vocal stem progress -->
+        <div class="bp2-ch-progress">
+          <span class="bp2-ch-progress-time">1:32</span>
+          <div class="bp2-ch-progress-track"><div class="bp2-ch-progress-fill" style="width:45%;background:var(--bp2-ch-vocals);"></div></div>
+          <span class="bp2-ch-progress-time">3:24</span>
         </div>
-        <div class="bp2-channel">
-          <div class="bp2-channel-stripe" style="background:var(--bp2-ch-drums);box-shadow:0 0 4px var(--bp2-ch-drums);"></div>
-          <div class="bp2-channel-label">Drums</div>
-          <input type="range" class="bp2-fader" min="0" max="100" value="80">
-          <button class="bp2-console-btn is-active" data-role="solo">S</button>
-          <button class="bp2-console-btn" data-role="mute">M</button>
+
+        <!-- Drums -->
+        <div class="bp2-channel-unit">
+          <div class="bp2-ch-indicator" style="background:var(--bp2-ch-drums);"></div>
+          <button class="bp2-ch-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-drums);"></i></button>
+          <span class="bp2-ch-name">Drums</span>
+          <div class="bp2-ch-meter"><div class="bp2-ch-meter-fill" style="width:80%;background:var(--bp2-ch-drums);"></div></div>
+          <button class="bp2-ch-pdf has-chart"><i class="fa-solid fa-file-pdf"></i></button>
         </div>
-        <div class="bp2-channel">
-          <div class="bp2-channel-stripe" style="background:var(--bp2-ch-bass);box-shadow:0 0 4px var(--bp2-ch-bass);"></div>
-          <div class="bp2-channel-label">Bass</div>
-          <input type="range" class="bp2-fader" min="0" max="100" value="60">
-          <button class="bp2-console-btn" data-role="solo">S</button>
-          <button class="bp2-console-btn" data-role="mute">M</button>
+
+        <!-- Bass -->
+        <div class="bp2-channel-unit">
+          <div class="bp2-ch-indicator" style="background:var(--bp2-ch-bass);"></div>
+          <button class="bp2-ch-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-bass);"></i></button>
+          <span class="bp2-ch-name">Bass</span>
+          <div class="bp2-ch-meter"><div class="bp2-ch-meter-fill" style="width:50%;background:var(--bp2-ch-bass);"></div></div>
+          <button class="bp2-ch-pdf has-chart"><i class="fa-solid fa-file-pdf"></i></button>
         </div>
-        <div class="bp2-channel">
-          <div class="bp2-channel-stripe" style="background:var(--bp2-ch-guitar);box-shadow:0 0 4px var(--bp2-ch-guitar);"></div>
-          <div class="bp2-channel-label">Guitar</div>
-          <input type="range" class="bp2-fader" min="0" max="100" value="80">
-          <button class="bp2-console-btn" data-role="solo">S</button>
-          <button class="bp2-console-btn is-active" data-role="mute">M</button>
+
+        <!-- Guitar -->
+        <div class="bp2-channel-unit">
+          <div class="bp2-ch-indicator" style="background:var(--bp2-ch-guitar);"></div>
+          <button class="bp2-ch-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-guitar);"></i></button>
+          <span class="bp2-ch-name">Guitar</span>
+          <div class="bp2-ch-meter"><div class="bp2-ch-meter-fill" style="width:40%;background:var(--bp2-ch-guitar);"></div></div>
+          <button class="bp2-ch-pdf"><i class="fa-solid fa-file-pdf"></i></button>
+        </div>
+
+        <!-- Keys -->
+        <div class="bp2-channel-unit">
+          <div class="bp2-ch-indicator" style="background:var(--bp2-ch-piano);"></div>
+          <button class="bp2-ch-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-piano);"></i></button>
+          <span class="bp2-ch-name">Keys</span>
+          <div class="bp2-ch-meter"><div class="bp2-ch-meter-fill" style="width:35%;background:var(--bp2-ch-piano);"></div></div>
+          <button class="bp2-ch-pdf has-chart"><i class="fa-solid fa-file-pdf"></i></button>
+        </div>
+
+        <!-- Other -->
+        <div class="bp2-channel-unit">
+          <div class="bp2-ch-indicator" style="background:var(--bp2-ch-other);"></div>
+          <button class="bp2-ch-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-other);"></i></button>
+          <span class="bp2-ch-name">Other</span>
+          <div class="bp2-ch-meter"><div class="bp2-ch-meter-fill" style="width:55%;background:var(--bp2-ch-other);"></div></div>
+          <button class="bp2-ch-pdf"><i class="fa-solid fa-file-pdf"></i></button>
+        </div>
+
+        <!-- Instrumental -->
+        <div class="bp2-channel-unit">
+          <div class="bp2-ch-indicator" style="background:var(--bp2-ch-instrumental);"></div>
+          <button class="bp2-ch-play"><i class="fa-solid fa-play" style="color:var(--bp2-ch-instrumental);"></i></button>
+          <span class="bp2-ch-name">Inst.</span>
+          <div class="bp2-ch-meter"><div class="bp2-ch-meter-fill" style="width:70%;background:var(--bp2-ch-instrumental);"></div></div>
         </div>
       </div>
 
-      <!-- Practice Bar -->
-      <div class="bp2-practice">
-        <button class="bp2-practice-btn is-active">
+      <!-- ── Mixer Console Module ──────────────── -->
+      <div class="bp2-console">
+        <div class="bp2-console-header">
+          <button class="bp2-console-engage">
+            <span class="bp2-console-engage-led"></span>
+            <span>ENGAGE MIXER</span>
+          </button>
+        </div>
+
+        <div class="bp2-console-channels">
+          <div class="bp2-console-ch">
+            <div class="bp2-console-ch-label" style="color:var(--bp2-ch-vocals);">VOX</div>
+            <div class="bp2-console-fader-track">
+              <input type="range" class="bp2-console-fader" min="0" max="100" value="80" orient="vertical">
+              <div class="bp2-console-fader-bg"></div>
+            </div>
+            <div class="bp2-console-ch-btns">
+              <button class="bp2-console-s">S</button>
+              <button class="bp2-console-m">M</button>
+            </div>
+          </div>
+          <div class="bp2-console-ch">
+            <div class="bp2-console-ch-label" style="color:var(--bp2-ch-drums);">DRM</div>
+            <div class="bp2-console-fader-track">
+              <input type="range" class="bp2-console-fader" min="0" max="100" value="80" orient="vertical">
+              <div class="bp2-console-fader-bg"></div>
+            </div>
+            <div class="bp2-console-ch-btns">
+              <button class="bp2-console-s is-on">S</button>
+              <button class="bp2-console-m">M</button>
+            </div>
+          </div>
+          <div class="bp2-console-ch">
+            <div class="bp2-console-ch-label" style="color:var(--bp2-ch-bass);">BAS</div>
+            <div class="bp2-console-fader-track">
+              <input type="range" class="bp2-console-fader" min="0" max="100" value="60" orient="vertical">
+              <div class="bp2-console-fader-bg"></div>
+            </div>
+            <div class="bp2-console-ch-btns">
+              <button class="bp2-console-s">S</button>
+              <button class="bp2-console-m">M</button>
+            </div>
+          </div>
+          <div class="bp2-console-ch">
+            <div class="bp2-console-ch-label" style="color:var(--bp2-ch-guitar);">GTR</div>
+            <div class="bp2-console-fader-track">
+              <input type="range" class="bp2-console-fader" min="0" max="100" value="80" orient="vertical">
+              <div class="bp2-console-fader-bg"></div>
+            </div>
+            <div class="bp2-console-ch-btns">
+              <button class="bp2-console-s">S</button>
+              <button class="bp2-console-m is-on">M</button>
+            </div>
+          </div>
+          <div class="bp2-console-ch">
+            <div class="bp2-console-ch-label" style="color:var(--bp2-ch-piano);">KEY</div>
+            <div class="bp2-console-fader-track">
+              <input type="range" class="bp2-console-fader" min="0" max="100" value="75" orient="vertical">
+              <div class="bp2-console-fader-bg"></div>
+            </div>
+            <div class="bp2-console-ch-btns">
+              <button class="bp2-console-s">S</button>
+              <button class="bp2-console-m">M</button>
+            </div>
+          </div>
+          <div class="bp2-console-ch">
+            <div class="bp2-console-ch-label" style="color:var(--bp2-ch-other);">OTH</div>
+            <div class="bp2-console-fader-track">
+              <input type="range" class="bp2-console-fader" min="0" max="100" value="70" orient="vertical">
+              <div class="bp2-console-fader-bg"></div>
+            </div>
+            <div class="bp2-console-ch-btns">
+              <button class="bp2-console-s">S</button>
+              <button class="bp2-console-m">M</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Practice Module ───────────────────── -->
+      <div class="bp2-practice-module">
+        <button class="bp2-practice-pad is-on">
           <i class="fa-solid fa-music"></i>
-          <span>120 BPM</span>
+          <span>120</span>
+          <small>BPM</small>
         </button>
-        <button class="bp2-practice-btn">
+        <button class="bp2-practice-pad">
           <i class="fa-solid fa-repeat"></i>
-          <span>Loop</span>
+          <span>LOOP</span>
+          <small>A-B</small>
         </button>
-        <button class="bp2-practice-btn is-active">
+        <button class="bp2-practice-pad is-on">
           <i class="fa-solid fa-gauge-high"></i>
-          <span>0.75x</span>
+          <span>0.75</span>
+          <small>SPEED</small>
         </button>
       </div>
     </div>
 
     <!-- Track 2 — Practiced -->
-    <div class="bp2-track">
-      <div class="bp2-track-num"><i class="fa-solid fa-check-circle bp2-practiced-icon"></i></div>
-      <div class="bp2-track-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
-      <div class="bp2-track-info">
-        <div class="bp2-track-title">No One Can Love You More Than I Can <i class="fa-solid fa-cloud-arrow-down bp2-cached-icon"></i></div>
-        <div class="bp2-track-artist">L.A. Young</div>
+    <div class="bp2-rack-unit">
+      <div class="bp2-rack-led practiced"></div>
+      <div class="bp2-rack-num"><i class="fa-solid fa-check-circle bp2-practiced-icon"></i></div>
+      <div class="bp2-rack-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
+      <div class="bp2-rack-info">
+        <div class="bp2-rack-title">No One Can Love You More Than I Can <i class="fa-solid fa-cloud-arrow-down bp2-cached-icon"></i></div>
+        <div class="bp2-rack-meta">L.A. YOUNG</div>
       </div>
-      <span class="bp2-track-duration">4:12</span>
-    </div>
-    <div class="bp2-track-actions">
-      <button class="bp2-action-btn has-content" title="Lyrics"><i class="fa-solid fa-align-left"></i></button>
-      <button class="bp2-action-btn has-content" title="Charts"><i class="fa-solid fa-music"></i></button>
-      <button class="bp2-action-btn" title="Notes"><i class="fa-solid fa-comment-dots"></i></button>
-      <button class="bp2-action-btn" title="Download"><i class="fa-solid fa-download"></i></button>
-      <button class="bp2-action-btn" style="color:var(--bp2-led-green);border-color:rgba(0,230,118,0.15);" title="Saved offline"><i class="fa-solid fa-cloud-arrow-down"></i></button>
+      <span class="bp2-rack-time">4:12</span>
     </div>
 
     <!-- Track 3 -->
-    <div class="bp2-track">
-      <div class="bp2-track-num"><span>3</span></div>
-      <div class="bp2-track-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
-      <div class="bp2-track-info">
-        <div class="bp2-track-title">Soulful Lullaby</div>
-        <div class="bp2-track-artist">L.A. Young</div>
+    <div class="bp2-rack-unit">
+      <div class="bp2-rack-led"></div>
+      <div class="bp2-rack-num"><span>3</span></div>
+      <div class="bp2-rack-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
+      <div class="bp2-rack-info">
+        <div class="bp2-rack-title">Soulful Lullaby</div>
+        <div class="bp2-rack-meta">L.A. YOUNG</div>
       </div>
-      <span class="bp2-track-duration">5:01</span>
+      <span class="bp2-rack-time">5:01</span>
     </div>
 
     <!-- Track 4 -->
-    <div class="bp2-track">
-      <div class="bp2-track-num"><span>4</span></div>
-      <div class="bp2-track-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
-      <div class="bp2-track-info">
-        <div class="bp2-track-title">The Woman In Me</div>
-        <div class="bp2-track-artist">L.A. Young</div>
+    <div class="bp2-rack-unit">
+      <div class="bp2-rack-led"></div>
+      <div class="bp2-rack-num"><span>4</span></div>
+      <div class="bp2-rack-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
+      <div class="bp2-rack-info">
+        <div class="bp2-rack-title">The Woman In Me</div>
+        <div class="bp2-rack-meta">L.A. YOUNG</div>
       </div>
-      <span class="bp2-track-duration">3:58</span>
+      <span class="bp2-rack-time">3:58</span>
     </div>
 
-    <!-- Set 2 -->
-    <div class="bp2-set-divider"><span>Set 2</span></div>
+    <div class="bp2-rack-divider"><span>SET 2</span></div>
 
-    <div class="bp2-track">
-      <div class="bp2-track-num"><span>5</span></div>
-      <div class="bp2-track-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
-      <div class="bp2-track-info">
-        <div class="bp2-track-title">Golden Hour <span class="bp2-badge bp2-badge-intro">Intro</span></div>
-        <div class="bp2-track-artist">L.A. Young</div>
+    <div class="bp2-rack-unit">
+      <div class="bp2-rack-led"></div>
+      <div class="bp2-rack-num"><span>5</span></div>
+      <div class="bp2-rack-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
+      <div class="bp2-rack-info">
+        <div class="bp2-rack-title">Golden Hour <span class="bp2-tag bp2-tag-intro">INTRO</span></div>
+        <div class="bp2-rack-meta">L.A. YOUNG</div>
       </div>
-      <span class="bp2-track-duration">2:47</span>
+      <span class="bp2-rack-time">2:47</span>
     </div>
 
-    <!-- Long title test -->
-    <div class="bp2-track">
-      <div class="bp2-track-num"><i class="fa-solid fa-check-circle bp2-practiced-icon"></i></div>
-      <div class="bp2-track-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
-      <div class="bp2-track-info">
-        <div class="bp2-track-title">Midnight Conversation With Myself About Tomorrow And What It Brings</div>
-        <div class="bp2-track-artist">L.A. Young</div>
+    <!-- Long title -->
+    <div class="bp2-rack-unit">
+      <div class="bp2-rack-led practiced"></div>
+      <div class="bp2-rack-num"><i class="fa-solid fa-check-circle bp2-practiced-icon"></i></div>
+      <div class="bp2-rack-art"><img src="../images/logo/gbe-square.svg" alt=""></div>
+      <div class="bp2-rack-info">
+        <div class="bp2-rack-title">Midnight Conversation With Myself About Tomorrow And What It Brings</div>
+        <div class="bp2-rack-meta">L.A. YOUNG</div>
       </div>
-      <span class="bp2-track-duration">4:33</span>
+      <span class="bp2-rack-time">4:33</span>
     </div>
 
-  </div>
+  </div><!-- end rack -->
+
 </div>
