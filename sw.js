@@ -43,7 +43,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
-  './js/band-player-v2/bp2-playlist.js': 'a02cf19e9e05c1660444027a8eba703c18d078a1b2e3ace76ebd840a56ed73ec',
+  './js/band-player-v2/bp2-playlist.js': '11141f7bd9e01da582d787f69b7f09fc43f23e62ffebe644b14358f854acc1f8',
   './js/band-player-v2/bp2-render.js': 'bfc469de0b816e1e67c8ab974fcc76b87b4c34cc4651a286855281f1c8114277',
   './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',

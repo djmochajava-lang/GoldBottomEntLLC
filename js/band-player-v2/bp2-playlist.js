@@ -115,13 +115,23 @@
                 }
                 c.set('playlists', playlists);
                 c.emit('playlists:loaded', { playlists: playlists });
-                if (playlists.length > 0) BP2Playlist.selectPlaylist(playlists[0].id);
+                if (playlists.length > 0) {
+                  var lastId = null;
+                  try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
+                  var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
+                  BP2Playlist.selectPlaylist(target);
+                }
                 else c.emit('playlists:empty');
               })
               .catch(function() {
                 c.set('playlists', playlists);
                 c.emit('playlists:loaded', { playlists: playlists });
-                if (playlists.length > 0) BP2Playlist.selectPlaylist(playlists[0].id);
+                if (playlists.length > 0) {
+                  var lastId = null;
+                  try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
+                  var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
+                  BP2Playlist.selectPlaylist(target);
+                }
                 else c.emit('playlists:empty');
               });
             return;
@@ -129,7 +139,13 @@
 
           c.set('playlists', playlists);
           c.emit('playlists:loaded', { playlists: playlists });
-          if (playlists.length > 0) BP2Playlist.selectPlaylist(playlists[0].id);
+          if (playlists.length > 0) {
+            // Restore last selected playlist if available
+            var lastId = null;
+            try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
+            var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
+            BP2Playlist.selectPlaylist(target);
+          }
           else c.emit('playlists:empty');
         })
         .catch(function(e) {
@@ -162,6 +178,10 @@
     selectPlaylist: function(playlistId) {
       var c = _getCore();
       if (!c) return;
+
+      // Persist selection so it restores on reload
+      try { localStorage.setItem('bp2-last-playlist', playlistId); } catch (e) {}
+
       var playlists = c.ref('playlists');
       var pl = null;
       for (var i = 0; i < playlists.length; i++) {
@@ -327,6 +347,7 @@
       lastSet.songs.push(songId);
       var flatOrder = _setsToSongOrder(sets);
 
+      var plName = pl.title || pl.name || 'playlist';
       c.getDb().collection('playlists').doc(pl.id).update({
         sets: sets,
         songOrder: flatOrder,
@@ -341,10 +362,12 @@
           var po = c.ref('playOrder');
           po.push({ songId: songId, setIndex: sets.length - 1, position: 'song' });
           c.emit('playlist:song-added', { songId: songId });
+          c.emit('render:tracklist');
+          if (typeof Toast !== 'undefined') Toast.success('Added to ' + plName);
         }
       }).catch(function(e) {
         lastSet.songs.pop();
-        if (typeof Toast !== 'undefined') Toast.error('Failed to add song: ' + e.message);
+        if (typeof Toast !== 'undefined') Toast.error('Failed to add to ' + plName + ': ' + e.message);
       });
     },
 
