@@ -153,15 +153,16 @@
     showAddToPlaylistModal: function() {
       var c = _c();
       if (!c || typeof Modal === 'undefined') return;
-      var pl = c.ref('currentPlaylist');
-      if (!pl) {
-        if (typeof Toast !== 'undefined') Toast.error('Select a playlist first');
+      var allPlaylists = c.ref('playlists') || [];
+      var currentPl = c.ref('currentPlaylist');
+      if (allPlaylists.length === 0) {
+        if (typeof Toast !== 'undefined') Toast.error('No playlists available');
         return;
       }
       var songs = c.ref('inventory') || [];
       if (songs.length === 0) {
         Modal.open({
-          title: 'Add Song to ' + (pl.title || pl.name || 'Playlist'),
+          title: 'Add Song to Playlist',
           size: 'md',
           content: '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);"><i class="fa-solid fa-box-open" style="font-size:32px;display:block;margin-bottom:10px;"></i>No songs in inventory. Upload songs first.</div>',
           saveText: 'Close', onSave: function() { Modal.close(); }
@@ -169,18 +170,71 @@
         return;
       }
 
-      // Determine which songs are already in this playlist
-      var alreadyInPl = {};
-      var sets = pl.sets || [];
-      sets.forEach(function(set) {
-        if (set.intro) alreadyInPl[set.intro] = true;
-        (set.songs || []).forEach(function(id) { alreadyInPl[id] = true; });
-        if (set.outro) alreadyInPl[set.outro] = true;
-      });
+      // Store target playlist — defaults to current, user can change
+      BP2Upload._addTargetPlaylistId = currentPl ? currentPl.id : allPlaylists[0].id;
 
       var esc = global.BP2Utils ? global.BP2Utils.esc : function(s) { return s; };
       var tc = global.BP2Utils ? global.BP2Utils.titleCase : function(s) { return s; };
-      var html = '<div style="max-height:60vh;overflow-y:auto;">';
+
+      // Playlist selector at top
+      var html = '<div style="margin-bottom:14px;">';
+      html += '<label style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.05em;">Add to playlist:</label>';
+      html += '<select id="bp2-add-target-pl" style="width:100%;margin-top:6px;padding:10px 12px;border-radius:6px;border:1px solid rgba(201,162,39,0.3);background:rgba(201,162,39,0.08);color:#d4a017;font-size:14px;font-weight:600;">';
+      allPlaylists.forEach(function(p) {
+        var sel = p.id === BP2Upload._addTargetPlaylistId ? ' selected' : '';
+        html += '<option value="' + esc(p.id) + '"' + sel + '>' + esc(p.title || p.name || 'Untitled') + '</option>';
+      });
+      html += '</select></div>';
+
+      html += '<div id="bp2-add-song-list" style="max-height:50vh;overflow-y:auto;">';
+      html += BP2Upload._renderSongList(songs, esc, tc);
+      html += '</div>';
+
+      Modal.open({
+        title: 'Add Song to Playlist',
+        size: 'md',
+        content: html,
+        saveText: 'Done',
+        onSave: function() { Modal.close(); }
+      });
+
+      // Wire playlist selector change — re-renders song list with correct "In playlist" badges
+      setTimeout(function() {
+        var sel = document.getElementById('bp2-add-target-pl');
+        if (sel) {
+          sel.addEventListener('change', function() {
+            BP2Upload._addTargetPlaylistId = sel.value;
+            var listEl = document.getElementById('bp2-add-song-list');
+            if (listEl) {
+              listEl.innerHTML = BP2Upload._renderSongList(songs, esc, tc);
+            }
+          });
+        }
+      }, 100);
+    },
+
+    _renderSongList: function(songs, esc, tc) {
+      var c = _c();
+      if (!c) return '';
+      // Find target playlist to check which songs are already in it
+      var playlists = c.ref('playlists') || [];
+      var targetPl = null;
+      for (var i = 0; i < playlists.length; i++) {
+        if (playlists[i].id === BP2Upload._addTargetPlaylistId) { targetPl = playlists[i]; break; }
+      }
+      var alreadyInPl = {};
+      if (targetPl) {
+        var sets = targetPl.sets || [];
+        sets.forEach(function(set) {
+          if (set.intro) alreadyInPl[set.intro] = true;
+          (set.songs || []).forEach(function(id) { alreadyInPl[id] = true; });
+          if (set.outro) alreadyInPl[set.outro] = true;
+        });
+        // Also check songOrder for legacy playlists without sets
+        (targetPl.songOrder || []).forEach(function(id) { alreadyInPl[id] = true; });
+      }
+
+      var html = '';
       songs.forEach(function(song) {
         var inPl = !!alreadyInPl[song.id];
         var sid = (song.id || '').replace(/"/g, '&quot;');
@@ -192,15 +246,10 @@
             : '<button id="bp2-add-btn-' + sid + '" onclick="event.stopPropagation();window.BP2Upload._handleAddClick(\'' + sid + '\');return false;" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(212,160,23,0.3);background:rgba(212,160,23,0.1);color:#d4a017;cursor:pointer;font-size:12px;font-weight:600;"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add</button>') +
         '</div>';
       });
-      html += '</div>';
-      Modal.open({
-        title: 'Add Song to ' + (pl.title || pl.name || 'Playlist'),
-        size: 'md',
-        content: html,
-        saveText: 'Done',
-        onSave: function() { Modal.close(); }
-      });
+      return html;
     },
+
+    _addTargetPlaylistId: null,
 
     // Called directly from each row's onclick — bulletproof, no event delegation
     _handleAddClick: function(songId) {
@@ -210,7 +259,13 @@
         btnEl.disabled = true;
         btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
       }
-      global.BP2Playlist.addSongToPlaylist(songId);
+      // Use the explicitly selected target playlist, not just currentPlaylist
+      var targetId = BP2Upload._addTargetPlaylistId;
+      if (targetId) {
+        global.BP2Playlist.addSongToPlaylistById(songId, targetId);
+      } else {
+        global.BP2Playlist.addSongToPlaylist(songId);
+      }
       setTimeout(function() {
         if (btnEl && btnEl.parentNode) {
           btnEl.outerHTML = '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">Added</span>';

@@ -371,6 +371,56 @@
       });
     },
 
+    addSongToPlaylistById: function(songId, playlistId) {
+      var c = _getCore();
+      if (!c || !c.getDb()) return;
+
+      // Find the target playlist from the in-memory list
+      var playlists = c.ref('playlists') || [];
+      var pl = null;
+      for (var i = 0; i < playlists.length; i++) {
+        if (playlists[i].id === playlistId) { pl = playlists[i]; break; }
+      }
+      if (!pl) return;
+
+      _migratePlaylistToSets(pl);
+      var sets = pl.sets;
+      var allIds = _allSongIdsFromSets(sets);
+      if (allIds.indexOf(songId) !== -1) return;
+
+      var lastSet = sets[sets.length - 1];
+      lastSet.songs.push(songId);
+      var flatOrder = _setsToSongOrder(sets);
+
+      var plName = pl.title || pl.name || 'playlist';
+      var isCurrent = c.ref('currentPlaylist') && c.ref('currentPlaylist').id === playlistId;
+
+      c.getDb().collection('playlists').doc(pl.id).update({
+        sets: sets,
+        songOrder: flatOrder,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function() {
+        pl.songOrder = flatOrder;
+        // Only update the live tracklist if adding to the currently viewed playlist
+        if (isCurrent) {
+          var songMap = c.ref('allSongsMap');
+          var song = songMap[songId];
+          if (song) {
+            var songs = c.ref('songs');
+            songs.push(song);
+            var po = c.ref('playOrder');
+            po.push({ songId: songId, setIndex: sets.length - 1, position: 'song' });
+            c.emit('playlist:song-added', { songId: songId });
+            c.emit('render:tracklist');
+          }
+        }
+        if (typeof Toast !== 'undefined') Toast.success('Added to ' + plName);
+      }).catch(function(e) {
+        lastSet.songs.pop();
+        if (typeof Toast !== 'undefined') Toast.error('Failed to add to ' + plName + ': ' + e.message);
+      });
+    },
+
     // Ensure playlist permissions for a user
     ensurePermissions: function(uid) {
       var c = _getCore();
