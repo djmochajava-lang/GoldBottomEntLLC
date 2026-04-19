@@ -358,8 +358,12 @@
   }
 
   // ── Public API ───────────────────────────────
+  var _rInitialized = false;
+
   var BP2Render = {
     init: function() {
+      if (_rInitialized) return;
+      _rInitialized = true;
       var c = _c();
       if (!c) return;
 

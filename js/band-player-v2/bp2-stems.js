@@ -21,8 +21,12 @@
     return _core;
   }
 
+  var _initialized = false;
+
   var BP2Stems = {
     init: function() {
+      if (_initialized) return;
+      _initialized = true;
       var c = _c();
       if (!c) return;
 
