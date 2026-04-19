@@ -85,6 +85,9 @@ const Router = {
     // Band Music Player (rehearsal tracks, charts, lyrics)
     'dashboard-band-player': 'dashboard/band-player.html',
 
+    // Band Player v2.0 — design preview (band_manager only)
+    'dashboard-band-player-v2': 'dashboard/band-player-v2.html',
+
     // Payment Settings (musician self-service)
     'dashboard-payment-settings': 'dashboard/payment-settings.html',
 
@@ -309,6 +312,7 @@ const Router = {
           'dashboard-musician-home': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-calendar':     ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-band-player': ['admin', 'band_manager', 'artist', 'band_member'],
+          'dashboard-band-player-v2': ['admin', 'band_manager'],
           'dashboard-payment-settings': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-travel':       ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-contracts':    ['admin', 'band_manager', 'artist', 'band_member', 'venue_owner', 'promoter'],
@@ -593,6 +597,7 @@ const Router = {
       'dashboard-export': 'Evidence Export',
       'dashboard-field': 'Field View',
       'dashboard-band-player': 'Band Player',
+      'dashboard-band-player-v2': 'Player v2.0',
       'dashboard-payment-settings': 'Payment Info',
       'dashboard-crm-contacts': 'CRM Contacts',
       'dashboard-quotes': 'Quote Pipeline',
