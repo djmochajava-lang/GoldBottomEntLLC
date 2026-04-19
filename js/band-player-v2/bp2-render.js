@@ -200,8 +200,8 @@
 
       // Position badge
       var badge = '';
-      if (po && po.position === 'intro') badge = ' <span class="bp2-tag bp2-tag-intro">INTRO</span>';
-      else if (po && po.position === 'outro') badge = ' <span class="bp2-tag" style="background:rgba(120,144,156,0.15);color:#78909c;">OUTRO</span>';
+      if (po && po.position === 'intro') badge = ' <span class="bp2-tag" style="background:rgba(0,230,118,0.15);color:#00e676;">INTRO</span>';
+      else if (po && po.position === 'outro') badge = ' <span class="bp2-tag" style="background:rgba(68,138,255,0.15);color:#448aff;">OUTRO</span>';
 
       // LED state
       var ledClass = isActive ? ' on' : (practiced ? ' practiced' : '');
