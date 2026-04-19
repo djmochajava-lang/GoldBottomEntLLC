@@ -55,21 +55,51 @@
   --bp2-font-lcd:     'SF Mono', 'Courier New', monospace;
 }
 
+/* ── Dashboard Override Reset ─────────────────────────────── */
+/* Nuke inherited dashboard styles so our hardware design controls everything */
+.bp2-device,
+.bp2-device *,
+.bp2-device *::before,
+.bp2-device *::after {
+  box-sizing: border-box;
+}
+
+.bp2-device .dashboard-page-content,
+.bp2-device .dashboard-page {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+}
+
+.bp2-device select,
+.bp2-device input[type="range"],
+.bp2-device button {
+  all: unset;
+  box-sizing: border-box;
+  font-family: var(--bp2-font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bp2-device img {
+  max-width: 100%;
+  display: block;
+}
+
 /* ── Device Chassis ───────────────────────────────────────── */
 .bp2-device {
-  font-family: var(--bp2-font);
-  color: var(--bp2-text);
-  background: var(--bp2-chassis);
+  font-family: var(--bp2-font) !important;
+  color: var(--bp2-text) !important;
+  background: var(--bp2-chassis) !important;
   -webkit-font-smoothing: antialiased;
   min-height: 100%;
+  padding: 0 !important;
   /* Subtle brushed metal texture */
   background-image: repeating-linear-gradient(
     0deg, transparent, transparent 1px, rgba(255,255,255,0.008) 1px, rgba(255,255,255,0.008) 2px
-  );
+  ) !important;
 }
 
-.bp2-device *, .bp2-device *::before, .bp2-device *::after { box-sizing: border-box; }
-.bp2-device button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; -webkit-tap-highlight-color: transparent; }
 .bp2-device button:focus-visible { outline: 2px solid var(--bp2-led-blue); outline-offset: 2px; }
 
 /* ── LCD Module (top section — looks like an MPC/Maschine screen) ── */
@@ -350,18 +380,20 @@
 
 .bp2-selector-dropdown {
   flex: 1;
-  padding: 10px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--bp2-bezel);
-  background: var(--bp2-module);
-  color: var(--bp2-text);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--bp2-font);
+  display: block !important;
+  padding: 10px 12px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--bp2-bezel) !important;
+  background: var(--bp2-module) !important;
+  color: var(--bp2-text) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  font-family: var(--bp2-font) !important;
   min-height: 44px;
-  -webkit-appearance: none;
-  appearance: none;
+  -webkit-appearance: none !important;
+  appearance: none !important;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+  width: auto;
 }
 
 .bp2-selector-btns { display: flex; gap: 4px; }
@@ -788,30 +820,54 @@
 }
 
 .bp2-console-fader {
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
-  writing-mode: vertical-lr;
-  direction: rtl;
-  width: 32px;
-  height: 80px;
-  background: transparent;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 80px;
+  height: 32px;
+  background: transparent !important;
   cursor: pointer;
   position: relative;
   z-index: 1;
+  /* Rotate horizontal to vertical */
+  transform: rotate(-90deg);
+  transform-origin: center center;
+}
+
+.bp2-console-fader::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bp2-bezel);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
 }
 
 .bp2-console-fader::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 28px;
+  width: 22px;
   height: 14px;
   border-radius: 3px;
-  background: linear-gradient(180deg, #666, #333);
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  background: linear-gradient(180deg, #777, #444, #333);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+  margin-top: -5px;
   cursor: grab;
 }
 
-.bp2-console-fader::-webkit-slider-thumb:active { cursor: grabbing; background: linear-gradient(180deg, #888, #444); }
+.bp2-console-fader::-webkit-slider-thumb:active { cursor: grabbing; background: linear-gradient(180deg, #999, #555, #444); }
+
+.bp2-console-fader::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bp2-bezel);
+}
+
+.bp2-console-fader::-moz-range-thumb {
+  width: 22px;
+  height: 14px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #777, #444, #333);
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: grab;
+}
 
 .bp2-console-ch-btns {
   display: flex;
