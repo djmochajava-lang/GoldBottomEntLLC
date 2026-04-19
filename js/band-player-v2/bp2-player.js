@@ -3,35 +3,335 @@
    Band Player v2.0
 
    WHAT IT DOES:
-     Manages the HTML5 Audio element for single-track playback.
-     Play, pause, next, prev, seek, volume, mute, repeat modes.
-     Cache-first URL resolution (checks offline cache before network).
-     Auto-advance on track end (respects repeat mode).
-     Practice tracking: logs 80% completion to Firestore.
+     Manages HTML5 Audio element for single-track playback.
+     Play, pause, next, prev, seek, volume, mute, repeat.
+     Cache-first URL resolution. Practice tracking at 80%.
      Auto-pauses on page hide/unload.
 
-   WHAT IT OWNS:
-     - The <audio> element
-     - Playback state (isPlaying, currentTime, duration)
-     - Repeat mode (off / all / one)
-     - Volume and mute state
-     - Playback event logging (80% threshold)
-
    WHO CALLS IT:
-     - bp2-core.js calls init()
-     - bp2-render.js triggers play/pause/next/prev via core events
-     - bp2-stems.js pauses this player when a stem starts playing
+     - BP2Core emits 'player:init' → this module sets up
+     - UI events routed through BP2Core
 
    DEPENDENCIES:
-     - bp2-core.js (event bus, state)
-     - bp2-offline.js (cache-first URL resolution, optional)
+     - bp2-core.js
+     - bp2-offline.js (optional, for cache-first)
    ============================================ */
 (function(global) {
   'use strict';
 
+  var _audio = null;
+  var _core = null;
+
+  function _getCore() {
+    if (!_core && global.BP2Core) _core = global.BP2Core;
+    return _core;
+  }
+
+  function _setupAudio() {
+    if (_audio) return;
+    _audio = document.createElement('audio');
+    _audio.preload = 'metadata';
+
+    _audio.addEventListener('timeupdate', function() {
+      var c = _getCore();
+      if (!c) return;
+      c.emit('player:timeupdate', {
+        currentTime: _audio.currentTime,
+        duration: _audio.duration || 0,
+        progress: _audio.duration ? _audio.currentTime / _audio.duration : 0
+      });
+
+      // Practice tracking: 80% threshold
+      if (_audio.duration && c.ref('currentIndex') >= 0) {
+        var pct = _audio.currentTime / _audio.duration;
+        if (pct >= 0.80) {
+          var songs = c.ref('songs');
+          var song = songs[c.ref('currentIndex')];
+          var logged = c.ref('loggedThisSession');
+          if (song && !logged[song.id]) {
+            _logPlayback(song.id, 'complete', pct);
+            logged[song.id] = true;
+            var completed = c.ref('completedTracks');
+            completed[song.id] = true;
+            c.emit('player:track-completed', { songId: song.id });
+          }
+        }
+      }
+    });
+
+    _audio.addEventListener('loadedmetadata', function() {
+      var c = _getCore();
+      if (!c) return;
+      var songs = c.ref('songs');
+      var idx = c.ref('currentIndex');
+      if (songs[idx]) songs[idx].duration = _audio.duration;
+      c.emit('player:metadata', { duration: _audio.duration });
+    });
+
+    _audio.addEventListener('ended', function() {
+      var c = _getCore();
+      if (!c) return;
+
+      // Log if not already at 80%
+      var songs = c.ref('songs');
+      var idx = c.ref('currentIndex');
+      var song = songs[idx];
+      var logged = c.ref('loggedThisSession');
+      if (song && !logged[song.id]) {
+        _logPlayback(song.id, 'complete', 1.0);
+        logged[song.id] = true;
+        var completed = c.ref('completedTracks');
+        completed[song.id] = true;
+      }
+
+      var mode = c.ref('repeatMode');
+      if (mode === 'one') {
+        _audio.currentTime = 0;
+        _audio.play();
+      } else if (mode === 'all') {
+        BP2Player.next();
+      } else {
+        if (idx < songs.length - 1) {
+          BP2Player.next();
+        } else {
+          c.set('isPlaying', false);
+          c.emit('player:stopped');
+        }
+      }
+    });
+
+    _audio.volume = 0.8;
+  }
+
+  function _logPlayback(trackId, eventType, progress) {
+    var c = _getCore();
+    if (!c || !c.getDb() || !c.getUser()) return;
+    var db = c.getDb();
+    var user = c.getUser();
+
+    db.collection('playback-events').add({
+      userId: user.uid,
+      trackId: trackId,
+      playlistId: c.ref('currentPlaylist') ? c.ref('currentPlaylist').id : null,
+      eventType: eventType,
+      progress: Math.round(progress * 100) / 100,
+      listenedSeconds: Math.round(_audio.currentTime || 0),
+      duration: Math.round(_audio.duration || 0),
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(err) {
+      console.warn('[BP2Player] Playback log failed:', err.message);
+    });
+  }
+
+  function _loadCompletedTracks(playlistId) {
+    var c = _getCore();
+    if (!c || !c.getDb() || !c.getUser()) return;
+
+    c.getDb().collection('playback-events')
+      .where('userId', '==', c.getUser().uid)
+      .where('playlistId', '==', playlistId)
+      .where('eventType', '==', 'complete')
+      .get()
+      .then(function(snap) {
+        var completed = {};
+        snap.forEach(function(doc) { completed[doc.data().trackId] = true; });
+        c.set('completedTracks', completed);
+      })
+      .catch(function() {});
+  }
+
+  // ── Public API ───────────────────────────────
   var BP2Player = {
-    // TODO: implement
+    init: function() {
+      _setupAudio();
+      var c = _getCore();
+      if (!c) return;
+
+      // Listen for events
+      c.on('player:init', function() { _setupAudio(); });
+      c.on('playlist:selected', function(data) {
+        if (data && data.playlistId) _loadCompletedTracks(data.playlistId);
+      });
+
+      // Auto-pause on page hide
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden && c.ref('isPlaying')) {
+          BP2Player.pause();
+        }
+      });
+
+      if (typeof global.addEventListener === 'function') {
+        global.addEventListener('beforeunload', function() {
+          if (c.ref('isPlaying')) BP2Player.pause();
+        });
+      }
+    },
+
+    play: function(index) {
+      var c = _getCore();
+      if (!c) return;
+      var songs = c.ref('songs');
+      if (index < 0 || index >= songs.length) return;
+      var song = songs[index];
+      if (!song || !song.audioPath) return;
+
+      _setupAudio();
+
+      // Stop everything first
+      _audio.pause();
+      _audio.currentTime = 0;
+      c.emit('stems:stop');
+      c.set('isPlaying', false);
+      c.set('currentIndex', index);
+
+      // Try cache first, then network
+      var cachePromise = (global.BP2Offline && global.BP2Offline.getCachedAudioUrl)
+        ? global.BP2Offline.getCachedAudioUrl(song.id)
+        : Promise.resolve(null);
+
+      cachePromise.then(function(cachedUrl) {
+        if (cachedUrl) {
+          _loadAndPlay(cachedUrl);
+        } else {
+          var storage = c.getStorage();
+          if (!storage) {
+            if (typeof Toast !== 'undefined') Toast.error('Storage not available');
+            return;
+          }
+          storage.ref(song.audioPath).getDownloadURL().then(function(url) {
+            _loadAndPlay(url);
+          }).catch(function(e) {
+            console.error('[BP2Player] Failed to get audio URL:', e);
+            if (typeof Toast !== 'undefined') Toast.error('Could not load audio file');
+          });
+        }
+      });
+    },
+
+    _loadAndPlay: function(url) { _loadAndPlay(url); },
+
+    pause: function() {
+      var c = _getCore();
+      if (!c) return;
+      _audio.pause();
+      c.set('isPlaying', false);
+      c.emit('player:paused');
+    },
+
+    togglePlay: function() {
+      var c = _getCore();
+      if (!c) return;
+      var idx = c.ref('currentIndex');
+      var songs = c.ref('songs');
+
+      if (idx === -1 && songs.length > 0) {
+        BP2Player.play(0);
+        return;
+      }
+
+      if (c.ref('isPlaying')) {
+        BP2Player.pause();
+      } else {
+        _audio.play().then(function() {
+          c.set('isPlaying', true);
+          c.emit('player:playing');
+        }).catch(function(err) {
+          console.warn('[BP2Player] Resume blocked:', err.name);
+        });
+      }
+    },
+
+    next: function() {
+      var c = _getCore();
+      if (!c) return;
+      var songs = c.ref('songs');
+      var idx = c.ref('currentIndex');
+      if (songs.length === 0) return;
+
+      if (idx < songs.length - 1) {
+        BP2Player.play(idx + 1);
+      } else if (c.ref('repeatMode') === 'all') {
+        BP2Player.play(0);
+      }
+    },
+
+    prev: function() {
+      var c = _getCore();
+      if (!c) return;
+      var songs = c.ref('songs');
+      if (songs.length === 0) return;
+
+      if (_audio.currentTime > 3) {
+        _audio.currentTime = 0;
+        return;
+      }
+      var idx = c.ref('currentIndex');
+      if (idx > 0) BP2Player.play(idx - 1);
+    },
+
+    seek: function(pct) {
+      if (_audio.duration) {
+        _audio.currentTime = pct * _audio.duration;
+      }
+    },
+
+    setVolume: function(val) {
+      var c = _getCore();
+      if (!c) return;
+      var v = Math.max(0, Math.min(1, val));
+      if (v > 0) c.set('prevVolume', v);
+      c.set('volume', v);
+      _audio.volume = v;
+      c.emit('player:volume', { volume: v });
+    },
+
+    toggleMute: function() {
+      var c = _getCore();
+      if (!c) return;
+      if (c.ref('volume') > 0) {
+        BP2Player.setVolume(0);
+      } else {
+        BP2Player.setVolume(c.ref('prevVolume') || 0.8);
+      }
+    },
+
+    toggleRepeat: function() {
+      var c = _getCore();
+      if (!c) return;
+      var modes = ['off', 'all', 'one'];
+      var idx = modes.indexOf(c.ref('repeatMode'));
+      var next = modes[(idx + 1) % 3];
+      c.set('repeatMode', next);
+      c.emit('player:repeat', { mode: next });
+    },
+
+    getAudio: function() { return _audio; },
+    getCurrentTime: function() { return _audio ? _audio.currentTime : 0; },
+    getDuration: function() { return _audio ? _audio.duration : 0; }
   };
+
+  function _loadAndPlay(url) {
+    var c = _getCore();
+    _audio.src = url;
+    _audio.load();
+
+    _audio.play().then(function() {
+      c.set('isPlaying', true);
+      c.emit('player:playing');
+    }).catch(function(err) {
+      console.warn('[BP2Player] Play blocked:', err.name, '— waiting for canplay');
+      _audio.addEventListener('canplay', function retry() {
+        _audio.removeEventListener('canplay', retry);
+        _audio.play().then(function() {
+          c.set('isPlaying', true);
+          c.emit('player:playing');
+        }).catch(function(e) {
+          console.warn('[BP2Player] Retry failed:', e.name);
+          if (typeof Toast !== 'undefined') Toast.error('Tap play to start audio');
+        });
+      });
+    });
+  }
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = BP2Player;
