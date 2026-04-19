@@ -152,6 +152,12 @@
     var el = document.getElementById('bp2-tracklist');
     if (!el) return;
 
+    // Delegate to edit-mode renderer when editMode flag is set
+    if (c.ref('editMode') && global.BP2RenderEdit && typeof global.BP2RenderEdit.render === 'function') {
+      global.BP2RenderEdit.render(el);
+      return;
+    }
+
     var songs = c.ref('songs');
     var playOrder = c.ref('playOrder');
     var currentPlaylist = c.ref('currentPlaylist');
