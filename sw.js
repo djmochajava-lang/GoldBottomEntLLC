@@ -6,12 +6,12 @@
 // FRD-20 SR-5.4.1/5.4.2: bumped for band-player module additions + CSS.
 // Activate handler deletes any cache that starts with 'gbe-shell-' but isn't the
 // current version, so older shells auto-evict on next activation.
-var SHELL_CACHE = 'gbe-shell-v17';
+var SHELL_CACHE = 'gbe-shell-v18';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '25d201a4e2ead50bfd3697e1a4394526ff4bccbc333bc794055f35ef090b55e6',
+  './': '65f00236dba358e297199fa4483ca03e9c451ed6aa1f862f710c50080de2b638',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -28,7 +28,7 @@ var ASSET_HASHES = {
   './js/auth.js': '5c725971d112a6a03dfcf06a98806099adc233586e0a3859419b99643e887282',
   './js/page-loader.js': '9d244b6d5a314c7b7915f35189f1079b56869fe7ad48dc9529e283a8ab475cb3',
   './js/scroll-animations.js': '765ee4aad4c8499874ce827c4705611a9f5d6ddece76d2607ba275271806267c',
-  './js/router.js': '20c2b40d74e62d27b5d2794930d8fdb856cf9f0c9348be702fd9acfbf44c67e3',
+  './js/router.js': 'da44fae8cd509059a6b6c887e65ab93ebb8443b2751bcac796f7dcea4c85b772',
   './js/navigation.js': '57419e244635f61165b7e94ea451eef0642981c6f018ea9464209970248e410b',
   './js/sidebar.js': '22f78ac9fbdc4efc58e7f3b2fb93353370ca23c897b3defd0bfed7451b9fdb74',
   './js/data-store.js': 'ffa4b8001aabde2c4740a129c85832976c20feffecbadbad617cce0117456d1e',
@@ -36,10 +36,33 @@ var ASSET_HASHES = {
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',
-  './js/band-player.js': 'd486f34389d284b7c6a8bd91f68bf87ff501724a9005ec03879b68339d432efc',
+  './js/band-player.js': '7659664b3ea6f5ba72b83fbc303a7438a6619a5dfb6685b0d091b9f60add5098',
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './dashboard/band-player.html': 'd7e8c42ca1dfed30609ea891d57739aab44db0b3ba575eec1d8097d9c274ade5',
-  './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee'
+  './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
+  './css/band-player-v2.css': '879f1e5edde058bcf04dc2456d76a63a0ecd2c5985def54504ac39c6ed390ef7',
+  './dashboard/band-player-v2.html': '25c03a4f53b25cc6d5a96676b25936b9d0864b0ab8461375fdc424a8bc11d978',
+  './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
+  './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
+  './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
+  './js/band-player-v2/bp2-playlist.js': 'a7d0d715321f026601e9a53fe14cedcc49f6e563f9d2200c76f36e3d376ba298',
+  './js/band-player-v2/bp2-render.js': 'bf766fcbf26c9723fb58ce16ba51c0c77a3b8543e2352793b4b35fae05642896',
+  './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
+  './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
+  './js/band-player-v2/bp2-offline.js': '76b070ab9310e574316838dcc0a38e4847415b0eb8aa554469e66c30ff70eba9',
+  './js/band-player-v2/bp2-stems.js': 'ea6d626cb1ede44a8625ab360959b85ec6336faa58249ed6a70c42a21c3593d1',
+  './js/band-player-v2/bp2-mixer.js': '791832933eac1370df85821e25e2ebbdd402eab5e2c53df6ce274f9039455c77',
+  './js/band-player-v2/bp2-transport.js': '6d4077a56487fd45ee1680714158d79d57b7ee1f2dcb102c349a8bda8690ac2a',
+  './js/band-player-v2/bp2-practice.js': '4b4428730733e4ed2e903464f454261cb7c0bd7f051a5158cf24e99794120158',
+  './js/band-player-v2/bp2-charts.js': 'cb995c50235615429cc62cda55e16312c161c3414434428a4789a7f0b2286091',
+  './js/band-player-v2/bp2-lyrics.js': '5ae039ad37a25542b33cf807f0f2ce7505f53a1573b031e732d2b110f6552cb5',
+  './js/band-player-v2/bp2-notes.js': '71ef2fc765b3077f427c466f81e89b25a2b1e32e3de6d053d3f1add9c248c3d7',
+  './js/band-player-v2/bp2-upload.js': '36409599340ed962d9cb13440423f0aafcc14b3793bb5933f54e4ec89f6c28d6',
+  './js/band-player-v2/bp2-permissions.js': '3ddaff2487249c6cee9d0d1f2ea82c416a853c2b43a8ea6059a6d652d8921920',
+  './js/band-player-v2/bp2-edit.js': '1acd460ab0923f707543f0d8f4a3b3f3146448e8a56959390d1f4e80be012df3',
+  './js/band-player-v2/bp2-integration.js': '52c8877dca65340c525fd324456f8bdd4c46704a42eeb65c09fa1a0e0b55f642',
+  './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
+  './js/band-player-v2/bp2-auth.js': '82a5d9894002bad689b14d5d02f87806949322bf13aaf06ff939c600153acda6'
 };
 
 // Firebase backend API hostnames — never intercept these; let Firebase SDK handle them
@@ -88,6 +111,30 @@ var PRECACHE_ASSETS = [
   './js/main.js',
   './dashboard/band-player.html',
   './images/logo/gbe-logo.svg',
+  // Band Player v2.0
+  './css/band-player-v2.css',
+  './dashboard/band-player-v2.html',
+  './js/band-player-v2/bp2-utils.js',
+  './js/band-player-v2/bp2-core.js',
+  './js/band-player-v2/bp2-player.js',
+  './js/band-player-v2/bp2-playlist.js',
+  './js/band-player-v2/bp2-render.js',
+  './js/band-player-v2/bp2-render-edit.js',
+  './js/band-player-v2/bp2-render-stems.js',
+  './js/band-player-v2/bp2-offline.js',
+  './js/band-player-v2/bp2-stems.js',
+  './js/band-player-v2/bp2-mixer.js',
+  './js/band-player-v2/bp2-transport.js',
+  './js/band-player-v2/bp2-practice.js',
+  './js/band-player-v2/bp2-charts.js',
+  './js/band-player-v2/bp2-lyrics.js',
+  './js/band-player-v2/bp2-notes.js',
+  './js/band-player-v2/bp2-upload.js',
+  './js/band-player-v2/bp2-permissions.js',
+  './js/band-player-v2/bp2-edit.js',
+  './js/band-player-v2/bp2-integration.js',
+  './js/band-player-v2/bp2-progress.js',
+  './js/band-player-v2/bp2-auth.js',
 ];
 
 // ── Utility: compute SHA-256 hex digest of an ArrayBuffer ──
