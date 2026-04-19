@@ -333,9 +333,18 @@
     var storage = (Auth.getStorage && Auth.getStorage()) || null;
     if (!db) { console.warn('[BP2] Firestore not ready — retrying'); setTimeout(tryInit, 500); return; }
 
-    BP2Player.init();
-    BP2Playlist.init();
-    BP2Render.init();
+    // Init all modules (order matters — core last since it triggers events)
+    if (typeof BP2Player !== 'undefined') BP2Player.init();
+    if (typeof BP2Playlist !== 'undefined') BP2Playlist.init();
+    if (typeof BP2Render !== 'undefined') BP2Render.init();
+    if (typeof BP2RenderStems !== 'undefined') BP2RenderStems.init();
+    if (typeof BP2Stems !== 'undefined') BP2Stems.init();
+    if (typeof BP2Lyrics !== 'undefined') BP2Lyrics.init();
+    if (typeof BP2Notes !== 'undefined') BP2Notes.init();
+    if (typeof BP2Charts !== 'undefined') BP2Charts.init();
+    if (typeof BP2Edit !== 'undefined') BP2Edit.init();
+    if (typeof BP2Auth !== 'undefined') BP2Auth.init();
+    // Core init triggers all events — must be last
     BP2Core.init({ db: db, storage: storage, user: user, role: role });
   }
   if (document.readyState === 'complete') tryInit();
