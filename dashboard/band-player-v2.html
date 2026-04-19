@@ -72,9 +72,13 @@
 .bp2-hw-tiny{width:32px;height:32px;border-radius:6px!important;background:#181b22;border:1px solid #282c36;color:#4a4f5a;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.03)}
 .bp2-hw-tiny:hover{color:#8a8f9a;background:#1e2129}
 
-/* Selector strip */
+/* Selector strip — playlist display */
 .bp2-selector-strip{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#111318;border-bottom:2px solid #050507}
-.bp2-selector-dropdown{flex:1;display:block!important;padding:10px 12px!important;border-radius:6px!important;border:1px solid #282c36!important;background:#181b22!important;color:#e8e8e8!important;font-size:13px!important;font-weight:600!important;font-family:'Inter',system-ui,sans-serif!important;min-height:44px;-webkit-appearance:none!important;appearance:none!important;box-shadow:inset 0 2px 4px rgba(0,0,0,0.3)}
+.bp2-playlist-display{flex:1;position:relative;cursor:pointer}
+.bp2-playlist-label{font-size:8px;font-weight:800;letter-spacing:0.15em;color:rgba(232,160,18,0.5);margin-bottom:3px;text-transform:uppercase}
+.bp2-playlist-name{display:flex;align-items:center;padding:8px 12px;border-radius:8px;background:linear-gradient(135deg,rgba(232,160,18,0.08),rgba(232,160,18,0.02));border:1px solid rgba(232,160,18,0.15);color:#ffc940;font-size:15px;font-weight:700;font-family:'Montserrat',system-ui,sans-serif;letter-spacing:0.01em;min-height:44px;text-shadow:0 0 8px rgba(232,160,18,0.2);box-shadow:inset 0 1px 0 rgba(255,255,255,0.03),0 2px 6px rgba(0,0,0,0.3)}
+/* Hidden select overlays the display — tapping it opens native picker */
+.bp2-selector-dropdown{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;opacity:0!important;cursor:pointer!important;-webkit-appearance:none!important;appearance:none!important;font-size:16px!important;z-index:2}
 .bp2-selector-btns{display:flex;gap:4px}
 
 /* Stats strip */
@@ -267,15 +271,23 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════
-       SELECTOR STRIP: Playlist + Manager Actions
-       Like the channel selector on a console
+       SELECTOR STRIP: Active Playlist Display
+       Shows the loaded program name like a device screen
        ═══════════════════════════════════════════════ -->
   <div class="bp2-selector-strip">
-    <select class="bp2-selector-dropdown">
-      <option>LA Young Originals</option>
-      <option>Mocha Java</option>
-      <option>Phyllis Hyman Tribute</option>
-    </select>
+    <div class="bp2-playlist-display">
+      <div class="bp2-playlist-label">PLAYLIST</div>
+      <div class="bp2-playlist-name">
+        <i class="fa-solid fa-compact-disc" style="font-size:14px;opacity:0.5;margin-right:6px;"></i>
+        <span>LA Young Originals</span>
+        <i class="fa-solid fa-chevron-down" style="font-size:10px;opacity:0.3;margin-left:auto;"></i>
+      </div>
+      <select class="bp2-selector-dropdown">
+        <option>LA Young Originals</option>
+        <option>Mocha Java</option>
+        <option>Phyllis Hyman Tribute</option>
+      </select>
+    </div>
     <div class="bp2-selector-btns">
       <button class="bp2-hw-btn bp2-hw-tiny" title="New"><i class="fa-solid fa-plus"></i></button>
       <button class="bp2-hw-btn bp2-hw-tiny" title="Upload"><i class="fa-solid fa-upload"></i></button>
