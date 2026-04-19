@@ -183,12 +183,13 @@
       var html = '<div style="max-height:60vh;overflow-y:auto;">';
       songs.forEach(function(song) {
         var inPl = !!alreadyInPl[song.id];
+        var sid = (song.id || '').replace(/"/g, '&quot;');
         html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
           '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:600;color:#e6edf3;">' + esc(tc(song.title || '')) + '</div>' +
           '<div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:2px;">' + esc(song.artist || 'Unknown') + '</div></div>' +
           (inPl
             ? '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">In playlist</span>'
-            : '<button data-action="add-to-playlist" data-song="' + song.id + '" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(212,160,23,0.3);background:rgba(212,160,23,0.1);color:#d4a017;cursor:pointer;font-size:12px;font-weight:600;"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add</button>') +
+            : '<button id="bp2-add-btn-' + sid + '" onclick="event.stopPropagation();window.BP2Upload._handleAddClick(\'' + sid + '\');return false;" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(212,160,23,0.3);background:rgba(212,160,23,0.1);color:#d4a017;cursor:pointer;font-size:12px;font-weight:600;"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add</button>') +
         '</div>';
       });
       html += '</div>';
@@ -199,24 +200,22 @@
         saveText: 'Done',
         onSave: function() { Modal.close(); }
       });
+    },
 
-      // Attach delegate to the modal overlay (Modal.js calls stopPropagation on overlay click — can't use document-level delegation). Overlay exists synchronously after Modal.open().
-      var mo = document.getElementById('modal-overlay');
-      if (mo && !mo._bp2AddHandlerAttached) {
-        mo.addEventListener('click', function(e) {
-          var btn = e.target.closest('[data-action="add-to-playlist"]');
-          if (!btn || btn.disabled) return;
-          var sid = btn.getAttribute('data-song');
-          if (!sid || !global.BP2Playlist) return;
-          btn.disabled = true;
-          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-          global.BP2Playlist.addSongToPlaylist(sid);
-          setTimeout(function() {
-            btn.outerHTML = '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">Added</span>';
-          }, 400);
-        });
-        mo._bp2AddHandlerAttached = true;
+    // Called directly from each row's onclick — bulletproof, no event delegation
+    _handleAddClick: function(songId) {
+      if (!songId || !global.BP2Playlist) return;
+      var btnEl = document.getElementById('bp2-add-btn-' + songId);
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
       }
+      global.BP2Playlist.addSongToPlaylist(songId);
+      setTimeout(function() {
+        if (btnEl && btnEl.parentNode) {
+          btnEl.outerHTML = '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">Added</span>';
+        }
+      }, 500);
     },
 
     deleteSong: function(songId) {
