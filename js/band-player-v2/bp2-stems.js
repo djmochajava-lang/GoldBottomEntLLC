@@ -240,7 +240,8 @@
       if (c) c.set('playingStemId', null);
     },
 
-    getStemAudio: function() { return _stemAudio; }
+    getStemAudio: function() { return _stemAudio; },
+    _reset: function() { _initialized = false; }
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = BP2Stems;

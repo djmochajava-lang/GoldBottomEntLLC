@@ -333,6 +333,11 @@
     var storage = (Auth.getStorage && Auth.getStorage()) || null;
     if (!db) { console.warn('[BP2] Firestore not ready — retrying'); setTimeout(tryInit, 500); return; }
 
+    // Reset before re-init — PageLoader destroys the DOM on navigate-away,
+    // so we must re-bind listeners when the fragment loads again.
+    if (typeof BP2Core !== 'undefined' && BP2Core._reset) BP2Core._reset();
+    if (typeof BP2Stems !== 'undefined' && BP2Stems._reset) BP2Stems._reset();
+
     // Init all modules (order matters — core last since it triggers events)
     if (typeof BP2Player !== 'undefined') BP2Player.init();
     if (typeof BP2Playlist !== 'undefined') BP2Playlist.init();
