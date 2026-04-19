@@ -230,17 +230,19 @@
           (duration ? '<span class="bp2-rack-time">' + duration + '</span>' : '') +
         '</div>';
 
-      // Tool drawer — shown for EVERY track (not just active)
-      var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
-      var hasLyrics = !!song.lyrics;
-      html +=
-        '<div class="bp2-tool-drawer">' +
-          '<button class="bp2-tool-btn' + (hasLyrics ? ' is-lit' : '') + '" data-action="lyrics" data-song="' + song.id + '"><i class="fa-solid fa-align-left"></i><span>LYR</span></button>' +
-          '<button class="bp2-tool-btn' + (hasCharts ? ' is-lit' : '') + '" data-action="charts" data-song="' + song.id + '"><i class="fa-solid fa-music"></i><span>CHT</span></button>' +
-          '<button class="bp2-tool-btn" data-action="notes" data-song="' + song.id + '"><i class="fa-solid fa-comment-dots"></i><span>NOTE</span></button>' +
-          '<button class="bp2-tool-btn" data-action="download" data-song="' + song.id + '"><i class="fa-solid fa-download"></i><span>DL</span></button>' +
-          '<button class="bp2-tool-btn" data-action="offline" data-song="' + song.id + '"><i class="fa-' + (cached ? 'solid' : 'regular') + ' fa-cloud-arrow-down"></i><span>SAVE</span></button>' +
-        '</div>';
+      // Tool drawer — only on the ACTIVE track (not every track)
+      if (isActive) {
+        var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
+        var hasLyrics = !!song.lyrics;
+        html +=
+          '<div class="bp2-tool-drawer">' +
+            '<button class="bp2-tool-btn' + (hasLyrics ? ' is-lit' : '') + '" data-action="lyrics" data-song="' + song.id + '"><i class="fa-solid fa-align-left"></i><span>LYR</span></button>' +
+            '<button class="bp2-tool-btn' + (hasCharts ? ' is-lit' : '') + '" data-action="charts" data-song="' + song.id + '"><i class="fa-solid fa-music"></i><span>CHT</span></button>' +
+            '<button class="bp2-tool-btn" data-action="notes" data-song="' + song.id + '"><i class="fa-solid fa-comment-dots"></i><span>NOTE</span></button>' +
+            '<button class="bp2-tool-btn" data-action="download" data-song="' + song.id + '"><i class="fa-solid fa-download"></i><span>DL</span></button>' +
+            '<button class="bp2-tool-btn" data-action="offline" data-song="' + song.id + '"><i class="fa-' + (cached ? 'solid' : 'regular') + ' fa-cloud-arrow-down"></i><span>SAVE</span></button>' +
+          '</div>';
+      }
 
       // Stems toggle — shown for every track with stems
       var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
