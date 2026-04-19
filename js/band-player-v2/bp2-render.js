@@ -345,6 +345,20 @@
       });
     }
 
+    // Manager selector actions — New playlist
+    var newPlBtn = document.getElementById('bp2-btn-new-playlist');
+    if (newPlBtn) newPlBtn.addEventListener('click', function() {
+      if (!c.canEdit || !c.canEdit()) {
+        if (typeof Toast !== 'undefined') Toast.error('Create playlist requires band manager access');
+        return;
+      }
+      if (global.BP2Playlist && typeof global.BP2Playlist.showCreatePlaylistModal === 'function') {
+        global.BP2Playlist.showCreatePlaylistModal();
+      } else if (typeof Toast !== 'undefined') {
+        Toast.error('Playlist module not loaded');
+      }
+    });
+
     // Manager selector actions — Upload
     var uploadBtn = document.getElementById('bp2-btn-upload');
     if (uploadBtn) uploadBtn.addEventListener('click', function() {

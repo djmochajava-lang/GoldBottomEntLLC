@@ -228,6 +228,90 @@
       });
     },
 
+    showCreatePlaylistModal: function() {
+      var c = _getCore();
+      if (!c || !c.getDb() || typeof Modal === 'undefined') return;
+      var db = c.getDb();
+
+      var gigsHtml = '<option value="">None</option>';
+      // Pre-load upcoming gigs for "Link to Gig" dropdown (non-blocking)
+      db.collection('gigs').where('status', '==', 'upcoming').orderBy('date', 'asc').get()
+        .then(function(snap) {
+          snap.forEach(function(doc) {
+            var g = doc.data();
+            var dateStr = g.date && g.date.toDate ? g.date.toDate().toLocaleDateString() : '';
+            gigsHtml += '<option value="' + doc.id + '">' + (g.title || 'Gig') + (dateStr ? ' (' + dateStr + ')' : '') + '</option>';
+          });
+          var sel = document.getElementById('bp2-pl-gig');
+          if (sel) sel.innerHTML = gigsHtml;
+        }).catch(function() {});
+
+      Modal.open({
+        title: 'Create Playlist',
+        size: 'sm',
+        content:
+          '<div style="display:flex;flex-direction:column;gap:12px;">' +
+            '<div><label class="form-label">Playlist Name *</label><input id="bp2-pl-name" class="form-input" placeholder="e.g. Phyllis Hyman Tribute" /></div>' +
+            '<div><label class="form-label">Description</label><input id="bp2-pl-desc" class="form-input" placeholder="e.g. 90-min tribute set" /></div>' +
+            '<div><label class="form-label">Link to Gig</label><select id="bp2-pl-gig" class="form-input">' + gigsHtml + '</select></div>' +
+            '<div><label class="form-label">Album Art URL (optional)</label><input id="bp2-pl-art-url" class="form-input" placeholder="https://..." /></div>' +
+          '</div>',
+        saveText: 'Create',
+        onSave: function() {
+          return BP2Playlist._handleCreatePlaylist();
+        }
+      });
+      setTimeout(function() {
+        var el = document.getElementById('bp2-pl-name');
+        if (el) el.focus();
+      }, 100);
+    },
+
+    _handleCreatePlaylist: function() {
+      var c = _getCore();
+      if (!c || !c.getDb()) return Promise.resolve();
+      var db = c.getDb();
+      var user = c.getUser();
+
+      var name = (document.getElementById('bp2-pl-name') || {}).value || '';
+      var desc = (document.getElementById('bp2-pl-desc') || {}).value || '';
+      var gigId = (document.getElementById('bp2-pl-gig') || {}).value || '';
+      var artUrl = (document.getElementById('bp2-pl-art-url') || {}).value || '';
+
+      if (!name.trim()) {
+        if (typeof Toast !== 'undefined') Toast.error('Playlist name is required');
+        return Promise.resolve();
+      }
+
+      var plData = {
+        name: name,
+        title: name,
+        description: desc,
+        albumArt: artUrl,
+        sets: [{ label: 'Set 1', intro: null, songs: [], outro: null }],
+        songOrder: [],
+        gigId: gigId || null,
+        createdBy: user ? user.uid : 'pin',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      return db.collection('playlists').add(plData).then(function(ref) {
+        if (gigId) {
+          db.collection('gigs').doc(gigId).update({ playlistId: ref.id }).catch(function() {});
+        }
+        if (typeof Modal !== 'undefined') Modal.close();
+        if (typeof Toast !== 'undefined') Toast.success('Playlist created: ' + name);
+        plData.id = ref.id;
+        var playlists = c.ref('playlists');
+        playlists.unshift(plData);
+        c.emit('playlists:loaded', { playlists: playlists });
+        BP2Playlist.selectPlaylist(ref.id);
+      }).catch(function(e) {
+        if (typeof Toast !== 'undefined') Toast.error('Failed to create playlist: ' + e.message);
+      });
+    },
+
     addSongToPlaylist: function(songId) {
       var c = _getCore();
       if (!c || !c.getDb()) return;
