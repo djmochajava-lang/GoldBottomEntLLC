@@ -200,24 +200,22 @@
         onSave: function() { Modal.close(); }
       });
 
-      // Delegate clicks on Add buttons
-      setTimeout(function() {
-        var modal = document.querySelector('.modal-overlay.modal-active');
-        if (!modal) return;
-        modal.addEventListener('click', function(e) {
+      // Attach delegate once (idempotent) at document level so timing vs Modal.open() doesn't matter.
+      if (!BP2Upload._addDelegateAttached) {
+        document.addEventListener('click', function(e) {
           var btn = e.target.closest('[data-action="add-to-playlist"]');
-          if (!btn) return;
+          if (!btn || btn.disabled) return;
           var sid = btn.getAttribute('data-song');
           if (!sid || !global.BP2Playlist) return;
           btn.disabled = true;
           btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
           global.BP2Playlist.addSongToPlaylist(sid);
-          // Optimistic UI: replace button with "In playlist" badge after a tick
           setTimeout(function() {
             btn.outerHTML = '<span style="font-size:12px;color:rgba(82,196,26,0.7);padding:4px 10px;border:1px solid rgba(82,196,26,0.2);border-radius:4px;">Added</span>';
           }, 400);
         });
-      }, 100);
+        BP2Upload._addDelegateAttached = true;
+      }
     },
 
     deleteSong: function(songId) {
