@@ -229,7 +229,7 @@
             '<div class="bp2-rack-meta">' + _esc((song.artist || 'Unknown').toUpperCase()) + '</div>' +
           '</div>' +
           (duration ? '<span class="bp2-rack-time">' + duration + '</span>' : '') +
-          (hasStems ? '<button data-action="toggle-stems" data-song="' + song.id + '" style="flex-shrink:0;padding:2px 6px;border-radius:4px;background:rgba(232,160,18,0.08);border:1px solid rgba(232,160,18,0.15);color:#e8a012;font-size:9px;font-weight:800;letter-spacing:0.06em;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;"><i class="fa-solid fa-waveform-lines" style="font-size:8px;"></i>' + Object.keys(song.stems).length + '</button>' : '') +
+          (hasStems ? '<button data-action="toggle-stems" data-song="' + song.id + '" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(232,160,18,0.08);border:1px solid rgba(232,160,18,0.15);color:#e8a012;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-music"></i></button>' : '') +
         '</div>';
 
       // Tool drawer — only on the ACTIVE track (not every track)
