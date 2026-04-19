@@ -32,13 +32,13 @@
     var engageHtml = '<button class="bp2-console-engage" data-role="engage" aria-pressed="false"><span class="bp2-console-engage-led"></span><span>ENGAGE MIXER</span></button>';
 
     // Channel strips
-    var channelsHtml = '<div class="bp2-console-channels" style="display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:4px 8px 8px;justify-content:center;">';
+    var channelsHtml = '<div class="bp2-console-channels" style="display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 12px 12px;justify-content:center;margin-top:4px;">';
     var names = Object.keys(stems);
     names.forEach(function(name) {
       var label = (STEM_LABELS[name] || name).substring(0, 3).toUpperCase();
       var color = STEM_COLORS[name] || '#8b949e';
       channelsHtml +=
-        '<div class="bp2-console-ch" style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:44px;flex:0 0 auto;">' +
+        '<div class="bp2-console-ch" style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:44px;flex:0 0 auto;">' +
           '<div class="bp2-console-ch-label" style="color:' + color + ';font-size:8px;font-weight:900;letter-spacing:0.08em;">' + label + '</div>' +
           '<div class="bp2-console-fader-track" style="position:relative;width:28px;height:80px;display:flex;align-items:center;justify-content:center;">' +
             '<input type="range" class="bp2-console-fader" min="0" max="100" value="80" data-stem="' + _esc(name) + '" style="-webkit-appearance:none!important;appearance:none!important;width:70px;height:28px;background:transparent!important;cursor:pointer;transform:rotate(-90deg);transform-origin:center center;position:relative;z-index:1;">' +

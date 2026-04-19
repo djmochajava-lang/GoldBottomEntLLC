@@ -49,7 +49,15 @@
 
       var playingStemId = c.ref('playingStemId');
       var stems = song.stems;
-      var stemNames = Object.keys(stems);
+      // Sort stems: instrumental first, then vocals, drums, bass, guitar, keys, other
+      var STEM_ORDER = ['instrumental', 'vocals', 'drums', 'bass', 'guitar', 'piano', 'other'];
+      var stemNames = Object.keys(stems).sort(function(a, b) {
+        var ai = STEM_ORDER.indexOf(a);
+        var bi = STEM_ORDER.indexOf(b);
+        if (ai === -1) ai = 99;
+        if (bi === -1) bi = 99;
+        return ai - bi;
+      });
 
       var html = '<div class="bp2-channel-rack" style="padding:4px 8px;">';
 
