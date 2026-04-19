@@ -205,6 +205,7 @@
 
       // LED state
       var ledClass = isActive ? ' on' : (practiced ? ' practiced' : '');
+      var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
 
       // Track number cell
       var numHtml;
@@ -228,6 +229,7 @@
             '<div class="bp2-rack-meta">' + _esc((song.artist || 'Unknown').toUpperCase()) + '</div>' +
           '</div>' +
           (duration ? '<span class="bp2-rack-time">' + duration + '</span>' : '') +
+          (hasStems ? '<button data-action="toggle-stems" data-song="' + song.id + '" onclick="event.stopPropagation()" style="flex-shrink:0;padding:2px 6px;border-radius:4px;background:rgba(232,160,18,0.08);border:1px solid rgba(232,160,18,0.15);color:#e8a012;font-size:9px;font-weight:800;letter-spacing:0.06em;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;"><i class="fa-solid fa-waveform-lines" style="font-size:8px;"></i>' + Object.keys(song.stems).length + '</button>' : '') +
         '</div>';
 
       // Tool drawer — only on the ACTIVE track (not every track)
@@ -244,19 +246,9 @@
           '</div>';
       }
 
-      // Stems toggle — shown for every track with stems
-      var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
+      // Expanded stems panel (toggle is inline with the track row now)
       if (hasStems) {
         var expanded = c.ref('expandedStems')[song.id];
-        html +=
-          '<div class="bp2-stems-header" data-action="toggle-stems" data-song="' + song.id + '" style="margin:0 8px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:0.1em;color:#4a4f5a;border:1px solid rgba(255,255,255,0.03);border-radius:8px;background:#111318;">' +
-            '<i class="fa-solid fa-waveform-lines"></i>' +
-            '<span>STEMS</span>' +
-            '<span class="bp2-stems-badge">' + Object.keys(song.stems).length + '</span>' +
-            '<i class="fa-solid fa-chevron-' + (expanded ? 'up' : 'down') + '" style="margin-left:auto;opacity:0.4;font-size:10px;"></i>' +
-          '</div>';
-
-        // Expanded stems panel
         if (expanded) {
           html += '<div class="bp2-stems-module" id="bp2-stems-panel-' + song.id + '" style="margin:0 8px 8px;"></div>';
         }
