@@ -304,14 +304,6 @@
           return;
         }
 
-        // Stems toggle
-        var stemsHeader = e.target.closest('[data-action="toggle-stems"]');
-        if (stemsHeader) {
-          e.stopPropagation();
-          var stemSongId = stemsHeader.getAttribute('data-song');
-          c.emit('stems:toggle', { songId: stemSongId });
-          return;
-        }
       });
     }
 
@@ -410,12 +402,8 @@
         }
       });
 
-      // Stems toggle
-      c.on('stems:toggle', function(d) {
-        var expanded = c.ref('expandedStems');
-        expanded[d.songId] = !expanded[d.songId];
-        _renderTracklist();
-      });
+      // Stems toggle — handled by bp2-stems.js, re-render on its event
+      c.on('render:tracklist', _renderTracklist);
     },
 
     render: _render,
