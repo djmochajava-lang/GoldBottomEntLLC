@@ -230,35 +230,49 @@
           (duration ? '<span class="bp2-rack-time">' + duration + '</span>' : '') +
         '</div>';
 
-      // Tool drawer for active track
-      if (isActive) {
-        var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
-        var hasLyrics = !!song.lyrics;
+      // Tool drawer — shown for EVERY track (not just active)
+      var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
+      var hasLyrics = !!song.lyrics;
+      html +=
+        '<div class="bp2-tool-drawer">' +
+          '<button class="bp2-tool-btn' + (hasLyrics ? ' is-lit' : '') + '" data-action="lyrics" data-song="' + song.id + '"><i class="fa-solid fa-align-left"></i><span>LYR</span></button>' +
+          '<button class="bp2-tool-btn' + (hasCharts ? ' is-lit' : '') + '" data-action="charts" data-song="' + song.id + '"><i class="fa-solid fa-music"></i><span>CHT</span></button>' +
+          '<button class="bp2-tool-btn" data-action="notes" data-song="' + song.id + '"><i class="fa-solid fa-comment-dots"></i><span>NOTE</span></button>' +
+          '<button class="bp2-tool-btn" data-action="download" data-song="' + song.id + '"><i class="fa-solid fa-download"></i><span>DL</span></button>' +
+          '<button class="bp2-tool-btn" data-action="offline" data-song="' + song.id + '"><i class="fa-' + (cached ? 'solid' : 'regular') + ' fa-cloud-arrow-down"></i><span>SAVE</span></button>' +
+        '</div>';
+
+      // Stems toggle — shown for every track with stems
+      var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
+      if (hasStems) {
+        var expanded = c.ref('expandedStems')[song.id];
         html +=
-          '<div class="bp2-tool-drawer">' +
-            '<button class="bp2-tool-btn' + (hasLyrics ? ' is-lit' : '') + '" data-action="lyrics" data-song="' + song.id + '"><i class="fa-solid fa-align-left"></i><span>LYR</span></button>' +
-            '<button class="bp2-tool-btn' + (hasCharts ? ' is-lit' : '') + '" data-action="charts" data-song="' + song.id + '"><i class="fa-solid fa-music"></i><span>CHT</span></button>' +
-            '<button class="bp2-tool-btn" data-action="notes" data-song="' + song.id + '"><i class="fa-solid fa-comment-dots"></i><span>NOTE</span></button>' +
-            '<button class="bp2-tool-btn" data-action="download" data-song="' + song.id + '"><i class="fa-solid fa-download"></i><span>DL</span></button>' +
-            '<button class="bp2-tool-btn" data-action="offline" data-song="' + song.id + '"><i class="fa-' + (cached ? 'solid' : 'regular') + ' fa-cloud-arrow-down"></i><span>SAVE</span></button>' +
+          '<div class="bp2-stems-header" data-action="toggle-stems" data-song="' + song.id + '" style="margin:0 8px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:0.1em;color:#4a4f5a;border:1px solid rgba(255,255,255,0.03);border-radius:8px;background:#111318;">' +
+            '<i class="fa-solid fa-waveform-lines"></i>' +
+            '<span>STEMS</span>' +
+            '<span class="bp2-stems-badge">' + Object.keys(song.stems).length + '</span>' +
+            '<i class="fa-solid fa-chevron-' + (expanded ? 'up' : 'down') + '" style="margin-left:auto;opacity:0.4;font-size:10px;"></i>' +
           '</div>';
 
-        // Stems toggle (if song has stems)
-        var hasStems = !!(song.stems && Object.keys(song.stems).length > 0);
-        if (hasStems) {
-          var expanded = c.ref('expandedStems')[song.id];
-          html +=
-            '<div class="bp2-stems-header" data-action="toggle-stems" data-song="' + song.id + '" style="margin:0 8px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:0.1em;color:#4a4f5a;border:1px solid rgba(255,255,255,0.03);border-radius:8px;background:#111318;">' +
-              '<i class="fa-solid fa-waveform-lines"></i>' +
-              '<span>STEMS</span>' +
-              '<span class="bp2-stems-badge">' + Object.keys(song.stems).length + '</span>' +
-              '<i class="fa-solid fa-chevron-' + (expanded ? 'up' : 'down') + '" style="margin-left:auto;opacity:0.4;font-size:10px;"></i>' +
-            '</div>';
+        // Expanded stems panel
+        if (expanded) {
+          html += '<div class="bp2-stems-module" id="bp2-stems-panel-' + song.id + '" style="margin:0 8px 8px;"></div>';
         }
       }
     }
 
     el.innerHTML = html;
+
+    // Mount stem panels for expanded songs
+    if (global.BP2RenderStems) {
+      for (var j = 0; j < songs.length; j++) {
+        var s = songs[j];
+        if (s.stems && Object.keys(s.stems).length > 0 && c.ref('expandedStems')[s.id]) {
+          var panel = document.getElementById('bp2-stems-panel-' + s.id);
+          if (panel) global.BP2RenderStems.renderForSong(s.id, panel);
+        }
+      }
+    }
   }
 
   // ── Event Delegation ─────────────────────────
