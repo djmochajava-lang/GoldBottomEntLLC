@@ -235,7 +235,11 @@
             '<div class="bp2-rack-meta">' + _esc((song.artist || 'Unknown').toUpperCase()) + '</div>' +
           '</div>' +
           (duration ? '<span class="bp2-rack-time">' + duration + '</span>' : '') +
-          (hasStems ? '<button data-action="toggle-stems" data-song="' + song.id + '" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(232,160,18,0.08);border:1px solid rgba(232,160,18,0.15);color:#e8a012;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-music"></i></button>' : '') +
+          (hasStems
+            ? '<button data-action="toggle-stems" data-song="' + song.id + '" title="Toggle stems" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(232,160,18,0.08);border:1px solid rgba(232,160,18,0.15);color:#e8a012;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-music"></i></button>'
+            : (c.canEdit && c.canEdit()
+                ? '<button data-action="request-stems" data-song="' + song.id + '" title="Process stems" style="flex-shrink:0;padding:3px 6px;border-radius:4px;background:rgba(82,196,26,0.06);border:1px dashed rgba(82,196,26,0.25);color:#52c41a;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-wand-magic-sparkles"></i></button>'
+                : '')) +
         '</div>';
 
       // Tool drawer — only on the ACTIVE track (not every track)
@@ -289,6 +293,14 @@
         if (stemsBadge) {
           e.stopPropagation();
           c.emit('stems:toggle', { songId: stemsBadge.getAttribute('data-song') });
+          return;
+        }
+
+        // Request stems click → kick off stem separation pipeline
+        var reqStemsBtn = e.target.closest('[data-action="request-stems"]');
+        if (reqStemsBtn) {
+          e.stopPropagation();
+          c.emit('stems:request', { songId: reqStemsBtn.getAttribute('data-song') });
           return;
         }
 

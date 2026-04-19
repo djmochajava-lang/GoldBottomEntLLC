@@ -6,12 +6,12 @@
 // FRD-20 SR-5.4.1/5.4.2: bumped for band-player module additions + CSS.
 // Activate handler deletes any cache that starts with 'gbe-shell-' but isn't the
 // current version, so older shells auto-evict on next activation.
-var SHELL_CACHE = 'gbe-shell-v28';
+var SHELL_CACHE = 'gbe-shell-v29';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '412e3a4f51e203933db230c570301ebcda2fc54245f7d8197607de1096e7d93e',
+  './': '7543aeb4289a48bfc07ec7ea630c94c7ec524eb79b6ef3dff30c6957cc00aa8c',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -44,7 +44,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
   './js/band-player-v2/bp2-playlist.js': 'a02cf19e9e05c1660444027a8eba703c18d078a1b2e3ace76ebd840a56ed73ec',
-  './js/band-player-v2/bp2-render.js': '4899545edca3568dd60229cb1a13cdc08707dbc3818206ee66eeba75051ed05c',
+  './js/band-player-v2/bp2-render.js': '1d9f80d3536b7f136ebb6503846c85d707631d2c3e79b78bab818b77fa0a973f',
   './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
   './js/band-player-v2/bp2-offline.js': '76b070ab9310e574316838dcc0a38e4847415b0eb8aa554469e66c30ff70eba9',
