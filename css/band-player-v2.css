@@ -803,8 +803,8 @@
 
 .bp2-console-fader-track {
   position: relative;
-  width: 32px;
-  height: 100px;
+  width: 36px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -813,7 +813,7 @@
 .bp2-console-fader-bg {
   position: absolute;
   width: 4px;
-  height: 80px;
+  height: 180px;
   background: var(--bp2-bezel);
   border-radius: 2px;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
@@ -822,8 +822,8 @@
 .bp2-console-fader {
   -webkit-appearance: none !important;
   appearance: none !important;
-  width: 80px;
-  height: 32px;
+  width: 180px;
+  height: 36px;
   background: transparent !important;
   cursor: pointer;
   position: relative;
@@ -842,13 +842,13 @@
 
 .bp2-console-fader::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 14px;
+  width: 28px;
+  height: 18px;
   border-radius: 3px;
   background: linear-gradient(180deg, #777, #444, #333);
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-  margin-top: -5px;
+  margin-top: -7px;
   cursor: grab;
 }
 
@@ -861,8 +861,8 @@
 }
 
 .bp2-console-fader::-moz-range-thumb {
-  width: 22px;
-  height: 14px;
+  width: 28px;
+  height: 18px;
   border-radius: 3px;
   background: linear-gradient(180deg, #777, #444, #333);
   border: 1px solid rgba(255,255,255,0.12);
@@ -983,9 +983,9 @@
   .bp2-lcd-art { width: 100px; height: 100px; }
   .bp2-lcd-song { font-size: 22px; }
   .bp2-console-ch { max-width: 72px; }
-  .bp2-console-fader-track { height: 130px; }
-  .bp2-console-fader { height: 110px; }
-  .bp2-console-fader-bg { height: 110px; }
+  .bp2-console-fader-track { height: 220px; }
+  .bp2-console-fader { width: 200px; }
+  .bp2-console-fader-bg { height: 200px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

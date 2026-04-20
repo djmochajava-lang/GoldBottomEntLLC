@@ -38,7 +38,7 @@ var ASSET_HASHES = {
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
-  './css/band-player-v2.css': '2f042674fdba041a72635b292b8a311e6e284c0f247fa9cba9c48203ad09a7fc',
+  './css/band-player-v2.css': '678da1ac8af31748eafbe643baa1819afaa897dc4041ac03f9c4beefcf5bc2fc',
   './dashboard/band-player-v2.html': '10c8b3a0e7cd7afcfc1511d39421acf97e42f41a3d825b04fa5d8751e28e3fc2',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
