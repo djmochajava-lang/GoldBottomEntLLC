@@ -94,20 +94,8 @@
       var ctx = _getCtx();
       var names = Object.keys(stems);
       var loaders = names.map(function(name) {
-        return new Promise(function(resolve, reject) {
-          var xhr = new XMLHttpRequest();
-          xhr.open('GET', stems[name], true);
-          xhr.responseType = 'arraybuffer';
-          xhr.onload = function() {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve(xhr.response);
-            } else {
-              reject(new Error('XHR ' + xhr.status + ' for ' + name));
-            }
-          };
-          xhr.onerror = function() { reject(new Error('Network error loading ' + name)); };
-          xhr.send();
-        })
+        return fetch(stems[name], { credentials: 'omit', mode: 'cors' })
+          .then(function(r) { if (!r.ok) throw new Error('Fetch ' + r.status + ' for ' + name); return r.arrayBuffer(); })
           .then(function(buf) {
             return new Promise(function(resolve, reject) {
               var p = ctx.decodeAudioData(buf, resolve, reject);
