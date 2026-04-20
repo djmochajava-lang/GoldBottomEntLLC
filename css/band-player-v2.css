@@ -878,10 +878,10 @@
   width: 44px;
   height: 44px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: var(--bp2-module);
-  color: var(--bp2-text-dim);
-  font-size: 11px;
+  border: 2px solid rgba(255,255,255,0.15);
+  background: #1e2129;
+  color: #8b949e;
+  font-size: 13px;
   font-weight: 900;
   display: flex;
   align-items: center;

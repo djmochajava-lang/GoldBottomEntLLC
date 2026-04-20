@@ -44,9 +44,9 @@
             '<input type="range" class="bp2-console-fader" min="0" max="100" value="80" data-stem="' + _esc(name) + '">' +
             '<div class="bp2-console-fader-bg"></div>' +
           '</div>' +
-          '<div style="display:flex;gap:2px;">' +
-            '<button class="bp2-console-s" data-stem="' + _esc(name) + '" data-role="solo" style="width:20px;height:20px;border-radius:3px!important;border:1px solid rgba(255,255,255,0.06)!important;background:#181b22!important;color:#4a4f5a;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;">S</button>' +
-            '<button class="bp2-console-m" data-stem="' + _esc(name) + '" data-role="mute" style="width:20px;height:20px;border-radius:3px!important;border:1px solid rgba(255,255,255,0.06)!important;background:#181b22!important;color:#4a4f5a;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;">M</button>' +
+          '<div style="display:flex;gap:4px;">' +
+            '<button class="bp2-console-s" data-stem="' + _esc(name) + '" data-role="solo">S</button>' +
+            '<button class="bp2-console-m" data-stem="' + _esc(name) + '" data-role="mute">M</button>' +
           '</div>' +
         '</div>';
     });
