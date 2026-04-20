@@ -58,7 +58,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-upload.js': 'e311617c5bb92f16fdbe687f3a6f5c84321b134328313af188733d45c73e28f4',
   './js/band-player-v2/bp2-permissions.js': '3ddaff2487249c6cee9d0d1f2ea82c416a853c2b43a8ea6059a6d652d8921920',
   './js/band-player-v2/bp2-edit.js': '1acd460ab0923f707543f0d8f4a3b3f3146448e8a56959390d1f4e80be012df3',
-  './js/band-player-v2/bp2-integration.js': '39dc6c19aa0591d8d4378ee8d9d6c9478269763743b15d20ae9d60735e24e9e1',
+  './js/band-player-v2/bp2-integration.js': '36aed51445fa29e45f9965fac62503cdc958df6e4548702217e554c09cddb19c',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
   './js/band-player-v2/bp2-auth.js': '82a5d9894002bad689b14d5d02f87806949322bf13aaf06ff939c600153acda6'
 };

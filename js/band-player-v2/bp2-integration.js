@@ -40,9 +40,9 @@
       channelsHtml +=
         '<div class="bp2-console-ch" style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:44px;flex:0 0 auto;">' +
           '<div class="bp2-console-ch-label" style="color:' + color + ';font-size:8px;font-weight:900;letter-spacing:0.08em;">' + label + '</div>' +
-          '<div class="bp2-console-fader-track" style="position:relative;width:28px;height:80px;display:flex;align-items:center;justify-content:center;">' +
-            '<input type="range" class="bp2-console-fader" min="0" max="100" value="80" data-stem="' + _esc(name) + '" style="-webkit-appearance:none!important;appearance:none!important;width:70px;height:28px;background:transparent!important;cursor:pointer;transform:rotate(-90deg);transform-origin:center center;position:relative;z-index:1;">' +
-            '<div class="bp2-console-fader-bg" style="position:absolute;width:3px;height:60px;background:#282c36;border-radius:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.4);"></div>' +
+          '<div class="bp2-console-fader-track">' +
+            '<input type="range" class="bp2-console-fader" min="0" max="100" value="80" data-stem="' + _esc(name) + '">' +
+            '<div class="bp2-console-fader-bg"></div>' +
           '</div>' +
           '<div style="display:flex;gap:2px;">' +
             '<button class="bp2-console-s" data-stem="' + _esc(name) + '" data-role="solo" style="width:20px;height:20px;border-radius:3px!important;border:1px solid rgba(255,255,255,0.06)!important;background:#181b22!important;color:#4a4f5a;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;">S</button>' +
@@ -107,13 +107,44 @@
           if (global.BP2Transport) {
             var ctx = global.BP2Transport.getAudioContext();
             if (ctx && ctx.state === 'suspended') try { ctx.resume(); } catch (ex) {}
-            global.BP2Transport.load(songId, opts.stems).then(function() {
+
+            // Resolve Firebase Storage paths to download URLs before loading
+            var stemNames = Object.keys(opts.stems);
+            var storage = (global.BP2Core && global.BP2Core.getStorage) ? global.BP2Core.getStorage() : null;
+
+            var resolveUrls;
+            if (storage) {
+              var urlPromises = stemNames.map(function(name) {
+                var path = opts.stems[name];
+                // If already a full URL, use directly
+                if (path && (path.startsWith('https://') || path.startsWith('http://'))) {
+                  return Promise.resolve({ name: name, url: path });
+                }
+                var ref = (path && path.startsWith('gs://')) ? storage.refFromURL(path) : storage.ref(path);
+                return ref.getDownloadURL().then(function(url) {
+                  return { name: name, url: url };
+                });
+              });
+              resolveUrls = Promise.all(urlPromises).then(function(results) {
+                var resolved = {};
+                results.forEach(function(r) { resolved[r.name] = r.url; });
+                return resolved;
+              });
+            } else {
+              // No storage available — use paths as-is (fallback)
+              resolveUrls = Promise.resolve(opts.stems);
+            }
+
+            resolveUrls.then(function(resolvedStems) {
+              return global.BP2Transport.load(songId, resolvedStems);
+            }).then(function() {
               if (global.BP2Mixer) global.BP2Transport.applyMixer(songId);
               global.BP2Transport.play();
               btn.setAttribute('aria-pressed', 'true');
               btn.classList.add('is-active');
               if (label) label.textContent = 'DISENGAGE';
             }).catch(function(err) {
+              console.error('[BP2Integration] Engage failed:', err);
               if (typeof Toast !== 'undefined') Toast.error('Could not load stems');
             });
           }
