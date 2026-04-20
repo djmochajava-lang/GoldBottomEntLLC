@@ -742,10 +742,10 @@
 /* ── Mixer Console (vertical faders) ──────────────────────── */
 .bp2-console {
   margin: 4px 8px 8px;
-  background: var(--bp2-black);
+  background: #181c24;
   border-radius: 6px;
   padding: 8px;
-  border: 1px solid rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
 }
 
@@ -797,8 +797,8 @@
   flex: 1;
   min-width: 46px;
   max-width: 56px;
-  background: linear-gradient(180deg, #13161c, #0e1117 40%, #13161c);
-  border: 1px solid rgba(255,255,255,0.04);
+  background: linear-gradient(180deg, #1e222c, #181c24 40%, #1e222c);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 4px;
   padding: 8px 2px 10px;
 }
@@ -811,17 +811,17 @@
 }
 
 .bp2-strip-led {
-  width: 16px;
-  height: 3px;
-  border-radius: 1px;
-  opacity: 0.5;
-  box-shadow: 0 0 4px currentColor;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  opacity: 0.8;
+  box-shadow: 0 0 6px currentColor, 0 0 12px currentColor;
 }
 
 .bp2-strip-db {
   font-family: monospace;
   font-size: 9px;
-  color: #4a4f5a;
+  color: #7a8090;
   margin-top: -2px;
 }
 
@@ -836,11 +836,12 @@
 
 .bp2-console-fader-bg {
   position: absolute;
-  width: 4px;
+  width: 6px;
   height: 180px;
-  background: var(--bp2-bezel);
-  border-radius: 2px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+  background: #0a0c10;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
 }
 
 .bp2-console-fader {
@@ -860,23 +861,23 @@
 .bp2-console-fader::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: var(--bp2-bezel);
+  background: #0a0c10;
   box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
 }
 
 .bp2-console-fader::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 28px;
-  height: 18px;
+  width: 30px;
+  height: 20px;
   border-radius: 3px;
-  background: linear-gradient(180deg, #777, #444, #333);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-  margin-top: -7px;
+  background: linear-gradient(180deg, #aaa, #666, #444);
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15);
+  margin-top: -8px;
   cursor: grab;
 }
 
-.bp2-console-fader::-webkit-slider-thumb:active { cursor: grabbing; background: linear-gradient(180deg, #999, #555, #444); }
+.bp2-console-fader::-webkit-slider-thumb:active { cursor: grabbing; background: linear-gradient(180deg, #ccc, #888, #666); }
 
 .bp2-console-fader::-moz-range-track {
   height: 4px;
@@ -885,22 +886,22 @@
 }
 
 .bp2-console-fader::-moz-range-thumb {
-  width: 28px;
-  height: 18px;
+  width: 30px;
+  height: 20px;
   border-radius: 3px;
-  background: linear-gradient(180deg, #777, #444, #333);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, #aaa, #666, #444);
+  border: 1px solid rgba(255,255,255,0.2);
   cursor: grab;
 }
 
 /* ── Hardware Buttons (Solo / Mute) ──────────────────────── */
 .bp2-hw-btn {
   width: 42px;
-  min-height: 32px;
+  min-height: 34px;
   border-radius: 4px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: linear-gradient(180deg, #2a2e38, #1a1d24);
-  color: #6e7681;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: linear-gradient(180deg, #363c4a, #252a34);
+  color: #9aa0ad;
   font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -911,20 +912,21 @@
   gap: 3px;
   cursor: pointer;
   transition: all 80ms ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 .bp2-hw-btn:active {
   transform: translateY(1px);
   box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  background: linear-gradient(180deg, #2a2e38, #1e2228);
 }
 
 .bp2-hw-led {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #1a1d24;
-  border: 1px solid rgba(255,255,255,0.06);
+  background: #252a34;
+  border: 1px solid rgba(255,255,255,0.1);
   transition: all 100ms ease;
 }
 
