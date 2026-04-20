@@ -779,26 +779,50 @@
   box-shadow: 0 0 4px var(--bp2-amber-glow);
 }
 
-/* Vertical fader channels */
+/* ── Channel Strip (hardware console style) ─────────────── */
 .bp2-console-channels {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   justify-content: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 8px;
 }
 
-.bp2-console-ch {
+.bp2-strip {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
+  min-width: 46px;
   max-width: 56px;
+  background: linear-gradient(180deg, #13161c, #0e1117 40%, #13161c);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 4px;
+  padding: 8px 2px 10px;
 }
 
-.bp2-console-ch-label {
+.bp2-strip-label {
   font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bp2-strip-led {
+  width: 16px;
+  height: 3px;
+  border-radius: 1px;
+  opacity: 0.5;
+  box-shadow: 0 0 4px currentColor;
+}
+
+.bp2-strip-db {
+  font-family: monospace;
+  font-size: 9px;
+  color: #4a4f5a;
+  margin-top: -2px;
 }
 
 .bp2-console-fader-track {
@@ -869,39 +893,63 @@
   cursor: grab;
 }
 
-.bp2-console-ch-btns {
+/* ── Hardware Buttons (Solo / Mute) ──────────────────────── */
+.bp2-hw-btn {
+  width: 42px;
+  min-height: 32px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(180deg, #2a2e38, #1a1d24);
+  color: #6e7681;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   display: flex;
-  gap: 6px;
-}
-
-.bp2-console-s, .bp2-console-m {
-  width: 44px;
-  height: 44px;
-  border-radius: 6px;
-  border: 2px solid rgba(255,255,255,0.15);
-  background: #1e2129;
-  color: #8b949e;
-  font-size: 13px;
-  font-weight: 900;
-  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
+  cursor: pointer;
   transition: all 80ms ease;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.bp2-hw-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.bp2-hw-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1a1d24;
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: all 100ms ease;
 }
 
 .bp2-console-s.is-on {
-  background: var(--bp2-amber);
-  color: var(--bp2-black);
-  border-color: var(--bp2-amber-bright);
-  box-shadow: 0 0 8px var(--bp2-amber-glow);
+  background: linear-gradient(180deg, #3a3520, #2a2810);
+  color: #e8a012;
+  border-color: rgba(232,160,18,0.3);
+}
+
+.bp2-console-s.is-on .bp2-hw-led {
+  background: #e8a012;
+  border-color: #ffc940;
+  box-shadow: 0 0 8px rgba(232,160,18,0.6), 0 0 16px rgba(232,160,18,0.2);
 }
 
 .bp2-console-m.is-on {
+  background: linear-gradient(180deg, #3a1520, #2a0810);
+  color: #ff4455;
+  border-color: rgba(255,23,68,0.3);
+}
+
+.bp2-console-m.is-on .bp2-hw-led {
   background: var(--bp2-led-red);
-  color: #fff;
   border-color: #ff5252;
-  box-shadow: 0 0 8px rgba(255,23,68,0.3);
+  box-shadow: 0 0 8px rgba(255,23,68,0.6), 0 0 16px rgba(255,23,68,0.2);
 }
 
 /* ── Practice Pads (like MPC pads) ────────────────────────── */
@@ -982,7 +1030,7 @@
   .bp2-lcd { padding: 20px 24px; }
   .bp2-lcd-art { width: 100px; height: 100px; }
   .bp2-lcd-song { font-size: 22px; }
-  .bp2-console-ch { max-width: 72px; }
+  .bp2-strip { max-width: 72px; }
   .bp2-console-fader-track { height: 220px; }
   .bp2-console-fader { width: 200px; }
   .bp2-console-fader-bg { height: 200px; }

@@ -11,7 +11,7 @@ var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete th
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': 'b0907feb0c037f36d537d546e596a16034393f1121d2fbb28f74b44bd30c65e8',
+  './': '70e13b0c79b0e18f4ff5d3c4fdadd08068e6ee159a33866b636d2195c47cb9db',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -38,8 +38,8 @@ var ASSET_HASHES = {
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
-  './css/band-player-v2.css': 'd5568a0dcb266025ea1d569e77844f57e7587a64ca7fdf468878c784b3d1aa35',
-  './dashboard/band-player-v2.html': '43ec39c2f643df8428cf8324ffb483649a7429755bde2d60a21c24f85643e5f9',
+  './css/band-player-v2.css': '8aa09d5415227d43cb19e9cfd4208982151adf6008101a907a67f3ad2943b88a',
+  './dashboard/band-player-v2.html': '643c6639d9a7a69a6b47112b1352e705b741a214464a8ec4f858e4c8364d99be',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
@@ -58,7 +58,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-upload.js': 'e311617c5bb92f16fdbe687f3a6f5c84321b134328313af188733d45c73e28f4',
   './js/band-player-v2/bp2-permissions.js': '3ddaff2487249c6cee9d0d1f2ea82c416a853c2b43a8ea6059a6d652d8921920',
   './js/band-player-v2/bp2-edit.js': '1acd460ab0923f707543f0d8f4a3b3f3146448e8a56959390d1f4e80be012df3',
-  './js/band-player-v2/bp2-integration.js': '61a32f1591940ad5fed2b821eb5f1e215420ab729ef2e547ba5848a67c184684',
+  './js/band-player-v2/bp2-integration.js': 'a4692d305c66ae58c434ed2179ff235ec745ceb8b6cdde4fcfc67769f452072a',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
   './js/band-player-v2/bp2-auth.js': '82a5d9894002bad689b14d5d02f87806949322bf13aaf06ff939c600153acda6'
 };

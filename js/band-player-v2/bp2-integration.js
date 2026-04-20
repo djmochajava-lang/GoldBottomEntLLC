@@ -32,22 +32,22 @@
     var engageHtml = '<button class="bp2-console-engage" data-role="engage" aria-pressed="false"><span class="bp2-console-engage-led"></span><span>ENGAGE MIXER</span></button>';
 
     // Channel strips
-    var channelsHtml = '<div class="bp2-console-channels" style="display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:16px 12px 12px;justify-content:center;">';
+    var channelsHtml = '<div class="bp2-console-channels">';
     var names = Object.keys(stems);
     names.forEach(function(name) {
-      var label = (STEM_LABELS[name] || name).substring(0, 3).toUpperCase();
+      var label = (STEM_LABELS[name] || name).substring(0, 4).toUpperCase();
       var color = STEM_COLORS[name] || '#8b949e';
       channelsHtml +=
-        '<div class="bp2-console-ch" style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:44px;flex:0 0 auto;">' +
-          '<div class="bp2-console-ch-label" style="color:' + color + ';font-size:8px;font-weight:900;letter-spacing:0.08em;">' + label + '</div>' +
+        '<div class="bp2-strip">' +
+          '<div class="bp2-strip-label" style="color:' + color + '">' + label + '</div>' +
+          '<div class="bp2-strip-led" style="background:' + color + '"></div>' +
           '<div class="bp2-console-fader-track">' +
             '<input type="range" class="bp2-console-fader" min="0" max="100" value="80" data-stem="' + _esc(name) + '">' +
             '<div class="bp2-console-fader-bg"></div>' +
           '</div>' +
-          '<div style="display:flex;gap:4px;">' +
-            '<button class="bp2-console-s" data-stem="' + _esc(name) + '" data-role="solo">S</button>' +
-            '<button class="bp2-console-m" data-stem="' + _esc(name) + '" data-role="mute">M</button>' +
-          '</div>' +
+          '<div class="bp2-strip-db">0</div>' +
+          '<button class="bp2-console-s bp2-hw-btn" data-stem="' + _esc(name) + '" data-role="solo"><span class="bp2-hw-led"></span>SOLO</button>' +
+          '<button class="bp2-console-m bp2-hw-btn" data-stem="' + _esc(name) + '" data-role="mute"><span class="bp2-hw-led"></span>MUTE</button>' +
         '</div>';
     });
     channelsHtml += '</div>';
