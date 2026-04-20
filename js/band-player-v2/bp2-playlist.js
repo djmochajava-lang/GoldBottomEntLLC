@@ -229,6 +229,23 @@
           });
         });
 
+        // Resolve artwork URLs for songs that have artworkPath
+        var storage = c.getStorage ? c.getStorage() : null;
+        if (storage) {
+          Object.keys(songMap).forEach(function(sid) {
+            var s = songMap[sid];
+            if (s.artworkPath && !s.artworkUrl) {
+              var ref = s.artworkPath.startsWith('gs://') || s.artworkPath.startsWith('https://')
+                ? storage.refFromURL(s.artworkPath) : storage.ref(s.artworkPath);
+              ref.getDownloadURL().then(function(url) {
+                s.artworkUrl = url;
+                // Re-render if tracklist is visible
+                c.emit('render:tracklist');
+              }).catch(function() { /* use fallback */ });
+            }
+          });
+        }
+
         var songs = [];
         var finalPlayOrder = [];
         playOrder.forEach(function(entry) {

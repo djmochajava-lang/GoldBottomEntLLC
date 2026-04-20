@@ -115,6 +115,13 @@
       artistEl.style.display = song ? '' : 'none';
     }
 
+    // LCD album art — use per-song artwork or GBE logo fallback
+    var lcdArt = document.querySelector('.bp2-lcd-art img');
+    if (lcdArt) {
+      var artSrc = (song && song.artworkUrl) ? song.artworkUrl : 'images/logo/gbe-square.svg';
+      if (lcdArt.getAttribute('src') !== artSrc) lcdArt.setAttribute('src', artSrc);
+    }
+
     // Play/pause icon
     var playIcon = document.getElementById('bp2-play-icon');
     if (playIcon) {
@@ -179,9 +186,7 @@
       return;
     }
 
-    var artThumb = plArt
-      ? '<div class="bp2-rack-art"><img src="' + _esc(plArt) + '" alt=""></div>'
-      : '<div class="bp2-rack-art"><img src="images/logo/gbe-square.svg" alt=""></div>';
+    var defaultArt = plArt || 'images/logo/gbe-square.svg';
 
     var html = '';
     var trackNum = 0;
@@ -229,7 +234,7 @@
         '<div class="bp2-rack-unit' + (isActive ? ' is-active' : '') + '" data-index="' + i + '">' +
           '<div class="bp2-rack-led' + ledClass + '"></div>' +
           '<div class="bp2-rack-num">' + numHtml + '</div>' +
-          artThumb +
+          '<div class="bp2-rack-art"><img src="' + _esc(song.artworkUrl || defaultArt) + '" alt="" onerror="this.src=\'images/logo/gbe-square.svg\'"></div>' +
           '<div class="bp2-rack-info">' +
             '<div class="bp2-rack-title">' + _esc(_tc(song.title)) + badge +
               (cached ? ' <i class="fa-solid fa-cloud-arrow-down bp2-cached-icon"></i>' : '') +

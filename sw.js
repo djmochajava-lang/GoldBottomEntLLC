@@ -11,7 +11,7 @@ var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete th
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '3e3fcf2c66b524915bba4cf6f7aa1132afb30b7862a29eccf22c220a3c1a2ed7',
+  './': '31b5b3cd9e20e4ce986ae442fec78b6ab2b1f88506d24f155fb10734d9bdb87e',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -43,8 +43,8 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
-  './js/band-player-v2/bp2-playlist.js': '847753a9c7e7e3762e639524c3fa713262ea94c0273a1396afddf7a3ac3b7bc5',
-  './js/band-player-v2/bp2-render.js': 'bfc469de0b816e1e67c8ab974fcc76b87b4c34cc4651a286855281f1c8114277',
+  './js/band-player-v2/bp2-playlist.js': '9babace653f32ea050e3662c35db3e31600b92031d2fd2149b82355946e71491',
+  './js/band-player-v2/bp2-render.js': '6463b4ce5a71901eba354a1792da4aa43ec94ac5840b8220c79fe8336be7cb87',
   './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
   './js/band-player-v2/bp2-offline.js': 'f8f658739b48821f1471a26d873bbee5a6f20dec37ff0d07bd7f641182efefd7',
