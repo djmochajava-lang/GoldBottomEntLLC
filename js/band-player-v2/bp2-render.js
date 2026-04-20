@@ -317,7 +317,14 @@
         var rackUnit = e.target.closest('.bp2-rack-unit');
         if (rackUnit && !e.target.closest('.bp2-tool-btn')) {
           var idx = parseInt(rackUnit.getAttribute('data-index'), 10);
-          if (!isNaN(idx)) c.emit('player:play', { index: idx });
+          if (!isNaN(idx)) {
+            // Collapse all expanded stems when switching active track
+            var expanded = c.ref('expandedStems');
+            for (var key in expanded) {
+              if (expanded.hasOwnProperty(key)) expanded[key] = false;
+            }
+            c.emit('player:play', { index: idx });
+          }
           return;
         }
 

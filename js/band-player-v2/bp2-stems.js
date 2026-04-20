@@ -32,7 +32,13 @@
 
       c.on('stems:toggle', function(d) {
         var expanded = c.ref('expandedStems');
-        expanded[d.songId] = !expanded[d.songId];
+        var wasExpanded = expanded[d.songId];
+        // Collapse all others — only one expanded at a time
+        for (var key in expanded) {
+          if (expanded.hasOwnProperty(key)) expanded[key] = false;
+        }
+        // Toggle the clicked one
+        expanded[d.songId] = !wasExpanded;
         c.emit('render:tracklist');
       });
 

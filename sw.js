@@ -11,7 +11,7 @@ var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete th
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '31b5b3cd9e20e4ce986ae442fec78b6ab2b1f88506d24f155fb10734d9bdb87e',
+  './': 'd35c4c0fb681b59121d69bc07832d9f4d47548f5b26fcbaca9771c6ab1cac987',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -44,11 +44,11 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
   './js/band-player-v2/bp2-playlist.js': '9babace653f32ea050e3662c35db3e31600b92031d2fd2149b82355946e71491',
-  './js/band-player-v2/bp2-render.js': '6463b4ce5a71901eba354a1792da4aa43ec94ac5840b8220c79fe8336be7cb87',
+  './js/band-player-v2/bp2-render.js': '27d677b3d8971af0a7a056fc0682933d2827d2f5f21ad39d1f617cd7c4f3cd43',
   './js/band-player-v2/bp2-render-edit.js': '102122537c1ad2659bdf689988066ea37b5e44475a7e189a7396f075f5debbfd',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
   './js/band-player-v2/bp2-offline.js': 'f8f658739b48821f1471a26d873bbee5a6f20dec37ff0d07bd7f641182efefd7',
-  './js/band-player-v2/bp2-stems.js': 'b7d1b68cdb2e6787ce716f24d99b6206c9920f0b54db376488311b3ff73fc057',
+  './js/band-player-v2/bp2-stems.js': 'cb9fbc91b34f3248a733d48f1a7d3ceb83639cf3d62c26c62c829c8a4d7b066c',
   './js/band-player-v2/bp2-mixer.js': 'e0acf817ab8082075894608b06d38407b51ff3f55d175dd6578129b277276b89',
   './js/band-player-v2/bp2-transport.js': '6d4077a56487fd45ee1680714158d79d57b7ee1f2dcb102c349a8bda8690ac2a',
   './js/band-player-v2/bp2-practice.js': '4b4428730733e4ed2e903464f454261cb7c0bd7f051a5158cf24e99794120158',
