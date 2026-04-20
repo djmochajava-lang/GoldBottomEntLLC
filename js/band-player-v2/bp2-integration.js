@@ -140,9 +140,14 @@
             }).then(function() {
               if (global.BP2Mixer) global.BP2Transport.applyMixer(songId);
               global.BP2Transport.play();
-              btn.setAttribute('aria-pressed', 'true');
-              btn.classList.add('is-active');
-              if (label) label.textContent = 'DISENGAGE';
+              // Re-query button — original may have been replaced by re-render during load
+              var engBtn = host.querySelector('.bp2-console-engage') || document.querySelector('.bp2-console-engage');
+              if (engBtn) {
+                engBtn.setAttribute('aria-pressed', 'true');
+                engBtn.classList.add('is-active');
+                var engLabel = engBtn.querySelector('span:last-child');
+                if (engLabel) engLabel.textContent = 'DISENGAGE';
+              }
             }).catch(function(err) {
               console.error('[BP2Integration] Engage failed:', err);
               if (typeof Toast !== 'undefined') Toast.error('Could not load stems');
