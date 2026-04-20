@@ -8,27 +8,23 @@
   if(typeof Auth==='undefined'||!Auth.isAuthenticated()||(!Auth.isBandMember()&&!Auth.isSinger()&&!Auth.isInternalStaff())){document.getElementById('dash-payment-settings').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
 
   function doInit() {
-    if (typeof BandPlayer === 'undefined') return;
-    // Ensure BandPlayer has Firestore/Storage from Auth (init() may not have been called)
-    if (!BandPlayer._db) BandPlayer._db = Auth._db;
-    if (!BandPlayer._storage && Auth.getStorage) BandPlayer._storage = Auth.getStorage();
-    // Override container lookup for this page
-    var origGet = BandPlayer._getContainer;
-    BandPlayer._getContainer = function() {
-      return document.getElementById('payment-settings-content') || origGet.call(BandPlayer);
-    };
-    BandPlayer._showScreen2('edit');
-    // Restore original after render completes (async Firestore prefill)
-    setTimeout(function() { BandPlayer._getContainer = origGet; }, 5000);
+    if (typeof BP2Auth === 'undefined' || typeof BP2Core === 'undefined') return;
+    // Set container override so Screen 2 renders into this page
+    var target = document.getElementById('payment-settings-content');
+    if (target) BP2Auth.setContainer(target);
+    // Ensure BP2Core has Firebase refs from Auth
+    if (!BP2Core.getDb() && Auth._db) {
+      BP2Core.init({ db: Auth._db, storage: Auth.getStorage ? Auth.getStorage() : null, user: Auth.getUser(), role: Auth.getRole ? Auth.getRole() : 'member' });
+    }
+    BP2Auth.showScreen2('edit');
   }
 
   // Wait for Firestore to be ready before initializing
-  if (typeof Auth.whenReady === 'function') {
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
     Auth.whenReady(function() { doInit(); });
   } else {
-    // Fallback polling if whenReady not available
     (function tryInit(n) {
-      if (typeof Auth !== 'undefined' && Auth._db) { doInit(); }
+      if (typeof BP2Auth !== 'undefined' && typeof Auth !== 'undefined' && Auth._db) { doInit(); }
       else if (n < 20) { setTimeout(function() { tryInit(n + 1); }, 500); }
     })(0);
   }
