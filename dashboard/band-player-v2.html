@@ -56,23 +56,84 @@
 .bp2-lcd-progress-fill{height:100%;background:#33ff66;border-radius:2px;box-shadow:0 0 6px rgba(51,255,102,0.5)}
 .bp2-lcd-playhead{position:absolute;top:-5px;width:2px;height:14px;background:#33ff66;box-shadow:0 0 8px rgba(51,255,102,0.6);border-radius:1px}
 
-/* Transport buttons */
-.bp2-hw-transport{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 8px 4px}
-.bp2-hw-btn{border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all 100ms ease;box-shadow:0 3px 6px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.06)}
-.bp2-hw-btn:active{transform:translateY(2px);box-shadow:0 1px 2px rgba(0,0,0,0.4)}
-.bp2-hw-secondary{width:44px;height:44px;background:#2e323e;border:1px solid #282c36;color:#8a8f9a;font-size:16px}
-.bp2-hw-play{width:58px;height:58px;background:linear-gradient(180deg,#e8a012,#9e6e0a);border:2px solid #ffc940;color:#050507;font-size:20px;box-shadow:0 0 18px rgba(232,160,18,0.4),0 4px 8px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.2)}
-.bp2-hw-play:hover{box-shadow:0 0 28px rgba(232,160,18,0.4),0 4px 10px rgba(0,0,0,0.5)}
-.bp2-hw-spacer{flex:1}
-.bp2-hw-small{width:36px;height:36px;border-radius:50%;background:#181b22;border:1px solid #282c36;color:#4a4f5a;font-size:12px;position:relative;display:flex;align-items:center;justify-content:center}
-.bp2-hw-small.is-on{color:#e8a012}
-.bp2-hw-led{position:absolute;top:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#1a1a1a}
-.bp2-hw-small.is-on .bp2-hw-led{background:#e8a012;box-shadow:0 0 6px rgba(232,160,18,0.4)}
-.bp2-hw-knob-group{display:flex;flex-direction:column;align-items:center;gap:2px}
-.bp2-hw-knob-label{font-size:8px;font-weight:800;color:#4a4f5a;letter-spacing:0.12em}
-.bp2-hw-knob{-webkit-appearance:none!important;appearance:none!important;width:56px;height:28px;background:transparent!important}
-.bp2-hw-knob::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:#282c36}
-.bp2-hw-knob::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#777,#333);border:1px solid rgba(255,255,255,0.08);box-shadow:0 1px 4px rgba(0,0,0,0.5);margin-top:-7px}
+/* ═══ TRANSPORT PANEL — Pro Studio Hardware ═══ */
+.bp2-hw-transport{
+  position:relative;padding:0;margin:0;
+  background:linear-gradient(180deg,#2a2d36,#1e2128 30%,#1a1d24 70%,#16181e);
+  border-top:1px solid rgba(255,255,255,0.08);border-bottom:3px solid #050507;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.4);
+  /* Brushed metal texture */
+  background-image:repeating-linear-gradient(90deg,transparent,transparent 1px,rgba(255,255,255,0.008) 1px,rgba(255,255,255,0.008) 2px);
+}
+/* Panel screw accents */
+.bp2-hw-transport::before,.bp2-hw-transport::after{
+  content:'';position:absolute;top:50%;width:8px;height:8px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#555,#222);border:1px solid rgba(255,255,255,0.06);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,0.6),0 1px 0 rgba(255,255,255,0.03);transform:translateY(-50%)
+}
+.bp2-hw-transport::before{left:8px}
+.bp2-hw-transport::after{right:8px}
+
+/* Inner layout */
+.bp2-transport-inner{display:flex;align-items:center;justify-content:center;padding:10px 28px;gap:0}
+
+/* ── TRANSPORT BUTTON GROUP (left) ── */
+.bp2-transport-group{display:flex;align-items:center;gap:0;background:#111318;border-radius:6px;border:1px solid rgba(255,255,255,0.06);padding:3px;box-shadow:inset 0 2px 6px rgba(0,0,0,0.5),0 1px 0 rgba(255,255,255,0.03)}
+.bp2-hw-btn{border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all 80ms ease;cursor:pointer;border:none;position:relative}
+.bp2-hw-btn:active{transform:translateY(1px)}
+
+.bp2-hw-secondary{
+  width:48px;height:48px;
+  background:linear-gradient(180deg,#363c4a,#252a34);
+  border:1px solid rgba(255,255,255,0.1);color:#8a8f9a;font-size:16px;border-radius:4px;
+  box-shadow:0 3px 6px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.08)
+}
+.bp2-hw-secondary:active{background:linear-gradient(180deg,#2a2e38,#1e2228);box-shadow:0 1px 2px rgba(0,0,0,0.4)}
+.bp2-hw-secondary:hover{color:#c0c4cc}
+
+/* Play button — gold standout */
+.bp2-hw-play{
+  width:56px;height:48px;margin:0 2px;
+  background:linear-gradient(180deg,#e8a012,#9e6e0a);
+  border:1px solid #ffc940;color:#050507;font-size:18px;border-radius:4px;
+  box-shadow:0 0 14px rgba(232,160,18,0.35),0 3px 6px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.25)
+}
+.bp2-hw-play:hover{box-shadow:0 0 22px rgba(232,160,18,0.5),0 3px 8px rgba(0,0,0,0.5)}
+.bp2-hw-play:active{background:linear-gradient(180deg,#c88a0e,#8a5e08);box-shadow:0 0 10px rgba(232,160,18,0.3),0 1px 2px rgba(0,0,0,0.4)}
+
+/* Transport label under buttons */
+.bp2-transport-label{font-size:7px;font-weight:800;letter-spacing:0.1em;color:#4a4f5a;margin-top:2px;text-align:center}
+.bp2-hw-play .bp2-transport-label{color:rgba(5,5,7,0.6)}
+
+/* Divider between groups */
+.bp2-transport-divider{width:1px;height:36px;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.06),transparent);margin:0 12px;flex-shrink:0}
+
+/* ── UTILITY GROUP (right) ── */
+.bp2-utility-group{display:flex;align-items:center;gap:8px}
+
+.bp2-hw-small{
+  width:38px;height:38px;border-radius:4px;
+  background:linear-gradient(180deg,#2a2e38,#1e2228);
+  border:1px solid rgba(255,255,255,0.08);color:#4a4f5a;font-size:13px;
+  position:relative;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 4px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05)
+}
+.bp2-hw-small:hover{color:#8a8f9a}
+.bp2-hw-small:active{transform:translateY(1px)}
+.bp2-hw-small.is-on{color:#e8a012;background:linear-gradient(180deg,#3a3520,#2a2810);border-color:rgba(232,160,18,0.25)}
+.bp2-hw-led{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(255,255,255,0.06)}
+.bp2-hw-small.is-on .bp2-hw-led{background:#e8a012;box-shadow:0 0 6px rgba(232,160,18,0.6)}
+
+/* Volume section */
+.bp2-vol-section{display:flex;align-items:center;gap:6px;background:#111318;border-radius:6px;border:1px solid rgba(255,255,255,0.06);padding:6px 10px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.4)}
+.bp2-hw-knob-group{display:flex;flex-direction:column;align-items:center;gap:1px}
+.bp2-hw-knob-label{font-size:7px;font-weight:900;color:#4a4f5a;letter-spacing:0.15em}
+.bp2-hw-knob{-webkit-appearance:none!important;appearance:none!important;width:64px;height:24px;background:transparent!important}
+.bp2-hw-knob::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:linear-gradient(90deg,#282c36,rgba(232,160,18,0.3))}
+.bp2-hw-knob::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 38% 38%,#999,#555,#333);border:1px solid rgba(255,255,255,0.12);box-shadow:0 2px 6px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.15);margin-top:-8px;cursor:pointer}
+.bp2-hw-knob::-webkit-slider-thumb:active{background:radial-gradient(circle at 38% 38%,#bbb,#777,#444)}
+.bp2-vol-icon-btn{width:28px;height:28px;border-radius:4px;background:none;border:none;color:#4a4f5a;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.bp2-vol-icon-btn:hover{color:#8a8f9a}
 .bp2-hw-tiny{width:32px;height:32px;border-radius:6px!important;background:#181b22;border:1px solid #282c36;color:#4a4f5a;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.03)}
 .bp2-hw-tiny:hover{color:#8a8f9a;background:#1e2129}
 
@@ -262,28 +323,44 @@
       </div>
     </div>
 
-    <!-- Hardware transport buttons below the screen -->
+    <!-- ═══ TRANSPORT PANEL — Studio Hardware Style ═══ -->
     <div class="bp2-hw-transport">
-      <button class="bp2-hw-btn bp2-hw-secondary" title="Previous" id="bp2-btn-prev">
-        <i class="fa-solid fa-backward-step"></i>
-      </button>
-      <button class="bp2-hw-btn bp2-hw-play" title="Play/Pause" id="bp2-btn-play">
-        <i class="fa-solid fa-play" id="bp2-play-icon"></i>
-      </button>
-      <button class="bp2-hw-btn bp2-hw-secondary" title="Next" id="bp2-btn-next">
-        <i class="fa-solid fa-forward-step"></i>
-      </button>
-      <div class="bp2-hw-spacer"></div>
-      <button class="bp2-hw-btn bp2-hw-small" title="Repeat" id="bp2-repeat-btn">
-        <i class="fa-solid fa-repeat"></i>
-        <span class="bp2-hw-led"></span>
-      </button>
-      <button class="bp2-hw-btn bp2-hw-small" title="Mute" id="bp2-btn-mute" style="margin-right:4px;">
-        <i class="fa-solid fa-volume-high" id="bp2-vol-icon"></i>
-      </button>
-      <div class="bp2-hw-knob-group">
-        <label class="bp2-hw-knob-label">VOL</label>
-        <input type="range" class="bp2-hw-knob" min="0" max="100" value="80" id="bp2-vol-slider">
+      <div class="bp2-transport-inner">
+        <!-- Transport button group -->
+        <div class="bp2-transport-group">
+          <button class="bp2-hw-btn bp2-hw-secondary" title="Previous" id="bp2-btn-prev">
+            <i class="fa-solid fa-backward-step"></i>
+            <span class="bp2-transport-label">REW</span>
+          </button>
+          <button class="bp2-hw-btn bp2-hw-play" title="Play/Pause" id="bp2-btn-play">
+            <i class="fa-solid fa-play" id="bp2-play-icon"></i>
+            <span class="bp2-transport-label">PLAY</span>
+          </button>
+          <button class="bp2-hw-btn bp2-hw-secondary" title="Next" id="bp2-btn-next">
+            <i class="fa-solid fa-forward-step"></i>
+            <span class="bp2-transport-label">FWD</span>
+          </button>
+        </div>
+
+        <div class="bp2-transport-divider"></div>
+
+        <!-- Utility group -->
+        <div class="bp2-utility-group">
+          <button class="bp2-hw-btn bp2-hw-small" title="Repeat" id="bp2-repeat-btn">
+            <i class="fa-solid fa-repeat"></i>
+            <span class="bp2-hw-led"></span>
+          </button>
+
+          <div class="bp2-vol-section">
+            <button class="bp2-vol-icon-btn" title="Mute" id="bp2-btn-mute">
+              <i class="fa-solid fa-volume-high" id="bp2-vol-icon"></i>
+            </button>
+            <div class="bp2-hw-knob-group">
+              <input type="range" class="bp2-hw-knob" min="0" max="100" value="80" id="bp2-vol-slider">
+              <label class="bp2-hw-knob-label">LEVEL</label>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
