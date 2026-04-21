@@ -56,89 +56,78 @@
 .bp2-lcd-progress-fill{height:100%;background:#33ff66;border-radius:2px;box-shadow:0 0 6px rgba(51,255,102,0.5)}
 .bp2-lcd-playhead{position:absolute;top:-5px;width:2px;height:14px;background:#33ff66;box-shadow:0 0 8px rgba(51,255,102,0.6);border-radius:1px}
 
-/* ═══ TRANSPORT PANEL — Brushed Aluminum Faceplate ═══ */
+/* ═══ TRANSPORT PANEL — SSL-Style Studio Console ═══ */
 .bp2-hw-transport{
   position:relative;padding:0;margin:0;
-  /* Lighter brushed aluminum — buttons pop against this */
-  background:linear-gradient(180deg,#4a5060,#3e4452 20%,#3a4050 50%,#343a48 80%,#2e3340);
-  border-top:1px solid rgba(255,255,255,0.2);border-bottom:3px solid #0a0c10;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.1),inset 0 -1px 0 rgba(0,0,0,0.4);
-  /* Brushed metal grain — horizontal lines */
-  background-image:repeating-linear-gradient(0deg,transparent,transparent 1px,rgba(255,255,255,0.02) 1px,rgba(255,255,255,0.02) 2px);
+  background:#2a2d34;
+  border-top:1px solid rgba(255,255,255,0.08);border-bottom:3px solid #0a0c10;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);
 }
-/* Panel screw accents — Phillips head style */
-.bp2-hw-transport::before,.bp2-hw-transport::after{
-  content:'+';position:absolute;top:50%;width:12px;height:12px;border-radius:50%;
-  background:radial-gradient(circle at 38% 38%,#8a8a8a,#555,#333);
-  border:1px solid rgba(255,255,255,0.15);font-size:7px;line-height:12px;text-align:center;color:rgba(0,0,0,0.4);
-  box-shadow:inset 0 1px 3px rgba(0,0,0,0.6),0 1px 0 rgba(255,255,255,0.08);transform:translateY(-50%)
-}
-.bp2-hw-transport::before{left:6px}
-.bp2-hw-transport::after{right:6px}
-
-/* Engraved panel label */
-.bp2-transport-panel-label{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:900;letter-spacing:0.2em;color:rgba(255,255,255,0.12);text-transform:uppercase}
 
 /* Inner layout */
-.bp2-transport-inner{display:flex;align-items:center;justify-content:center;padding:14px 28px;gap:0}
+.bp2-transport-inner{display:flex;align-items:center;justify-content:center;padding:12px 16px;gap:6px}
 
-/* ── TRANSPORT BUTTON GROUP — dark recess in light panel ── */
-.bp2-transport-group{display:flex;align-items:center;gap:3px;background:#0e1016;border-radius:8px;border:1px solid rgba(0,0,0,0.5);padding:5px;box-shadow:inset 0 3px 10px rgba(0,0,0,0.7),0 1px 0 rgba(255,255,255,0.08)}
-.bp2-hw-btn{border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all 80ms ease;cursor:pointer;border:none;position:relative}
+/* ── TRANSPORT BUTTON GROUP — SSL style: light buttons on dark ── */
+.bp2-transport-group{display:flex;align-items:center;gap:4px;padding:0}
+.bp2-hw-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all 60ms ease;cursor:pointer;border:none;position:relative}
 .bp2-hw-btn:active{transform:translateY(1px)}
 
+/* Light raised buttons — SSL style */
 .bp2-hw-secondary{
-  width:54px;height:54px;
-  background:linear-gradient(180deg,#555e72,#3a4050,#2e3440);
-  border:1px solid rgba(255,255,255,0.2);color:#c8cdd6;font-size:18px;border-radius:6px;
-  box-shadow:0 3px 6px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.15)
+  width:50px;height:46px;border-radius:5px;
+  background:linear-gradient(180deg,#e8e8e8,#d0d0d0,#b8b8b8);
+  border:1px solid #999;color:#1a1a1a;font-size:18px;
+  box-shadow:0 3px 1px rgba(0,0,0,0.3),0 1px 0 rgba(255,255,255,0.6) inset;
 }
-.bp2-hw-secondary:active{background:linear-gradient(180deg,#3a4050,#2a3040);box-shadow:0 1px 2px rgba(0,0,0,0.5)}
-.bp2-hw-secondary:hover{color:#e8ecf2;border-color:rgba(255,255,255,0.3)}
+.bp2-hw-secondary:active{background:linear-gradient(180deg,#c8c8c8,#b0b0b0,#a0a0a0);box-shadow:0 1px 1px rgba(0,0,0,0.2)}
+.bp2-hw-secondary:hover{background:linear-gradient(180deg,#f0f0f0,#ddd,#c4c4c4)}
 
-/* Play button — gold standout */
+/* Play button — green SSL style */
 .bp2-hw-play{
-  width:62px;height:54px;margin:0 1px;
-  background:linear-gradient(180deg,#f5c030,#e8a012,#b07808);
-  border:2px solid #ffd860;color:#1a1000;font-size:20px;border-radius:6px;
-  box-shadow:0 0 24px rgba(232,160,18,0.6),0 4px 8px rgba(0,0,0,0.6),inset 0 2px 0 rgba(255,255,255,0.35)
+  width:50px;height:46px;border-radius:5px;
+  background:linear-gradient(180deg,#44dd44,#22cc22,#18aa18);
+  border:1px solid #0a880a;color:#0a2a0a;font-size:20px;
+  box-shadow:0 3px 1px rgba(0,0,0,0.3),0 0 12px rgba(34,204,34,0.4),0 1px 0 rgba(255,255,255,0.3) inset;
 }
-.bp2-hw-play:hover{box-shadow:0 0 32px rgba(232,160,18,0.7),0 4px 10px rgba(0,0,0,0.5)}
-.bp2-hw-play:active{background:linear-gradient(180deg,#d49c10,#9e6e0a,#7a5508);box-shadow:0 0 12px rgba(232,160,18,0.4),0 1px 3px rgba(0,0,0,0.5)}
+.bp2-hw-play:hover{background:linear-gradient(180deg,#55ee55,#33dd33,#22bb22);box-shadow:0 3px 1px rgba(0,0,0,0.3),0 0 18px rgba(34,204,34,0.5)}
+.bp2-hw-play:active{background:linear-gradient(180deg,#33bb33,#1a991a,#118811);box-shadow:0 1px 1px rgba(0,0,0,0.2),0 0 8px rgba(34,204,34,0.3)}
 
 /* Transport label under buttons */
-.bp2-transport-label{font-size:8px;font-weight:900;letter-spacing:0.12em;color:#8090a0;margin-top:3px;text-align:center}
-.bp2-hw-play .bp2-transport-label{color:rgba(26,16,0,0.5);font-size:8px}
+.bp2-transport-label{font-size:7px;font-weight:900;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-top:3px;text-align:center}
 
-/* Divider between groups — engraved groove in faceplate */
-.bp2-transport-divider{width:2px;height:48px;background:linear-gradient(180deg,transparent 5%,rgba(0,0,0,0.3) 20%,rgba(0,0,0,0.4) 50%,rgba(0,0,0,0.3) 80%,transparent 95%);margin:0 14px;flex-shrink:0;border-radius:1px;box-shadow:1px 0 0 rgba(255,255,255,0.06)}
+/* Engraved panel label */
+.bp2-transport-panel-label{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:900;letter-spacing:0.25em;color:rgba(255,255,255,0.1);text-transform:uppercase}
+
+/* Divider */
+.bp2-transport-divider{width:1px;height:40px;background:rgba(255,255,255,0.06);margin:0 8px;flex-shrink:0}
 
 /* ── UTILITY GROUP (right) ── */
-.bp2-utility-group{display:flex;align-items:center;gap:10px}
+.bp2-utility-group{display:flex;align-items:center;gap:8px}
 
+/* Repeat — light button style to match */
 .bp2-hw-small{
-  width:42px;height:42px;border-radius:6px;
-  background:linear-gradient(180deg,#4a5060,#333a48);
-  border:1px solid rgba(255,255,255,0.18);color:#8a94a4;font-size:15px;
+  width:40px;height:40px;border-radius:5px;
+  background:linear-gradient(180deg,#d8d8d8,#c0c0c0,#aaa);
+  border:1px solid #888;color:#333;font-size:14px;
   position:relative;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 3px 6px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.1)
+  box-shadow:0 3px 1px rgba(0,0,0,0.3),0 1px 0 rgba(255,255,255,0.5) inset;
 }
-.bp2-hw-small:hover{color:#c0c8d4;border-color:rgba(255,255,255,0.28)}
-.bp2-hw-small:active{transform:translateY(1px)}
-.bp2-hw-small.is-on{color:#e8a012;background:linear-gradient(180deg,#504820,#3a3210);border-color:rgba(232,160,18,0.4)}
-.bp2-hw-led{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#2a2a2a;border:1px solid rgba(255,255,255,0.1)}
-.bp2-hw-small.is-on .bp2-hw-led{background:#e8a012;box-shadow:0 0 8px rgba(232,160,18,0.7)}
+.bp2-hw-small:hover{background:linear-gradient(180deg,#e4e4e4,#ccc,#b8b8b8)}
+.bp2-hw-small:active{transform:translateY(1px);box-shadow:0 1px 1px rgba(0,0,0,0.2)}
+.bp2-hw-small.is-on{background:linear-gradient(180deg,#f0d060,#d4a017,#b08010);border-color:#9e6e0a;color:#2a1a00}
+.bp2-hw-led{position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:#888;border:1px solid #666}
+.bp2-hw-small.is-on .bp2-hw-led{background:#e8a012;box-shadow:0 0 6px rgba(232,160,18,0.8)}
 
-/* Volume section — dark recess */
-.bp2-vol-section{display:flex;align-items:center;gap:8px;background:#0e1016;border-radius:8px;border:1px solid rgba(0,0,0,0.5);padding:8px 12px;box-shadow:inset 0 3px 8px rgba(0,0,0,0.6),0 1px 0 rgba(255,255,255,0.06)}
-.bp2-hw-knob-group{display:flex;flex-direction:column;align-items:center;gap:2px}
-.bp2-hw-knob-label{font-size:8px;font-weight:900;color:#8090a0;letter-spacing:0.15em}
-.bp2-hw-knob{-webkit-appearance:none!important;appearance:none!important;width:72px;height:28px;background:transparent!important}
-.bp2-hw-knob::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(90deg,#333844,rgba(232,160,18,0.5));border:1px solid rgba(255,255,255,0.06)}
-.bp2-hw-knob::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 36% 36%,#ccc,#888,#555);border:2px solid rgba(255,255,255,0.25);box-shadow:0 2px 8px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.25);margin-top:-10px;cursor:pointer}
-.bp2-hw-knob::-webkit-slider-thumb:active{background:radial-gradient(circle at 36% 36%,#eee,#aaa,#777)}
-.bp2-vol-icon-btn{width:32px;height:32px;border-radius:4px;background:none;border:none;color:#8a94a4;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.bp2-vol-icon-btn:hover{color:#c0c8d4}
+/* Volume section */
+.bp2-vol-section{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.2);border-radius:6px;padding:6px 10px}
+.bp2-hw-knob-group{display:flex;flex-direction:column;align-items:center;gap:1px}
+.bp2-hw-knob-label{font-size:7px;font-weight:900;color:rgba(255,255,255,0.3);letter-spacing:0.15em}
+.bp2-hw-knob{-webkit-appearance:none!important;appearance:none!important;width:68px;height:28px;background:transparent!important}
+.bp2-hw-knob::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:rgba(255,255,255,0.15)}
+.bp2-hw-knob::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 36% 36%,#ddd,#999,#666);border:1px solid rgba(255,255,255,0.3);box-shadow:0 2px 6px rgba(0,0,0,0.6);margin-top:-9px;cursor:pointer}
+.bp2-hw-knob::-webkit-slider-thumb:active{background:radial-gradient(circle at 36% 36%,#f0f0f0,#bbb,#888)}
+.bp2-vol-icon-btn{width:28px;height:28px;border-radius:4px;background:none;border:none;color:rgba(255,255,255,0.35);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.bp2-vol-icon-btn:hover{color:rgba(255,255,255,0.6)}
 .bp2-hw-tiny{width:32px;height:32px;border-radius:6px!important;background:#181b22;border:1px solid #282c36;color:#4a4f5a;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.03)}
 .bp2-hw-tiny:hover{color:#8a8f9a;background:#1e2129}
 
