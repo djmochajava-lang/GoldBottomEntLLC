@@ -351,6 +351,9 @@
     var nextBtn = document.getElementById('bp2-btn-next');
     if (nextBtn) nextBtn.addEventListener('click', function() { c.emit('player:next'); });
 
+    var stopBtn = document.getElementById('bp2-btn-stop');
+    if (stopBtn) stopBtn.addEventListener('click', function() { c.emit('player:stop'); });
+
     var repeatBtn = document.getElementById('bp2-repeat-btn');
     if (repeatBtn) repeatBtn.addEventListener('click', function() { c.emit('player:toggle-repeat'); });
 
@@ -477,6 +480,14 @@
       c.on('player:toggle-mute', function() { if (global.BP2Player) global.BP2Player.toggleMute(); });
       c.on('player:seek', function(d) { if (global.BP2Player) global.BP2Player.seek(d.pct); });
       c.on('playlist:select', function(d) { if (global.BP2Playlist) global.BP2Playlist.selectPlaylist(d.playlistId); });
+      c.on('player:stop', function() {
+        if (global.BP2Player) {
+          global.BP2Player.pause();
+          var audio = global.BP2Player.getAudio();
+          if (audio) audio.currentTime = 0;
+          c.emit('stems:stop');
+        }
+      });
       c.on('player:stop-all', function() {
         if (global.BP2Player) {
           var audio = global.BP2Player.getAudio();
