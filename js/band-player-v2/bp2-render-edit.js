@@ -19,6 +19,45 @@
   function _esc(s) { return global.BP2Utils ? global.BP2Utils.esc(s) : String(s || ''); }
   function _tc(s) { return global.BP2Utils ? global.BP2Utils.titleCase(s) : String(s || ''); }
 
+  var _handler = null; // single click handler reference — prevents listener stacking
+
+  function _onClick(e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    var action = btn.getAttribute('data-action');
+    if (!action) return;
+
+    var c2 = _c();
+    if (!c2) return;
+
+    if (action === 'edit:move-song') {
+      c2.emit('edit:move-song', {
+        setIndex: parseInt(btn.getAttribute('data-set'), 10),
+        position: btn.getAttribute('data-pos'),
+        songIndex: parseInt(btn.getAttribute('data-idx'), 10),
+        direction: parseInt(btn.getAttribute('data-dir'), 10)
+      });
+    } else if (action === 'edit:remove-song') {
+      c2.emit('edit:remove-song', {
+        setIndex: parseInt(btn.getAttribute('data-set'), 10),
+        position: btn.getAttribute('data-pos'),
+        songIndex: parseInt(btn.getAttribute('data-idx'), 10)
+      });
+    } else if (action === 'edit:move-set') {
+      c2.emit('edit:move-set', {
+        setIndex: parseInt(btn.getAttribute('data-set'), 10),
+        direction: parseInt(btn.getAttribute('data-dir'), 10)
+      });
+    } else if (action === 'edit:remove-set') {
+      c2.emit('edit:remove-set', { setIndex: parseInt(btn.getAttribute('data-set'), 10) });
+    } else if (action === 'edit:add-set') {
+      c2.emit('edit:add-set');
+    } else if (action === 'edit:rename-set') {
+      var si = parseInt(btn.getAttribute('data-set'), 10);
+      c2.emit('edit:rename-set', { setIndex: si });
+    }
+  }
+
   var BP2RenderEdit = {
     init: function() {},
 
@@ -48,6 +87,7 @@
         html += '<div style="display:flex;gap:4px;padding:2px 12px 6px;">' +
           '<button data-action="edit:move-set" data-set="' + si + '" data-dir="-1" class="bp2-hw-btn bp2-hw-tiny"' + (isFirst ? ' disabled style="opacity:0.2;"' : '') + ' title="Move up"><i class="fa-solid fa-chevron-up"></i></button>' +
           '<button data-action="edit:move-set" data-set="' + si + '" data-dir="1" class="bp2-hw-btn bp2-hw-tiny"' + (isLast ? ' disabled style="opacity:0.2;"' : '') + ' title="Move down"><i class="fa-solid fa-chevron-down"></i></button>' +
+          '<button data-action="edit:rename-set" data-set="' + si + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#448aff;border-color:rgba(68,138,255,0.2);" title="Rename set"><i class="fa-solid fa-pen"></i></button>' +
           '<button data-action="edit:remove-set" data-set="' + si + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#ff1744;border-color:rgba(255,23,68,0.2);" title="Remove set"><i class="fa-solid fa-trash"></i></button>' +
         '</div>';
 
@@ -81,40 +121,10 @@
 
       container.innerHTML = html;
 
-      // Wire edit actions via delegation
-      container.addEventListener('click', function(e) {
-        var btn = e.target.closest('button');
-        if (!btn) return;
-        var action = btn.getAttribute('data-action');
-        if (!action) return;
-
-        var c2 = _c();
-        if (!c2) return;
-
-        if (action === 'edit:move-song') {
-          c2.emit('edit:move-song', {
-            setIndex: parseInt(btn.getAttribute('data-set'), 10),
-            position: btn.getAttribute('data-pos'),
-            songIndex: parseInt(btn.getAttribute('data-idx'), 10),
-            direction: parseInt(btn.getAttribute('data-dir'), 10)
-          });
-        } else if (action === 'edit:remove-song') {
-          c2.emit('edit:remove-song', {
-            setIndex: parseInt(btn.getAttribute('data-set'), 10),
-            position: btn.getAttribute('data-pos'),
-            songIndex: parseInt(btn.getAttribute('data-idx'), 10)
-          });
-        } else if (action === 'edit:move-set') {
-          c2.emit('edit:move-set', {
-            setIndex: parseInt(btn.getAttribute('data-set'), 10),
-            direction: parseInt(btn.getAttribute('data-dir'), 10)
-          });
-        } else if (action === 'edit:remove-set') {
-          c2.emit('edit:remove-set', { setIndex: parseInt(btn.getAttribute('data-set'), 10) });
-        } else if (action === 'edit:add-set') {
-          c2.emit('edit:add-set');
-        }
-      });
+      // Wire edit actions via delegation — remove old handler first to prevent stacking
+      if (_handler) container.removeEventListener('click', _handler);
+      _handler = _onClick;
+      container.addEventListener('click', _handler);
     }
   };
 

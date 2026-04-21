@@ -29,6 +29,7 @@
       c.on('edit:add-set', function() { BP2Edit.addSet(); });
       c.on('edit:remove-set', function(d) { BP2Edit.removeSet(d.setIndex); });
       c.on('edit:move-set', function(d) { BP2Edit.moveSet(d.setIndex, d.direction); });
+      c.on('edit:rename-set', function(d) { BP2Edit.renameSet(d.setIndex); });
     },
 
     toggleEditMode: function() {
@@ -131,6 +132,20 @@
       pl.sets.forEach(function(s, i) { if (/^Set \d+$/.test(s.label)) s.label = 'Set ' + (i + 1); });
       c.set('editDirty', true);
       this._rebuildFlat();
+      c.emit('render:tracklist');
+    },
+
+    renameSet: function(setIndex) {
+      var c = _c();
+      if (!c) return;
+      var pl = c.ref('currentPlaylist');
+      if (!pl || !pl.sets || !pl.sets[setIndex]) return;
+      var set = pl.sets[setIndex];
+      var current = set.label || 'Set ' + (setIndex + 1);
+      var newName = prompt('Rename set:', current);
+      if (newName === null || newName.trim() === '') return;
+      set.label = newName.trim();
+      c.set('editDirty', true);
       c.emit('render:tracklist');
     },
 
