@@ -53,8 +53,21 @@
     } else if (action === 'edit:add-set') {
       c2.emit('edit:add-set');
     } else if (action === 'edit:rename-set') {
-      var si = parseInt(btn.getAttribute('data-set'), 10);
-      c2.emit('edit:rename-set', { setIndex: si });
+      c2.emit('edit:rename-set', { setIndex: parseInt(btn.getAttribute('data-set'), 10) });
+    } else if (action === 'edit:move-to-set') {
+      c2.emit('edit:move-to-set', {
+        setIndex: parseInt(btn.getAttribute('data-set'), 10),
+        position: btn.getAttribute('data-pos') || 'song',
+        songIndex: parseInt(btn.getAttribute('data-idx'), 10)
+      });
+    } else if (action === 'edit:assign-intro') {
+      c2.emit('edit:assign-intro', { setIndex: parseInt(btn.getAttribute('data-set'), 10) });
+    } else if (action === 'edit:assign-outro') {
+      c2.emit('edit:assign-outro', { setIndex: parseInt(btn.getAttribute('data-set'), 10) });
+    } else if (action === 'edit:clear-intro') {
+      c2.emit('edit:clear-intro', { setIndex: parseInt(btn.getAttribute('data-set'), 10) });
+    } else if (action === 'edit:clear-outro') {
+      c2.emit('edit:clear-outro', { setIndex: parseInt(btn.getAttribute('data-set'), 10) });
     }
   }
 
@@ -91,12 +104,35 @@
           '<button data-action="edit:remove-set" data-set="' + si + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#ff1744;border-color:rgba(255,23,68,0.2);" title="Remove set"><i class="fa-solid fa-trash"></i></button>' +
         '</div>';
 
+        var multiSet = sets.length > 1;
+
+        // Intro slot
+        if (set.intro) {
+          var introSong = songsMap[set.intro];
+          html += '<div class="bp2-rack-unit" style="cursor:default;border-left:2px solid #00e676;">' +
+            '<div class="bp2-rack-led"></div>' +
+            '<div class="bp2-rack-num"><span style="color:#00e676;font-size:9px;font-weight:700;">INT</span></div>' +
+            artThumb +
+            '<div class="bp2-rack-info"><div class="bp2-rack-title">' + _esc(_tc(introSong ? introSong.title : '?')) + ' <span class="bp2-tag" style="background:rgba(0,230,118,0.15);color:#00e676;font-size:9px;padding:1px 5px;border-radius:3px;">INTRO</span></div><div class="bp2-rack-meta">' + _esc(introSong ? (introSong.artist || 'Unknown').toUpperCase() : '') + '</div></div>' +
+            '<div style="display:flex;gap:3px;">' +
+              '<button data-action="edit:clear-intro" data-set="' + si + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#ff1744;border-color:rgba(255,23,68,0.2);" title="Remove intro"><i class="fa-solid fa-xmark"></i></button>' +
+            '</div>' +
+          '</div>';
+        } else {
+          html += '<div style="padding:4px 12px;">' +
+            '<button data-action="edit:assign-intro" data-set="' + si + '" style="padding:6px 12px;border-radius:6px;border:1px dashed rgba(0,230,118,0.25);background:rgba(0,230,118,0.04);color:#00e676;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;width:100%;"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>Set Intro</button>' +
+          '</div>';
+        }
+
         // Songs in set
         (set.songs || []).forEach(function(songId, songIdx) {
           var song = songsMap[songId];
           if (!song) return;
           var isFirstSong = songIdx === 0;
           var isLastSong = songIdx === (set.songs || []).length - 1;
+          // Arrows: disable only if at boundary AND no adjacent set to cross into
+          var disableUp = isFirstSong && isFirst;
+          var disableDown = isLastSong && isLast;
 
           html += '<div class="bp2-rack-unit" style="cursor:default;">' +
             '<div class="bp2-rack-led"></div>' +
@@ -104,12 +140,31 @@
             artThumb +
             '<div class="bp2-rack-info"><div class="bp2-rack-title">' + _esc(_tc(song.title)) + '</div><div class="bp2-rack-meta">' + _esc((song.artist || 'Unknown').toUpperCase()) + '</div></div>' +
             '<div style="display:flex;gap:3px;">' +
-              '<button data-action="edit:move-song" data-set="' + si + '" data-pos="song" data-idx="' + songIdx + '" data-dir="-1" class="bp2-hw-btn bp2-hw-tiny"' + (isFirstSong ? ' disabled style="opacity:0.2;"' : '') + '><i class="fa-solid fa-chevron-up"></i></button>' +
-              '<button data-action="edit:move-song" data-set="' + si + '" data-pos="song" data-idx="' + songIdx + '" data-dir="1" class="bp2-hw-btn bp2-hw-tiny"' + (isLastSong ? ' disabled style="opacity:0.2;"' : '') + '><i class="fa-solid fa-chevron-down"></i></button>' +
-              '<button data-action="edit:remove-song" data-set="' + si + '" data-pos="song" data-idx="' + songIdx + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#ff1744;border-color:rgba(255,23,68,0.2);"><i class="fa-solid fa-trash"></i></button>' +
+              '<button data-action="edit:move-song" data-set="' + si + '" data-pos="song" data-idx="' + songIdx + '" data-dir="-1" class="bp2-hw-btn bp2-hw-tiny"' + (disableUp ? ' disabled style="opacity:0.2;"' : '') + ' title="Move up"><i class="fa-solid fa-chevron-up"></i></button>' +
+              '<button data-action="edit:move-song" data-set="' + si + '" data-pos="song" data-idx="' + songIdx + '" data-dir="1" class="bp2-hw-btn bp2-hw-tiny"' + (disableDown ? ' disabled style="opacity:0.2;"' : '') + ' title="Move down"><i class="fa-solid fa-chevron-down"></i></button>' +
+              (multiSet ? '<button data-action="edit:move-to-set" data-set="' + si + '" data-pos="song" data-idx="' + songIdx + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#58a6ff;border-color:rgba(88,166,255,0.2);" title="Move to another set"><i class="fa-solid fa-arrow-right-arrow-left"></i></button>' : '') +
+              '<button data-action="edit:remove-song" data-set="' + si + '" data-pos="song" data-idx="' + songIdx + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#ff1744;border-color:rgba(255,23,68,0.2);" title="Remove"><i class="fa-solid fa-trash"></i></button>' +
             '</div>' +
           '</div>';
         });
+
+        // Outro slot
+        if (set.outro) {
+          var outroSong = songsMap[set.outro];
+          html += '<div class="bp2-rack-unit" style="cursor:default;border-left:2px solid #448aff;">' +
+            '<div class="bp2-rack-led"></div>' +
+            '<div class="bp2-rack-num"><span style="color:#448aff;font-size:9px;font-weight:700;">OUT</span></div>' +
+            artThumb +
+            '<div class="bp2-rack-info"><div class="bp2-rack-title">' + _esc(_tc(outroSong ? outroSong.title : '?')) + ' <span class="bp2-tag" style="background:rgba(68,138,255,0.15);color:#448aff;font-size:9px;padding:1px 5px;border-radius:3px;">OUTRO</span></div><div class="bp2-rack-meta">' + _esc(outroSong ? (outroSong.artist || 'Unknown').toUpperCase() : '') + '</div></div>' +
+            '<div style="display:flex;gap:3px;">' +
+              '<button data-action="edit:clear-outro" data-set="' + si + '" class="bp2-hw-btn bp2-hw-tiny" style="color:#ff1744;border-color:rgba(255,23,68,0.2);" title="Remove outro"><i class="fa-solid fa-xmark"></i></button>' +
+            '</div>' +
+          '</div>';
+        } else {
+          html += '<div style="padding:4px 12px;">' +
+            '<button data-action="edit:assign-outro" data-set="' + si + '" style="padding:6px 12px;border-radius:6px;border:1px dashed rgba(68,138,255,0.25);background:rgba(68,138,255,0.04);color:#448aff;cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;width:100%;"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>Set Outro</button>' +
+          '</div>';
+        }
       });
 
       // Add set button

@@ -45,7 +45,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
   './js/band-player-v2/bp2-playlist.js': '9babace653f32ea050e3662c35db3e31600b92031d2fd2149b82355946e71491',
   './js/band-player-v2/bp2-render.js': '27d677b3d8971af0a7a056fc0682933d2827d2f5f21ad39d1f617cd7c4f3cd43',
-  './js/band-player-v2/bp2-render-edit.js': '2370597119480c4a14e00be08f16566de0854b2afa46b26fe02cb3e5bf558e17',
+  './js/band-player-v2/bp2-render-edit.js': 'e4b942ee7fd429ce5afae06e195285e3f08967808677eb36d8425290a6036302',
   './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
   './js/band-player-v2/bp2-offline.js': 'f8f658739b48821f1471a26d873bbee5a6f20dec37ff0d07bd7f641182efefd7',
   './js/band-player-v2/bp2-stems.js': 'cb9fbc91b34f3248a733d48f1a7d3ceb83639cf3d62c26c62c829c8a4d7b066c',
@@ -57,7 +57,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-notes.js': '71ef2fc765b3077f427c466f81e89b25a2b1e32e3de6d053d3f1add9c248c3d7',
   './js/band-player-v2/bp2-upload.js': 'e311617c5bb92f16fdbe687f3a6f5c84321b134328313af188733d45c73e28f4',
   './js/band-player-v2/bp2-permissions.js': '3ddaff2487249c6cee9d0d1f2ea82c416a853c2b43a8ea6059a6d652d8921920',
-  './js/band-player-v2/bp2-edit.js': '6a1c5c74af252507ef171445992a8166db1f546e0b4b2f334283ac049f10ff1a',
+  './js/band-player-v2/bp2-edit.js': '5e2eca10851e407fedc559a817d9cb7a7882cf520451d6a7c1fba51263f3fb7e',
   './js/band-player-v2/bp2-integration.js': 'a4692d305c66ae58c434ed2179ff235ec745ceb8b6cdde4fcfc67769f452072a',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
   './js/band-player-v2/bp2-auth.js': 'e318e69a96c94e97c1c559b982a54066c9870751356e1ed9ae94c9d5876187a5'
