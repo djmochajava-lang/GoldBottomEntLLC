@@ -16,7 +16,7 @@
     if (!BP2Core.getDb() && Auth._db) {
       BP2Core.init({ db: Auth._db, storage: Auth.getStorage ? Auth.getStorage() : null, user: Auth.getCurrentUser(), role: Auth.getRole ? Auth.getRole() : 'member' });
     }
-    BP2Auth.showScreen2('edit');
+    BP2Auth.showScreen2('view');
   }
 
   // Wait for Firestore to be ready before initializing

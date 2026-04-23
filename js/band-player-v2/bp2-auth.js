@@ -153,6 +153,105 @@
 
     // ── Screen 2: Payment Setup + Agreement + W-9 ──────
     // mode: 'onboard' (first time, after Screen 1) or 'edit' (from payment-settings page)
+    // Read-only summary view of saved payment data
+    _renderReadOnly: function(container, data, db, uid) {
+      var cardStyle = 'background:var(--color-bg-secondary,#161b22);border:1px solid var(--color-border,#282c36);border-radius:14px;padding:24px;';
+      var labelStyle = 'font-size:12px;color:var(--color-text-muted,#6e7681);margin-bottom:2px;';
+      var valueStyle = 'font-size:15px;color:var(--color-text,#e8e8e8);word-break:break-word;';
+      var rowStyle = 'padding:12px 0;border-bottom:1px solid var(--color-border,#282c36);';
+      var lastRowStyle = 'padding:12px 0;';
+
+      var methodLabels = {
+        check: 'Check', zelle: 'Zelle', cashapp: 'Cash App',
+        venmo: 'Venmo', paypal: 'PayPal', direct_deposit: 'Direct Deposit (ACH)'
+      };
+
+      var methodDisplay = methodLabels[data.paymentMethod] || data.paymentMethod || 'Not set';
+
+      // Mask sensitive detail if present
+      var detailVal = '';
+      if (data.payment_method_enc && data.payment_method_enc.indexOf(':') > -1) {
+        // Encrypted or method:detail format
+        var parts = data.payment_method_enc.split(':');
+        if (parts[0] === 'enc') {
+          detailVal = '(encrypted)';
+        } else if (parts.length >= 2) {
+          detailVal = parts.slice(1).join(':');
+        }
+      }
+
+      // Agreement date
+      var agreedDate = '';
+      var ts = data.houseBandAgreedAt || data.freelanceAgreementAcceptedAt;
+      if (ts && ts.toDate) agreedDate = ts.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // Payment setup date
+      var setupDate = '';
+      if (data.paymentSetupAt && data.paymentSetupAt.toDate) {
+        setupDate = data.paymentSetupAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+
+      var self = this;
+      container.innerHTML =
+        '<div style="max-width:560px;margin:24px auto;padding:16px;">' +
+          '<div style="' + cardStyle + '">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
+              '<div style="display:flex;align-items:center;gap:12px;">' +
+                '<div style="width:44px;height:44px;border-radius:50%;background:rgba(63,185,80,0.12);display:flex;align-items:center;justify-content:center;">' +
+                  '<i class="fa-solid fa-circle-check" style="font-size:20px;color:#3fb950;"></i>' +
+                '</div>' +
+                '<div>' +
+                  '<h2 style="color:var(--color-text,#e8e8e8);font-size:18px;margin:0;">Payment Settings</h2>' +
+                  (setupDate ? '<p style="color:var(--color-text-muted,#6e7681);font-size:12px;margin:2px 0 0;">Last updated ' + setupDate + '</p>' : '') +
+                '</div>' +
+              '</div>' +
+              '<button id="bp2-s2-edit-btn" style="padding:10px 20px;border-radius:10px;background:transparent;border:1px solid var(--color-border,#282c36);color:var(--color-text,#e8e8e8);font-size:14px;font-weight:500;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;">' +
+                '<i class="fa-solid fa-pen-to-square" style="font-size:13px;color:#d4a017;"></i> Edit' +
+              '</button>' +
+            '</div>' +
+
+            // Personal Info
+            '<h3 style="font-size:13px;color:var(--color-text-muted,#6e7681);margin-bottom:8px;letter-spacing:0.5px;text-transform:uppercase;"><i class="fa-solid fa-user" style="margin-right:6px;color:#d4a017;"></i> Personal Info</h3>' +
+            '<div style="' + rowStyle + '">' +
+              '<div style="' + labelStyle + '">Legal Full Name</div>' +
+              '<div style="' + valueStyle + '">' + _esc(data.legalName || data.displayName || 'Not set') + '</div>' +
+            '</div>' +
+            '<div style="' + rowStyle + '">' +
+              '<div style="' + labelStyle + '">Phone</div>' +
+              '<div style="' + valueStyle + '">' + _esc(data.phone || data.phone_enc || 'Not set') + '</div>' +
+            '</div>' +
+            '<div style="' + lastRowStyle + '">' +
+              '<div style="' + labelStyle + '">Mailing Address</div>' +
+              '<div style="' + valueStyle + '">' + _esc(data.mailingAddress || data.mailingAddress_enc || 'Not set') + '</div>' +
+            '</div>' +
+
+            // Payment
+            '<h3 style="font-size:13px;color:var(--color-text-muted,#6e7681);margin:20px 0 8px;letter-spacing:0.5px;text-transform:uppercase;"><i class="fa-solid fa-credit-card" style="margin-right:6px;color:#d4a017;"></i> Payment Method</h3>' +
+            '<div style="' + rowStyle + '">' +
+              '<div style="' + labelStyle + '">Method</div>' +
+              '<div style="' + valueStyle + '">' + _esc(methodDisplay) + '</div>' +
+            '</div>' +
+            (detailVal ? '<div style="' + lastRowStyle + '"><div style="' + labelStyle + '">Account</div><div style="' + valueStyle + '">' + _esc(detailVal) + '</div></div>' : '') +
+
+            // Agreement
+            (agreedDate ?
+              '<div style="margin-top:20px;display:flex;align-items:center;gap:8px;padding:12px;border-radius:8px;background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.25);">' +
+                '<i class="fa-solid fa-circle-check" style="color:#3fb950;font-size:16px;"></i>' +
+                '<span style="font-size:13px;color:#3fb950;">Freelance Agreement accepted on ' + agreedDate + '</span>' +
+              '</div>'
+            : '') +
+          '</div>' +
+        '</div>';
+
+      // Edit button handler
+      var editBtn = document.getElementById('bp2-s2-edit-btn');
+      if (editBtn) {
+        editBtn.addEventListener('click', function() {
+          self.showScreen2('edit');
+        });
+      }
+    },
+
     showScreen2: function(mode) {
       var container = _getContainer();
       if (!container) return;
@@ -162,6 +261,7 @@
       if (!user || !db) return;
 
       var isEdit = (mode === 'edit');
+      var isView = (mode === 'view');
       var uid = user.uid;
 
       // Styles shared by all form inputs
@@ -285,6 +385,12 @@
 
       db.collection('users').doc(uid).get().then(function(doc) {
         var data = doc.exists ? doc.data() : {};
+
+        // If view mode and payment data already saved, show read-only
+        if (isView && data.paymentSetupAt) {
+          BP2Auth._renderReadOnly(container, data, db, uid);
+          return;
+        }
 
         // Prefill personal info
         var nameEl = document.getElementById('bp2-s2-name');
@@ -427,7 +533,10 @@
             saveBtn.disabled = false;
             saveBtn.textContent = isEdit ? 'Save Changes' : 'Complete Setup';
             if (typeof Toast !== 'undefined') Toast.success(isEdit ? 'Payment settings saved!' : 'Setup complete \u2014 welcome to the band!');
-            if (!isEdit && c) {
+            if (isEdit) {
+              // Switch back to read-only view after save
+              BP2Auth.showScreen2('view');
+            } else if (c) {
               c.initPlayer();
             }
           }).catch(function(err) {
