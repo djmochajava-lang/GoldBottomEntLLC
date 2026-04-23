@@ -282,16 +282,19 @@ const Router = {
     }
 
     // Role-based dashboard home redirect (reads from AuthCache first, then Auth)
+    // All roles land on their role-specific dashboard, not generic dashboard-home
     if (pageName === 'dashboard-home') {
       var _cachedAuth = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
       var _homeRole = _cachedAuth ? (_cachedAuth.activeRole || _cachedAuth.role) :
                       (typeof Auth !== 'undefined' && Auth.getRole ? Auth.getRole() : null);
-      if (_homeRole === 'band_member' || _homeRole === 'artist') {
-        // Musicians/artists → Musician Portal
-        pageName = 'dashboard-musician-home';
-      } else if (window.innerWidth <= 768 && (_homeRole === 'admin' || _homeRole === 'band_manager')) {
-        // Mobile admin/manager → Field View
-        pageName = 'dashboard-field';
+      var _roleMap = {
+        admin: 'dashboard-admin',
+        band_manager: 'dashboard-manager',
+        band_member: 'dashboard-musician-home',
+        artist: 'dashboard-artist'
+      };
+      if (_homeRole && _roleMap[_homeRole]) {
+        pageName = _roleMap[_homeRole];
       }
     }
 

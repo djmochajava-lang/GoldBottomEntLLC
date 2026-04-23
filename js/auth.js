@@ -391,9 +391,15 @@ const Auth = {
               } catch (e) {}
             }
             if (Auth._pendingRoute) {
-              // User explicitly clicked Dashboard — go there
+              // User clicked Dashboard — go to their role-specific landing page
               var route = Auth._pendingRoute;
               Auth._pendingRoute = null;
+              // Always resolve to role-specific dashboard (not generic dashboard-home)
+              if (route === 'dashboard-home' || route === 'dashboard-manager' ||
+                  route === 'dashboard-musician' || route === 'dashboard-artist' ||
+                  route === 'dashboard-admin') {
+                route = Auth._roleLandingPage(Auth._activeRole || Auth._role || '');
+              }
               if (typeof Router !== 'undefined') {
                 Router.navigateTo(route, true);
               }
