@@ -140,10 +140,20 @@ const PageLoader = {
   },
 
   /**
-   * Show loading indicator
+   * Show loading indicator — immediate visual feedback when a menu link is tapped.
+   * Puts a centered spinner in the active content container so the user knows
+   * their tap registered, even if the page fetch takes a moment.
    */
   showLoading() {
     document.body.classList.add(this.loadingClass);
+    const container = this.getActiveContainer();
+    if (container) {
+      container.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;min-height:40vh;opacity:0.6;">' +
+          '<div style="width:28px;height:28px;border:3px solid rgba(255,255,255,0.15);border-top-color:#d4a017;border-radius:50%;animation:spin .7s linear infinite;"></div>' +
+          '<style>@keyframes spin{to{transform:rotate(360deg)}}</style>' +
+        '</div>';
+    }
   },
 
   /**

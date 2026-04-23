@@ -1483,25 +1483,13 @@ const Auth = {
    * know the app is loading, not frozen.
    */
   _showAuthLoading: function() {
-    // Only show once — don't flash on repeated clicks
-    if (document.body.classList.contains('auth-initializing')) return;
-
-    document.body.classList.add('auth-initializing');
-
-    // Switch to dashboard layout so sidebar + topbar are visible
-    if (typeof Router !== 'undefined' && Router.switchLayout) {
-      Router.switchLayout('dashboard');
-    }
-
-    // Inject loading indicator into the main content area
-    var main = document.getElementById('dashboard-content') || document.querySelector('main');
-    if (main) {
-      main.innerHTML =
-        '<div class="auth-loading-container">' +
-          '<div class="auth-loading-spinner"></div>' +
-          '<div class="auth-loading-text">Signing in...</div>' +
-          '<div class="auth-loading-subtext">Verifying your session</div>' +
-        '</div>';
+    // Don't take over the page with a full-screen spinner. The user should
+    // be able to browse the public site while auth initializes in the background.
+    // The pending route (stored by guardRoute) will auto-navigate to the
+    // dashboard once auth completes. Just show a brief non-blocking toast.
+    if (typeof Toast !== 'undefined' && !this._authToastShown) {
+      Toast.info('Signing in...');
+      this._authToastShown = true;
     }
   },
 
