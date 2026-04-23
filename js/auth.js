@@ -1363,16 +1363,21 @@ const Auth = {
     if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
     var provider = this._providers[providerName];
     if (!provider) return Promise.reject(new Error('Unknown provider: ' + providerName));
-    // Use redirect on mobile — popups are unreliable (third-party cookie
-    // blocking causes "Network error" on Safari/Chrome). Redirect avoids
-    // cross-domain cookie issues entirely. Desktop uses popup as fallback.
-    if (window.innerWidth <= 1024 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      // Save pending route before redirect — page reloads and _pendingRoute is lost
-      var pendingRoute = this._pendingRoute || 'dashboard-home';
-      try { sessionStorage.setItem('gbe-auth-redirect-route', pendingRoute); } catch (e) {}
-      return this._auth.signInWithRedirect(provider);
-    }
-    return this._auth.signInWithPopup(provider);
+    // Try popup first. If it fails with network/cookie error, fall back to redirect.
+    // Popup works on most browsers; redirect is blocked by iOS Safari ITP.
+    var self = this;
+    return this._auth.signInWithPopup(provider).catch(function(err) {
+      if (err.code === 'auth/network-request-failed' ||
+          err.code === 'auth/popup-blocked' ||
+          err.code === 'auth/internal-error') {
+        // Popup failed — try redirect as fallback
+        console.warn('[Auth] Popup failed (' + err.code + '), trying redirect...');
+        var pendingRoute = self._pendingRoute || 'dashboard-home';
+        try { sessionStorage.setItem('gbe-auth-redirect-route', pendingRoute); } catch (e) {}
+        return self._auth.signInWithRedirect(provider);
+      }
+      throw err; // Re-throw other errors (cancelled, duplicate account, etc.)
+    });
   },
 
   /**
@@ -1583,9 +1588,18 @@ const Auth = {
         // Trigger Google sign-in directly
         if (typeof firebase !== 'undefined' && firebase.auth) {
           var provider = new firebase.auth.GoogleAuthProvider();
-          // Use redirect for auto-login (avoids popup/cookie issues on mobile)
-          try { sessionStorage.setItem('gbe-auth-redirect-route', 'dashboard-home'); } catch (e) {}
-          firebase.auth().signInWithRedirect(provider);
+          // Try popup for auto-login; fall back to redirect if blocked
+          firebase.auth().signInWithPopup(provider).catch(function(err) {
+            if (err.code === 'auth/network-request-failed' ||
+                err.code === 'auth/popup-blocked' ||
+                err.code === 'auth/internal-error') {
+              try { sessionStorage.setItem('gbe-auth-redirect-route', 'dashboard-home'); } catch (e) {}
+              firebase.auth().signInWithRedirect(provider);
+            } else if (err.code !== 'auth/popup-closed-by-user') {
+              console.error('[Auth] Auto-login failed:', err.code);
+              Auth.showLoginModal();
+            }
+          });
           return;
         }
       }
