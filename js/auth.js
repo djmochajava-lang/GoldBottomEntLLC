@@ -364,18 +364,24 @@ const Auth = {
             if (typeof Toast !== 'undefined') {
               Toast.success('Welcome, ' + Auth.getUserDisplayName());
             }
-            // Navigate to pending route or role-appropriate landing page
+            // Navigate to pending route or stay on current page
             if (Auth._pendingRoute) {
+              // User explicitly clicked Dashboard — go there
               var route = Auth._pendingRoute;
               Auth._pendingRoute = null;
               if (typeof Router !== 'undefined') {
                 Router.navigateTo(route, true);
               }
-            } else {
-              // Session restore — send to role-appropriate dashboard
+            } else if (typeof Router !== 'undefined' &&
+                       Router.currentPage &&
+                       Router.isDashboardRoute(Router.currentPage)) {
+              // Already on a dashboard route (e.g. bookmark or refresh) — reload it
+              // so role-based guards and data refresh properly
               var _restoreRole = Auth._activeRole || Auth._role || '';
-              if (typeof Router !== 'undefined') Router.navigateTo(Auth._roleLandingPage(_restoreRole), true);
+              Router.navigateTo(Auth._roleLandingPage(_restoreRole), true);
             }
+            // Otherwise: user is browsing a public page — don't hijack navigation.
+            // They can tap Dashboard in the menu when they want it.
           } else if (status === 'pending') {
             console.log('[Auth] Signed in (pending approval)');
             Auth._initializing = false;
