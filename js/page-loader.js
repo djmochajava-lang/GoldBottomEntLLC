@@ -394,13 +394,11 @@ const PageLoader = {
   },
 };
 
-// Auto-initialize
+// Auto-initialize immediately — all DOM containers exist above the script tags.
+// Do NOT wait for DOMContentLoaded; that fires after Firebase + band player
+// finish loading, which takes 10-30s on mobile cellular. Navigation must work now.
 if (typeof module === 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => PageLoader.init());
-  } else {
-    PageLoader.init();
-  }
+  PageLoader.init();
 }
 
 if (typeof module !== 'undefined' && module.exports) {

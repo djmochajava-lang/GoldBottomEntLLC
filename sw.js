@@ -11,7 +11,7 @@ var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete th
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '33049ea27acc8ea99453ce7be88310d51d2c39d35750fc3f316be4ccaf5143b9',
+  './': '886dace9ed79cce2db59cb1aaf41103645b8c386b19cd5d4dc09daa167e992fa',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -26,11 +26,11 @@ var ASSET_HASHES = {
   './js/toast.js': '74bfec8e52dbd0cc437b09851756f642d268ba21c2b28cd3563c3ca703f146f4',
   './js/modal.js': 'fd60926db530a6855a03a486b48500a4463808bfae140a592cc86cffcc8b006b',
   './js/auth.js': '0f4f2765e364a37b158808c457ead0fac4890fa117275d1199d0e81fcae5dde9',
-  './js/page-loader.js': '9d244b6d5a314c7b7915f35189f1079b56869fe7ad48dc9529e283a8ab475cb3',
+  './js/page-loader.js': 'b0386c2eee43853a442e8c57a9daed68a821315dc6a5decf6b94d46d32b512ea',
   './js/scroll-animations.js': '765ee4aad4c8499874ce827c4705611a9f5d6ddece76d2607ba275271806267c',
-  './js/router.js': '5a685bbd38ac7701014e93d7987cdc1bf29d98edbf9f7fb52d657833ffa6f06c',
-  './js/navigation.js': '57419e244635f61165b7e94ea451eef0642981c6f018ea9464209970248e410b',
-  './js/sidebar.js': '22f78ac9fbdc4efc58e7f3b2fb93353370ca23c897b3defd0bfed7451b9fdb74',
+  './js/router.js': 'e41faec41f2f8a46c44d9233fe62d64a8b292671f8553b9470701ab552c9f9ee',
+  './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
+  './js/sidebar.js': 'f5336ec179531386d09bd0162cc87f7ca360b07885e677360f76603305bc1d18',
   './js/data-store.js': 'ffa4b8001aabde2c4740a129c85832976c20feffecbadbad617cce0117456d1e',
   './js/forms.js': '95f367096cd2f9ff19a90f6b0405f934f47f5f769fa1176cc604e3d8e84d2840',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',

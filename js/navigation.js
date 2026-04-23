@@ -110,13 +110,11 @@ const Navigation = {
   },
 };
 
-// Auto-initialize
+// Auto-initialize immediately — hamburger + overlay exist above the script tags.
+// Do NOT wait for DOMContentLoaded; that fires after Firebase + band player
+// finish loading, which takes 10-30s on mobile cellular. Menu must work now.
 if (typeof module === 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => Navigation.init());
-  } else {
-    Navigation.init();
-  }
+  Navigation.init();
 }
 
 if (typeof module !== 'undefined' && module.exports) {

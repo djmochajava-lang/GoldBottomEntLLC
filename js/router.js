@@ -653,13 +653,13 @@ const Router = {
   },
 };
 
-// Auto-initialize
+// Auto-initialize immediately — all DOM elements exist above the script tags.
+// Do NOT wait for DOMContentLoaded; that fires after Firebase + band player
+// finish loading, which takes 10-30s on mobile cellular. Navigation must work now.
+// Auth check in navigateTo() gracefully handles Auth not being loaded yet
+// (typeof Auth === 'undefined' → guard skipped → public routes work instantly).
 if (typeof module === 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => Router.init());
-  } else {
-    Router.init();
-  }
+  Router.init();
 }
 
 if (typeof module !== 'undefined' && module.exports) {

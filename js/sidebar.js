@@ -166,7 +166,8 @@ const Sidebar = {
 
   startInboxBadge() {
     // Only poll on LAN (where the server API is reachable)
-    if (!Auth.isLocalDashboard || !Auth.isLocalDashboard()) return;
+    // Auth may not be loaded yet (deferred) — skip silently
+    if (typeof Auth === 'undefined' || !Auth.isLocalDashboard || !Auth.isLocalDashboard()) return;
 
     this.refreshInboxBadge();
     this._inboxPollTimer = setInterval(() => this.refreshInboxBadge(), 60000);
@@ -177,7 +178,8 @@ const Sidebar = {
     if (!badge) return;
 
     // Skip immediately on remote — no server API available
-    if (!Auth.isLocalDashboard || !Auth.isLocalDashboard()) {
+    // Auth may not be loaded yet (deferred) — skip silently
+    if (typeof Auth === 'undefined' || !Auth.isLocalDashboard || !Auth.isLocalDashboard()) {
       badge.style.display = 'none';
       return;
     }
@@ -198,13 +200,11 @@ const Sidebar = {
   },
 };
 
-// Auto-initialize
+// Auto-initialize immediately — sidebar elements exist above the script tags.
+// Do NOT wait for DOMContentLoaded; that fires after Firebase + band player
+// finish loading, which takes 10-30s on mobile cellular. Sidebar must work now.
 if (typeof module === 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => Sidebar.init());
-  } else {
-    Sidebar.init();
-  }
+  Sidebar.init();
 }
 
 if (typeof module !== 'undefined' && module.exports) {
