@@ -398,13 +398,21 @@
         var addrEl = document.getElementById('bp2-s2-address');
         if (nameEl && data.legalName) nameEl.value = data.legalName;
         else if (nameEl && data.displayName) nameEl.value = data.displayName;
-        if (phoneEl && data.phone) phoneEl.value = data.phone;
-        if (addrEl && data.mailingAddress) addrEl.value = data.mailingAddress;
+        if (phoneEl) phoneEl.value = data.phone || data.phone_enc || '';
+        if (addrEl) addrEl.value = data.mailingAddress || data.mailingAddress_enc || '';
 
-        // Prefill payment method
+        // Prefill payment method + detail
         if (methodSel && data.paymentMethod) {
           methodSel.value = data.paymentMethod;
           methodSel.dispatchEvent(new Event('change'));
+          // Prefill detail from payment_method_enc (format: "method:detail")
+          if (data.payment_method_enc) {
+            var pmParts = data.payment_method_enc.split(':');
+            if (pmParts.length >= 2 && pmParts[0] !== 'enc') {
+              var detailEl = document.getElementById('bp2-s2-detail');
+              if (detailEl) detailEl.value = pmParts.slice(1).join(':');
+            }
+          }
         }
 
         // Agreement status
