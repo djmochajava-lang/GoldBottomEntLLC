@@ -190,15 +190,15 @@
               '<div style="display:grid;gap:12px;">' +
                 '<div>' +
                   '<label style="' + labelStyle + '">Legal Full Name</label>' +
-                  '<input type="text" id="bp2-s2-name" placeholder="As it appears on your tax documents" style="' + inputStyle + '" />' +
+                  '<input type="text" id="bp2-s2-name" name="name" autocomplete="name" placeholder="As it appears on your tax documents" style="' + inputStyle + '" />' +
                 '</div>' +
                 '<div>' +
                   '<label style="' + labelStyle + '">Phone Number</label>' +
-                  '<input type="tel" id="bp2-s2-phone" placeholder="(555) 555-5555" style="' + inputStyle + '" />' +
+                  '<input type="tel" id="bp2-s2-phone" name="tel" autocomplete="tel" placeholder="(555) 555-5555" style="' + inputStyle + '" />' +
                 '</div>' +
                 '<div>' +
                   '<label style="' + labelStyle + '">Mailing Address</label>' +
-                  '<textarea id="bp2-s2-address" rows="2" placeholder="Street, City, State ZIP" style="' + inputStyle + 'resize:vertical;min-height:60px;"></textarea>' +
+                  '<textarea id="bp2-s2-address" name="street-address" autocomplete="street-address" rows="2" placeholder="Street, City, State ZIP" style="' + inputStyle + 'resize:vertical;min-height:60px;"></textarea>' +
                 '</div>' +
               '</div>' +
             '</div>' +
