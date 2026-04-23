@@ -1488,7 +1488,7 @@ const Auth = {
     }
 
     // Inject loading indicator into the main content area
-    var main = document.querySelector('.dashboard-content') || document.querySelector('main');
+    var main = document.getElementById('dashboard-content') || document.querySelector('main');
     if (main) {
       main.innerHTML =
         '<div class="auth-loading-container">' +
