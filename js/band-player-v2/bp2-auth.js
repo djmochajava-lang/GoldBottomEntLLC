@@ -393,19 +393,23 @@
           var paymentInfo = methodVal;
           if (detailVal) paymentInfo += ':' + detailVal;
 
-          // Encrypt sensitive fields then save
+          // Try to encrypt sensitive fields, fall back to plaintext if key unavailable
           _fetchEncKey(db).then(function(key) {
-            return Promise.all([
-              _encrypt(phoneVal, key),
-              _encrypt(addrVal, key),
-              _encrypt(paymentInfo, key)
-            ]);
-          }).then(function(encrypted) {
+            if (key) {
+              return Promise.all([
+                _encrypt(phoneVal, key),
+                _encrypt(addrVal, key),
+                _encrypt(paymentInfo, key)
+              ]);
+            }
+            // No encryption key available (band_member can't read config) — store plaintext
+            return [phoneVal, addrVal, paymentInfo];
+          }).then(function(values) {
             var update = {
               legalName: nameVal,
-              phone_enc: encrypted[0] || phoneVal,
-              mailingAddress_enc: encrypted[1] || addrVal,
-              payment_method_enc: encrypted[2] || paymentInfo,
+              phone_enc: values[0] || phoneVal,
+              mailingAddress_enc: values[1] || addrVal,
+              payment_method_enc: values[2] || paymentInfo,
               paymentMethod: methodVal,
               paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp()
             };
