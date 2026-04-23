@@ -420,6 +420,8 @@
 
             return db.collection('users').doc(uid).update(update);
           }).then(function() {
+            saveBtn.disabled = false;
+            saveBtn.textContent = isEdit ? 'Save Changes' : 'Complete Setup';
             if (typeof Toast !== 'undefined') Toast.success(isEdit ? 'Payment settings saved!' : 'Setup complete \u2014 welcome to the band!');
             if (!isEdit && c) {
               c.initPlayer();

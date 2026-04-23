@@ -61,7 +61,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-edit.js': '5e2eca10851e407fedc559a817d9cb7a7882cf520451d6a7c1fba51263f3fb7e',
   './js/band-player-v2/bp2-integration.js': 'a4692d305c66ae58c434ed2179ff235ec745ceb8b6cdde4fcfc67769f452072a',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
-  './js/band-player-v2/bp2-auth.js': 'e318e69a96c94e97c1c559b982a54066c9870751356e1ed9ae94c9d5876187a5'
+  './js/band-player-v2/bp2-auth.js': '5425ae25cc6cbc0cca67d24752dcbfcdc50b9ccc7277269820e948dd73cdc197'
 };
 
 // Firebase backend API hostnames — never intercept these; let Firebase SDK handle them
