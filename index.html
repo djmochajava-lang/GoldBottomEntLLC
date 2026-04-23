@@ -221,6 +221,37 @@
       <!-- Pages loaded dynamically here by PageLoader -->
     </main>
 
+    <!-- Instant tap feedback — runs before ANY external scripts load.
+         When the user taps a menu link while scripts are still downloading,
+         this shows a spinner in the content area and closes the mobile menu.
+         Once Router initializes, it handles the real navigation. -->
+    <script>
+    (function() {
+      var _spinner = '<div style="display:flex;align-items:center;justify-content:center;min-height:40vh;opacity:0.6;">' +
+        '<div style="width:28px;height:28px;border:3px solid rgba(255,255,255,0.15);border-top-color:#d4a017;border-radius:50%;animation:spin .7s linear infinite;"></div>' +
+        '<style>@keyframes spin{to{transform:rotate(360deg)}}</style></div>';
+
+      document.addEventListener('click', function(e) {
+        var link = e.target.closest('a[href^="#"]');
+        if (!link) return;
+        // If Router is ready, let it handle everything
+        if (typeof Router !== 'undefined' && Router.initialized) return;
+        // Skip dashboard routes (need auth)
+        var href = link.getAttribute('href');
+        if (!href || href.indexOf('dashboard') !== -1) return;
+        // Show spinner in content area
+        var container = document.getElementById('public-content');
+        if (container) container.innerHTML = _spinner;
+        // Close mobile menu if open
+        var overlay = document.getElementById('mobile-nav-overlay');
+        var hamburger = document.querySelector('.mobile-menu-toggle');
+        if (overlay) overlay.classList.remove('active');
+        if (hamburger) { hamburger.classList.remove('active'); hamburger.setAttribute('aria-expanded', 'false'); }
+        document.body.classList.remove('mobile-menu-open');
+      });
+    })();
+    </script>
+
     <!-- Public Footer -->
     <footer class="public-footer">
       <div class="footer-inner">
