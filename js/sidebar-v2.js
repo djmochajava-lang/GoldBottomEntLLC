@@ -10,8 +10,8 @@
  *   4. Toggle response is pure CSS class manipulation (< 50ms on any device).
  *   5. Nav link clicks are handled via event delegation (no per-item binding).
  *
- * During testing, V2 is ONLY active for band_manager role.
- * All other roles use V1 (sidebar.js). V2 uses a grid icon toggle
+ * V2 is active for ALL authenticated dashboard roles.
+ * V1 (sidebar.js) is superseded. V2 uses a grid icon toggle
  * (.sidebar-v2-toggle) to visually distinguish from V1's hamburger.
  */
 
@@ -21,27 +21,17 @@ const SidebarV2 = {
   toggleBtn: null,
 
   /**
-   * Initialize V2 sidebar. Only activates for band_manager role.
+   * Initialize V2 sidebar. Active for all roles; menu items filtered by role.
    */
   init: function() {
     if (this.initialized) return;
-
-    // Gate: V2 only activates for band_manager during testing
-    var cache = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
-    var role = cache ? (cache.activeRole || cache.role) : null;
 
     this.toggleBtn = document.querySelector('.sidebar-v2-toggle');
     this.sidebar = document.getElementById('sidebar');
 
     if (!this.toggleBtn || !this.sidebar) return;
 
-    if (role !== 'band_manager') {
-      // Not band_manager — hide V2 toggle, don't initialize
-      this.toggleBtn.style.display = 'none';
-      return;
-    }
-
-    // V2 is active — hide V1 toggle, show V2 toggle
+    // V2 is active for all roles — hide V1 toggle, show V2 toggle
     var v1btn = document.querySelector('.sidebar-mobile-toggle');
     if (v1btn) v1btn.style.display = 'none';
     this.toggleBtn.style.display = 'inline-flex';
@@ -58,7 +48,7 @@ const SidebarV2 = {
     this.listenForAuthReady();
 
     this.initialized = true;
-    console.log('[SidebarV2] Initialized (band_manager mode)');
+    console.log('[SidebarV2] Initialized');
   },
 
   /**
@@ -163,7 +153,6 @@ const SidebarV2 = {
 
   /**
    * Re-filter menu when Auth finishes background verification.
-   * Also re-check V2 gate (in case role changed away from band_manager).
    */
   listenForAuthReady: function() {
     var self = this;
