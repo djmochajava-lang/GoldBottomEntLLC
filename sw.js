@@ -210,7 +210,11 @@ self.addEventListener('install', function(event) {
   );
 });
 
-// ── Activate: remove old shell caches ───────────────────
+// ── Activate: remove old caches + force-reload all tabs ──
+// When a new SW version activates, old HTML/JS is still loaded in the browser.
+// clients.claim() takes control, then client.navigate() forces each tab to
+// reload from the new SW cache. This delivers code updates organically —
+// no manual cache clearing needed, no matter what HTML version is loaded.
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
@@ -222,6 +226,15 @@ self.addEventListener('activate', function(event) {
       }));
     }).then(function() {
       return self.clients.claim();
+    }).then(function() {
+      // Force-reload all open tabs so they get new cached assets
+      return self.clients.matchAll({ type: 'window' }).then(function(windowClients) {
+        windowClients.forEach(function(client) {
+          if (client.url && 'navigate' in client) {
+            client.navigate(client.url);
+          }
+        });
+      });
     })
   );
 });
