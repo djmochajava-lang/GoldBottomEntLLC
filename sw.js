@@ -6,12 +6,12 @@
 // FRD-20 SR-5.4.1/5.4.2: bumped for band-player module additions + CSS.
 // Activate handler deletes any cache that starts with 'gbe-shell-' but isn't the
 // current version, so older shells auto-evict on next activation.
-var SHELL_CACHE = 'gbe-shell-v30';
+var SHELL_CACHE = 'gbe-shell-v31';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '70e13b0c79b0e18f4ff5d3c4fdadd08068e6ee159a33866b636d2195c47cb9db',
+  './': '33049ea27acc8ea99453ce7be88310d51d2c39d35750fc3f316be4ccaf5143b9',
   './css/base.css': '09ed9f4ad7cdc8d3def4b02cdf4acf56d4437787d0730310fbd34fa8d4338374',
   './css/layout.css': '976cb8820b1b9c3a3cb8df912c7cd91a212a35264ca6e365da78b269bd6acd7a',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',

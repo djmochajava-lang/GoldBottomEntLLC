@@ -241,6 +241,31 @@
 
   </div><!-- /#public-layout -->
 
+  <!-- Early public hamburger — works before navigation.js loads -->
+  <script>
+  (function() {
+    var hamburger = document.querySelector('.mobile-menu-toggle');
+    var overlay = document.getElementById('mobile-nav-overlay');
+    if (!hamburger || !overlay) return;
+    hamburger.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var isOpen = overlay.classList.contains('active');
+      if (isOpen) {
+        overlay.classList.remove('active');
+        hamburger.classList.remove('active');
+        hamburger.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('mobile-menu-open');
+      } else {
+        overlay.classList.add('active');
+        hamburger.classList.add('active');
+        hamburger.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('mobile-menu-open');
+      }
+    });
+  })();
+  </script>
+
   <!-- ============================================================
        DASHBOARD LAYOUT — Management portal
        ============================================================ -->
@@ -450,6 +475,69 @@
     </div>
 
   </div><!-- /#dashboard-layout -->
+
+  <!-- Early interactivity — makes sidebar work BEFORE all 42 scripts load.
+       On mobile cellular, scripts take 15-20s to download sequentially.
+       Without this, the hamburger and nav links are dead during that window. -->
+  <script>
+  (function() {
+    var toggle = document.querySelector('.sidebar-mobile-toggle');
+    var sidebar = document.getElementById('sidebar');
+    var dashContent = document.getElementById('dashboard-content');
+    if (!toggle || !sidebar) return;
+
+    // 1. Hamburger toggle — works immediately
+    toggle.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+        document.body.classList.remove('sidebar-mobile-open');
+      } else {
+        sidebar.classList.add('mobile-open');
+        document.body.classList.add('sidebar-mobile-open');
+      }
+    });
+
+    // 2. Nav link clicks — if Router isn't ready, show loading spinner
+    sidebar.addEventListener('click', function(e) {
+      var link = e.target.closest('a[href^="#dashboard-"]');
+      if (!link) return;
+      // If Router is loaded and initialized, let it handle normally
+      if (typeof Router !== 'undefined' && Router.initialized) return;
+      // Router not ready yet — intercept, show loading, queue the route
+      e.preventDefault();
+      e.stopPropagation();
+      // Close mobile sidebar
+      sidebar.classList.remove('mobile-open');
+      document.body.classList.remove('sidebar-mobile-open');
+      // Show loading in content area
+      if (dashContent) {
+        dashContent.innerHTML =
+          '<div class="auth-loading-container">' +
+            '<div class="auth-loading-spinner"></div>' +
+            '<div class="auth-loading-text">Loading...</div>' +
+            '<div class="auth-loading-subtext">Please wait</div>' +
+          '</div>';
+      }
+      // Queue the route for when Router is ready
+      var route = link.getAttribute('href').replace('#', '');
+      window._earlyRoute = route;
+    });
+
+    // 3. When Router finally initializes, navigate to queued route
+    var checkInterval = setInterval(function() {
+      if (typeof Router !== 'undefined' && Router.initialized && window._earlyRoute) {
+        var route = window._earlyRoute;
+        window._earlyRoute = null;
+        clearInterval(checkInterval);
+        Router.navigateTo(route, true);
+      }
+      // Stop checking after 60 seconds
+    }, 200);
+    setTimeout(function() { clearInterval(checkInterval); }, 60000);
+  })();
+  </script>
 
   <!-- ============================================================
        GLOBAL OVERLAYS
