@@ -532,6 +532,17 @@
   <!-- Service Worker — offline shell for Music Player airplane mode support -->
   <script>
     if ('serviceWorker' in navigator) {
+      // Auto-reload when a new SW version takes control. This ensures users
+      // get updated JS/CSS immediately without clearing their cache manually.
+      // The new SW calls skipWaiting() + clients.claim(), which triggers
+      // controllerchange — we reload once so the page loads fresh assets.
+      var _swRefreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (_swRefreshing) return;
+        _swRefreshing = true;
+        window.location.reload();
+      });
+
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(function(reg) {
           console.log('[SW] Registered, scope:', reg.scope);
