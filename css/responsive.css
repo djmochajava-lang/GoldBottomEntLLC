@@ -69,6 +69,35 @@
     background: var(--color-bg-tertiary);
   }
 
+  /* V2 sidebar toggle — same sizing as V1, gold accent to distinguish */
+  .sidebar-v2-toggle {
+    display: none; /* hidden by default, shown by sidebar-v2.js for band_manager */
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    color: var(--color-gold, #d4a017);
+    font-size: var(--text-lg);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition-fast), background var(--transition-fast), opacity 0.1s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .sidebar-v2-toggle:hover {
+    color: #fff;
+    background: rgba(212, 160, 23, 0.15);
+  }
+
+  .sidebar-v2-toggle.pressed {
+    opacity: 0.6;
+  }
+
   /* --- Grids: 2 columns --- */
   .grid-3,
   .grid-4 {

@@ -166,6 +166,11 @@ const Auth = {
             Auth._updatePinUI(result.user || 'Admin (Local)');
             Auth._notifyListeners(null);
             Auth._hideAuthLoading();
+            // Write auth cache for V2 sidebar + optimistic router
+            if (typeof AuthCache !== 'undefined') {
+              AuthCache.write({ role: 'admin', activeRole: 'admin', linkedRoles: ['admin'], authorized: true });
+            }
+            document.dispatchEvent(new CustomEvent('gbe:auth-ready'));
             console.log('[Auth] PIN session restored — dashboard access granted');
 
             // If the URL hash points to a dashboard route, navigate there now
@@ -359,6 +364,16 @@ const Auth = {
             console.log('[Auth] Signed in (approved)');
             Auth._initializing = false;
             Auth._hideAuthLoading();
+            // Write auth cache for V2 sidebar + optimistic router
+            if (typeof AuthCache !== 'undefined') {
+              AuthCache.write({
+                role: Auth._role,
+                activeRole: Auth._activeRole || Auth._role,
+                linkedRoles: Auth._linkedRoles || [],
+                authorized: true
+              });
+            }
+            document.dispatchEvent(new CustomEvent('gbe:auth-ready'));
             // Close login modal and welcome user
             if (typeof Modal !== 'undefined' && Modal.isOpen) Modal.close();
             if (typeof Toast !== 'undefined') {
@@ -407,6 +422,10 @@ const Auth = {
           Auth._activeRole = 'admin';
           Auth._initializing = false;
           Auth._hideAuthLoading();
+          if (typeof AuthCache !== 'undefined') {
+            AuthCache.write({ role: 'admin', activeRole: 'admin', linkedRoles: ['admin'], authorized: true });
+          }
+          document.dispatchEvent(new CustomEvent('gbe:auth-ready'));
           Auth._updateUI(user);
           Auth._notifyListeners(user);
         });
@@ -417,6 +436,8 @@ const Auth = {
         Auth._linkedRoles = [];
         Auth._activeRole = null;
         Auth._clearActiveRoleStorage();
+        // Clear auth cache on sign-out
+        if (typeof AuthCache !== 'undefined') AuthCache.clear();
         Auth._updateUI(user);
         Auth._initializing = false;
         Auth._notifyListeners(user);

@@ -15,6 +15,15 @@ const Sidebar = {
   init() {
     if (this.initialized) return;
 
+    // If SidebarV2 is active for this user, V1 steps aside
+    if (typeof SidebarV2 !== 'undefined' && SidebarV2.initialized) {
+      var v1btn = document.querySelector('.sidebar-mobile-toggle');
+      if (v1btn) v1btn.style.display = 'none';
+      this.initialized = true; // Prevent main.js from retrying
+      console.log('[Sidebar V1] Yielding to SidebarV2');
+      return;
+    }
+
     this.sidebar = document.getElementById('sidebar');
     this.collapseBtn = document.querySelector('.sidebar-collapse-btn');
     this.mobileToggle = document.querySelector('.sidebar-mobile-toggle');

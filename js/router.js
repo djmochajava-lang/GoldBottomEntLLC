@@ -175,13 +175,37 @@ const Router = {
   /**
    * Initialize router
    */
+  _pendingDashboardRoute: null,
+
   init() {
     if (this.initialized) return;
     this.setupNavigation();
     this.handleInitialRoute();
     this.handleBrowserNavigation();
+    this.listenForAuthReady();
     this.initialized = true;
     console.log('✅ Router initialized (dual-layout + vertical sub-sites)');
+  },
+
+  /**
+   * When Auth finishes background verification, process any pending dashboard route.
+   * Also re-init SidebarV2 if it wasn't active before (AuthCache wasn't written yet).
+   */
+  listenForAuthReady() {
+    var self = this;
+    document.addEventListener('gbe:auth-ready', function() {
+      // Re-init SidebarV2 now that AuthCache is populated
+      if (typeof SidebarV2 !== 'undefined' && !SidebarV2.initialized) {
+        SidebarV2.init();
+      }
+      // Process pending dashboard route
+      if (self._pendingDashboardRoute) {
+        var route = self._pendingDashboardRoute;
+        self._pendingDashboardRoute = null;
+        console.log('[Router] Auth ready — navigating to queued route:', route);
+        self.navigateTo(route, true);
+      }
+    });
   },
 
   /**
@@ -257,9 +281,11 @@ const Router = {
       pageName = this.legacyRedirects[pageName];
     }
 
-    // Role-based dashboard home redirect
-    if (pageName === 'dashboard-home' && typeof Auth !== 'undefined' && Auth.getRole) {
-      var _homeRole = Auth.getRole();
+    // Role-based dashboard home redirect (reads from AuthCache first, then Auth)
+    if (pageName === 'dashboard-home') {
+      var _cachedAuth = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
+      var _homeRole = _cachedAuth ? (_cachedAuth.activeRole || _cachedAuth.role) :
+                      (typeof Auth !== 'undefined' && Auth.getRole ? Auth.getRole() : null);
       if (_homeRole === 'band_member' || _homeRole === 'artist') {
         // Musicians/artists → Musician Portal
         pageName = 'dashboard-musician-home';
@@ -275,11 +301,50 @@ const Router = {
       pageName = '404';
     }
 
-    // Auth guard — block unauthenticated dashboard access
-    if (typeof Auth !== 'undefined') {
-      if (!Auth.guardRoute(pageName)) {
-        return; // Blocked — login modal shown, or auth still initializing
+    // Auth guard — V2 optimistic path (AuthCache) or V1 blocking path (guardRoute)
+    if (this.isDashboardRoute(pageName)) {
+      var _authCache = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
+
+      if (_authCache && _authCache.authorized) {
+        // AuthCache says authorized — proceed immediately (optimistic)
+        // Auth.guardRoute() is SKIPPED for cached users. Background verify
+        // will update the cache and emit 'gbe:auth-ready' if role changes.
+      } else if (typeof Auth !== 'undefined' && Auth.initialized && Auth.isAuthenticated && Auth.isAuthenticated()) {
+        // Auth is live and says authenticated — proceed (and write cache for next time)
+        if (typeof AuthCache !== 'undefined') {
+          AuthCache.write({
+            role: Auth.getRole ? Auth.getRole() : null,
+            activeRole: Auth._activeRole || (Auth.getRole ? Auth.getRole() : null),
+            linkedRoles: Auth._linkedRoles || [],
+            authorized: true
+          });
+        }
+      } else if (typeof Auth !== 'undefined' && (Auth._initializing || !Auth.initialized)) {
+        // Auth still initializing — show loading skeleton, don't block silently
+        this._pendingDashboardRoute = pageName;
+        var _targetLayout = this.getLayoutForPage(pageName);
+        if (_targetLayout !== this.currentLayout) {
+          this.switchLayout(_targetLayout);
+        }
+        if (typeof PageLoader !== 'undefined') PageLoader.showLoading();
+        console.log('[Router] Auth initializing — showing skeleton, queued:', pageName);
+        return;
+      } else if (typeof Auth !== 'undefined') {
+        // Auth is loaded but user is not authenticated — fall through to V1 guardRoute
+        if (!Auth.guardRoute(pageName)) {
+          return;
+        }
       }
+    }
+
+    if (typeof Auth !== 'undefined' && !this.isDashboardRoute(pageName)) {
+      // Non-dashboard routes don't need auth — but V1 guardRoute handles edge cases
+      // (this is a no-op since guardRoute returns true for non-dashboard routes)
+    }
+
+    // V1 role/environment guards still apply (these read from live Auth, which is fine
+    // because they only run AFTER the auth gate above passes)
+    if (typeof Auth !== 'undefined' && this.isDashboardRoute(pageName)) {
 
       // Role guard — block pages not accessible to current role
       if (Auth.isAuthenticated && Auth.isAuthenticated()) {
