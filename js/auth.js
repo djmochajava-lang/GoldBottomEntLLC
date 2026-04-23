@@ -165,6 +165,7 @@ const Auth = {
             Auth.initialized = true;
             Auth._updatePinUI(result.user || 'Admin (Local)');
             Auth._notifyListeners(null);
+            Auth._hideAuthLoading();
             console.log('[Auth] PIN session restored — dashboard access granted');
 
             // If the URL hash points to a dashboard route, navigate there now
@@ -201,6 +202,7 @@ const Auth = {
    */
   _initFirebase: function() {
     if (this.initialized) return;
+    this._initializing = true;
 
     // Check if Firebase SDK is loaded
     if (typeof firebase === 'undefined') {
@@ -355,6 +357,8 @@ const Auth = {
 
           if (status === 'approved') {
             console.log('[Auth] Signed in (approved)');
+            Auth._initializing = false;
+            Auth._hideAuthLoading();
             // Close login modal and welcome user
             if (typeof Modal !== 'undefined' && Modal.isOpen) Modal.close();
             if (typeof Toast !== 'undefined') {
@@ -374,10 +378,14 @@ const Auth = {
             }
           } else if (status === 'pending') {
             console.log('[Auth] Signed in (pending approval)');
+            Auth._initializing = false;
+            Auth._hideAuthLoading();
             // Show pending screen — don't sign them out, keep session alive
             Auth._showPendingApproval(user);
           } else if (status === 'denied') {
             console.warn('[Auth] Access denied:', user.email);
+            Auth._initializing = false;
+            Auth._hideAuthLoading();
             Auth._auth.signOut();
             Auth._showLoginError('Your access request has been denied.');
           }
@@ -391,6 +399,8 @@ const Auth = {
           Auth._role = 'admin';
           Auth._linkedRoles = ['admin'];
           Auth._activeRole = 'admin';
+          Auth._initializing = false;
+          Auth._hideAuthLoading();
           Auth._updateUI(user);
           Auth._notifyListeners(user);
         });
@@ -402,7 +412,9 @@ const Auth = {
         Auth._activeRole = null;
         Auth._clearActiveRoleStorage();
         Auth._updateUI(user);
+        Auth._initializing = false;
         Auth._notifyListeners(user);
+        Auth._hideAuthLoading();
         console.log('[Auth] Signed out');
 
         // If there's a pending dashboard route (queued before auth was ready),
@@ -1434,6 +1446,8 @@ const Auth = {
     if (this._initializing || !this.initialized) {
       console.log('[Auth] Auth not ready — queuing dashboard route:', pageName);
       this._pendingRoute = pageName;
+      // Show loading feedback so the user knows something is happening
+      this._showAuthLoading();
       return false;
     }
 
@@ -1450,6 +1464,46 @@ const Auth = {
     this._pendingRoute = pageName;
     this.showLoginModal();
     return false;
+  },
+
+  /* ------------------------------------------
+     Auth Loading State
+     ------------------------------------------ */
+
+  /**
+   * Show a loading indicator while auth is initializing.
+   * Called by guardRoute() when dashboard navigation is blocked during init.
+   * Shows a spinner in the content area and dims the sidebar so users
+   * know the app is loading, not frozen.
+   */
+  _showAuthLoading: function() {
+    // Only show once — don't flash on repeated clicks
+    if (document.body.classList.contains('auth-initializing')) return;
+
+    document.body.classList.add('auth-initializing');
+
+    // Switch to dashboard layout so sidebar + topbar are visible
+    if (typeof Router !== 'undefined' && Router.switchLayout) {
+      Router.switchLayout('dashboard');
+    }
+
+    // Inject loading indicator into the main content area
+    var main = document.querySelector('.dashboard-content') || document.querySelector('main');
+    if (main) {
+      main.innerHTML =
+        '<div class="auth-loading-container">' +
+          '<div class="auth-loading-spinner"></div>' +
+          '<div class="auth-loading-text">Signing in...</div>' +
+          '<div class="auth-loading-subtext">Verifying your session</div>' +
+        '</div>';
+    }
+  },
+
+  /**
+   * Remove the auth loading indicator after auth initialization completes.
+   */
+  _hideAuthLoading: function() {
+    document.body.classList.remove('auth-initializing');
   },
 
   /* ------------------------------------------
