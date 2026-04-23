@@ -380,6 +380,16 @@ const Auth = {
               Toast.success('Welcome, ' + Auth.getUserDisplayName());
             }
             // Navigate to pending route or stay on current page
+            // Check sessionStorage for redirect return (signInWithRedirect loses _pendingRoute)
+            if (!Auth._pendingRoute) {
+              try {
+                var _redirectRoute = sessionStorage.getItem('gbe-auth-redirect-route');
+                if (_redirectRoute) {
+                  Auth._pendingRoute = _redirectRoute;
+                  sessionStorage.removeItem('gbe-auth-redirect-route');
+                }
+              } catch (e) {}
+            }
             if (Auth._pendingRoute) {
               // User explicitly clicked Dashboard — go there
               var route = Auth._pendingRoute;
@@ -1351,6 +1361,9 @@ const Auth = {
     // blocking causes "Network error" on Safari/Chrome). Redirect avoids
     // cross-domain cookie issues entirely. Desktop uses popup as fallback.
     if (window.innerWidth <= 1024 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // Save pending route before redirect — page reloads and _pendingRoute is lost
+      var pendingRoute = this._pendingRoute || 'dashboard-home';
+      try { sessionStorage.setItem('gbe-auth-redirect-route', pendingRoute); } catch (e) {}
       return this._auth.signInWithRedirect(provider);
     }
     return this._auth.signInWithPopup(provider);
@@ -1565,6 +1578,7 @@ const Auth = {
         if (typeof firebase !== 'undefined' && firebase.auth) {
           var provider = new firebase.auth.GoogleAuthProvider();
           // Use redirect for auto-login (avoids popup/cookie issues on mobile)
+          try { sessionStorage.setItem('gbe-auth-redirect-route', 'dashboard-home'); } catch (e) {}
           firebase.auth().signInWithRedirect(provider);
           return;
         }
