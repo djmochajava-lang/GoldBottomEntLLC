@@ -11,7 +11,6 @@ var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete th
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
 var ASSET_HASHES = {
-  './': '39bebc356c85f8829dfec04de44ed1405aa52f0a5b6e8eb5b7e8b5f3c5b58125',
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
@@ -257,9 +256,33 @@ self.addEventListener('fetch', function(event) {
   });
   if (isFirebaseApi) return;
 
-  if (url.origin === self.location.origin) {
-    // Same-origin assets (CSS, JS, HTML fragments):
-    // Serve cached version immediately, fetch fresh copy in background
+  // HTML navigation requests: NETWORK FIRST, cache fallback.
+  // The HTML shell controls which JS/CSS versions load via ?v=N params.
+  // If we serve stale HTML, users get old scripts — defeating every fix.
+  // CSS/JS/images: stale-while-revalidate (fast from cache, update in bg).
+  var isNavigation = req.mode === 'navigate' ||
+    (req.headers.get('accept') && req.headers.get('accept').indexOf('text/html') !== -1 &&
+     url.pathname.match(/\/$|\.html$/));
+
+  if (url.origin === self.location.origin && isNavigation) {
+    // HTML: always try network first — user gets latest version
+    event.respondWith(
+      fetch(req).then(function(response) {
+        if (response && response.ok) {
+          caches.open(SHELL_CACHE).then(function(cache) {
+            cache.put(req, response.clone());
+          });
+        }
+        return response;
+      }).catch(function() {
+        // Offline: fall back to cached HTML
+        return caches.match(req).then(function(cached) {
+          return cached || new Response('Offline', { status: 503 });
+        });
+      })
+    );
+  } else if (url.origin === self.location.origin) {
+    // CSS/JS/images: serve cached version immediately, fetch fresh in background
     event.respondWith(
       caches.match(req).then(function(cached) {
         var networkFetch = fetch(req).then(function(response) {
