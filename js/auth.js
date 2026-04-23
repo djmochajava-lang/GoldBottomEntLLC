@@ -459,6 +459,19 @@ const Auth = {
       }
     });
 
+    // Handle redirect result (for mobile sign-in which uses signInWithRedirect).
+    // After redirect, the page reloads and getRedirectResult() resolves with the
+    // credential. onAuthStateChanged above will fire too, so we only need to
+    // catch errors here — the success path is handled by onAuthStateChanged.
+    this._auth.getRedirectResult().catch(function(error) {
+      if (error && error.code && error.code !== 'auth/popup-closed-by-user') {
+        console.warn('[Auth] Redirect sign-in error:', error.code, error.message);
+        if (error.code === 'auth/account-exists-with-different-credential') {
+          Auth._showLoginError('An account already exists with this email using a different sign-in method.');
+        }
+      }
+    });
+
     this.initialized = true;
     console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft, Email/Password + Firestore)');
   },
@@ -1334,6 +1347,12 @@ const Auth = {
     if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
     var provider = this._providers[providerName];
     if (!provider) return Promise.reject(new Error('Unknown provider: ' + providerName));
+    // Use redirect on mobile — popups are unreliable (third-party cookie
+    // blocking causes "Network error" on Safari/Chrome). Redirect avoids
+    // cross-domain cookie issues entirely. Desktop uses popup as fallback.
+    if (window.innerWidth <= 1024 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      return this._auth.signInWithRedirect(provider);
+    }
     return this._auth.signInWithPopup(provider);
   },
 
@@ -1545,13 +1564,8 @@ const Auth = {
         // Trigger Google sign-in directly
         if (typeof firebase !== 'undefined' && firebase.auth) {
           var provider = new firebase.auth.GoogleAuthProvider();
-          firebase.auth().signInWithPopup(provider).catch(function(err) {
-            if (err.code !== 'auth/popup-closed-by-user') {
-              console.error('[Auth] Auto-login failed:', err.code);
-            }
-            // Fall back to showing the modal
-            Auth.showLoginModal();
-          });
+          // Use redirect for auto-login (avoids popup/cookie issues on mobile)
+          firebase.auth().signInWithRedirect(provider);
           return;
         }
       }
