@@ -324,25 +324,65 @@
       return;
     }
 
-    // Validate email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       if (typeof Toast !== 'undefined') Toast.error('Please enter a valid email address.');
       return;
     }
 
-    // Derive name from email local part (capitalize first letter)
     var emailLower = email.toLowerCase().trim();
     var localPart = emailLower.split('@')[0].replace(/[._-]/g, ' ');
     var name = localPart.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
 
-    // Hash the email for auto-approve matching
+    // Show email preview confirmation
+    var previewHtml =
+      '<div style="margin-bottom:var(--space-lg);">' +
+        '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">' +
+          '<div style="width:40px;height:40px;border-radius:50%;background:rgba(212,160,23,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+            '<i class="fa-solid fa-paper-plane" style="color:#d4a017;font-size:16px;"></i>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-weight:600;color:var(--color-text);">' + Utils.escapeHtml(name) + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + Utils.escapeHtml(emailLower) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);">' +
+          '<div style="color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-sm);">Email Preview</div>' +
+          '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + Utils.escapeHtml(emailLower) + '</span></div>' +
+          '<div style="margin-bottom:var(--space-sm);"><strong style="color:var(--color-text-muted);">Subject:</strong> <span style="color:var(--color-text);">You\'re Invited to the L.A. Young Soul Society Band Page</span></div>' +
+          '<div style="border-top:1px solid var(--color-border);padding-top:var(--space-sm);color:var(--color-text-secondary);line-height:1.6;">' +
+            'Hi ' + Utils.escapeHtml(name) + ',<br><br>' +
+            'You\'ve been invited to the L.A. Young Soul Society Band Page.<br><br>' +
+            'Tap the link below to access the Band Page. You\'ll be asked to sign in and accept a short confidentiality agreement — takes about 30 seconds.<br><br>' +
+            '<span style="color:#d4a017;">[invitation link]</span><br><br>' +
+            'Once you\'re set up, you\'ll have access to:<br>' +
+            '&nbsp;&nbsp;- Rehearsal tracks, stems, and charts<br>' +
+            '&nbsp;&nbsp;- Set arrangements and rehearsal schedules<br>' +
+            '&nbsp;&nbsp;- Payment info and agreements<br><br>' +
+            'Best,<br>Jeffery Ponder<br>Gold Bottom Ent. LLC' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    Modal.open({
+      title: 'Confirm Invitation',
+      body: previewHtml,
+      size: 'md',
+      actions: [
+        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _confirmSendInvitation(emailLower, name); } },
+        { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
+      ]
+    });
+  }
+
+  function _confirmSendInvitation(emailLower, name) {
+    Modal.close();
+
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailLower)).then(function(buf) {
       var hashArray = Array.from(new Uint8Array(buf));
       var emailHash = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
 
-      // Write to Firestore pending-invitations — server picks up, sends email
       var db = Auth._db;
-      var invData = {
+      db.collection('pending-invitations').add({
         musicianName: name,
         musicianEmail: emailLower,
         emailHash: emailHash,
@@ -353,10 +393,7 @@
         createdBy: Auth._user ? Auth._user.uid : 'unknown',
         createdByName: Auth._user ? (Auth._user.displayName || Auth._user.email) : 'Band Manager',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      db.collection('pending-invitations').add(invData).then(function(docRef) {
-        Modal.close();
+      }).then(function(docRef) {
         if (typeof Toast !== 'undefined') Toast.success('Band Page invitation sent to ' + emailLower);
         console.log('[Manager] Invitation queued:', docRef.id, 'for', emailLower);
       }).catch(function(err) {

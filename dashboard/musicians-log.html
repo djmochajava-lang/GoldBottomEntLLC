@@ -539,7 +539,7 @@
     document.getElementById('ml-modal').style.display = 'flex';
   };
 
-  window._mlSendInvite = async function(id) {
+  window._mlSendInvite = function(id) {
     var m = _musicians.find(function(x) { return x.id === id; });
     if (!m) return;
 
@@ -550,6 +550,55 @@
 
     var displayName = m._fullName || m.first_name || 'Musician';
     var emailLower = m._email.toLowerCase().trim();
+    var instrumentLabel = m.instrument ? m.instrument.charAt(0).toUpperCase() + m.instrument.slice(1) : '';
+
+    // Show confirmation modal with email preview
+    if (typeof Modal === 'undefined') return;
+
+    var previewHtml =
+      '<div style="margin-bottom:var(--space-lg);">' +
+        '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">' +
+          '<div style="width:40px;height:40px;border-radius:50%;background:rgba(212,160,23,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+            '<i class="fa-solid fa-paper-plane" style="color:#d4a017;font-size:16px;"></i>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-weight:600;color:var(--color-text);">' + esc(displayName) + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + (instrumentLabel ? ' · ' + esc(instrumentLabel) : '') + '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // Email preview card
+        '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);">' +
+          '<div style="color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-sm);">Email Preview</div>' +
+          '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + esc(emailLower) + '</span></div>' +
+          '<div style="margin-bottom:var(--space-sm);"><strong style="color:var(--color-text-muted);">Subject:</strong> <span style="color:var(--color-text);">You\'re Invited to the L.A. Young Soul Society Band Page</span></div>' +
+          '<div style="border-top:1px solid var(--color-border);padding-top:var(--space-sm);color:var(--color-text-secondary);line-height:1.6;">' +
+            'Hi ' + esc(displayName) + ',<br><br>' +
+            'You\'ve been invited to the L.A. Young Soul Society Band Page' + (instrumentLabel ? ' as ' + esc(instrumentLabel) : '') + '.<br><br>' +
+            'Tap the link below to access the Band Page. You\'ll be asked to sign in and accept a short confidentiality agreement — takes about 30 seconds.<br><br>' +
+            '<span style="color:#d4a017;">[invitation link]</span><br><br>' +
+            'Once you\'re set up, you\'ll have access to:<br>' +
+            '&nbsp;&nbsp;- Rehearsal tracks, stems, and charts<br>' +
+            '&nbsp;&nbsp;- Set arrangements and rehearsal schedules<br>' +
+            '&nbsp;&nbsp;- Payment info and agreements<br><br>' +
+            'Best,<br>Jeffery Ponder<br>Gold Bottom Ent. LLC' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    Modal.open({
+      title: 'Send Band Page Invitation',
+      body: previewHtml,
+      size: 'md',
+      actions: [
+        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _mlConfirmSend(id, displayName, emailLower, m); } },
+        { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
+      ]
+    });
+  };
+
+  async function _mlConfirmSend(id, displayName, emailLower, m) {
+    Modal.close();
 
     try {
       // Hash the email for auto-approve matching
@@ -585,7 +634,7 @@
     } catch (e) {
       if (typeof Toast !== 'undefined') Toast.error('Failed to send invite: ' + e.message);
     }
-  };
+  }
 
   // ═══ ADD / SAVE ═══
 
