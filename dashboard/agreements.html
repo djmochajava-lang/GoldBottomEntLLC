@@ -95,6 +95,12 @@
   if (!db) return;
   if(!Auth.isInternalStaff()&&!Auth.isSinger()&&!Auth.isBandMember()){document.getElementById('dash-agreements').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
 
+  // ── Band Member / Artist view: show only their own agreements ──
+  if (Auth.isBandMember() || (Auth.isSinger && Auth.isSinger())) {
+    _renderMemberAgreements(db);
+    return;
+  }
+
   var allAgreements = [];
   var currentFilter = 'all';
 
@@ -515,6 +521,102 @@
 
     if (typeof Modal !== 'undefined') Modal.open({ title: 'GBE Freelance Musician Agreement — ' + esc(name), body: content, size: 'lg' });
   };
+
+  // ── Band Member Agreements View ────────────
+  function _renderMemberAgreements(db) {
+    var container = document.getElementById('dash-agreements');
+    var uid = Auth.getCurrentUser ? Auth.getCurrentUser().uid : null;
+    if (!uid) { container.innerHTML = '<p style="padding:var(--space-xl);color:var(--color-text-muted);">Please sign in to view agreements.</p>'; return; }
+
+    container.innerHTML =
+      '<div class="dashboard-page-header"><div><h1>My Agreements</h1><p class="text-muted">Your signed agreements with Gold Bottom Ent. LLC</p></div></div>' +
+      '<div id="member-agr-loading" style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>' +
+      '<div id="member-agr-list"></div>';
+
+    var AGREEMENT_TEXT =
+      '\u2022 You are a freelance independent contractor for Gold Bottom Ent LLC only (not an employee). You handle your own taxes and insurance.\n\n' +
+      '\u2022 LA Young\u2019s original compositions, lyrics, and demos are her / Gold Bottom Ent LLC\u2019s sole property. Any contributions or arrangements you make to her pre-existing originals are derivative works owned solely by her / the LLC. You will not claim ownership, co-writing credit, or royalties unless we agree in writing.\n\n' +
+      '\u2022 Rehearsal materials, charts, and recordings are for band use only \u2014 please don\u2019t share them publicly.\n\n' +
+      '\u2022 No extra pay for rehearsals, local travel, or prep unless we note it for a specific gig.\n\n' +
+      '\u2022 You\u2019re responsible for your own gear. We\u2019re not liable for loss or damage unless caused by our direct negligence.\n\n' +
+      '\u2022 All obligations are with Gold Bottom Ent LLC only \u2014 no personal liability for Jeffery Ponder or LA Young.';
+
+    // Load user doc + any agreements assigned to this musician
+    Promise.all([
+      db.collection('users').doc(uid).get(),
+      db.collection('agreements').where('musicianId', '==', uid).orderBy('sentAt', 'desc').get().catch(function() { return { forEach: function(){}, size: 0, empty: true }; })
+    ]).then(function(results) {
+      var userDoc = results[0];
+      var agrSnap = results[1];
+      var userData = userDoc.exists ? userDoc.data() : {};
+      var listEl = document.getElementById('member-agr-list');
+      var loadingEl = document.getElementById('member-agr-loading');
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (!listEl) return;
+
+      var html = '';
+
+      // 1. Freelance Musician Agreement (from onboarding)
+      var agreedAt = userData.houseBandAgreedAt || userData.freelanceAgreementAcceptedAt;
+      var agreedDate = '';
+      if (agreedAt && agreedAt.toDate) agreedDate = agreedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      var version = userData.houseBandAgreedVersion || '1.0';
+
+      html += '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:14px;padding:24px;margin-bottom:var(--space-lg);">' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<div style="width:44px;height:44px;border-radius:50%;background:' + (agreedAt ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)') + ';display:flex;align-items:center;justify-content:center;">' +
+            '<i class="fa-solid ' + (agreedAt ? 'fa-circle-check' : 'fa-circle-xmark') + '" style="font-size:20px;color:' + (agreedAt ? '#3fb950' : '#f85149') + ';"></i>' +
+          '</div>' +
+          '<div>' +
+            '<h3 style="margin:0;font-size:16px;color:var(--color-text);">GBE Freelance Musician Agreement</h3>' +
+            '<p style="margin:2px 0 0;font-size:13px;color:var(--color-text-muted);">' +
+              (agreedAt ? 'Accepted on ' + agreedDate + ' \u00B7 Version ' + version : 'Not yet accepted') +
+            '</p>' +
+          '</div>' +
+        '</div>';
+
+      if (agreedAt) {
+        html += '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:10px;padding:16px;font-size:13px;color:var(--color-text-secondary);line-height:1.8;max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch;white-space:pre-wrap;">' +
+          esc(AGREEMENT_TEXT) + '</div>';
+      } else {
+        html += '<p style="color:var(--color-text-muted);font-size:14px;">Visit <a href="#dashboard-payment-settings" style="color:var(--color-gold);">Payment Info</a> to review and accept the agreement.</p>';
+      }
+      html += '</div>';
+
+      // 2. Performance / Gig Agreements (sent by manager)
+      if (!agrSnap.empty) {
+        html += '<h2 style="font-size:16px;color:var(--color-text);margin-bottom:var(--space-md);"><i class="fa-solid fa-file-signature" style="margin-right:6px;color:var(--color-gold);"></i> Performance Agreements</h2>';
+        agrSnap.forEach(function(doc) {
+          var a = doc.data();
+          var sentDate = a.sentAt && a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+          var signedDate = a.signedAt && a.signedAt.toDate ? a.signedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+          var status = a.status || 'pending';
+          var badgeColor = status === 'signed' || status === 'completed' ? '#3fb950' : status === 'pending' ? '#d29922' : '#f85149';
+          var badgeBg = status === 'signed' || status === 'completed' ? 'rgba(63,185,80,0.15)' : status === 'pending' ? 'rgba(210,153,34,0.15)' : 'rgba(248,81,73,0.15)';
+          var statusLabel = status === 'completed' ? 'Completed' : status === 'signed' ? 'Signed' : status === 'pending' ? 'Awaiting Signature' : status;
+          var venue = a.terms && a.terms.venue ? a.terms.venue : '';
+          var pay = a.terms && a.terms.pay ? a.terms.pay : '';
+
+          html += '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:12px;padding:16px 20px;margin-bottom:var(--space-sm);display:flex;justify-content:space-between;align-items:center;">' +
+            '<div>' +
+              '<h3 style="margin:0;font-size:15px;color:var(--color-text);">' + esc(a.title || 'Agreement') + '</h3>' +
+              '<p style="margin:3px 0 0;font-size:13px;color:var(--color-text-muted);">' +
+                (venue ? esc(venue) + ' \u00B7 ' : '') +
+                (pay ? esc(pay) + ' \u00B7 ' : '') +
+                (status === 'signed' || status === 'completed' ? 'Signed ' + signedDate : 'Sent ' + sentDate) +
+              '</p>' +
+            '</div>' +
+            '<span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:' + badgeBg + ';color:' + badgeColor + ';">' + statusLabel + '</span>' +
+          '</div>';
+        });
+      }
+
+      listEl.innerHTML = html;
+    }).catch(function(err) {
+      var loadingEl = document.getElementById('member-agr-loading');
+      if (loadingEl) loadingEl.innerHTML = '<p style="color:#f85149;">Failed to load agreements: ' + esc(err.message) + '</p>';
+    });
+  }
 
   // ── Helpers ────────────────────────────────
   function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

@@ -386,6 +386,7 @@ const Router = {
           'dashboard-band-roster': ['admin', 'band_manager'],
           'dashboard-sessions': ['admin', 'band_manager'],
           'dashboard-my-portal': ['admin', 'band_manager', 'artist', 'band_member'],
+          'dashboard-agreements': ['admin', 'band_manager', 'artist', 'band_member'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
         var _currentRole = Auth.getRole ? Auth.getRole() : 'member';
