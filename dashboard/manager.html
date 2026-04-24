@@ -1,11 +1,14 @@
 <!-- dashboard/manager.html — Band Manager Dashboard (operations) -->
 <div class="dashboard-page" id="dash-manager">
 
-  <div class="dashboard-page-header">
+  <div class="dashboard-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--space-sm);">
     <div>
       <h1>Dashboard</h1>
       <p class="text-muted">Band Manager · Day-to-Day Operations</p>
     </div>
+    <button id="mgr-invite-btn" style="padding:8px 20px;border-radius:var(--radius-full);background:var(--color-gold);color:#000;border:none;font-weight:var(--fw-semibold);font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+      <i class="fa-solid fa-user-plus"></i> Invite Musician
+    </button>
   </div>
 
   <!-- Ops metrics -->
@@ -286,6 +289,81 @@
       .catch(function(err) {
         readinessEl.innerHTML = '<h3><i class="fa-solid fa-users-viewfinder" style="color:#3fb950;"></i> Band Readiness</h3><p class="text-muted">Could not load: '+err.message+'</p>';
       });
+  }
+
+  /* ── Invite Musician (writes to Firestore pending-invitations) ── */
+  var invBtn = document.getElementById('mgr-invite-btn');
+  if (invBtn && typeof Auth !== 'undefined' && Auth._db) {
+    invBtn.addEventListener('click', function() {
+      if (typeof Modal === 'undefined') return;
+
+      var formHtml =
+        '<div style="display:flex;flex-direction:column;gap:var(--space-md);">' +
+          '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0;">Enter the musician\'s email address. They\'ll receive an invitation link to join the band.</p>' +
+          '<div><label style="display:block;font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:4px;">Email Address</label>' +
+          '<input id="inv-email" type="email" placeholder="musician@email.com" style="width:100%;padding:12px 14px;border-radius:var(--radius-md);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-lg);" autocomplete="email"></div>' +
+        '</div>';
+
+      Modal.open({
+        title: 'Invite Musician',
+        body: formHtml,
+        size: 'md',
+        actions: [
+          { label: 'Send Invitation', class: 'btn-primary', callback: function() { _sendInvitation(); } },
+          { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
+        ]
+      });
+    });
+  }
+
+  function _sendInvitation() {
+    var email = (document.getElementById('inv-email') || {}).value || '';
+
+    if (!email.trim()) {
+      if (typeof Toast !== 'undefined') Toast.error('Please enter an email address.');
+      return;
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      if (typeof Toast !== 'undefined') Toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    // Derive name from email local part (capitalize first letter)
+    var emailLower = email.toLowerCase().trim();
+    var localPart = emailLower.split('@')[0].replace(/[._-]/g, ' ');
+    var name = localPart.split(' ').map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+
+    // Hash the email for auto-approve matching
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailLower)).then(function(buf) {
+      var hashArray = Array.from(new Uint8Array(buf));
+      var emailHash = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+
+      // Write to Firestore pending-invitations — server picks up, sends email
+      var db = Auth._db;
+      var invData = {
+        musicianName: name,
+        musicianEmail: emailLower,
+        emailHash: emailHash,
+        instrument: null,
+        role: 'band_member',
+        message: null,
+        status: 'queued',
+        createdBy: Auth._user ? Auth._user.uid : 'unknown',
+        createdByName: Auth._user ? (Auth._user.displayName || Auth._user.email) : 'Band Manager',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      db.collection('pending-invitations').add(invData).then(function(docRef) {
+        Modal.close();
+        if (typeof Toast !== 'undefined') Toast.success('Invitation sent to ' + emailLower);
+        console.log('[Manager] Invitation queued:', docRef.id, 'for', emailLower);
+      }).catch(function(err) {
+        console.error('[Manager] Invitation write failed:', err);
+        if (typeof Toast !== 'undefined') Toast.error('Failed to send invitation: ' + err.message);
+      });
+    });
   }
 
 })();

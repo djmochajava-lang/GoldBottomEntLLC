@@ -548,79 +548,32 @@
       return;
     }
 
-    var displayName = m._fullName || m.first_name || 'there';
-    var subject = 'L.A. Young Soul Society — Confirm Your Availability for Upcoming Band Rehearsal';
-    var bodyText = 'Hi ' + displayName + ',\n\nWe are putting together a rehearsal and would like to confirm your availability. Please reply to this email and let us know.\n\nBest regards,\nGold Bottom Ent. LLC';
-    var bodyHtml = '<p>Hi ' + displayName + ',</p><p>We are putting together a rehearsal and would like to confirm your availability. Please reply to this email and let us know.</p><p>Best regards,<br/>Gold Bottom Ent. LLC</p>';
-    var sendMethod = 'sent_manual'; // default: mailto (field)
-
-    var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
+    var displayName = m._fullName || m.first_name || 'Musician';
+    var emailLower = m._email.toLowerCase().trim();
 
     try {
-      // Try SMTP via HomeOffice server if available (direct API call)
-      if (isLocal) {
-        try {
-          var resp = await Utils.apiFetch('/api/v1/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: m._email,
-              subject: subject,
-              account: 'band_manager',
-              text: bodyText,
-              html: bodyHtml
-            })
-          });
+      // Hash the email for auto-approve matching
+      var hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailLower));
+      var hashArray = Array.from(new Uint8Array(hashBuf));
+      var emailHash = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
 
-          if (resp.ok) {
-            sendMethod = 'sent_auto';
-          } else {
-            throw new Error('SMTP failed: ' + resp.status);
-          }
-        } catch (smtpErr) {
-          // SMTP direct call failed — queue via Firestore for server pickup
-          console.warn('[Musicians Log] Direct SMTP unavailable, queuing via Firestore:', smtpErr.message);
-          await fdb.collection('email-queue').add({
-            to: m._email,
-            subject: subject,
-            text: bodyText,
-            html: bodyHtml,
-            account: 'band_manager',
-            status: 'pending',
-            queued_by: (typeof Auth !== 'undefined' && Auth.getUser) ? (Auth.getUser().displayName || Auth.getUser().email || 'unknown') : 'unknown',
-            created_at: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          sendMethod = 'sent_auto';
-        }
-      } else {
-        // Remote (field) — queue email via Firestore for server SMTP relay
-        await fdb.collection('email-queue').add({
-          to: m._email,
-          subject: subject,
-          text: bodyText,
-          html: bodyHtml,
-          account: 'band_manager',
-          status: 'pending',
-          queued_by: (typeof Auth !== 'undefined' && Auth.getUser) ? (Auth.getUser().displayName || Auth.getUser().email || 'unknown') : 'unknown',
-          created_at: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        sendMethod = 'sent_auto';
-      }
+      // Write to Firestore pending-invitations — server picks up, creates
+      // SQLite record + invitations doc, sends onboarding email via SMTP
+      await fdb.collection('pending-invitations').add({
+        musicianName: displayName,
+        musicianEmail: emailLower,
+        emailHash: emailHash,
+        instrument: m.instrument || null,
+        role: 'band_member',
+        message: null,
+        status: 'queued',
+        musiciansLogId: id,
+        createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'unknown',
+        createdByName: (typeof Auth !== 'undefined' && Auth._user) ? (Auth._user.displayName || Auth._user.email) : 'Band Manager',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
 
-      // Log to Firestore email-logs
-      if (fdb) {
-        var logData = {
-          to_email_enc: m.email_enc || '',
-          template_name: 'rehearsal_invite',
-          status: sendMethod,
-          sent_by: (typeof Auth !== 'undefined' && Auth.getUser) ? (Auth.getUser().displayName || Auth.getUser().email || 'unknown') : 'unknown',
-          sent_via: sendMethod === 'sent_auto' ? 'smtp' : 'native_mail',
-          created_at: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        await fdb.collection('email-logs').add(logData);
-      }
-
-      // Update status to invite_sent
+      // Update musicians-log status to invite_sent
       await fdb.collection('musicians-log').doc(id).update({
         status: 'invite_sent',
         updated_at: firebase.firestore.FieldValue.serverTimestamp()
@@ -628,8 +581,7 @@
       m.status = 'invite_sent';
       renderCards();
 
-      var methodLabel = sendMethod === 'sent_auto' ? 'sent via server' : 'opened in mail app';
-      if (typeof Toast !== 'undefined') Toast.success('Rehearsal invite ' + methodLabel + ' for ' + (m._fullName || m.first_name));
+      if (typeof Toast !== 'undefined') Toast.success('Onboarding invite queued for ' + displayName);
     } catch (e) {
       if (typeof Toast !== 'undefined') Toast.error('Failed to send invite: ' + e.message);
     }
