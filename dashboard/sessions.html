@@ -32,7 +32,7 @@
   </button>
 
   <!-- Create/Edit Modal -->
-  <div id="sess-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+  <div id="sess-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
     <div class="sess-modal-inner" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:520px;margin:var(--space-lg);max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <h2 id="sess-modal-title" style="margin:0 0 var(--space-lg);font-size:var(--text-lg);">Create Session</h2>
       <div style="display:grid;gap:var(--space-md);" id="sess-form">
@@ -111,7 +111,7 @@
   </div>
 
   <!-- Assign Musicians Modal -->
-  <div id="sess-assign-modal" style="display:none;position:fixed;inset:0;z-index:9001;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+  <div id="sess-assign-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
     <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:460px;margin:var(--space-lg);max-height:90vh;overflow-y:auto;">
       <h2 style="margin:0 0 var(--space-lg);font-size:var(--text-lg);">Assign Freelance Artists</h2>
       <div id="sess-assign-shortcuts" style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-md);">
@@ -154,14 +154,15 @@
   .sess-assign-row { display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm);border-radius:var(--radius-md);background:var(--color-bg-tertiary); }
   .sess-assign-row label { flex:1;cursor:pointer;font-size:var(--text-sm); }
 
-  /* Mobile: full-screen modal so all fields are accessible */
+  /* Mobile: maximize modal height so all fields are accessible and scrollable */
   @media (max-width: 600px) {
     .sess-modal-inner {
-      margin: 0 !important;
-      max-height: 100vh !important;
-      height: 100vh !important;
-      border-radius: 0 !important;
-      padding: var(--space-lg) var(--space-md) calc(var(--space-xl) + env(safe-area-inset-bottom)) !important;
+      margin: 8px !important;
+      max-height: calc(100vh - 16px) !important;
+      max-height: calc(100dvh - 16px) !important;
+      border-radius: var(--radius-md) !important;
+      padding: var(--space-md) !important;
+      padding-bottom: calc(var(--space-xl) + env(safe-area-inset-bottom)) !important;
     }
   }
 
@@ -339,8 +340,15 @@
       document.getElementById('sess-sets').value = tsd.set_times || '';
     }
     toggleTypeFields();
-    document.getElementById('sess-modal').style.display = 'flex';
+    _openModal();
   };
+
+  function _openModal() {
+    var m = document.getElementById('sess-modal');
+    // Move to body to escape transform containing block (dashboard-content has transform)
+    if (m.parentElement !== document.body) document.body.appendChild(m);
+    m.style.display = 'flex';
+  }
 
   function closeModal() {
     document.getElementById('sess-modal').style.display = 'none';
@@ -359,7 +367,9 @@
     _assignSessionId = sessionId;
     var listEl = document.getElementById('sess-assign-list');
     listEl.innerHTML = '<div style="text-align:center;padding:var(--space-md);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i></div>';
-    document.getElementById('sess-assign-modal').style.display = 'flex';
+    var am = document.getElementById('sess-assign-modal');
+    if (am.parentElement !== document.body) document.body.appendChild(am);
+    am.style.display = 'flex';
 
     try {
       // Load roster (active freelance artists)
@@ -508,7 +518,7 @@
   document.getElementById('sess-fab').addEventListener('click', function() {
     _editId = null;
     document.getElementById('sess-modal-title').textContent = 'Create Session';
-    document.getElementById('sess-modal').style.display = 'flex';
+    _openModal();
     toggleTypeFields();
   });
   document.getElementById('sess-cancel').addEventListener('click', closeModal);
