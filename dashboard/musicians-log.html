@@ -491,7 +491,7 @@
       html += '<div class="ml-card-instrument">' + esc(m.instrument || '—') + ' <span class="ml-status-badge ' + statusClass + '">' + esc(statusLabel) + '</span></div>';
       html += '</div>';
       html += '<div class="ml-card-actions">';
-      html += '<button class="ml-btn ml-btn-invite" ' + (canInvite ? '' : 'disabled') + ' onclick="window._mlSendInvite(\'' + esc(m.id) + '\')" title="Send Rehearsal Invite"><i class="fa-solid fa-paper-plane"></i></button>';
+      html += '<button class="ml-btn ml-btn-invite" ' + (canInvite ? '' : 'disabled') + ' onclick="window._mlSendInvite(\'' + esc(m.id) + '\')" title="Invite to Band Page"><i class="fa-solid fa-paper-plane"></i></button>';
       html += '<button class="ml-btn" onclick="window._mlExpand(\'' + esc(m.id) + '\')" title="Details"><i class="fa-solid fa-chevron-down"></i></button>';
       html += '<button class="ml-btn" onclick="window._mlEdit(\'' + esc(m.id) + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>';
       html += '</div>';
@@ -581,7 +581,7 @@
       m.status = 'invite_sent';
       renderCards();
 
-      if (typeof Toast !== 'undefined') Toast.success('Onboarding invite queued for ' + displayName);
+      if (typeof Toast !== 'undefined') Toast.success('Band Page invitation sent to ' + displayName);
     } catch (e) {
       if (typeof Toast !== 'undefined') Toast.error('Failed to send invite: ' + e.message);
     }

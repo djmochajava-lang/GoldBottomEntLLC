@@ -7,7 +7,7 @@
       <p class="text-muted">Band Manager · Day-to-Day Operations</p>
     </div>
     <button id="mgr-invite-btn" style="padding:8px 20px;border-radius:var(--radius-full);background:var(--color-gold);color:#000;border:none;font-weight:var(--fw-semibold);font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
-      <i class="fa-solid fa-user-plus"></i> Invite Musician
+      <i class="fa-solid fa-user-plus"></i> Invite to Band Page
     </button>
   </div>
 
@@ -299,13 +299,13 @@
 
       var formHtml =
         '<div style="display:flex;flex-direction:column;gap:var(--space-md);">' +
-          '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0;">Enter the musician\'s email address. They\'ll receive an invitation link to join the band.</p>' +
+          '<p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0;">Enter the musician\'s email address. They\'ll receive an invitation link to access the Band Page.</p>' +
           '<div><label style="display:block;font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:4px;">Email Address</label>' +
           '<input id="inv-email" type="email" placeholder="musician@email.com" style="width:100%;padding:12px 14px;border-radius:var(--radius-md);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-lg);" autocomplete="email"></div>' +
         '</div>';
 
       Modal.open({
-        title: 'Invite Musician',
+        title: 'Invite to Band Page',
         body: formHtml,
         size: 'md',
         actions: [
@@ -357,7 +357,7 @@
 
       db.collection('pending-invitations').add(invData).then(function(docRef) {
         Modal.close();
-        if (typeof Toast !== 'undefined') Toast.success('Invitation sent to ' + emailLower);
+        if (typeof Toast !== 'undefined') Toast.success('Band Page invitation sent to ' + emailLower);
         console.log('[Manager] Invitation queued:', docRef.id, 'for', emailLower);
       }).catch(function(err) {
         console.error('[Manager] Invitation write failed:', err);
