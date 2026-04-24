@@ -533,7 +533,14 @@
       '<div id="member-agr-loading" style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>' +
       '<div id="member-agr-list"></div>';
 
-    var AGREEMENT_TEXT =
+    var CONFIDENTIALITY_TEXT =
+      '\u2022 All original compositions, lyrics, demos, and arrangements by LA Young are the sole property of Gold Bottom Ent LLC.\n\n' +
+      '\u2022 Any contributions, harmonies, adaptations, or ideas I add to LA Young\u2019s pre-existing original material become derivative works owned solely by Gold Bottom Ent LLC / LA Young. I will not claim any ownership, co-writing credit, or royalties unless we specifically agree in writing.\n\n' +
+      '\u2022 Rehearsal recordings, charts, setlists, and private band materials are for internal use only. I will not share, distribute, copy, or post them publicly without written permission.\n\n' +
+      '\u2022 This applies during our working relationship and for 3 years after (or until the material is publicly released).\n\n' +
+      'I understand I am working as a freelance independent contractor for Gold Bottom Ent LLC only.';
+
+    var FREELANCE_TEXT =
       '\u2022 You are a freelance independent contractor for Gold Bottom Ent LLC only (not an employee). You handle your own taxes and insurance.\n\n' +
       '\u2022 LA Young\u2019s original compositions, lyrics, and demos are her / Gold Bottom Ent LLC\u2019s sole property. Any contributions or arrangements you make to her pre-existing originals are derivative works owned solely by her / the LLC. You will not claim ownership, co-writing credit, or royalties unless we agree in writing.\n\n' +
       '\u2022 Rehearsal materials, charts, and recordings are for band use only \u2014 please don\u2019t share them publicly.\n\n' +
@@ -556,32 +563,49 @@
 
       var html = '';
 
-      // 1. Freelance Musician Agreement (from onboarding)
-      var agreedAt = userData.houseBandAgreedAt || userData.freelanceAgreementAcceptedAt;
-      var agreedDate = '';
-      if (agreedAt && agreedAt.toDate) agreedDate = agreedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      var version = userData.houseBandAgreedVersion || '1.0';
+      // Helper to render an agreement card
+      function _agrCard(title, acceptedAt, text, notAcceptedMsg) {
+        var accepted = !!acceptedAt;
+        var dateStr = '';
+        if (accepted && acceptedAt.toDate) dateStr = acceptedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-      html += '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:14px;padding:24px;margin-bottom:var(--space-lg);">' +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<div style="width:44px;height:44px;border-radius:50%;background:' + (agreedAt ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)') + ';display:flex;align-items:center;justify-content:center;">' +
-            '<i class="fa-solid ' + (agreedAt ? 'fa-circle-check' : 'fa-circle-xmark') + '" style="font-size:20px;color:' + (agreedAt ? '#3fb950' : '#f85149') + ';"></i>' +
-          '</div>' +
-          '<div>' +
-            '<h3 style="margin:0;font-size:16px;color:var(--color-text);">GBE Freelance Musician Agreement</h3>' +
-            '<p style="margin:2px 0 0;font-size:13px;color:var(--color-text-muted);">' +
-              (agreedAt ? 'Accepted on ' + agreedDate + ' \u00B7 Version ' + version : 'Not yet accepted') +
-            '</p>' +
-          '</div>' +
-        '</div>';
+        var card = '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:14px;padding:24px;margin-bottom:var(--space-lg);">' +
+          '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+            '<div style="width:44px;height:44px;border-radius:50%;background:' + (accepted ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)') + ';display:flex;align-items:center;justify-content:center;">' +
+              '<i class="fa-solid ' + (accepted ? 'fa-circle-check' : 'fa-circle-xmark') + '" style="font-size:20px;color:' + (accepted ? '#3fb950' : '#f85149') + ';"></i>' +
+            '</div>' +
+            '<div>' +
+              '<h3 style="margin:0;font-size:16px;color:var(--color-text);">' + esc(title) + '</h3>' +
+              '<p style="margin:2px 0 0;font-size:13px;color:var(--color-text-muted);">' +
+                (accepted ? 'Accepted on ' + dateStr : 'Not yet accepted') +
+              '</p>' +
+            '</div>' +
+          '</div>';
 
-      if (agreedAt) {
-        html += '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:10px;padding:16px;font-size:13px;color:var(--color-text-secondary);line-height:1.8;max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch;white-space:pre-wrap;">' +
-          esc(AGREEMENT_TEXT) + '</div>';
-      } else {
-        html += '<p style="color:var(--color-text-muted);font-size:14px;">Visit <a href="#dashboard-payment-settings" style="color:var(--color-gold);">Payment Info</a> to review and accept the agreement.</p>';
+        if (accepted) {
+          card += '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:10px;padding:16px;font-size:13px;color:var(--color-text-secondary);line-height:1.8;max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch;white-space:pre-wrap;">' +
+            esc(text) + '</div>';
+        } else {
+          card += '<p style="color:var(--color-text-muted);font-size:14px;">' + notAcceptedMsg + '</p>';
+        }
+        return card + '</div>';
       }
-      html += '</div>';
+
+      // 1. Band Confidentiality Agreement (first — from band player onboarding)
+      html += _agrCard(
+        'Band Confidentiality Agreement',
+        userData.confidentialityAcceptedAt,
+        CONFIDENTIALITY_TEXT,
+        'Visit the <a href="#dashboard-band-player" style="color:var(--color-gold);">Band Player</a> to review and accept.'
+      );
+
+      // 2. GBE Freelance Musician Agreement (from payment settings onboarding)
+      html += _agrCard(
+        'GBE Freelance Musician Agreement',
+        userData.houseBandAgreedAt || userData.freelanceAgreementAcceptedAt,
+        FREELANCE_TEXT,
+        'Visit <a href="#dashboard-payment-settings" style="color:var(--color-gold);">Payment Info</a> to review and accept.'
+      );
 
       // 2. Performance / Gig Agreements (sent by manager)
       if (!agrSnap.empty) {
