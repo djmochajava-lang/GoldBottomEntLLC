@@ -1,9 +1,9 @@
-<!-- pages/onboard.html — Musician Onboarding Landing Page (FRD-4) -->
-<div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:var(--space-lg);">
-  <div id="onboard-container" style="max-width:420px;width:100%;text-align:center;">
-    <div id="onboard-loading" style="color:var(--color-text-muted);padding:var(--space-3xl) 0;">
-      <i class="fa-solid fa-spinner fa-spin" style="font-size:32px;display:block;margin-bottom:var(--space-md);"></i>
-      Validating invitation...
+<!-- pages/onboard.html — Musician Onboarding Welcome Page -->
+<div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div id="onboard-container" style="max-width:440px;width:100%;text-align:center;">
+    <div id="onboard-loading" style="color:var(--color-text-muted,#6e7681);padding:80px 0;">
+      <i class="fa-solid fa-spinner fa-spin" style="font-size:32px;display:block;margin-bottom:16px;"></i>
+      Loading invitation...
     </div>
   </div>
 </div>
@@ -13,98 +13,141 @@
   var container = document.getElementById('onboard-container');
   if (!container) return;
 
-  // Extract token from hash: #onboard?token=inv_xxx
+  // Extract invitation ID from hash: #onboard?id=inv_xxx
   var hash = window.location.hash || '';
-  var tokenMatch = hash.match(/[?&]token=([^&]+)/);
-  var token = tokenMatch ? tokenMatch[1] : null;
+  var idMatch = hash.match(/[?&]id=([^&]+)/);
+  var inviteId = idMatch ? decodeURIComponent(idMatch[1]) : null;
 
-  if (!token) {
-    container.innerHTML = renderError('No invitation token found', 'Check the link in your email and try again.');
+  if (!inviteId) {
+    container.innerHTML = _renderError('Invalid Link', 'No invitation found in this link. Check the email from Gold Bottom Ent. and try again.');
     return;
   }
 
-  // Determine API base (same origin on LAN server)
-  var API_BASE = window.location.origin;
+  // Wait for Firebase to be ready, then look up invitation in Firestore
+  function tryLoad(attempts) {
+    if (typeof firebase === 'undefined' || !firebase.firestore) {
+      if (attempts < 30) { setTimeout(function() { tryLoad(attempts + 1); }, 300); }
+      else { container.innerHTML = _renderError('Loading Failed', 'Could not connect. Please refresh and try again.'); }
+      return;
+    }
 
-  // Validate the token with the server
-  fetch(API_BASE + '/api/v1/onboarding/invite/' + encodeURIComponent(token))
-    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, status: res.status, data: d }; }); })
-    .then(function(result) {
-      if (!result.ok) {
-        if (result.status === 410) {
-          container.innerHTML = renderError('Invitation Already Used', result.data.error || 'This invitation link has already been used. If you need access, contact the Band Manager.');
-        } else {
-          container.innerHTML = renderError('Invalid Invitation', result.data.error || 'This invitation link is invalid or expired. Contact the Band Manager for a new one.');
-        }
+    var db = firebase.firestore();
+    db.collection('invitations').doc(inviteId).get().then(function(doc) {
+      if (!doc.exists) {
+        container.innerHTML = _renderError('Invitation Not Found', 'This invitation link may have expired or already been used. Contact the Band Manager for a new one.');
+        return;
+      }
+      var data = doc.data();
+
+      // Check status
+      if (data.status === 'accepted') {
+        container.innerHTML = _renderError('Already Accepted', 'This invitation has already been used. If you need access, sign in directly.');
+        return;
+      }
+      if (data.status === 'expired' || data.status === 'cancelled') {
+        container.innerHTML = _renderError('Invitation Expired', 'This invitation is no longer active. Contact the Band Manager for a new one.');
         return;
       }
 
-      var inv = result.data;
-      renderWelcome(inv, token);
-    })
-    .catch(function(err) {
-      console.error('[Onboard] Validation error:', err);
-      container.innerHTML = renderError('Connection Error', 'Could not reach the server. Make sure you\'re on the local network and try again.');
-    });
+      // Check expiry
+      if (data.expiresAt && data.expiresAt.toDate && data.expiresAt.toDate() < new Date()) {
+        container.innerHTML = _renderError('Link Expired', 'This invitation link has expired. Contact the Band Manager for a new one.');
+        return;
+      }
 
-  function renderWelcome(inv, token) {
-    var instrumentLabel = inv.instrument
+      _renderWelcome(data);
+    }).catch(function(err) {
+      console.error('[Onboard] Firestore lookup failed:', err);
+      container.innerHTML = _renderError('Connection Error', 'Could not verify invitation. Please refresh and try again.');
+    });
+  }
+  tryLoad(0);
+
+  function _renderWelcome(inv) {
+    var name = inv.musicianName || 'Musician';
+    var instrument = inv.instrument
       ? inv.instrument.charAt(0).toUpperCase() + inv.instrument.slice(1)
-      : 'Musician';
+      : '';
 
     container.innerHTML =
-      '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl) var(--space-lg);text-align:center;">' +
-        '<div style="width:64px;height:64px;border-radius:50%;background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
-          '<i class="fa-solid fa-music" style="font-size:28px;color:var(--color-gold);"></i>' +
+      '<div style="background:var(--color-bg-secondary,#161b22);border:1px solid var(--color-border,#282c36);border-radius:16px;padding:32px 24px;text-align:center;overflow:hidden;position:relative;">' +
+
+        // Gold accent glow
+        '<div style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:200px;height:200px;background:radial-gradient(circle,rgba(212,160,23,0.15) 0%,transparent 70%);pointer-events:none;"></div>' +
+
+        // Logo / icon
+        '<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,rgba(212,160,23,0.2),rgba(212,160,23,0.05));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid rgba(212,160,23,0.3);position:relative;">' +
+          '<i class="fa-solid fa-guitar" style="font-size:32px;color:#d4a017;"></i>' +
         '</div>' +
-        '<h2 style="color:var(--color-text);font-size:var(--text-xl);margin-bottom:var(--space-xs);">Welcome, ' + escapeHtml(inv.name) + '</h2>' +
-        '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);">' +
-          'You\'ve been invited to join L.A. Young Band as <strong style="color:var(--color-gold);">' + escapeHtml(instrumentLabel) + '</strong>' +
-        '</p>' +
-        '<p style="color:var(--color-text-muted);font-size:var(--text-xs);margin-bottom:var(--space-lg);">Sign in below to set up your account. It takes about 30 seconds.</p>' +
-        '<button id="onboard-google-btn" style="display:inline-flex;align-items:center;gap:10px;padding:12px 28px;border-radius:var(--radius-full);background:#fff;color:#333;border:1px solid #dadce0;font-size:var(--text-sm);font-weight:var(--fw-medium);cursor:pointer;transition:box-shadow 150ms ease;">' +
-          '<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>' +
-          'Sign in with Google' +
+
+        // Welcome text
+        '<p style="color:#d4a017;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;font-weight:600;">You\'re Invited</p>' +
+        '<h1 style="color:var(--color-text,#e8e8e8);font-size:26px;margin-bottom:6px;font-weight:700;">Welcome, ' + _esc(name) + '</h1>' +
+        (instrument
+          ? '<p style="color:var(--color-text-secondary,#8b949e);font-size:16px;margin-bottom:24px;">' + _esc(instrument) + ' &mdash; L.A. Young &amp; the Soul Society</p>'
+          : '<p style="color:var(--color-text-secondary,#8b949e);font-size:16px;margin-bottom:24px;">L.A. Young &amp; the Soul Society</p>'
+        ) +
+
+        // What you'll get
+        '<div style="text-align:left;background:var(--color-bg,#0d1117);border:1px solid var(--color-border,#282c36);border-radius:12px;padding:16px 20px;margin-bottom:24px;">' +
+          '<p style="color:var(--color-text-muted,#6e7681);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600;">What\'s waiting for you</p>' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+            '<i class="fa-solid fa-headphones" style="color:#d4a017;font-size:14px;width:20px;text-align:center;"></i>' +
+            '<span style="color:var(--color-text,#e8e8e8);font-size:14px;">Rehearsal tracks, stems &amp; charts</span>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+            '<i class="fa-solid fa-calendar-days" style="color:#d4a017;font-size:14px;width:20px;text-align:center;"></i>' +
+            '<span style="color:var(--color-text,#e8e8e8);font-size:14px;">Gig schedules &amp; set arrangements</span>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<i class="fa-solid fa-wallet" style="color:#d4a017;font-size:14px;width:20px;text-align:center;"></i>' +
+            '<span style="color:var(--color-text,#e8e8e8);font-size:14px;">Payment setup &amp; agreements</span>' +
+          '</div>' +
+        '</div>' +
+
+        // CTA button
+        '<button id="onboard-enter-btn" style="width:100%;padding:16px 32px;border-radius:12px;background:linear-gradient(135deg,#d4a017,#b8860b);color:#000;border:none;font-weight:700;font-size:16px;cursor:pointer;min-height:52px;letter-spacing:0.5px;transition:transform 100ms ease,box-shadow 100ms ease;">' +
+          'Enter the Band Player <i class="fa-solid fa-arrow-right" style="margin-left:8px;"></i>' +
         '</button>' +
-        '<p style="color:var(--color-text-muted);font-size:10px;margin-top:var(--space-lg);">By signing in, you\'ll be added to the band roster. Your email will only be used for band communications.</p>' +
+
+        '<p style="color:var(--color-text-muted,#6e7681);font-size:11px;margin-top:16px;line-height:1.5;">You\'ll sign in and accept a short confidentiality agreement.<br>Takes about 30 seconds.</p>' +
+
+        // LLC footer
+        '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--color-border,#282c36);">' +
+          '<p style="color:var(--color-text-muted,#6e7681);font-size:10px;margin:0;">Gold Bottom Ent. LLC<br>5000 Thayer Ctr, Oakland, MD 21550</p>' +
+        '</div>' +
       '</div>';
 
-    // Wire up the Google sign-in button
-    var btn = document.getElementById('onboard-google-btn');
+    // Button hover
+    var btn = document.getElementById('onboard-enter-btn');
     if (btn) {
+      btn.addEventListener('mouseenter', function() { btn.style.transform = 'scale(1.02)'; btn.style.boxShadow = '0 4px 20px rgba(212,160,23,0.3)'; });
+      btn.addEventListener('mouseleave', function() { btn.style.transform = ''; btn.style.boxShadow = ''; });
       btn.addEventListener('click', function() {
-        // Store the invite token for auth.js to pick up
-        localStorage.setItem('gbe-invite-token', token);
-        // Trigger Google sign-in via Auth module
-        if (typeof Auth !== 'undefined' && Auth.loginWithProvider) {
-          Auth.loginWithProvider('google').catch(function(err) {
-            console.error('[Onboard] Sign-in failed:', err);
-            if (typeof Toast !== 'undefined') Toast.error('Sign-in failed. Please try again.');
-          });
-        } else {
-          // Fallback: redirect to dashboard which triggers login
-          window.location.hash = '#dashboard-home';
-        }
+        // Store invite ID for potential future use
+        try { localStorage.setItem('gbe-invite-id', inviteId); } catch(e) {}
+        // Navigate to band player — auth gate + Screen 1 handles the rest
+        window.location.hash = '#dashboard-band-player';
       });
     }
   }
 
-  function renderError(title, message) {
-    return '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl) var(--space-lg);text-align:center;">' +
-      '<div style="width:64px;height:64px;border-radius:50%;background:rgba(248,81,73,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md);">' +
-        '<i class="fa-solid fa-circle-xmark" style="font-size:28px;color:var(--color-danger);"></i>' +
+  function _renderError(title, message) {
+    return '<div style="background:var(--color-bg-secondary,#161b22);border:1px solid var(--color-border,#282c36);border-radius:16px;padding:32px 24px;text-align:center;">' +
+      '<div style="width:64px;height:64px;border-radius:50%;background:rgba(248,81,73,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">' +
+        '<i class="fa-solid fa-circle-xmark" style="font-size:28px;color:#f85149;"></i>' +
       '</div>' +
-      '<h2 style="color:var(--color-text);font-size:var(--text-lg);margin-bottom:var(--space-sm);">' + escapeHtml(title) + '</h2>' +
-      '<p style="color:var(--color-text-secondary);font-size:var(--text-sm);margin-bottom:var(--space-lg);">' + escapeHtml(message) + '</p>' +
-      '<p style="color:var(--color-text-muted);font-size:var(--text-xs);">Contact: jeffery.ponder@goldbottoment-llc.com</p>' +
+      '<h2 style="color:var(--color-text,#e8e8e8);font-size:20px;margin-bottom:8px;">' + _esc(title) + '</h2>' +
+      '<p style="color:var(--color-text-secondary,#8b949e);font-size:14px;margin-bottom:20px;line-height:1.6;">' + _esc(message) + '</p>' +
+      '<p style="color:var(--color-text-muted,#6e7681);font-size:12px;">jeffery.ponder@goldbottoment-llc.com</p>' +
     '</div>';
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    var div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+  function _esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   }
 })();
 </script>
