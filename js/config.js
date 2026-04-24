@@ -14,10 +14,10 @@ const SiteConfig = {
     year: 2026,
     email: 'booking@layoungbandpage.com',
     phone: '[YOUR BUSINESS PHONE]',
-    address: '[YOUR BUSINESS ADDRESS]',
+    address: '5000 Thayer Ctr, Oakland, MD 21550',
     state: 'Maryland',
-    ein: '[YOUR EIN HERE]',
-    registeredAgent: '[YOUR REGISTERED AGENT]',
+    ein: '41-3701824',
+    registeredAgent: 'Northwest Registered Agent Service, Inc., 5000 Thayer Ctr, Oakland, MD 21550',
     attorney: '[YOUR ATTORNEY]',
     accountant: '[YOUR ACCOUNTANT / CPA]',
     insurance: '[YOUR BUSINESS INSURANCE]'

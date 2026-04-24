@@ -112,6 +112,7 @@
                   '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Offered By</div>' +
                   '<div style="font-size:14px;color:var(--color-text,#e8e8e8);font-weight:600;">Jeffery Ponder</div>' +
                   '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">Managing Member, Gold Bottom Ent LLC</div>' +
+                  '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">5000 Thayer Ctr, Oakland, MD 21550</div>' +
                   '<div id="bp2-s1-ceo-date" style="font-size:12px;color:var(--color-text-secondary,#8b949e);"></div>' +
                 '</div>' +
                 '<div id="bp2-s1-musician-sig" style="display:none;">' +
@@ -367,6 +368,7 @@
                     '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Offered By</div>' +
                     '<div style="font-size:14px;color:var(--color-text,#e8e8e8);font-weight:600;">Jeffery Ponder</div>' +
                     '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">Managing Member, Gold Bottom Ent LLC</div>' +
+                    '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">5000 Thayer Ctr, Oakland, MD 21550</div>' +
                     '<div id="bp2-s2-ceo-date" style="font-size:12px;color:var(--color-text-secondary,#8b949e);"></div>' +
                   '</div>' +
                   '<div id="bp2-s2-musician-sig" style="display:none;">' +
