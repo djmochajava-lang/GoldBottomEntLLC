@@ -590,11 +590,9 @@
 
     Modal.open({
       title: 'Send Invitation',
-      body: choiceHtml,
+      content: choiceHtml,
       size: 'md',
-      actions: [
-        { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
-      ]
+      showFooter: false
     });
 
     // Wire up choice buttons
@@ -639,12 +637,12 @@
 
     Modal.open({
       title: 'Invite to Band Page',
-      body: previewHtml,
+      content: previewHtml,
       size: 'md',
-      actions: [
-        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _mlConfirmBandPageSend(id, displayName, emailLower, m); } },
-        { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); window._mlSendInvite(id); } }
-      ]
+      saveText: 'Send Invitation',
+      cancelText: 'Back',
+      onSave: function() { _mlConfirmBandPageSend(id, displayName, emailLower, m); },
+      onCancel: function() { Modal.close(); window._mlSendInvite(id); }
     });
   }
 
@@ -694,12 +692,12 @@
         if (snap.empty) {
           Modal.open({
             title: 'Invite to Session',
-            body: '<div style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);"><i class="fa-solid fa-calendar-xmark" style="font-size:32px;display:block;margin-bottom:var(--space-sm);"></i>No upcoming sessions found.<br>Create a session first from the Sessions page.</div>',
+            content: '<div style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);"><i class="fa-solid fa-calendar-xmark" style="font-size:32px;display:block;margin-bottom:var(--space-sm);"></i>No upcoming sessions found.<br>Create a session first from the Sessions page.</div>',
             size: 'md',
-            actions: [
-              { label: 'Go to Sessions', class: 'btn-primary', callback: function() { Modal.close(); window.location.hash = '#dashboard-sessions'; } },
-              { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); window._mlSendInvite(id); } }
-            ]
+            saveText: 'Go to Sessions',
+            cancelText: 'Back',
+            onSave: function() { Modal.close(); window.location.hash = '#dashboard-sessions'; },
+            onCancel: function() { Modal.close(); window._mlSendInvite(id); }
           });
           return;
         }
@@ -746,11 +744,12 @@
 
         Modal.open({
           title: 'Pick a Session',
-          body: sessionsHtml,
+          content: sessionsHtml,
           size: 'md',
-          actions: [
-            { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); window._mlSendInvite(id); } }
-          ]
+          cancelText: 'Back',
+          showFooter: true,
+          saveText: '',
+          onCancel: function() { Modal.close(); window._mlSendInvite(id); }
         });
 
         // Wire up session pick buttons
@@ -771,9 +770,10 @@
       .catch(function(err) {
         Modal.open({
           title: 'Error',
-          body: '<p style="color:var(--color-text-muted);">Could not load sessions: ' + esc(err.message) + '</p>',
+          content: '<p style="color:var(--color-text-muted);">Could not load sessions: ' + esc(err.message) + '</p>',
           size: 'sm',
-          actions: [{ label: 'OK', class: 'btn-secondary', callback: function() { Modal.close(); } }]
+          saveText: 'OK',
+          onSave: function() { Modal.close(); }
         });
       });
   }
@@ -820,12 +820,12 @@
 
     Modal.open({
       title: 'Confirm Session Invitation',
-      body: previewHtml,
+      content: previewHtml,
       size: 'md',
-      actions: [
-        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _mlConfirmSessionSend(id, m, displayName, emailLower, sessionDoc); } },
-        { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); _mlShowSessionPicker(id, m, displayName, emailLower, instrumentLabel); } }
-      ]
+      saveText: 'Send Invitation',
+      cancelText: 'Back',
+      onSave: function() { _mlConfirmSessionSend(id, m, displayName, emailLower, sessionDoc); },
+      onCancel: function() { Modal.close(); _mlShowSessionPicker(id, m, displayName, emailLower, instrumentLabel); }
     });
   }
 

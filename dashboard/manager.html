@@ -306,12 +306,10 @@
 
       Modal.open({
         title: 'Invite to Band Page',
-        body: formHtml,
+        content: formHtml,
         size: 'md',
-        actions: [
-          { label: 'Send Invitation', class: 'btn-primary', callback: function() { _sendInvitation(); } },
-          { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
-        ]
+        saveText: 'Next',
+        onSave: function() { _sendInvitation(); }
       });
     });
   }
@@ -365,12 +363,10 @@
 
     Modal.open({
       title: 'Confirm Invitation',
-      body: previewHtml,
+      content: previewHtml,
       size: 'md',
-      actions: [
-        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _confirmSendInvitation(emailLower, name); } },
-        { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
-      ]
+      saveText: 'Send Invitation',
+      onSave: function() { _confirmSendInvitation(emailLower, name); }
     });
   }
 
