@@ -543,15 +543,12 @@
     var m = _musicians.find(function(x) { return x.id === id; });
     if (!m) return;
 
-    if (!m._email || m._email === '[encrypted]') {
-      if (typeof Toast !== 'undefined') Toast.error('No email available for this musician.');
-      return;
-    }
-
     if (typeof Modal === 'undefined') return;
 
     var displayName = m._fullName || m.first_name || 'Musician';
-    var emailLower = m._email.toLowerCase().trim();
+    // Email may be encrypted on public site — server will resolve from musicians-log doc
+    var emailLower = (m._email && m._email !== '[encrypted]') ? m._email.toLowerCase().trim() : '';
+    var emailDisplay = emailLower || '(email on file — server will send)';
     var instrumentLabel = m.instrument ? m.instrument.charAt(0).toUpperCase() + m.instrument.slice(1) : '';
 
     // Step 1: Choose invite type
@@ -563,7 +560,7 @@
           '</div>' +
           '<div>' +
             '<div style="font-weight:600;color:var(--color-text);">' + esc(displayName) + '</div>' +
-            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + (instrumentLabel ? ' · ' + esc(instrumentLabel) : '') + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailDisplay) + (instrumentLabel ? ' · ' + esc(instrumentLabel) : '') + '</div>' +
           '</div>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">' +
@@ -614,12 +611,12 @@
           '</div>' +
           '<div>' +
             '<div style="font-weight:600;color:var(--color-text);">' + esc(displayName) + '</div>' +
-            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailDisplay) + '</div>' +
           '</div>' +
         '</div>' +
         '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);">' +
           '<div style="color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-sm);">Email Preview</div>' +
-          '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + esc(emailLower) + '</span></div>' +
+          '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + esc(emailDisplay) + '</span></div>' +
           '<div style="margin-bottom:var(--space-sm);"><strong style="color:var(--color-text-muted);">Subject:</strong> <span style="color:var(--color-text);">You\'re Invited to the L.A. Young Soul Society Band Page</span></div>' +
           '<div style="border-top:1px solid var(--color-border);padding-top:var(--space-sm);color:var(--color-text-secondary);line-height:1.6;">' +
             'Hi ' + esc(displayName) + ',<br><br>' +
@@ -649,13 +646,17 @@
   async function _mlConfirmBandPageSend(id, displayName, emailLower, m) {
     Modal.close();
     try {
-      var hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailLower));
-      var hashArray = Array.from(new Uint8Array(hashBuf));
-      var emailHash = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+      // Hash email if available; server will resolve from musiciansLogId if not
+      var emailHash = null;
+      if (emailLower) {
+        var hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailLower));
+        var hashArray = Array.from(new Uint8Array(hashBuf));
+        emailHash = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+      }
 
       await fdb.collection('pending-invitations').add({
         musicianName: displayName,
-        musicianEmail: emailLower,
+        musicianEmail: emailLower || null,
         emailHash: emailHash,
         instrument: m.instrument || null,
         role: 'band_member',
@@ -713,7 +714,7 @@
               '</div>' +
               '<div>' +
                 '<div style="font-weight:600;color:var(--color-text);">Invite ' + esc(displayName) + ' to a session</div>' +
-                '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + '</div>' +
+                '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailDisplay) + '</div>' +
               '</div>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;gap:var(--space-xs);max-height:300px;overflow-y:auto;">';
@@ -799,12 +800,12 @@
           '</div>' +
           '<div>' +
             '<div style="font-weight:600;color:var(--color-text);">' + esc(displayName) + '</div>' +
-            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailDisplay) + '</div>' +
           '</div>' +
         '</div>' +
         '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);">' +
           '<div style="color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-sm);">Email Preview</div>' +
-          '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + esc(emailLower) + '</span></div>' +
+          '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + esc(emailDisplay) + '</span></div>' +
           '<div style="margin-bottom:var(--space-sm);"><strong style="color:var(--color-text-muted);">Subject:</strong> <span style="color:var(--color-text);">L.A. Young Soul Society — ' + esc(typeLabel) + ': ' + esc(s.title || typeLabel) + '</span></div>' +
           '<div style="border-top:1px solid var(--color-border);padding-top:var(--space-sm);color:var(--color-text-secondary);line-height:1.6;">' +
             'Hi ' + esc(displayName) + ',<br><br>' +
