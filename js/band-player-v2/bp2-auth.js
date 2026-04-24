@@ -107,6 +107,19 @@
               '&bull; Rehearsal recordings, charts, setlists, and private band materials are for internal use only. I will not share, distribute, copy, or post them publicly without written permission.<br><br>' +
               '&bull; This applies during our working relationship and for 3 years after (or until the material is publicly released).<br><br>' +
               '<em>I understand I am working as a freelance independent contractor for Gold Bottom Ent LLC only.</em>' +
+              '<div style="border-top:1px solid var(--color-border,#282c36);margin-top:16px;padding-top:16px;">' +
+                '<div style="margin-bottom:12px;">' +
+                  '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Offered By</div>' +
+                  '<div style="font-size:14px;color:var(--color-text,#e8e8e8);font-weight:600;">Jeffery Ponder</div>' +
+                  '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">Managing Member, Gold Bottom Ent LLC</div>' +
+                  '<div id="bp2-s1-ceo-date" style="font-size:12px;color:var(--color-text-secondary,#8b949e);"></div>' +
+                '</div>' +
+                '<div id="bp2-s1-musician-sig" style="display:none;">' +
+                  '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Accepted By</div>' +
+                  '<div id="bp2-s1-sig-name" style="font-size:14px;color:#3fb950;font-weight:600;"></div>' +
+                  '<div id="bp2-s1-sig-date" style="font-size:12px;color:var(--color-text-secondary,#8b949e);"></div>' +
+                '</div>' +
+              '</div>' +
             '</div>' +
             '<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-text,#e8e8e8);cursor:pointer;justify-content:center;margin-bottom:16px;padding:12px;border-radius:8px;min-height:44px;">' +
               '<input type="checkbox" id="bp2-screen1-cb" style="width:22px;height:22px;accent-color:#d4a017;flex:0 0 22px;">' +
@@ -117,6 +130,22 @@
             '</div>' +
           '</div>' +
         '</div>';
+
+      // Populate CEO date from user doc (invitedAt or registeredAt)
+      var user = c ? c.getUser() : null;
+      var db = c ? c.getDb() : null;
+      if (user && db) {
+        db.collection('users').doc(user.uid).get().then(function(doc) {
+          var data = doc.exists ? doc.data() : {};
+          var ceoDateEl = document.getElementById('bp2-s1-ceo-date');
+          var offerDate = data.invitedAt || data.registeredAt;
+          if (ceoDateEl && offerDate && offerDate.toDate) {
+            ceoDateEl.textContent = 'Date: ' + offerDate.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          } else if (ceoDateEl) {
+            ceoDateEl.textContent = 'Date: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          }
+        }).catch(function() {});
+      }
 
       var cb = document.getElementById('bp2-screen1-cb');
       var btn = document.getElementById('bp2-screen1-btn');
@@ -132,8 +161,16 @@
           var user = c.getUser();
           var db = c.getDb();
           if (user && db) {
+            var sigEmail = user.email || '';
+            var sigName = user.displayName || sigEmail.split('@')[0] || '';
             db.collection('users').doc(user.uid).update({
               confidentialityAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              confidentialitySignature: {
+                name: sigName,
+                email: sigEmail,
+                userAgent: navigator.userAgent,
+                signedFromUrl: window.location.href
+              },
               roster_tier: 'on_call',
               activity: 'active'
             }).then(function() {
@@ -324,7 +361,22 @@
             // Section 3: Freelance Agreement
             '<div style="' + sectionStyle + '">' +
               '<h3 style="font-size:14px;color:var(--color-text,#e8e8e8);margin-bottom:12px;"><i class="fa-solid fa-file-signature" style="margin-right:6px;color:#d4a017;"></i> Freelance Musician Agreement <span style="font-size:11px;color:var(--color-text-muted,#6e7681);">(v' + AGREEMENT_VERSION + ')</span></h3>' +
-              '<div id="bp2-s2-agreement-box" style="background:var(--color-bg,#0d1117);border:1px solid var(--color-border,#282c36);border-radius:10px;padding:16px;font-size:13px;color:var(--color-text-secondary,#8b949e);line-height:1.8;max-height:30vh;overflow-y:auto;-webkit-overflow-scrolling:touch;white-space:pre-wrap;margin-bottom:12px;"></div>' +
+              '<div id="bp2-s2-agreement-box" style="background:var(--color-bg,#0d1117);border:1px solid var(--color-border,#282c36);border-radius:10px;padding:16px;font-size:13px;color:var(--color-text-secondary,#8b949e);line-height:1.8;max-height:30vh;overflow-y:auto;-webkit-overflow-scrolling:touch;white-space:pre-wrap;margin-bottom:12px;">' +
+                '<div id="bp2-s2-sig-block" style="border-top:1px solid var(--color-border,#282c36);margin-top:16px;padding-top:16px;">' +
+                  '<div style="margin-bottom:12px;">' +
+                    '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Offered By</div>' +
+                    '<div style="font-size:14px;color:var(--color-text,#e8e8e8);font-weight:600;">Jeffery Ponder</div>' +
+                    '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">Managing Member, Gold Bottom Ent LLC</div>' +
+                    '<div id="bp2-s2-ceo-date" style="font-size:12px;color:var(--color-text-secondary,#8b949e);"></div>' +
+                  '</div>' +
+                  '<div id="bp2-s2-musician-sig" style="display:none;">' +
+                    '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Accepted By</div>' +
+                    '<div id="bp2-s2-sig-name" style="font-size:14px;color:#3fb950;font-weight:600;"></div>' +
+                    '<div id="bp2-s2-sig-email" style="font-size:12px;color:var(--color-text-secondary,#8b949e);"></div>' +
+                    '<div id="bp2-s2-sig-date" style="font-size:12px;color:var(--color-text-secondary,#8b949e);"></div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
               '<div id="bp2-s2-agreement-status"></div>' +
             '</div>' +
 
@@ -441,6 +493,31 @@
           }
         }
 
+        // Populate signature block dates
+        var ceoDateEl = document.getElementById('bp2-s2-ceo-date');
+        var offerDate = data.invitedAt || data.registeredAt;
+        if (ceoDateEl && offerDate && offerDate.toDate) {
+          ceoDateEl.textContent = 'Date: ' + offerDate.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        } else if (ceoDateEl) {
+          ceoDateEl.textContent = 'Date: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        // Show musician signature if already accepted
+        if (data.houseBandAgreedAt || data.freelanceAgreementAcceptedAt) {
+          var sigBlock = document.getElementById('bp2-s2-musician-sig');
+          var sigNameEl = document.getElementById('bp2-s2-sig-name');
+          var sigEmailEl = document.getElementById('bp2-s2-sig-email');
+          var sigDateEl = document.getElementById('bp2-s2-sig-date');
+          if (sigBlock) sigBlock.style.display = '';
+          var sig = data.freelanceSignature || {};
+          if (sigNameEl) sigNameEl.textContent = sig.name || data.displayName || '';
+          if (sigEmailEl) sigEmailEl.textContent = sig.email || data.email || '';
+          var sigTs = data.houseBandAgreedAt || data.freelanceAgreementAcceptedAt;
+          if (sigDateEl && sigTs && sigTs.toDate) {
+            sigDateEl.textContent = 'Date: ' + sigTs.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          }
+        }
+
         // W-9 check — query YTD payments
         db.collection('payments').where('musicianId', '==', uid).get().then(function(snap) {
           var ytd = 0;
@@ -528,12 +605,19 @@
               paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
-            // Only set agreement timestamp if not already set
+            // Only set agreement timestamp + signature if not already set
             var agreeCb = document.getElementById('bp2-s2-agree-cb');
             if (agreeCb && agreeCb.checked) {
+              var _sigUser = (typeof firebase !== 'undefined' && firebase.auth().currentUser) || {};
               update.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
               update.houseBandAgreedVersion = AGREEMENT_VERSION;
               update.freelanceAgreementAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
+              update.freelanceSignature = {
+                name: nameVal,
+                email: _sigUser.email || '',
+                userAgent: navigator.userAgent,
+                signedFromUrl: window.location.href
+              };
             }
 
             return db.collection('users').doc(uid).update(update);

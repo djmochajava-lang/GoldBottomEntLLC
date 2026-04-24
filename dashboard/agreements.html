@@ -563,11 +563,13 @@
 
       var html = '';
 
-      // Helper to render an agreement card
-      function _agrCard(title, acceptedAt, text, notAcceptedMsg) {
+      // Helper to render an agreement card with dual signature blocks
+      function _agrCard(title, acceptedAt, text, notAcceptedMsg, offerDate, signature) {
         var accepted = !!acceptedAt;
         var dateStr = '';
         if (accepted && acceptedAt.toDate) dateStr = acceptedAt.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        var offerDateStr = '';
+        if (offerDate && offerDate.toDate) offerDateStr = offerDate.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
         var card = '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:14px;padding:24px;margin-bottom:var(--space-lg);">' +
           '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
@@ -584,19 +586,39 @@
 
         if (accepted) {
           card += '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:10px;padding:16px;font-size:13px;color:var(--color-text-secondary);line-height:1.8;max-height:40vh;overflow-y:auto;-webkit-overflow-scrolling:touch;white-space:pre-wrap;">' +
-            esc(text) + '</div>';
+            esc(text) +
+            // Signature blocks
+            '<div style="border-top:1px solid var(--color-border,#30363d);margin-top:16px;padding-top:16px;">' +
+              '<div style="margin-bottom:16px;">' +
+                '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Offered By</div>' +
+                '<div style="font-size:14px;color:var(--color-text,#e8e8e8);font-weight:600;">Jeffery Ponder</div>' +
+                '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">Managing Member, Gold Bottom Ent LLC</div>' +
+                (offerDateStr ? '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">Date: ' + offerDateStr + '</div>' : '') +
+              '</div>' +
+              '<div>' +
+                '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Accepted By</div>' +
+                '<div style="font-size:14px;color:#3fb950;font-weight:600;">' + esc(signature && signature.name ? signature.name : (userData.displayName || '')) + '</div>' +
+                '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">' + esc(signature && signature.email ? signature.email : (userData.email || '')) + '</div>' +
+                '<div style="font-size:12px;color:var(--color-text-secondary,#8b949e);">Date: ' + dateStr + '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
         } else {
           card += '<p style="color:var(--color-text-muted);font-size:14px;">' + notAcceptedMsg + '</p>';
         }
         return card + '</div>';
       }
 
+      var offerDate = userData.invitedAt || userData.registeredAt;
+
       // 1. Band Confidentiality Agreement (first — from band player onboarding)
       html += _agrCard(
         'Band Confidentiality Agreement',
         userData.confidentialityAcceptedAt,
         CONFIDENTIALITY_TEXT,
-        'Visit the <a href="#dashboard-band-player" style="color:var(--color-gold);">Band Player</a> to review and accept.'
+        'Visit the <a href="#dashboard-band-player" style="color:var(--color-gold);">Band Player</a> to review and accept.',
+        offerDate,
+        userData.confidentialitySignature
       );
 
       // 2. GBE Freelance Musician Agreement (from payment settings onboarding)
@@ -604,7 +626,9 @@
         'GBE Freelance Musician Agreement',
         userData.houseBandAgreedAt || userData.freelanceAgreementAcceptedAt,
         FREELANCE_TEXT,
-        'Visit <a href="#dashboard-payment-settings" style="color:var(--color-gold);">Payment Info</a> to review and accept.'
+        'Visit <a href="#dashboard-payment-settings" style="color:var(--color-gold);">Payment Info</a> to review and accept.',
+        offerDate,
+        userData.freelanceSignature
       );
 
       // 2. Performance / Gig Agreements (sent by manager)
