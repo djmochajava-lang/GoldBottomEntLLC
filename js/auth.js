@@ -889,7 +889,8 @@ const Auth = {
             }
 
             // No duplicate — check for onboarding invite token (FRD-4)
-            var inviteToken = localStorage.getItem('gbe-invite-token');
+            // Check both keys: gbe-invite-token (legacy) and gbe-invite-id (from onboard page)
+            var inviteToken = localStorage.getItem('gbe-invite-token') || localStorage.getItem('gbe-invite-id');
             if (inviteToken) {
               return Auth._acceptInvitation(user, inviteToken).then(function(result) {
                 if (result && result.success) {
@@ -898,11 +899,13 @@ const Auth = {
                   Auth._linkedRoles = [Auth._role];
                   Auth._activeRole = Auth._role;
                   localStorage.removeItem('gbe-invite-token');
+                  localStorage.removeItem('gbe-invite-id');
                   console.log('[Auth] Onboarding invite accepted — auto-approved as ' + Auth._role);
                   return 'approved';
                 }
                 // Invite failed — fall through to normal registration
                 localStorage.removeItem('gbe-invite-token');
+                localStorage.removeItem('gbe-invite-id');
                 return Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider,
                   user.displayName || (user.email ? user.email.split('@')[0] : 'User'));
               });
@@ -934,10 +937,12 @@ const Auth = {
                   requestNote: 'Auto-approved via invitation ' + invitation.id,
                   invitationId: invitation.id,
                   instrument: invitation.instrument || null,
+                  needsWelcomeEmail: true,
+                  invitationAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
                   registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
                   lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
                 }).then(function() {
-                  // Mark invitation as accepted in Firestore
+                  // Mark invitation as accepted in Firestore (server picks up via user doc)
                   Auth._markInvitationAccepted(invitation.id);
                   console.log('[Auth] Auto-approved via invitation:', invitation.id, 'role:', role);
                   return 'approved';
