@@ -33,7 +33,7 @@
 
   <!-- Create/Edit Modal -->
   <div id="sess-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
-    <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:520px;margin:var(--space-lg);max-height:90vh;overflow-y:auto;">
+    <div class="sess-modal-inner" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:520px;margin:var(--space-lg);max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
       <h2 id="sess-modal-title" style="margin:0 0 var(--space-lg);font-size:var(--text-lg);">Create Session</h2>
       <div style="display:grid;gap:var(--space-md);" id="sess-form">
         <!-- Common fields -->
@@ -153,6 +153,17 @@
 
   .sess-assign-row { display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm);border-radius:var(--radius-md);background:var(--color-bg-tertiary); }
   .sess-assign-row label { flex:1;cursor:pointer;font-size:var(--text-sm); }
+
+  /* Mobile: full-screen modal so all fields are accessible */
+  @media (max-width: 600px) {
+    .sess-modal-inner {
+      margin: 0 !important;
+      max-height: 100vh !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      padding: var(--space-lg) var(--space-md) calc(var(--space-xl) + env(safe-area-inset-bottom)) !important;
+    }
+  }
 
   @media (min-width: 768px) { #sess-cards { grid-template-columns: 1fr 1fr; } }
 </style>
