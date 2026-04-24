@@ -548,13 +548,66 @@
       return;
     }
 
+    if (typeof Modal === 'undefined') return;
+
     var displayName = m._fullName || m.first_name || 'Musician';
     var emailLower = m._email.toLowerCase().trim();
     var instrumentLabel = m.instrument ? m.instrument.charAt(0).toUpperCase() + m.instrument.slice(1) : '';
 
-    // Show confirmation modal with email preview
-    if (typeof Modal === 'undefined') return;
+    // Step 1: Choose invite type
+    var choiceHtml =
+      '<div style="margin-bottom:var(--space-md);">' +
+        '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-lg);">' +
+          '<div style="width:40px;height:40px;border-radius:50%;background:rgba(212,160,23,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+            '<i class="fa-solid fa-user" style="color:#d4a017;font-size:16px;"></i>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-weight:600;color:var(--color-text);">' + esc(displayName) + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + (instrumentLabel ? ' · ' + esc(instrumentLabel) : '') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">' +
+          '<button id="inv-choice-bandpage" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg);border:1px solid var(--color-border);cursor:pointer;text-align:left;color:var(--color-text);transition:border-color 150ms;">' +
+            '<div style="width:44px;height:44px;border-radius:var(--radius-md);background:rgba(212,160,23,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+              '<i class="fa-solid fa-user-plus" style="color:#d4a017;font-size:18px;"></i>' +
+            '</div>' +
+            '<div>' +
+              '<div style="font-weight:600;font-size:var(--text-base);">Invite to Band Page</div>' +
+              '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">Sign up, confidentiality agreement, payment setup</div>' +
+            '</div>' +
+          '</button>' +
+          '<button id="inv-choice-session" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg);border:1px solid var(--color-border);cursor:pointer;text-align:left;color:var(--color-text);transition:border-color 150ms;">' +
+            '<div style="width:44px;height:44px;border-radius:var(--radius-md);background:rgba(88,166,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+              '<i class="fa-solid fa-calendar-check" style="color:#58a6ff;font-size:18px;"></i>' +
+            '</div>' +
+            '<div>' +
+              '<div style="font-weight:600;font-size:var(--text-base);">Invite to Session</div>' +
+              '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">Pick a rehearsal, gig, or studio session</div>' +
+            '</div>' +
+          '</button>' +
+        '</div>' +
+      '</div>';
 
+    Modal.open({
+      title: 'Send Invitation',
+      body: choiceHtml,
+      size: 'md',
+      actions: [
+        { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
+      ]
+    });
+
+    // Wire up choice buttons
+    setTimeout(function() {
+      var bpBtn = document.getElementById('inv-choice-bandpage');
+      var ssBtn = document.getElementById('inv-choice-session');
+      if (bpBtn) bpBtn.addEventListener('click', function() { Modal.close(); _mlShowBandPagePreview(id, m, displayName, emailLower, instrumentLabel); });
+      if (ssBtn) ssBtn.addEventListener('click', function() { Modal.close(); _mlShowSessionPicker(id, m, displayName, emailLower, instrumentLabel); });
+    }, 100);
+  };
+
+  /* ── Band Page Invite: email preview + confirm ── */
+  function _mlShowBandPagePreview(id, m, displayName, emailLower, instrumentLabel) {
     var previewHtml =
       '<div style="margin-bottom:var(--space-lg);">' +
         '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">' +
@@ -563,11 +616,9 @@
           '</div>' +
           '<div>' +
             '<div style="font-weight:600;color:var(--color-text);">' + esc(displayName) + '</div>' +
-            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + (instrumentLabel ? ' · ' + esc(instrumentLabel) : '') + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + '</div>' +
           '</div>' +
         '</div>' +
-
-        // Email preview card
         '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);">' +
           '<div style="color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-sm);">Email Preview</div>' +
           '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + esc(emailLower) + '</span></div>' +
@@ -587,27 +638,23 @@
       '</div>';
 
     Modal.open({
-      title: 'Send Band Page Invitation',
+      title: 'Invite to Band Page',
       body: previewHtml,
       size: 'md',
       actions: [
-        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _mlConfirmSend(id, displayName, emailLower, m); } },
-        { label: 'Cancel', class: 'btn-secondary', callback: function() { Modal.close(); } }
+        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _mlConfirmBandPageSend(id, displayName, emailLower, m); } },
+        { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); window._mlSendInvite(id); } }
       ]
     });
-  };
+  }
 
-  async function _mlConfirmSend(id, displayName, emailLower, m) {
+  async function _mlConfirmBandPageSend(id, displayName, emailLower, m) {
     Modal.close();
-
     try {
-      // Hash the email for auto-approve matching
       var hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailLower));
       var hashArray = Array.from(new Uint8Array(hashBuf));
       var emailHash = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
 
-      // Write to Firestore pending-invitations — server picks up, creates
-      // SQLite record + invitations doc, sends onboarding email via SMTP
       await fdb.collection('pending-invitations').add({
         musicianName: displayName,
         musicianEmail: emailLower,
@@ -622,7 +669,6 @@
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // Update musicians-log status to invite_sent
       await fdb.collection('musicians-log').doc(id).update({
         status: 'invite_sent',
         updated_at: firebase.firestore.FieldValue.serverTimestamp()
@@ -631,6 +677,198 @@
       renderCards();
 
       if (typeof Toast !== 'undefined') Toast.success('Band Page invitation sent to ' + displayName);
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Failed to send invite: ' + e.message);
+    }
+  }
+
+  /* ── Session Invite: pick a session, preview, confirm ── */
+  function _mlShowSessionPicker(id, m, displayName, emailLower, instrumentLabel) {
+    // Load upcoming sessions from Firestore
+    fdb.collection('sessions')
+      .where('status', 'in', ['draft', 'scheduled', 'invites_sent'])
+      .orderBy('date', 'asc')
+      .limit(20)
+      .get()
+      .then(function(snap) {
+        if (snap.empty) {
+          Modal.open({
+            title: 'Invite to Session',
+            body: '<div style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);"><i class="fa-solid fa-calendar-xmark" style="font-size:32px;display:block;margin-bottom:var(--space-sm);"></i>No upcoming sessions found.<br>Create a session first from the Sessions page.</div>',
+            size: 'md',
+            actions: [
+              { label: 'Go to Sessions', class: 'btn-primary', callback: function() { Modal.close(); window.location.hash = '#dashboard-sessions'; } },
+              { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); window._mlSendInvite(id); } }
+            ]
+          });
+          return;
+        }
+
+        var typeIcons = { gig: 'fa-ticket', rehearsal: 'fa-music', studio: 'fa-microphone', sectional: 'fa-users' };
+        var typeColors = { gig: '#3fb950', rehearsal: '#58a6ff', studio: '#a371f7', sectional: '#d29922' };
+
+        var sessionsHtml =
+          '<div style="margin-bottom:var(--space-md);">' +
+            '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">' +
+              '<div style="width:40px;height:40px;border-radius:50%;background:rgba(88,166,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                '<i class="fa-solid fa-calendar-check" style="color:#58a6ff;font-size:16px;"></i>' +
+              '</div>' +
+              '<div>' +
+                '<div style="font-weight:600;color:var(--color-text);">Invite ' + esc(displayName) + ' to a session</div>' +
+                '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:var(--space-xs);max-height:300px;overflow-y:auto;">';
+
+        snap.forEach(function(doc) {
+          var s = doc.data();
+          var sDate = s.date && s.date.toDate ? s.date.toDate() : (s.date ? new Date(s.date) : null);
+          var dateStr = sDate ? sDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—';
+          var timeStr = s.time || '';
+          var icon = typeIcons[s.session_type] || 'fa-calendar';
+          var color = typeColors[s.session_type] || '#8b949e';
+          var typeLabel = (s.session_type || 'session').charAt(0).toUpperCase() + (s.session_type || 'session').slice(1);
+
+          sessionsHtml +=
+            '<button class="inv-session-pick" data-session-id="' + doc.id + '" style="display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg);border:1px solid var(--color-border);cursor:pointer;text-align:left;color:var(--color-text);width:100%;transition:border-color 150ms;">' +
+              '<div style="width:36px;height:36px;border-radius:var(--radius-sm);background:rgba(' + _hexRGB(color) + ',0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                '<i class="fa-solid ' + icon + '" style="color:' + color + ';font-size:14px;"></i>' +
+              '</div>' +
+              '<div style="flex:1;min-width:0;">' +
+                '<div style="font-weight:600;font-size:var(--text-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.title || typeLabel) + '</div>' +
+                '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + dateStr + (timeStr ? ' · ' + esc(timeStr) : '') + (s.location ? ' · ' + esc(s.location) : '') + '</div>' +
+              '</div>' +
+              '<span style="font-size:10px;padding:2px 8px;border-radius:var(--radius-full);background:rgba(' + _hexRGB(color) + ',0.12);color:' + color + ';font-weight:600;white-space:nowrap;">' + esc(typeLabel) + '</span>' +
+            '</button>';
+        });
+
+        sessionsHtml += '</div></div>';
+
+        Modal.open({
+          title: 'Pick a Session',
+          body: sessionsHtml,
+          size: 'md',
+          actions: [
+            { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); window._mlSendInvite(id); } }
+          ]
+        });
+
+        // Wire up session pick buttons
+        setTimeout(function() {
+          document.querySelectorAll('.inv-session-pick').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var sessionId = btn.dataset.sessionId;
+              var sessionDoc = null;
+              snap.forEach(function(d) { if (d.id === sessionId) sessionDoc = d; });
+              if (sessionDoc) {
+                Modal.close();
+                _mlShowSessionPreview(id, m, displayName, emailLower, instrumentLabel, sessionDoc);
+              }
+            });
+          });
+        }, 100);
+      })
+      .catch(function(err) {
+        Modal.open({
+          title: 'Error',
+          body: '<p style="color:var(--color-text-muted);">Could not load sessions: ' + esc(err.message) + '</p>',
+          size: 'sm',
+          actions: [{ label: 'OK', class: 'btn-secondary', callback: function() { Modal.close(); } }]
+        });
+      });
+  }
+
+  function _hexRGB(hex) {
+    hex = hex.replace('#', '');
+    return parseInt(hex.substring(0,2),16) + ',' + parseInt(hex.substring(2,4),16) + ',' + parseInt(hex.substring(4,6),16);
+  }
+
+  function _mlShowSessionPreview(id, m, displayName, emailLower, instrumentLabel, sessionDoc) {
+    var s = sessionDoc.data();
+    var sDate = s.date && s.date.toDate ? s.date.toDate() : (s.date ? new Date(s.date) : null);
+    var dateStr = sDate ? sDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—';
+    var timeStr = s.time || '';
+    var typeLabel = (s.session_type || 'session').charAt(0).toUpperCase() + (s.session_type || 'session').slice(1);
+    var location = s.location || '[Location TBD]';
+
+    var previewHtml =
+      '<div style="margin-bottom:var(--space-lg);">' +
+        '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-md);">' +
+          '<div style="width:40px;height:40px;border-radius:50%;background:rgba(88,166,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+            '<i class="fa-solid fa-calendar-check" style="color:#58a6ff;font-size:16px;"></i>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-weight:600;color:var(--color-text);">' + esc(displayName) + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + esc(emailLower) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:var(--text-sm);">' +
+          '<div style="color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:var(--space-sm);">Email Preview</div>' +
+          '<div style="margin-bottom:var(--space-xs);"><strong style="color:var(--color-text-muted);">To:</strong> <span style="color:var(--color-text);">' + esc(emailLower) + '</span></div>' +
+          '<div style="margin-bottom:var(--space-sm);"><strong style="color:var(--color-text-muted);">Subject:</strong> <span style="color:var(--color-text);">L.A. Young Soul Society — ' + esc(typeLabel) + ': ' + esc(s.title || typeLabel) + '</span></div>' +
+          '<div style="border-top:1px solid var(--color-border);padding-top:var(--space-sm);color:var(--color-text-secondary);line-height:1.6;">' +
+            'Hi ' + esc(displayName) + ',<br><br>' +
+            'You\'re invited to an upcoming ' + esc(typeLabel.toLowerCase()) + ' with L.A. Young Soul Society.<br><br>' +
+            '<strong>' + esc(s.title || typeLabel) + '</strong><br>' +
+            '<i class="fa-solid fa-calendar" style="color:var(--color-text-muted);"></i> ' + esc(dateStr) + (timeStr ? ' at ' + esc(timeStr) : '') + '<br>' +
+            '<i class="fa-solid fa-location-dot" style="color:var(--color-text-muted);"></i> ' + esc(location) + '<br><br>' +
+            'Please reply to confirm your availability.<br><br>' +
+            'Best,<br>Jeffery Ponder<br>Gold Bottom Ent. LLC' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    Modal.open({
+      title: 'Confirm Session Invitation',
+      body: previewHtml,
+      size: 'md',
+      actions: [
+        { label: 'Send Invitation', class: 'btn-primary', callback: function() { _mlConfirmSessionSend(id, m, displayName, emailLower, sessionDoc); } },
+        { label: 'Back', class: 'btn-secondary', callback: function() { Modal.close(); _mlShowSessionPicker(id, m, displayName, emailLower, instrumentLabel); } }
+      ]
+    });
+  }
+
+  async function _mlConfirmSessionSend(id, m, displayName, emailLower, sessionDoc) {
+    Modal.close();
+    var s = sessionDoc.data();
+    var sDate = s.date && s.date.toDate ? s.date.toDate() : (s.date ? new Date(s.date) : null);
+    var dateStr = sDate ? sDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '';
+    var typeLabel = (s.session_type || 'session').charAt(0).toUpperCase() + (s.session_type || 'session').slice(1);
+
+    var subject = 'L.A. Young Soul Society — ' + typeLabel + ': ' + (s.title || typeLabel);
+    var bodyText = 'Hi ' + displayName + ',\n\n' +
+      'You\'re invited to an upcoming ' + typeLabel.toLowerCase() + ' with L.A. Young Soul Society.\n\n' +
+      (s.title || typeLabel) + '\n' +
+      'Date: ' + dateStr + (s.time ? ' at ' + s.time : '') + '\n' +
+      'Location: ' + (s.location || '[Location TBD]') + '\n\n' +
+      'Please reply to confirm your availability.\n\n' +
+      'Best,\nJeffery Ponder\nGold Bottom Ent. LLC';
+
+    try {
+      // Queue email via Firestore for server SMTP relay
+      await fdb.collection('email-queue').add({
+        to: emailLower,
+        subject: subject,
+        text: bodyText,
+        account: 'band_manager',
+        status: 'pending',
+        session_id: sessionDoc.id,
+        musician_log_id: id,
+        queued_by: (typeof Auth !== 'undefined' && Auth._user) ? (Auth._user.displayName || Auth._user.email || 'unknown') : 'unknown',
+        created_at: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Update musicians-log status
+      await fdb.collection('musicians-log').doc(id).update({
+        status: 'invite_sent',
+        last_session_invite: sessionDoc.id,
+        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      m.status = 'invite_sent';
+      renderCards();
+
+      if (typeof Toast !== 'undefined') Toast.success(typeLabel + ' invitation sent to ' + displayName);
     } catch (e) {
       if (typeof Toast !== 'undefined') Toast.error('Failed to send invite: ' + e.message);
     }
