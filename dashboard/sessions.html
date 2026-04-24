@@ -372,10 +372,34 @@
     am.style.display = 'flex';
 
     try {
-      // Load roster (active freelance artists)
-      var snap = await fdb.collection('users').where('roster_tier', 'in', ['core', 'on_call']).get();
+      // Load roster — try users collection first, fall back to musicians-log
       _rosterUsers = [];
-      snap.forEach(function(doc) { var d = doc.data(); d.uid = doc.id; _rosterUsers.push(d); });
+      try {
+        var snap = await fdb.collection('users').where('role', 'in', ['band_member', 'artist']).get();
+        snap.forEach(function(doc) { var d = doc.data(); d.uid = doc.id; _rosterUsers.push(d); });
+      } catch (usersErr) {
+        console.warn('[Sessions] Users query failed, falling back to musicians-log:', usersErr.message);
+      }
+      // Also load from musicians-log (potential musicians not yet onboarded)
+      try {
+        var mlSnap = await fdb.collection('musicians-log').get();
+        mlSnap.forEach(function(doc) {
+          var d = doc.data();
+          // Skip if already in roster by email match
+          var exists = _rosterUsers.some(function(u) { return u.emailHash === d.email_hash; });
+          if (!exists) {
+            _rosterUsers.push({
+              uid: doc.id,
+              displayName: d.first_name ? (d.first_name + (d.last_name ? ' ' + d.last_name : '')) : (d.name || 'Unknown'),
+              instrument: d.instrument || '',
+              roster_tier: d.status === 'onboarded' ? 'core' : 'on_call',
+              _fromLog: true
+            });
+          }
+        });
+      } catch (mlErr) {
+        console.warn('[Sessions] Musicians-log query failed:', mlErr.message);
+      }
 
       // Load existing assignments for this session
       var assignSnap = await fdb.collection('session-assignments').where('session_id', '==', sessionId).get();
@@ -387,10 +411,11 @@
         var name = u.displayName || u.email || 'Unknown';
         var isAssigned = !!assigned[u.uid];
         var statusLabel = assigned[u.uid] ? ' (' + assigned[u.uid] + ')' : '';
-        var tierLabel = u.roster_tier === 'core' ? 'Core' : 'On Call';
+        var instLabel = u.instrument ? u.instrument.charAt(0).toUpperCase() + u.instrument.slice(1) : '';
+        var sourceLabel = u._fromLog ? 'Log' : (u.roster_tier === 'core' ? 'Core' : 'Member');
         html += '<div class="sess-assign-row">';
         html += '<input type="checkbox" id="assign-' + esc(u.uid) + '" value="' + esc(u.uid) + '" ' + (isAssigned ? 'checked disabled' : '') + ' style="width:20px;height:20px;" />';
-        html += '<label for="assign-' + esc(u.uid) + '">' + esc(name) + ' <span style="color:var(--color-text-muted);font-size:12px;">(' + tierLabel + ')' + statusLabel + '</span></label>';
+        html += '<label for="assign-' + esc(u.uid) + '">' + esc(name) + (instLabel ? ' <span style="color:var(--color-text-muted);font-size:11px;">· ' + esc(instLabel) + '</span>' : '') + ' <span style="color:var(--color-text-muted);font-size:11px;">(' + sourceLabel + ')' + statusLabel + '</span></label>';
         html += '</div>';
       });
       if (!_rosterUsers.length) html = '<div style="padding:var(--space-md);color:var(--color-text-muted);">No freelance artists on the roster yet.</div>';
