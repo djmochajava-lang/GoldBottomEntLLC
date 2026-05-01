@@ -15,6 +15,10 @@
 
   <!-- Tier Tabs -->
   <div id="br-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);overflow-x:auto;-webkit-overflow-scrolling:touch;">
+    <button class="br-tab" data-filter="pending" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;display:none;">
+      <i class="fa-solid fa-bell" style="color:#d29922;margin-right:4px;"></i>Pending
+      <span id="br-pending-badge" style="display:none;background:#d29922;color:#0d1117;font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:4px;">0</span>
+    </button>
     <button class="br-tab active" data-filter="active" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;white-space:nowrap;">
       Active
     </button>
@@ -106,6 +110,8 @@
 
   var fdb = null;
   var _roster = [];
+  var _pending = [];
+  var _pendingUnsub = null;
   var _filter = 'active'; // default tab: show active artists
 
   var TIER_LABELS = { core: 'Core', on_call: 'On Call', alumni: 'Alumni' };
@@ -146,10 +152,11 @@
 
   function updateCountBadge() {
     var badge = document.getElementById('br-count-badge');
-    if (badge) badge.textContent = getFiltered().length;
+    if (badge) badge.textContent = (_filter === 'pending') ? _pending.length : getFiltered().length;
   }
 
   function getFiltered() {
+    if (_filter === 'pending') return _pending;
     if (_filter === 'active') {
       // Active tab: core (always active) + on_call with activity=active
       return _roster.filter(function(m) {
@@ -165,6 +172,8 @@
   }
 
   function renderCards() {
+    if (_filter === 'pending') { renderPendingCards(); return; }
+
     var container = document.getElementById('br-cards');
     var list = getFiltered();
 
@@ -272,6 +281,166 @@
     }
   };
 
+  // ═══ PENDING REQUESTS ═══
+
+  function renderPendingCards() {
+    var container = document.getElementById('br-cards');
+    if (!_pending.length) {
+      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-circle-check" style="font-size:2.5rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;color:#3fb950;"></i>No pending band-member requests.</div>';
+      return;
+    }
+
+    var html = '';
+    _pending.forEach(function(u) {
+      var displayName = u.displayName || u.email || 'Unknown';
+      var registered = u.registeredAt
+        ? (u.registeredAt.toDate ? u.registeredAt.toDate() : new Date(u.registeredAt))
+        : null;
+      var registeredStr = registered ? registered.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+      html += '<div class="br-card" data-uid="' + esc(u.uid) + '" style="border-left:3px solid #d29922;">';
+      html += '<div class="br-card-header">';
+      html += '<div class="br-card-avatar">' + initials(displayName) + '</div>';
+      html += '<div class="br-card-info">';
+      html += '<div class="br-card-name">' + esc(displayName) + '</div>';
+      html += '<div class="br-card-detail">';
+      html += '<span class="br-tier-badge" style="background:rgba(210,153,34,0.15);color:#d29922;"><i class="fa-solid fa-clock" style="font-size:11px;"></i> Awaiting approval</span>';
+      if (u.email) html += '<span style="font-size:12px;color:var(--color-text-muted);">' + esc(u.email) + '</span>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div>';
+
+      if (registeredStr) {
+        html += '<div style="margin-top:var(--space-sm);padding-top:var(--space-sm);border-top:1px solid var(--color-border);font-size:12px;color:var(--color-text-muted);">Registered: ' + registeredStr + '</div>';
+      }
+
+      html += '<div style="margin-top:var(--space-sm);display:flex;gap:8px;">';
+      html += '<button onclick="window._brApprove(\'' + esc(u.uid) + '\')" style="flex:1;background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);padding:10px 12px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;"><i class="fa-solid fa-check"></i> Approve</button>';
+      html += '<button onclick="window._brDeny(\'' + esc(u.uid) + '\')" style="background:none;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-md);padding:10px 14px;font-size:13px;color:#f85149;cursor:pointer;min-height:44px;"><i class="fa-solid fa-xmark"></i></button>';
+      html += '</div>';
+
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+    updateCountBadge();
+  }
+
+  function subscribePending() {
+    if (!fdb) return;
+    if (_pendingUnsub) { try { _pendingUnsub(); } catch (e) {} _pendingUnsub = null; }
+
+    _pendingUnsub = fdb.collection('users')
+      .where('status', '==', 'pending')
+      .where('requestedRole', '==', 'band_member')
+      .onSnapshot(function(snap) {
+        _pending = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.uid = doc.id;
+          _pending.push(d);
+        });
+        updatePendingTabVisibility();
+        if (_filter === 'pending') renderPendingCards();
+      }, function(err) {
+        console.warn('[Band Roster] Pending listener error:', err.message);
+      });
+  }
+
+  function updatePendingTabVisibility() {
+    var tab = document.querySelector('.br-tab[data-filter="pending"]');
+    var badge = document.getElementById('br-pending-badge');
+    if (!tab) return;
+    if (_pending.length > 0) {
+      tab.style.display = '';
+      if (badge) {
+        badge.textContent = _pending.length > 99 ? '99+' : String(_pending.length);
+        badge.style.display = '';
+      }
+    } else {
+      // Keep tab visible if currently selected; otherwise hide
+      if (_filter !== 'pending') tab.style.display = 'none';
+      if (badge) badge.style.display = 'none';
+    }
+  }
+
+  // Update Musicians Log entry to 'onboarded' if a matching email exists
+  async function syncLogToOnboarded(email) {
+    if (!fdb || !email) return;
+    try {
+      var emailLower = email.toLowerCase().trim();
+      var snap = await fdb.collection('musicians-log')
+        .where('email_lower', '==', emailLower)
+        .limit(1).get();
+      if (snap.empty) return;
+      var doc = snap.docs[0];
+      var data = doc.data();
+      if (data.status === 'onboarded') return;
+      await doc.ref.update({
+        status: 'onboarded',
+        onboarded_at: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) {
+      console.warn('[Band Roster] Could not sync musicians-log:', e.message);
+    }
+  }
+
+  window._brApprove = function(uid) {
+    if (!fdb) return;
+    var rec = _pending.find(function(u){ return u.uid === uid; }) || {};
+    var name = rec.displayName || rec.email || 'this musician';
+    var msg = 'Approve <strong>' + esc(name) + '</strong> as a band member? They will be added to On Call (inactive) and receive a welcome email.';
+
+    var doApprove = async function() {
+      try {
+        await fdb.collection('users').doc(uid).update({
+          status: 'approved',
+          role: 'band_member',
+          roster_tier: 'on_call',
+          activity: 'inactive',
+          needsWelcomeEmail: true,
+          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        if (rec.email) syncLogToOnboarded(rec.email);
+        if (typeof Toast !== 'undefined') Toast.success(name + ' approved — welcome email queued.');
+        // Roster needs reload to show the new On Call member
+        loadRoster();
+      } catch (e) {
+        console.error('[Band Roster] Approve failed:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Approve failed: ' + e.message);
+      }
+    };
+
+    if (typeof Modal !== 'undefined' && Modal.confirm) {
+      Modal.confirm(msg, doApprove);
+    } else {
+      doApprove();
+    }
+  };
+
+  window._brDeny = function(uid) {
+    if (!fdb) return;
+    var rec = _pending.find(function(u){ return u.uid === uid; }) || {};
+    var name = rec.displayName || rec.email || 'this musician';
+    var msg = 'Deny access for <strong>' + esc(name) + '</strong>? They will not be added to the band.';
+
+    var doDeny = async function() {
+      try {
+        await fdb.collection('users').doc(uid).update({ status: 'denied' });
+        if (typeof Toast !== 'undefined') Toast.success('Request denied.');
+      } catch (e) {
+        console.error('[Band Roster] Deny failed:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Deny failed: ' + e.message);
+      }
+    };
+
+    if (typeof Modal !== 'undefined' && Modal.confirm) {
+      Modal.confirm(msg, doDeny);
+    } else {
+      doDeny();
+    }
+  };
+
   // ═══ REINSTATEMENT ═══
 
   window._brReinstate = async function(uid) {
@@ -319,6 +488,7 @@
     }
     fdb = Auth._db;
     loadRoster();
+    subscribePending();
   }
 
   if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {

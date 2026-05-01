@@ -256,6 +256,8 @@
   var _instrumentFilter = '';
   var _editId = null;
   var _encKey = null; // CryptoKey for AES-256-GCM
+  var _pendingByEmail = {}; // lowercased email → { uid, displayName, registeredAt }
+  var _pendingUnsub = null;
 
   var STATUS_LABELS = {
     potential: 'Potential',
@@ -481,16 +483,27 @@
       var ts = m.created_at && m.created_at.toDate ? m.created_at.toDate() : (m.created_at ? new Date(m.created_at) : null);
       var dateStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
-      html += '<div class="ml-card" data-id="' + esc(m.id) + '">';
+      // Cross-reference: is this musician currently requesting band access?
+      var emailLower = (m._email && m._email !== '[encrypted]') ? m._email.toLowerCase().trim() : '';
+      var pendingRequest = emailLower ? _pendingByEmail[emailLower] : null;
+
+      html += '<div class="ml-card" data-id="' + esc(m.id) + '"' + (pendingRequest ? ' style="border-left:3px solid #d29922;"' : '') + '>';
 
       // Header row
       html += '<div class="ml-card-header">';
       html += '<div class="ml-card-avatar">' + initials(displayName) + '</div>';
       html += '<div class="ml-card-info">';
       html += '<div class="ml-card-name">' + esc(displayName) + '</div>';
-      html += '<div class="ml-card-instrument">' + esc(m.instrument || '—') + ' <span class="ml-status-badge ' + statusClass + '">' + esc(statusLabel) + '</span></div>';
+      html += '<div class="ml-card-instrument">' + esc(m.instrument || '—') + ' <span class="ml-status-badge ' + statusClass + '">' + esc(statusLabel) + '</span>';
+      if (pendingRequest) {
+        html += ' <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--radius-full);background:rgba(210,153,34,0.15);color:#d29922;font-size:11px;font-weight:600;margin-left:4px;"><i class="fa-solid fa-bell" style="font-size:9px;"></i> Access Requested</span>';
+      }
+      html += '</div>';
       html += '</div>';
       html += '<div class="ml-card-actions">';
+      if (pendingRequest) {
+        html += '<button class="ml-btn" onclick="window._mlApproveRequest(\'' + esc(pendingRequest.uid) + '\',\'' + esc(m.id) + '\')" title="Approve band-member request" style="background:rgba(63,185,80,0.15);color:#3fb950;"><i class="fa-solid fa-user-check"></i></button>';
+      }
       html += '<button class="ml-btn ml-btn-invite" ' + (canInvite ? '' : 'disabled') + ' onclick="window._mlSendInvite(\'' + esc(m.id) + '\')" title="Invite to Band Page"><i class="fa-solid fa-paper-plane"></i></button>';
       html += '<button class="ml-btn" onclick="window._mlExpand(\'' + esc(m.id) + '\')" title="Details"><i class="fa-solid fa-chevron-down"></i></button>';
       html += '<button class="ml-btn" onclick="window._mlEdit(\'' + esc(m.id) + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>';
@@ -516,6 +529,70 @@
 
     container.innerHTML = html;
   }
+
+  // ═══ PENDING ACCESS REQUESTS ═══
+
+  function subscribePendingRequests() {
+    if (!fdb) return;
+    if (_pendingUnsub) { try { _pendingUnsub(); } catch (e) {} _pendingUnsub = null; }
+
+    _pendingUnsub = fdb.collection('users')
+      .where('status', '==', 'pending')
+      .where('requestedRole', '==', 'band_member')
+      .onSnapshot(function(snap) {
+        _pendingByEmail = {};
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          if (d.email) {
+            _pendingByEmail[d.email.toLowerCase().trim()] = {
+              uid: doc.id,
+              displayName: d.displayName || d.email,
+              registeredAt: d.registeredAt
+            };
+          }
+        });
+        if (_musicians.length) renderCards();
+      }, function(err) {
+        console.warn('[Musicians Log] Pending request listener error:', err.message);
+      });
+  }
+
+  window._mlApproveRequest = function(uid, logId) {
+    if (!fdb) return;
+    var logEntry = _musicians.find(function(x) { return x.id === logId; });
+    var name = (logEntry && logEntry._fullName) || (logEntry && logEntry.first_name) || 'this musician';
+    var msg = 'Approve <strong>' + esc(name) + '</strong> as a band member? They will be added to On Call (inactive) and receive a welcome email. Their log entry will be marked Onboarded.';
+
+    var doApprove = async function() {
+      try {
+        await fdb.collection('users').doc(uid).update({
+          status: 'approved',
+          role: 'band_member',
+          roster_tier: 'on_call',
+          activity: 'inactive',
+          needsWelcomeEmail: true,
+          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        if (logEntry && logEntry.status !== 'onboarded') {
+          await fdb.collection('musicians-log').doc(logId).update({
+            status: 'onboarded',
+            onboarded_at: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+        if (typeof Toast !== 'undefined') Toast.success(name + ' approved — welcome email queued.');
+        await loadMusicians();
+      } catch (e) {
+        console.error('[Musicians Log] Approve failed:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Approve failed: ' + e.message);
+      }
+    };
+
+    if (typeof Modal !== 'undefined' && Modal.confirm) {
+      Modal.confirm(msg, doApprove);
+    } else {
+      doApprove();
+    }
+  };
 
   // ═══ CARD ACTIONS ═══
 
@@ -1007,6 +1084,7 @@
 
     await fetchEncryptionKey();
     await loadMusicians();
+    subscribePendingRequests();
   }
 
   if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
