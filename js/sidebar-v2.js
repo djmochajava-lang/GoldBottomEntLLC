@@ -158,7 +158,42 @@ const SidebarV2 = {
     var self = this;
     document.addEventListener('gbe:auth-ready', function() {
       self.filterByRole();
+      self.subscribeToPendingCount();
     });
+  },
+
+  /**
+   * Live-subscribe to count of users with status=pending and update the Team badge.
+   * Only active for admin/band_manager — others can't see the Team link anyway.
+   */
+  _pendingUnsub: null,
+  subscribeToPendingCount: function() {
+    var cache = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
+    var role = cache ? (cache.activeRole || cache.role) : null;
+    if (role !== 'admin' && role !== 'band_manager') return;
+
+    var badge = document.getElementById('sidebar-team-pending-badge');
+    if (!badge) return;
+
+    var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db
+           : (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
+    if (!db) return;
+
+    if (this._pendingUnsub) { try { this._pendingUnsub(); } catch (e) {} this._pendingUnsub = null; }
+
+    this._pendingUnsub = db.collection('users').where('status', '==', 'pending')
+      .onSnapshot(function(snap) {
+        var n = snap.size;
+        if (n > 0) {
+          badge.textContent = n > 99 ? '99+' : String(n);
+          badge.style.display = '';
+        } else {
+          badge.textContent = '';
+          badge.style.display = 'none';
+        }
+      }, function(err) {
+        console.warn('[SidebarV2] Pending count listener error:', err.message);
+      });
   }
 };
 

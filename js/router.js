@@ -148,7 +148,7 @@ const Router = {
     'dashboard-documents',
     'dashboard-integrations',
     'dashboard-settings',
-    'dashboard-team',
+    // dashboard-team removed from local-only — BM needs to approve access requests from the field on iPhone (public site, off-LAN)
     'dashboard-credentials',
     'dashboard-architecture',
     'dashboard-servers',

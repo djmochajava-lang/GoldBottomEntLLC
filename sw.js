@@ -6,7 +6,7 @@
 // FRD-20 SR-5.4.1/5.4.2: bumped for band-player module additions + CSS.
 // Activate handler deletes any cache that starts with 'gbe-shell-' but isn't the
 // current version, so older shells auto-evict on next activation.
-var SHELL_CACHE = 'gbe-shell-v32';
+var SHELL_CACHE = 'gbe-shell-v33';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
@@ -27,11 +27,11 @@ var ASSET_HASHES = {
   './js/auth.js': '03a687974dd90e46d63c573653ad8a209420601d5cc2e22b7268a47df32efc43',
   './js/page-loader.js': '0f82b0e7ddf2af6f017090075f92c6c674cbdceb3bb9d7b07b0ba4a4734669bb',
   './js/scroll-animations.js': '765ee4aad4c8499874ce827c4705611a9f5d6ddece76d2607ba275271806267c',
-  './js/router.js': '4bc92f099ba8cf66011869b1684dc4c17383dc16042ac617371f0a362682f9c1',
+  './js/router.js': '23a31835c5e9877bdf14578293ac6d399c2d276301ebe41cbe1dc67f50c013e6',
   './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
   './js/auth-cache.js': '3e0b379c0919e6b0ad0dc5685f789e4e7a42a73ac26da0187923d0f3c5e7ee18',
-  './js/sidebar-v2.js': 'c3dd93eca34faa038662e0d97a2144482e60dcf80c5c3bdf59829b784b3234e4',
+  './js/sidebar-v2.js': 'a0ed9028b626eca43407724a2b263d586d88e729f998ffb7686f8619a7c8e1a7',
   './js/data-store.js': 'ffa4b8001aabde2c4740a129c85832976c20feffecbadbad617cce0117456d1e',
   './js/forms.js': '95f367096cd2f9ff19a90f6b0405f934f47f5f769fa1176cc604e3d8e84d2840',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
