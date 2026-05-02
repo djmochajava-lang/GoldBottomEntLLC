@@ -496,9 +496,10 @@
         phtml += '<div class="ml-card-instrument">' + esc(prettyInst) + ' <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--radius-full);background:rgba(210,153,34,0.15);color:#d29922;font-size:11px;font-weight:600;margin-left:4px;"><i class="fa-solid fa-bell" style="font-size:9px;"></i> Self-Requested</span></div>';
         phtml += '</div>';
         phtml += '</div>';
-        phtml += '<div class="ml-card-actions">';
-        phtml += '<button class="ml-btn" onclick="window._mlApproveOrphan(\'' + esc(p.uid) + '\')" title="Approve band-member request" style="background:rgba(63,185,80,0.15);color:#3fb950;"><i class="fa-solid fa-user-check"></i></button>';
-        phtml += '<button class="ml-btn" onclick="window._mlAddFromRequest(\'' + esc(p.uid) + '\')" title="Add to Musicians Log"><i class="fa-solid fa-plus"></i></button>';
+        phtml += '<div class="ml-card-actions" style="display:flex;gap:var(--space-xs);flex-wrap:wrap;">';
+        phtml += '<button onclick="window._mlApproveOrphan(\'' + esc(p.uid) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:var(--radius-md);border:1px solid rgba(63,185,80,0.4);background:rgba(63,185,80,0.15);color:#3fb950;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;"><i class="fa-solid fa-user-check"></i> Approve</button>';
+        phtml += '<button onclick="window._mlDenyOrphan(\'' + esc(p.uid) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:var(--radius-md);border:1px solid rgba(248,81,73,0.4);background:rgba(248,81,73,0.15);color:#f85149;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;"><i class="fa-solid fa-user-xmark"></i> Deny</button>';
+        phtml += '<button onclick="window._mlAddFromRequest(\'' + esc(p.uid) + '\')" style="display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:var(--radius-md);border:1px solid var(--color-border);background:var(--color-bg-tertiary);color:var(--color-text);font-size:13px;font-weight:600;cursor:pointer;min-height:44px;"><i class="fa-solid fa-plus"></i> Add to Log</button>';
         phtml += '</div>';
         phtml += '</div>';
         phtml += '<div class="ml-card-details open" style="display:block;padding-top:var(--space-sm);">';
@@ -709,6 +710,32 @@
       Modal.confirm(msg, doApprove);
     } else {
       doApprove();
+    }
+  };
+
+  window._mlDenyOrphan = function(uid) {
+    if (!fdb) return;
+    var p = _findPendingByUid(uid);
+    var name = (p && p.displayName) || 'this musician';
+    var msg = 'Deny <strong>' + esc(name) + '</strong>? They will be blocked from dashboard access. No email is sent.';
+
+    var doDeny = async function() {
+      try {
+        await fdb.collection('users').doc(uid).update({
+          status: 'denied',
+          deniedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        if (typeof Toast !== 'undefined') Toast.success(name + ' denied.');
+      } catch (e) {
+        console.error('[Musicians Log] Deny failed:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Deny failed: ' + e.message);
+      }
+    };
+
+    if (typeof Modal !== 'undefined' && Modal.confirm) {
+      Modal.confirm(msg, doDeny);
+    } else {
+      doDeny();
     }
   };
 
