@@ -42,7 +42,7 @@ var ASSET_HASHES = {
   './css/band-player-v2.css': '20fefafa6977deeaa0d99de51d0fb286e6e1d709f9d70adfe54123f3032448d1',
   './dashboard/band-player-v2.html': 'dd4ea418a420260d494411db05989318aa041da07e9052a3256ed928326de373',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
-  './js/band-player-v2/bp2-core.js': '9c633dca978fd56582ee83973dca940856bc7a398906e41410fbd909519c285e',
+  './js/band-player-v2/bp2-core.js': 'e3bb5e062e22d2adc3f9bb5543bd560d806ad629d3f29302d169e10dea815263',
   './js/band-player-v2/bp2-player.js': '3cd170810e69e5b809dc2e951c61fb41de532a6b343c9a0d1165d94c22fe85f5',
   './js/band-player-v2/bp2-playlist.js': '9babace653f32ea050e3662c35db3e31600b92031d2fd2149b82355946e71491',
   './js/band-player-v2/bp2-render.js': '3894368326985b79a8b6f370a48e3a6399a2d503ae196ebcac0527e64e11698e',
@@ -61,7 +61,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-edit.js': '5e2eca10851e407fedc559a817d9cb7a7882cf520451d6a7c1fba51263f3fb7e',
   './js/band-player-v2/bp2-integration.js': 'a4692d305c66ae58c434ed2179ff235ec745ceb8b6cdde4fcfc67769f452072a',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
-  './js/band-player-v2/bp2-auth.js': '57b962c686b5a483f15cee868dfd4a679872d566773c5d001db29aa279408249'
+  './js/band-player-v2/bp2-auth.js': '853d982e53d375c82efa325e085be52f93a29345e3f082a7e7be417ce2586f58'
 };
 
 // Firebase backend API hostnames — never intercept these; let Firebase SDK handle them

@@ -140,8 +140,6 @@
         var data = doc.exists ? doc.data() : {};
         if (!data.confidentialityAcceptedAt) {
           _emit('auth:show-gate', { screen: 1 });
-        } else if (!data.paymentSetupAt && !data.payment_method_enc) {
-          _emit('auth:show-gate', { screen: 2 });
         } else {
           // Repair missing fields
           var repair = {};

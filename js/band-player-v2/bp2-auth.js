@@ -177,7 +177,9 @@
             }).then(function() {
               if (global.BP2Playlist) global.BP2Playlist.grantDefaultPlaylists(user.uid);
               if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society!');
-              BP2Auth.showScreen2('onboard');
+              if (global.BP2Core && typeof global.BP2Core.initPlayer === 'function') {
+                global.BP2Core.initPlayer();
+              }
             }).catch(function(err) {
               console.error('[BP2Auth] Screen 1 save failed:', err);
               if (typeof Toast !== 'undefined') Toast.error('Failed to save. Please try again.');
