@@ -56,11 +56,17 @@ ECOSYSTEM.html
 data
 health
 
-# Firebase config (deployed separately)
+# Firebase config — DO NOT add these as working copies.
+# They live ONLY in the private repo (GBE-HomeOffice / GoldBottomEntLLC-private).
+# Deploys originate from there via tools/deploy-firestore-rules.sh.
+# A working copy here creates a footgun: `firebase deploy` from this directory
+# would push whatever's in the local file, potentially overwriting production
+# with stale rules. If you need to view or edit, do it in the private repo.
 .firebaserc
+firebase.json
 firestore.rules
 firestore.indexes.json
-firebase.json
+storage.rules
 
 # Build output
 dist/
