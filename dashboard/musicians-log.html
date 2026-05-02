@@ -18,6 +18,15 @@
     <i class="fa-solid fa-triangle-exclamation"></i> <strong>Encryption key unavailable.</strong> PII fields will be queued for encryption when the server is back online.
   </div>
 
+  <!-- Self-Requested Alert Banner -->
+  <div id="ml-self-requested-banner" style="display:none;background:rgba(210,153,34,0.12);border:1px solid rgba(210,153,34,0.3);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-md);font-size:var(--text-sm);align-items:center;justify-content:space-between;gap:var(--space-sm);flex-wrap:wrap;">
+    <div style="color:#d29922;display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+      <i class="fa-solid fa-bell" aria-hidden="true"></i>
+      <span><strong id="ml-self-requested-banner-count">0</strong> band-access request<span id="ml-self-requested-banner-plural">s</span> awaiting review</span>
+    </div>
+    <button id="ml-self-requested-banner-btn" type="button" style="background:#d29922;color:#0d1117;border:none;border-radius:var(--radius-md);padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;min-height:36px;">Review</button>
+  </div>
+
   <!-- Status Filter Tabs -->
   <div id="ml-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <button class="ml-tab active" data-filter="all" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;white-space:nowrap;">
@@ -636,6 +645,14 @@
       badge.textContent = n;
       badge.style.display = n > 0 ? 'inline-block' : 'none';
     }
+    var banner = document.getElementById('ml-self-requested-banner');
+    var bannerCount = document.getElementById('ml-self-requested-banner-count');
+    var bannerPlural = document.getElementById('ml-self-requested-banner-plural');
+    if (banner && bannerCount) {
+      bannerCount.textContent = n;
+      if (bannerPlural) bannerPlural.textContent = n === 1 ? '' : 's';
+      banner.style.display = n > 0 ? 'flex' : 'none';
+    }
   }
 
   window._mlApproveRequest = function(uid, logId) {
@@ -1224,6 +1241,18 @@
     _instrumentFilter = this.value;
     renderCards();
   });
+
+  // ═══ SELF-REQUESTED BANNER REVIEW BUTTON ═══
+
+  var _bannerBtn = document.getElementById('ml-self-requested-banner-btn');
+  if (_bannerBtn) {
+    _bannerBtn.addEventListener('click', function() {
+      var tab = document.querySelector('.ml-tab[data-filter="self_requested"]');
+      if (!tab) return;
+      tab.click();
+      try { tab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (e) {}
+    });
+  }
 
   // ═══ MODAL EVENTS ═══
 
