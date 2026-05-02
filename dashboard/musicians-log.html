@@ -35,6 +35,9 @@
     <button class="ml-tab" data-filter="onboarded" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
       Onboarded
     </button>
+    <button class="ml-tab" data-filter="self_requested" style="padding:var(--space-sm) var(--space-md);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
+      Self-Requested <span id="ml-self-requested-count" style="display:none;background:rgba(210,153,34,0.2);color:#d29922;border-radius:var(--radius-full);padding:1px 7px;font-size:11px;margin-left:4px;">0</span>
+    </button>
   </div>
 
   <!-- Instrument Filter -->
@@ -466,6 +469,53 @@
 
   function renderCards() {
     var container = document.getElementById('ml-cards');
+    updateSelfRequestedCount();
+
+    if (_filter === 'self_requested') {
+      var pending = getUnmatchedPending();
+      if (_instrumentFilter) {
+        pending = pending.filter(function(p) {
+          return (p.instrument || '').toLowerCase() === _instrumentFilter.toLowerCase();
+        });
+      }
+      if (!pending.length) {
+        container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-user-clock" style="font-size:2.5rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;"></i>No self-requested band members awaiting approval.</div>';
+        return;
+      }
+      var phtml = '';
+      pending.forEach(function(p) {
+        var pts = p.registeredAt && p.registeredAt.toDate ? p.registeredAt.toDate() : null;
+        var pdate = pts ? pts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        var rawInst = (p.instrument || '').trim();
+        var prettyInst = rawInst ? rawInst.charAt(0).toUpperCase() + rawInst.slice(1) : '—';
+        phtml += '<div class="ml-card" style="border-left:3px solid #d29922;">';
+        phtml += '<div class="ml-card-header">';
+        phtml += '<div class="ml-card-avatar">' + initials(p.displayName) + '</div>';
+        phtml += '<div class="ml-card-info">';
+        phtml += '<div class="ml-card-name">' + esc(p.displayName) + '</div>';
+        phtml += '<div class="ml-card-instrument">' + esc(prettyInst) + ' <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--radius-full);background:rgba(210,153,34,0.15);color:#d29922;font-size:11px;font-weight:600;margin-left:4px;"><i class="fa-solid fa-bell" style="font-size:9px;"></i> Self-Requested</span></div>';
+        phtml += '</div>';
+        phtml += '</div>';
+        phtml += '<div class="ml-card-actions">';
+        phtml += '<button class="ml-btn" onclick="window._mlApproveOrphan(\'' + esc(p.uid) + '\')" title="Approve band-member request" style="background:rgba(63,185,80,0.15);color:#3fb950;"><i class="fa-solid fa-user-check"></i></button>';
+        phtml += '<button class="ml-btn" onclick="window._mlAddFromRequest(\'' + esc(p.uid) + '\')" title="Add to Musicians Log"><i class="fa-solid fa-plus"></i></button>';
+        phtml += '</div>';
+        phtml += '</div>';
+        phtml += '<div class="ml-card-details open" style="display:block;padding-top:var(--space-sm);">';
+        phtml += '<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);">Email</span><br>' + esc(p.email) + '</div>';
+        if (p.requestNote) {
+          phtml += '<div style="margin-top:var(--space-sm);"><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);">Note</span><br>' + esc(p.requestNote) + '</div>';
+        }
+        if (pdate) {
+          phtml += '<div style="margin-top:var(--space-sm);font-size:11px;color:var(--color-text-muted);">Requested ' + pdate + '</div>';
+        }
+        phtml += '</div>';
+        phtml += '</div>';
+      });
+      container.innerHTML = phtml;
+      return;
+    }
+
     var list = getFiltered();
 
     if (!list.length) {
@@ -546,15 +596,45 @@
           if (d.email) {
             _pendingByEmail[d.email.toLowerCase().trim()] = {
               uid: doc.id,
+              email: d.email,
               displayName: d.displayName || d.email,
+              instrument: d.instrument || '',
+              requestNote: d.requestNote || '',
               registeredAt: d.registeredAt
             };
           }
         });
-        if (_musicians.length) renderCards();
+        renderCards();
       }, function(err) {
         console.warn('[Musicians Log] Pending request listener error:', err.message);
       });
+  }
+
+  function getMusicianEmails() {
+    var set = {};
+    _musicians.forEach(function(m) {
+      var e = (m._email && m._email !== '[encrypted]') ? m._email.toLowerCase().trim() : '';
+      if (e) set[e] = true;
+    });
+    return set;
+  }
+
+  function getUnmatchedPending() {
+    var matched = getMusicianEmails();
+    var out = [];
+    Object.keys(_pendingByEmail).forEach(function(em) {
+      if (!matched[em]) out.push(_pendingByEmail[em]);
+    });
+    return out;
+  }
+
+  function updateSelfRequestedCount() {
+    var n = getUnmatchedPending().length;
+    var badge = document.getElementById('ml-self-requested-count');
+    if (badge) {
+      badge.textContent = n;
+      badge.style.display = n > 0 ? 'inline-block' : 'none';
+    }
   }
 
   window._mlApproveRequest = function(uid, logId) {
@@ -592,6 +672,69 @@
     } else {
       doApprove();
     }
+  };
+
+  function _findPendingByUid(uid) {
+    var found = null;
+    Object.keys(_pendingByEmail).forEach(function(em) {
+      if (_pendingByEmail[em].uid === uid) found = _pendingByEmail[em];
+    });
+    return found;
+  }
+
+  window._mlApproveOrphan = function(uid) {
+    if (!fdb) return;
+    var p = _findPendingByUid(uid);
+    var name = (p && p.displayName) || 'this musician';
+    var msg = 'Approve <strong>' + esc(name) + '</strong> as a band member? They will be added to On Call (inactive) and receive a welcome email. No log entry will be linked.';
+
+    var doApprove = async function() {
+      try {
+        await fdb.collection('users').doc(uid).update({
+          status: 'approved',
+          role: 'band_member',
+          roster_tier: 'on_call',
+          activity: 'inactive',
+          needsWelcomeEmail: true,
+          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        if (typeof Toast !== 'undefined') Toast.success(name + ' approved — welcome email queued.');
+      } catch (e) {
+        console.error('[Musicians Log] Approve (orphan) failed:', e);
+        if (typeof Toast !== 'undefined') Toast.error('Approve failed: ' + e.message);
+      }
+    };
+
+    if (typeof Modal !== 'undefined' && Modal.confirm) {
+      Modal.confirm(msg, doApprove);
+    } else {
+      doApprove();
+    }
+  };
+
+  window._mlAddFromRequest = function(uid) {
+    var p = _findPendingByUid(uid);
+    if (!p) return;
+    _editId = null;
+    document.getElementById('ml-modal-title').textContent = 'Add Musician';
+    document.getElementById('ml-field-name').value = p.displayName || '';
+    document.getElementById('ml-field-email').value = p.email || '';
+    document.getElementById('ml-field-phone').value = '';
+    var instSel = document.getElementById('ml-field-instrument');
+    var rawInst = (p.instrument || '').trim().toLowerCase();
+    instSel.value = '';
+    for (var i = 0; i < instSel.options.length; i++) {
+      if (instSel.options[i].value.toLowerCase() === rawInst) {
+        instSel.value = instSel.options[i].value;
+        break;
+      }
+    }
+    document.getElementById('ml-field-notes').value = p.requestNote
+      ? 'Self-requested via public site: ' + p.requestNote
+      : 'Self-requested via public site';
+    document.getElementById('ml-field-status-group').style.display = 'none';
+    document.getElementById('ml-modal').style.display = 'flex';
+    document.getElementById('ml-field-name').focus();
   };
 
   // ═══ CARD ACTIONS ═══
