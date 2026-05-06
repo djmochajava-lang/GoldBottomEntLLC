@@ -92,6 +92,13 @@ const PageLoader = {
       this.hideLoading();
       this._navigating = false;
 
+      // Fire one-shot event the first time a dashboard fragment finishes
+      // loading after auth — used by perf.js to measure dashboard.firstLoad.
+      if (!this._firstDashboardLoaded && pageName.indexOf('dashboard-') === 0) {
+        this._firstDashboardLoaded = true;
+        document.dispatchEvent(new CustomEvent('gbe:dashboard-loaded', { detail: { pageName: pageName } }));
+      }
+
       console.log(`📄 Loaded: ${pageName}`);
     } catch (error) {
       this._navigating = false;

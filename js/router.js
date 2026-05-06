@@ -462,8 +462,17 @@ const Router = {
     // Close mobile menus
     this.closeMobileMenus();
 
+    // Mark the target nav link as loading so the user sees instant feedback
+    // on tap — without this, on slow networks the sidebar shows no change
+    // until loadPage resolves and updateActiveNav fires (could be 30s+).
+    this.markNavLoading(pageName);
+
     // Load the page
-    await this.loadPage(pageName);
+    try {
+      await this.loadPage(pageName);
+    } finally {
+      this.clearNavLoading();
+    }
 
     // Update URL
     this.updateURL(pageName);
@@ -628,6 +637,26 @@ const Router = {
     document.querySelectorAll('.sidebar-nav-item').forEach((item) => {
       const itemPage = item.getAttribute('data-page');
       item.classList.toggle('active', itemPage === pageName);
+    });
+  },
+
+  /**
+   * Mark the about-to-load nav link as loading. Adds .is-loading + aria-busy
+   * to give instant tap feedback — paired with clearNavLoading() in finally.
+   */
+  markNavLoading(pageName) {
+    document.querySelectorAll('.sidebar-nav-item, .nav-link, .mobile-nav-link').forEach((el) => {
+      const isTarget = el.getAttribute('data-page') === pageName;
+      el.classList.toggle('is-loading', isTarget);
+      if (isTarget) el.setAttribute('aria-busy', 'true');
+      else el.removeAttribute('aria-busy');
+    });
+  },
+
+  clearNavLoading() {
+    document.querySelectorAll('.is-loading[aria-busy], .is-loading').forEach((el) => {
+      el.classList.remove('is-loading');
+      el.removeAttribute('aria-busy');
     });
   },
 

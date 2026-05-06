@@ -1858,6 +1858,39 @@ body.auth-initializing .sidebar-nav-item {
   transition: opacity 0.3s ease;
 }
 
+/* Instant tap feedback: nav link the user just clicked, while page loads.
+   Pulses the background so the user knows their tap registered even if the
+   network round-trip + Firestore rule eval takes 5–30s. Cleared by
+   Router.clearNavLoading() in the finally block of navigateTo. */
+.sidebar-nav-item.is-loading,
+.nav-link.is-loading,
+.mobile-nav-link.is-loading {
+  position: relative;
+  background: rgba(212, 160, 23, 0.08);
+  color: var(--color-gold, #d4a017);
+  animation: gbe-nav-pulse 1.2s ease-in-out infinite;
+}
+.sidebar-nav-item.is-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border: 2px solid rgba(212, 160, 23, 0.3);
+  border-top-color: var(--color-gold, #d4a017);
+  border-radius: 50%;
+  animation: gbe-nav-spin 0.7s linear infinite;
+}
+@keyframes gbe-nav-pulse {
+  0%, 100% { background: rgba(212, 160, 23, 0.08); }
+  50%      { background: rgba(212, 160, 23, 0.18); }
+}
+@keyframes gbe-nav-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Keep the GBE logo and sign-out visible */
 body.auth-initializing .sidebar-brand,
 body.auth-initializing .sidebar-footer {

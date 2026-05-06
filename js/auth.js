@@ -209,10 +209,31 @@ const Auth = {
     if (this.initialized) return;
     this._initializing = true;
 
+    // Mark the body so CSS can dim sidebar nav and disable taps during the
+    // cold-cache auth bootstrap. Cleared by _hideAuthLoading() on the first
+    // onAuthStateChanged tick (whether signed in or signed out).
+    if (document.body) {
+      document.body.classList.add('auth-initializing');
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        if (Auth._initializing && !Auth.initialized) document.body.classList.add('auth-initializing');
+      });
+    }
+
+    // Cold-cache redirect path: signInWithRedirect causes a full page reload.
+    // If we have a pending redirect route in sessionStorage, surface a banner
+    // so the user knows sign-in is completing — otherwise the page just
+    // looks frozen for the duration of the bootstrap chain.
+    try {
+      var pendingRedirect = sessionStorage.getItem('gbe-auth-redirect-route');
+      if (pendingRedirect) this._showAuthBanner('Completing sign-in…');
+    } catch (e) { /* sessionStorage may be blocked */ }
+
     // Check if Firebase SDK is loaded
     if (typeof firebase === 'undefined') {
       console.warn('[Auth] Firebase SDK not loaded — auth disabled');
       // Still mark as initialized so guardRoute works (falls through to allow)
+      this._hideAuthLoading();
       this.initialized = true;
       return;
     }
@@ -221,6 +242,7 @@ const Auth = {
     if (typeof SiteConfig !== 'undefined' &&
         SiteConfig.features && !SiteConfig.features.enableAuth) {
       console.log('[Auth] Auth disabled by feature flag');
+      this._hideAuthLoading();
       this.initialized = true;
       return;
     }
@@ -233,6 +255,7 @@ const Auth = {
     if (!config || !config.apiKey || config.apiKey === '[FIREBASE_API_KEY]') {
       console.warn('[Auth] Firebase config not set — auth disabled');
       console.log('[Auth] Add your Firebase credentials to config.js → integrations.firebase');
+      this._hideAuthLoading();
       this.initialized = true;
       return;
     }
@@ -299,6 +322,7 @@ const Auth = {
 
     } catch (error) {
       console.error('[Auth] Firebase initialization failed:', error);
+      this._hideAuthLoading();
       this.initialized = true;
       return;
     }
@@ -306,10 +330,22 @@ const Auth = {
     // Set persistence to LOCAL (survives browser restarts — Firebase default)
     this._auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
+    // Mark Firebase init complete — auth listeners are attached, providers ready.
+    if (typeof Perf !== 'undefined') Perf.mark('firebase.ready');
+
     // Listen for auth state changes
     this._auth.onAuthStateChanged(function(user) {
       // Don't override PIN auth state
       if (Auth._isPinAuth) return;
+
+      // First state-resolution mark — fires on cold cache once Firebase has
+      // verified the persisted token (or returned null). The interval from
+      // boot.start to this point is the auth handshake cost.
+      if (typeof Perf !== 'undefined' && !Auth._perfStateMarked) {
+        Perf.mark('auth.state.first');
+        Perf.measure('auth.handshake', 'boot.start', 'auth.state.first');
+        Auth._perfStateMarked = true;
+      }
 
       Auth._user = user;
 
@@ -328,6 +364,10 @@ const Auth = {
 
         // Check Firestore registration + approval status
         Auth._checkRegistration(user).then(function(status) {
+          if (typeof Perf !== 'undefined') {
+            Perf.mark('auth.registration.end');
+            Perf.measure('auth.registration', 'auth.registration.start', 'auth.registration.end');
+          }
           // Handle duplicate detection (IDP-001 §4.2)
           if (status && status.indexOf && status.indexOf('duplicate:') === 0) {
             var primaryProvider = status.split(':')[1];
@@ -819,9 +859,14 @@ const Auth = {
    * @returns {Promise<string>} 'approved', 'pending', 'denied', or 'duplicate:{providerId}'
    */
   _checkRegistration: function(user) {
+    if (typeof Perf !== 'undefined') Perf.mark('auth.registration.start');
     if (!this._db) {
       // No Firestore — fall back to open access
       console.warn('[Auth] No Firestore — allowing access');
+      if (typeof Perf !== 'undefined') {
+        Perf.mark('auth.registration.end');
+        Perf.measure('auth.registration', 'auth.registration.start', 'auth.registration.end');
+      }
       return Promise.resolve('approved');
     }
 
@@ -1556,6 +1601,7 @@ const Auth = {
     // be able to browse the public site while auth initializes in the background.
     // The pending route (stored by guardRoute) will auto-navigate to the
     // dashboard once auth completes. Just show a brief non-blocking toast.
+    if (document.body) document.body.classList.add('auth-initializing');
     if (typeof Toast !== 'undefined' && !this._authToastShown) {
       Toast.info('Signing in...');
       this._authToastShown = true;
@@ -1564,9 +1610,47 @@ const Auth = {
 
   /**
    * Remove the auth loading indicator after auth initialization completes.
+   * Idempotent — safe to call from multiple completion points.
    */
   _hideAuthLoading: function() {
-    document.body.classList.remove('auth-initializing');
+    if (document.body) document.body.classList.remove('auth-initializing');
+    this._hideAuthBanner();
+  },
+
+  /**
+   * Show a thin banner at the top of the page during long auth bootstrap.
+   * Visible alternative to Toast for the cold-cache redirect path on mobile,
+   * where the page reloads and the bootstrap chain can take 5–30s on
+   * slow connections. Idempotent — replaces any existing banner text.
+   */
+  _showAuthBanner: function(message) {
+    var el = document.getElementById('gbe-auth-banner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'gbe-auth-banner';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.style.cssText =
+        'position:fixed;top:0;left:0;right:0;z-index:99999;' +
+        'padding:10px 16px;font-size:13px;font-weight:600;' +
+        'color:#0d1117;background:linear-gradient(90deg,#d4a017,#f0c040);' +
+        'box-shadow:0 1px 4px rgba(0,0,0,0.25);text-align:center;' +
+        'display:flex;align-items:center;justify-content:center;gap:10px;' +
+        'font-family:"Inter","Roboto",system-ui,sans-serif;';
+      el.innerHTML =
+        '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(13,17,23,0.3);' +
+          'border-top-color:#0d1117;border-radius:50%;animation:gbe-auth-spin .7s linear infinite;"></span>' +
+        '<span class="gbe-auth-banner-text"></span>' +
+        '<style>@keyframes gbe-auth-spin{to{transform:rotate(360deg)}}</style>';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    var textEl = el.querySelector('.gbe-auth-banner-text');
+    if (textEl) textEl.textContent = message || 'Loading…';
+  },
+
+  _hideAuthBanner: function() {
+    var el = document.getElementById('gbe-auth-banner');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
   },
 
   /* ------------------------------------------
