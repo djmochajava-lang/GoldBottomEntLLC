@@ -288,12 +288,21 @@
               denyReason: 'guest'
             };
           } else {
+            // Map requestNote → instrument when it's short and alphabetic
+            // (so welcome email says "as Bass" instead of "as musician").
+            var instrumentFromNote = null;
+            if (note && note.length <= 30 && /^[A-Za-z][A-Za-z\s,&/-]*$/.test(note.trim())) {
+              instrumentFromNote = note.trim();
+            }
             payload = {
               status: 'approved',
               role: picked,
               needsWelcomeEmail: true,
               approvedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
+            if (instrumentFromNote && (picked === 'band_member' || picked === 'singer')) {
+              payload.instrument = instrumentFromNote;
+            }
           }
           ref.update(payload).then(function() {
             Modal.close();
