@@ -14,6 +14,18 @@
   <!-- Ops metrics -->
   <div id="bm-metrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--space-lg);"></div>
 
+  <!-- Pending Access Requests -->
+  <div class="card" id="bm-pending-access" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);">
+    <h3 style="margin-bottom:var(--space-md);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <i class="fa-solid fa-user-clock" style="color:#d29922;"></i>
+      <span>Pending Access Requests</span>
+      <span id="bm-pending-access-badge" style="display:none;font-size:var(--text-xs);padding:2px 10px;border-radius:var(--radius-full);background:#f85149;color:#fff;font-weight:700;"></span>
+    </h3>
+    <div id="bm-pending-access-list">
+      <p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</p>
+    </div>
+  </div>
+
   <!-- Pipeline + Quick Actions -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">
     <div class="card" id="bm-pipeline" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
@@ -139,6 +151,134 @@
     if (isLocal) qaItems.push({ href:'#dashboard-finances', icon:'fa-dollar-sign', color:'#3fb950', label:'Finances' });
     qaGrid.innerHTML = qaItems.map(function(a){ return qaBtn(a.href, a.icon, a.color, a.label); }).join('');
   }
+
+  /* ── Pending Access Requests (Firestore users where status=pending) ── */
+  var pendAccessCard = document.getElementById('bm-pending-access');
+  var pendAccessEl   = document.getElementById('bm-pending-access-list');
+  var pendAccessBadge= document.getElementById('bm-pending-access-badge');
+
+  function _bmCanApproveAccess() {
+    if (typeof Auth === 'undefined') return false;
+    if (Auth.isAdmin && Auth.isAdmin()) return true;
+    if (Auth._role === 'band_manager') return true;
+    if (Auth._linkedRoles && Auth._linkedRoles.indexOf && Auth._linkedRoles.indexOf('band_manager') !== -1) return true;
+    return false;
+  }
+
+  function _bmLoadPendingAccess() {
+    if (!pendAccessEl || typeof Auth === 'undefined' || !Auth._db) return;
+    Auth._db.collection('users').where('status', '==', 'pending').get().then(function(snap) {
+      var docs = [];
+      snap.forEach(function(d) { docs.push({ uid: d.id, data: d.data() }); });
+      docs.sort(function(a, b) {
+        var ar = a.data.registeredAt && a.data.registeredAt.toMillis ? a.data.registeredAt.toMillis() : 0;
+        var br = b.data.registeredAt && b.data.registeredAt.toMillis ? b.data.registeredAt.toMillis() : 0;
+        return br - ar;
+      });
+      if (!docs.length) {
+        pendAccessBadge.style.display = 'none';
+        pendAccessEl.innerHTML = '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-circle-check" style="color:#3fb950;"></i> No requests pending</p>';
+        return;
+      }
+      pendAccessBadge.style.display = 'inline-block';
+      pendAccessBadge.textContent = String(docs.length);
+
+      var html = '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+      docs.forEach(function(item) {
+        var u    = item.data;
+        var uid  = item.uid;
+        var name = u.displayName || 'Unknown';
+        var requested = u.requestedRole || u.role || 'member';
+        var note = u.requestNote || '';
+        var when = u.registeredAt && u.registeredAt.toDate ? u.registeredAt.toDate() : null;
+        var whenStr = when ? when.toLocaleString() : '';
+        var photo = u.photoURL || '';
+        var avatar = photo
+          ? '<img src="' + Utils.escapeHtml(photo) + '" alt="" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+          : '<div style="width:44px;height:44px;border-radius:50%;background:rgba(212,160,23,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-user" style="color:#d4a017;font-size:18px;"></i></div>';
+
+        html += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid #d29922;">';
+        html += '<div style="display:flex;align-items:center;gap:var(--space-sm);">' + avatar +
+                '<div style="flex:1;min-width:0;">' +
+                '<div style="font-weight:600;color:var(--color-text);">' + Utils.escapeHtml(name) + '</div>' +
+                (whenStr ? '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + Utils.escapeHtml(whenStr) + '</div>' : '') +
+                '</div>' +
+                '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba(63,185,80,0.15);color:#3fb950;font-weight:600;white-space:nowrap;">' + Utils.escapeHtml(requested) + '</span>' +
+                '</div>';
+        if (note) {
+          html += '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);font-style:italic;">&ldquo;' + Utils.escapeHtml(note) + '&rdquo;</div>';
+        }
+        html += '<div style="display:flex;gap:var(--space-sm);">' +
+                '<button onclick="window._bmApproveAccess(\'' + uid + '\')" style="flex:1;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-check"></i> Approve</button>' +
+                '<button onclick="window._bmDenyAccess(\'' + uid + '\')" style="flex:1;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-xmark"></i> Deny</button>' +
+                '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      pendAccessEl.innerHTML = html;
+    }).catch(function(err) {
+      console.error('[Manager] Pending access load failed:', err);
+      pendAccessEl.innerHTML = '<p class="text-muted">Could not load: ' + Utils.escapeHtml(err.message || 'unknown error') + '</p>';
+    });
+  }
+
+  if (pendAccessCard) {
+    if (!_bmCanApproveAccess()) {
+      pendAccessCard.style.display = 'none';
+    } else {
+      _bmLoadPendingAccess();
+    }
+  }
+
+  window._bmApproveAccess = function(uid) {
+    if (typeof Modal === 'undefined' || typeof Auth === 'undefined' || !Auth._db) return;
+    Auth._db.collection('users').doc(uid).get().then(function(doc) {
+      if (!doc.exists) {
+        if (typeof Toast !== 'undefined') Toast.error('User not found.');
+        return;
+      }
+      var u = doc.data();
+      var assignedRole = u.requestedRole || u.role || 'member';
+      var name = u.displayName || 'this user';
+      Modal.confirm('Approve ' + name + ' as ' + assignedRole + '? They will receive a welcome email with the Band Player link.', function() {
+        Auth._db.collection('users').doc(uid).update({
+          status: 'approved',
+          role: assignedRole,
+          needsWelcomeEmail: true,
+          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(function() {
+          if (typeof Toast !== 'undefined') Toast.success('Approved as ' + assignedRole + ' — welcome email queued.');
+          _bmLoadPendingAccess();
+        }).catch(function(err) {
+          console.error('[Manager] Approve failed:', err);
+          if (typeof Toast !== 'undefined') Toast.error('Failed to approve: ' + (err.message || 'unknown'));
+        });
+      });
+    });
+  };
+
+  window._bmDenyAccess = function(uid) {
+    if (typeof Modal === 'undefined' || typeof Auth === 'undefined' || !Auth._db) return;
+    if (uid === (Auth._user ? Auth._user.uid : null)) {
+      if (typeof Toast !== 'undefined') Toast.error('Cannot revoke your own access.');
+      return;
+    }
+    Auth._db.collection('users').doc(uid).get().then(function(doc) {
+      var name = (doc.exists && doc.data().displayName) || 'this user';
+      Modal.confirm('Deny access for ' + name + '?', function() {
+        Auth._db.collection('users').doc(uid).update({
+          status: 'denied',
+          role: 'member'
+        }).then(function() {
+          if (typeof Toast !== 'undefined') Toast.success('Access denied.');
+          _bmLoadPendingAccess();
+        }).catch(function(err) {
+          console.error('[Manager] Deny failed:', err);
+          if (typeof Toast !== 'undefined') Toast.error('Failed to deny: ' + (err.message || 'unknown'));
+        });
+      });
+    });
+  };
 
   /* ── Pending Agreements (Firestore) ── */
   var pendAgEl = document.getElementById('bm-pending-agreements');
