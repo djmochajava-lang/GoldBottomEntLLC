@@ -209,8 +209,8 @@
           html += '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);font-style:italic;">&ldquo;' + Utils.escapeHtml(note) + '&rdquo;</div>';
         }
         html += '<div style="display:flex;gap:var(--space-sm);">' +
-                '<button onclick="window._bmApproveAccess(\'' + uid + '\')" style="flex:1;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-check"></i> Approve</button>' +
-                '<button onclick="window._bmDenyAccess(\'' + uid + '\')" style="flex:1;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-xmark"></i> Deny</button>' +
+                '<button onclick="window._bmApproveAccess(\'' + uid + '\')" style="flex:2;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-user-check"></i> Set Role</button>' +
+                '<button onclick="window._bmDenyAccess(\'' + uid + '\')" style="flex:1;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-xmark"></i> Block</button>' +
                 '</div>';
         html += '</div>';
       });
@@ -230,6 +230,25 @@
     }
   }
 
+  var _BM_ROLE_OPTIONS = [
+    { value: 'band_member', label: 'Band Member', icon: 'fa-guitar',     color: '#3fb950', desc: 'Rehearsals, playlists, charts, schedule' },
+    { value: 'singer',      label: 'Artist',      icon: 'fa-microphone', color: '#c778d9', desc: 'Schedule, content approval, contracts' },
+    { value: 'venue_owner', label: 'Venue Owner', icon: 'fa-building',   color: '#d29922', desc: 'Their booking and contract only' },
+    { value: 'promoter',    label: 'Promoter',    icon: 'fa-bullhorn',   color: '#f0883e', desc: 'Their engagement and promo materials' },
+    { value: 'guest',       label: 'Guest',       icon: 'fa-user-slash', color: '#8b949e', desc: 'No dashboard access — acknowledged but blocked' }
+  ];
+
+  function _bmRoleCardHtml(opt, checked) {
+    return '<label style="display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid ' + (checked ? opt.color : 'var(--color-border)') + ';cursor:pointer;min-height:44px;">' +
+      '<input type="radio" name="bm-role-pick" value="' + opt.value + '"' + (checked ? ' checked' : '') + ' style="margin-top:3px;width:18px;height:18px;accent-color:' + opt.color + ';flex-shrink:0;">' +
+      '<i class="fa-solid ' + opt.icon + '" style="color:' + opt.color + ';font-size:18px;width:22px;flex-shrink:0;margin-top:1px;"></i>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-weight:600;color:var(--color-text);">' + opt.label + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">' + opt.desc + '</div>' +
+      '</div>' +
+      '</label>';
+  }
+
   window._bmApproveAccess = function(uid) {
     if (typeof Modal === 'undefined' || typeof Auth === 'undefined' || !Auth._db) return;
     Auth._db.collection('users').doc(uid).get().then(function(doc) {
@@ -238,21 +257,60 @@
         return;
       }
       var u = doc.data();
-      var assignedRole = u.requestedRole || u.role || 'member';
       var name = u.displayName || 'this user';
-      Modal.confirm('Approve ' + name + ' as ' + assignedRole + '? They will receive a welcome email with the Band Player link.', function() {
-        Auth._db.collection('users').doc(uid).update({
-          status: 'approved',
-          role: assignedRole,
-          needsWelcomeEmail: true,
-          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(function() {
-          if (typeof Toast !== 'undefined') Toast.success('Approved as ' + assignedRole + ' — welcome email queued.');
-          _bmLoadPendingAccess();
-        }).catch(function(err) {
-          console.error('[Manager] Approve failed:', err);
-          if (typeof Toast !== 'undefined') Toast.error('Failed to approve: ' + (err.message || 'unknown'));
-        });
+      var requested = u.requestedRole || u.role || 'band_member';
+      var defaultPick = _BM_ROLE_OPTIONS.some(function(o){ return o.value === requested; }) ? requested : 'band_member';
+      var note = u.requestNote || '';
+
+      var content =
+        '<p style="margin:0 0 var(--space-md);font-size:var(--text-sm);color:var(--color-text-secondary);">Choose a role for <strong style="color:var(--color-text);">' + Utils.escapeHtml(name) + '</strong>.' +
+        (note ? ' They wrote: <em>&ldquo;' + Utils.escapeHtml(note) + '&rdquo;</em>' : '') +
+        '</p>' +
+        '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">' +
+          _BM_ROLE_OPTIONS.map(function(o){ return _bmRoleCardHtml(o, o.value === defaultPick); }).join('') +
+        '</div>';
+
+      Modal.open({
+        title: 'Set Role for ' + name,
+        content: content,
+        size: 'md',
+        saveText: 'Confirm',
+        onSave: function() {
+          var picked = (document.querySelector('input[name="bm-role-pick"]:checked') || {}).value || defaultPick;
+          var ref = Auth._db.collection('users').doc(uid);
+          var payload;
+          if (picked === 'guest') {
+            payload = {
+              status: 'denied',
+              role: 'guest',
+              needsWelcomeEmail: false,
+              deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              denyReason: 'guest'
+            };
+          } else {
+            payload = {
+              status: 'approved',
+              role: picked,
+              needsWelcomeEmail: true,
+              approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+          }
+          ref.update(payload).then(function() {
+            Modal.close();
+            if (typeof Toast !== 'undefined') {
+              if (picked === 'guest') {
+                Toast.success(name + ' set as Guest — no dashboard access.');
+              } else {
+                var label = (_BM_ROLE_OPTIONS.find(function(o){ return o.value === picked; }) || {}).label || picked;
+                Toast.success('Approved as ' + label + ' — welcome email queued.');
+              }
+            }
+            _bmLoadPendingAccess();
+          }).catch(function(err) {
+            console.error('[Manager] Approve failed:', err);
+            if (typeof Toast !== 'undefined') Toast.error('Failed to set role: ' + (err.message || 'unknown'));
+          });
+        }
       });
     });
   };
@@ -265,12 +323,14 @@
     }
     Auth._db.collection('users').doc(uid).get().then(function(doc) {
       var name = (doc.exists && doc.data().displayName) || 'this user';
-      Modal.confirm('Deny access for ' + name + '?', function() {
+      Modal.confirm('Block ' + name + ' from accessing the dashboard?', function() {
         Auth._db.collection('users').doc(uid).update({
           status: 'denied',
-          role: 'member'
+          role: 'member',
+          deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          denyReason: 'blocked'
         }).then(function() {
-          if (typeof Toast !== 'undefined') Toast.success('Access denied.');
+          if (typeof Toast !== 'undefined') Toast.success(name + ' blocked.');
           _bmLoadPendingAccess();
         }).catch(function(err) {
           console.error('[Manager] Deny failed:', err);
