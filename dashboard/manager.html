@@ -360,6 +360,10 @@
             if (instrumentFromNote && (picked === 'band_member' || picked === 'singer')) {
               payload.instrument = instrumentFromNote;
             }
+            if (picked === 'band_member' || picked === 'singer') {
+              payload.roster_tier = 'on_call';
+              payload.activity = 'inactive';
+            }
           }
           ref.update(payload).then(function() {
             Modal.close();

@@ -133,13 +133,21 @@
     }
 
     try {
-      // Query all users that have a roster_tier field (onboarded freelance artists)
-      var snap = await fdb.collection('users').where('roster_tier', 'in', ['core', 'on_call', 'alumni']).get();
+      // Read from curated /roster cache (server publishes; Firestore /users is approval pipeline only).
+      var snap = await fdb.collection('roster').where('roster_tier', 'in', ['core', 'on_call', 'alumni']).get();
       _roster = [];
       snap.forEach(function(doc) {
-        var d = doc.data();
-        d.uid = doc.id;
-        _roster.push(d);
+        var d = doc.data() || {};
+        // Adapt /roster field shape to what this page renders.
+        _roster.push({
+          uid: d.firebaseUid || doc.id,
+          displayName: d.name || '',
+          roster_tier: d.roster_tier,
+          activity: d.activity || 'inactive',
+          confidentialityAcceptedAt: d.confidentialityAcceptedAt || d.approvedAt || null,
+          offboarded_at: d.offboardedAt || null,
+          offboard_reason: d.offboardReason || ''
+        });
       });
 
       updateCountBadge();
@@ -271,9 +279,17 @@
             offboard_reason: reason,
             offboard_notes: notes || ''
           });
+          // Optimistic UI: /roster cache republishes on next server sync (~5 min).
+          var idx = _roster.findIndex(function(m){ return m.uid === uid; });
+          if (idx !== -1) {
+            _roster[idx].roster_tier = 'alumni';
+            _roster[idx].activity = 'inactive';
+            _roster[idx].offboarded_at = new Date();
+            _roster[idx].offboard_reason = reason;
+          }
           Modal.close();
           if (typeof Toast !== 'undefined') Toast.success('Freelance artist off-boarded.');
-          await loadRoster();
+          renderCards();
         } catch (e) {
           if (typeof Toast !== 'undefined') Toast.error('Off-board failed: ' + e.message);
         }
@@ -402,9 +418,20 @@
           approvedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         if (rec.email) syncLogToOnboarded(rec.email);
+        // Optimistic UI: /roster cache will include this member after next server sync (~5 min).
+        if (!_roster.some(function(m){ return m.uid === uid; })) {
+          _roster.push({
+            uid: uid,
+            displayName: rec.displayName || rec.email || 'Unknown',
+            roster_tier: 'on_call',
+            activity: 'inactive',
+            confidentialityAcceptedAt: new Date(),
+            offboarded_at: null,
+            offboard_reason: ''
+          });
+        }
         if (typeof Toast !== 'undefined') Toast.success(name + ' approved — welcome email queued.');
-        // Roster needs reload to show the new On Call member
-        loadRoster();
+        renderCards();
       } catch (e) {
         console.error('[Band Roster] Approve failed:', e);
         if (typeof Toast !== 'undefined') Toast.error('Approve failed: ' + e.message);
@@ -454,8 +481,16 @@
         offboard_reason: firebase.firestore.FieldValue.delete(),
         offboard_notes: firebase.firestore.FieldValue.delete()
       });
+      // Optimistic UI: /roster cache republishes on next server sync (~5 min).
+      var idx = _roster.findIndex(function(m){ return m.uid === uid; });
+      if (idx !== -1) {
+        _roster[idx].roster_tier = 'on_call';
+        _roster[idx].activity = 'inactive';
+        _roster[idx].offboarded_at = null;
+        _roster[idx].offboard_reason = '';
+      }
       if (typeof Toast !== 'undefined') Toast.success('Freelance artist reinstated as On Call (inactive).');
-      await loadRoster();
+      renderCards();
     } catch (e) {
       if (typeof Toast !== 'undefined') Toast.error('Reinstate failed: ' + e.message);
     }
