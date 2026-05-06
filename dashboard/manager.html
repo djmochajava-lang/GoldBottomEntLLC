@@ -150,6 +150,63 @@
     ];
     if (isLocal) qaItems.push({ href:'#dashboard-finances', icon:'fa-dollar-sign', color:'#3fb950', label:'Finances' });
     qaGrid.innerHTML = qaItems.map(function(a){ return qaBtn(a.href, a.icon, a.color, a.label); }).join('');
+
+    // Notify Band button — fans out a generic "playlist updated" email to all band members.
+    // Rendered as a wide button below the grid for visibility (mobile-first).
+    var qaWrap = document.getElementById('bm-qa-wrap');
+    if (qaWrap) {
+      var notifyBtn = document.createElement('button');
+      notifyBtn.id = 'bm-notify-band-btn';
+      notifyBtn.style.cssText = 'margin-top:var(--space-md);width:100%;min-height:44px;padding:12px 18px;border-radius:var(--radius-md);background:rgba(64,123,255,0.12);color:#58a6ff;border:1px solid rgba(64,123,255,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;';
+      notifyBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Notify Band: Playlist Updated';
+      qaWrap.appendChild(notifyBtn);
+      notifyBtn.addEventListener('click', _bmNotifyBandPlaylistUpdate);
+    }
+  }
+
+  /* ── Notify Band: Playlist Updated ── */
+  function _bmNotifyBandPlaylistUpdate() {
+    if (typeof Modal === 'undefined' || typeof Auth === 'undefined' || !Auth._db) return;
+    Modal.confirm('Send a generic "playlist updated" email to all approved band members (band_member, artist, band_manager)? Delivery within ~5 min.', function() {
+      var btn = document.getElementById('bm-notify-band-btn');
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Queuing…'; }
+      var selfUid = Auth._user ? Auth._user.uid : null;
+
+      Auth._db.collection('users')
+        .where('status', '==', 'approved')
+        .where('role', 'in', ['band_member', 'singer', 'band_manager'])
+        .get()
+        .then(function(snap) {
+          var targets = [];
+          snap.forEach(function(d) { if (d.id !== selfUid) targets.push(d.ref); });
+          if (!targets.length) {
+            if (typeof Toast !== 'undefined') Toast.info('No band members to notify.');
+            if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Notify Band: Playlist Updated'; }
+            return;
+          }
+          var batch = Auth._db.batch();
+          targets.forEach(function(ref) {
+            batch.update(ref, {
+              needsPlaylistUpdateEmail: true,
+              playlistUpdateQueuedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+          return batch.commit().then(function() {
+            if (typeof Toast !== 'undefined') Toast.success('Queued — ' + targets.length + ' band member(s) will receive an email within ~5 min.');
+            if (btn) {
+              btn.innerHTML = '<i class="fa-solid fa-check"></i> Queued (' + targets.length + ')';
+              setTimeout(function() {
+                btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Notify Band: Playlist Updated';
+              }, 60000); // 1-min cooldown UX guard
+            }
+          });
+        })
+        .catch(function(err) {
+          console.error('[Manager] Notify band failed:', err);
+          if (typeof Toast !== 'undefined') Toast.error('Failed: ' + (err.message || 'unknown'));
+          if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Notify Band: Playlist Updated'; }
+        });
+    });
   }
 
   /* ── Pending Access Requests (Firestore users where status=pending) ── */
