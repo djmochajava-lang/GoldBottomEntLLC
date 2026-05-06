@@ -36,6 +36,37 @@
   var canManageBand = _isBandMgr || _isAdmin;    // band_manager: CRUD band members
   var bandViewOnly = _isBandMgr || _isBandMember || _isArtist; // these roles only see artist + band
 
+  /* ---- Firestore roster cache (canonical from server SoR) ----
+     Server pulls approved Firebase users into SQLite roster (system of
+     record), then publishes a curated cache to Firestore /roster.
+     Mobile reads this cache so the page works whether or not the LAN
+     server is reachable. Hardcoded seed below is offline fallback. */
+  var _firestoreRoster = []; // [{firebaseUid, name, category, genre, status, hasAccess}]
+
+  function _normalizeName(n){ return (n||'').toLowerCase().trim().replace(/\s+/g,' '); }
+
+  function _loadFirestoreRoster(){
+    if(typeof Auth==='undefined' || !Auth._db) return;
+    Auth._db.collection('roster').get().then(function(snap){
+      var arr = [];
+      snap.forEach(function(d){
+        var r = d.data() || {};
+        arr.push({
+          firebaseUid: r.firebaseUid || d.id,
+          name: r.name || '',
+          category: r.category || 'band_member',
+          genre: r.genre || '',
+          status: r.status || 'active',
+          hasAccess: r.hasAccess !== false
+        });
+      });
+      _firestoreRoster = arr;
+      renderTable();
+    }).catch(function(err){
+      console.warn('[Roster] Firestore /roster load failed (offline?):', err.message || err);
+    });
+  }
+
   /* ---- Inject Soul Society band members if missing (migration) ---- */
   (function migrateBandMembers(){
     var roster = DataStore.getRoster();
@@ -84,11 +115,53 @@
     prospect:{label:'Prospect', bg:'rgba(210,153,34,0.15)', color:'#d29922'}
   };
 
+  /* ---- Merge seed + Firestore canonical ----
+     Match seed entries to Firestore /roster by normalized name. When
+     matched, prefer Firestore data and tag hasAccess=true. Firestore
+     entries with no seed match (e.g. Thomas White) are appended. */
+  function _getMergedRoster(){
+    var seed = DataStore.getRoster().map(function(t){ return Object.assign({}, t); });
+    if(!_firestoreRoster.length) return seed;
+
+    var seedByName = {};
+    seed.forEach(function(t){ seedByName[_normalizeName(t.name)] = t; });
+
+    var unmatched = [];
+    _firestoreRoster.forEach(function(fr){
+      var key = _normalizeName(fr.name);
+      var match = seedByName[key];
+      if(match){
+        match._firebaseUid = fr.firebaseUid;
+        match._hasAccess = fr.hasAccess;
+        if(!match.genre && fr.genre) match.genre = fr.genre;
+        if(fr.status && fr.status !== match.status) match.status = fr.status;
+      } else {
+        unmatched.push({
+          id: 'fb_' + fr.firebaseUid,
+          name: fr.name,
+          category: fr.category,
+          genre: fr.genre || '',
+          status: fr.status || 'active',
+          email: '',
+          phone: '',
+          bio: '',
+          contractStart: '',
+          contractEnd: '',
+          commission: 0,
+          _firebaseUid: fr.firebaseUid,
+          _hasAccess: fr.hasAccess,
+          _synthFromFirestore: true
+        });
+      }
+    });
+    return seed.concat(unmatched);
+  }
+
   /* ---- Render table ---- */
   function renderTable(){
     var c=document.getElementById('roster-table-container');
     if(!c)return;
-    var data=DataStore.getRoster();
+    var data=_getMergedRoster();
 
     /* Non-admin roles only see artists and band members */
     if(bandViewOnly && !_isAdmin){
@@ -123,15 +196,18 @@
       var contractEnd=t.contractEnd?Utils.formatDate(t.contractEnd):'\u2014';
       var contact=t.email?Utils.escapeHtml(t.email):'\u2014';
 
+      var accessIcon = t._hasAccess
+        ? ' <i class="fa-solid fa-circle-check" style="color:#3fb950;font-size:11px;margin-left:6px;vertical-align:middle;" title="Signed in — has Band Player access"></i>'
+        : '';
       html+='<tr style="border-bottom:1px solid var(--color-border);">'+
-        '<td data-label="Name" style="padding:var(--space-sm);font-size:var(--text-sm);"><strong>'+Utils.escapeHtml(t.name)+'</strong></td>'+
+        '<td data-label="Name" style="padding:var(--space-sm);font-size:var(--text-sm);"><strong>'+Utils.escapeHtml(t.name)+'</strong>'+accessIcon+'</td>'+
         '<td data-label="Category" style="padding:var(--space-sm);"><span style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--fw-semibold);background:'+cb.bg+';color:'+cb.color+';">'+cb.label+'</span></td>'+
         '<td data-label="Genre / Skill" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+(t.genre?Utils.escapeHtml(t.genre):'\u2014')+'</td>'+
         '<td data-label="Status" style="padding:var(--space-sm);"><span class="status-pill" style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:var(--fw-semibold);background:'+sp.bg+';color:'+sp.color+';text-transform:capitalize;">'+sp.label+'</span></td>'+
         '<td data-label="Contract End" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+contractEnd+'</td>'+
         (isLocal?'<td data-label="Commission" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">'+(t.commission?Utils.escapeHtml(t.commission)+'%':'\u2014')+'</td>':'')+
         '<td data-label="Contact" style="padding:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-secondary);">'+contact+'</td>'+
-        ((canManageAll || (canManageBand && t.category==='band_member'))?'<td data-label="Actions" style="padding:var(--space-sm);"><div class="data-table-actions" style="display:flex;gap:var(--space-xs);">'+
+        ((canManageAll || (canManageBand && t.category==='band_member')) && !t._synthFromFirestore?'<td data-label="Actions" style="padding:var(--space-sm);"><div class="data-table-actions" style="display:flex;gap:var(--space-xs);">'+
           '<button class="btn btn-ghost btn-sm" onclick="editTalent(\''+t.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-text-secondary);background:none;border:none;cursor:pointer;" title="Edit"><i class="fa-solid fa-pen"></i></button>'+
           '<button class="btn btn-ghost btn-sm text-danger" onclick="deleteTalent(\''+t.id+'\')" style="padding:4px 8px;border-radius:var(--radius-sm);color:var(--color-danger);background:none;border:none;cursor:pointer;" title="Delete"><i class="fa-solid fa-trash"></i></button>'+
         '</div></td>':((canManageAll || canManageBand)?'<td></td>':''))+
@@ -296,6 +372,7 @@
   };
 
   renderTable();
+  _loadFirestoreRoster();
 
 
 })();
