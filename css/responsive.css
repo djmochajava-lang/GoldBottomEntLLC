@@ -10,14 +10,19 @@
 @media (max-width: 1024px) {
 
   /* --- Dashboard Sidebar: overlay mode --- */
+  /* will-change + translate3d force iOS Safari to allocate the GPU compositor
+     layer at parse time, not on first tap. Without this, the first hamburger
+     tap on iPhone pays the layer-allocation + initial composite cost during
+     the user's interaction, which can stutter for many seconds on cellular. */
   .dashboard-sidebar {
-    transform: translateX(-100%);
+    transform: translate3d(-100%, 0, 0);
+    will-change: transform;
     z-index: var(--z-overlay);
     box-shadow: var(--shadow-xl);
   }
 
   .dashboard-sidebar.mobile-open {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 
   .sidebar-backdrop {

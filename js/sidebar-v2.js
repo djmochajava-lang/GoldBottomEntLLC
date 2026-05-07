@@ -128,6 +128,19 @@ const SidebarV2 = {
     if (typeof Perf !== 'undefined') {
       Perf.mark('sidebar.toggle.opened');
       Perf.measure('sidebar.toggle', 'sidebar.toggle.tap', 'sidebar.toggle.opened');
+      // Two rAFs: the next paint actually commits the new transform.
+      // Logs the "tap to visible" delta — what the user perceives as the
+      // hamburger lag — separate from the synchronous JS work above.
+      var tapAt = Perf.marks['sidebar.toggle.tap'];
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (tapAt == null) return;
+          var paintedAt = performance.now();
+          var dur = Math.round(paintedAt - tapAt);
+          try { console.log('[perf] sidebar.tap-to-painted = ' + dur + 'ms'); } catch (e) {}
+          Perf.measures['sidebar.tap-to-painted'] = dur;
+        });
+      });
     }
   },
 
