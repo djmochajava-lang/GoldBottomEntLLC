@@ -81,6 +81,13 @@ const PageLoader = {
       // Fade in new content
       await this.fadeIn(container);
 
+      // Mark fragment as loaded for perf instrumentation. Pairs with
+      // nav.tap.start in router.js#markNavLoading to measure menu-tap → fragment-visible.
+      if (typeof Perf !== 'undefined') {
+        Perf.mark('nav.fragment.loaded');
+        Perf.measure('nav.fragment', 'nav.tap.start', 'nav.fragment.loaded');
+      }
+
       // Scroll to top
       container.scrollTop = 0;
       window.scrollTo(0, 0);

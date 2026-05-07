@@ -645,6 +645,7 @@ const Router = {
    * to give instant tap feedback — paired with clearNavLoading() in finally.
    */
   markNavLoading(pageName) {
+    if (typeof Perf !== 'undefined') Perf.mark('nav.tap.start');
     document.querySelectorAll('.sidebar-nav-item, .nav-link, .mobile-nav-link').forEach((el) => {
       const isTarget = el.getAttribute('data-page') === pageName;
       el.classList.toggle('is-loading', isTarget);

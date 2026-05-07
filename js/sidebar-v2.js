@@ -113,6 +113,7 @@ const SidebarV2 = {
    * Toggle sidebar open/closed. Pure CSS class manipulation.
    */
   toggle: function() {
+    if (typeof Perf !== 'undefined') Perf.mark('sidebar.toggle.tap');
     var isOpen = this.sidebar.classList.contains('mobile-open');
     if (isOpen) {
       this.close();
@@ -124,6 +125,10 @@ const SidebarV2 = {
   open: function() {
     this.sidebar.classList.add('mobile-open');
     document.body.classList.add('sidebar-mobile-open');
+    if (typeof Perf !== 'undefined') {
+      Perf.mark('sidebar.toggle.opened');
+      Perf.measure('sidebar.toggle', 'sidebar.toggle.tap', 'sidebar.toggle.opened');
+    }
   },
 
   close: function() {
@@ -137,6 +142,7 @@ const SidebarV2 = {
    * Items without data-roles are always shown.
    */
   filterByRole: function() {
+    if (typeof Perf !== 'undefined') Perf.mark('sidebar.render.start');
     var cache = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
     var role = cache ? (cache.activeRole || cache.role) : null;
 
@@ -149,6 +155,10 @@ const SidebarV2 = {
       var allowed = item.getAttribute('data-roles').split(',');
       item.style.display = allowed.indexOf(role) !== -1 ? '' : 'none';
     });
+    if (typeof Perf !== 'undefined') {
+      Perf.mark('sidebar.render.end');
+      Perf.measure('sidebar.render', 'sidebar.render.start', 'sidebar.render.end');
+    }
   },
 
   /**
