@@ -36,7 +36,7 @@ var ASSET_HASHES = {
   './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
   './js/auth-cache.js': '3e0b379c0919e6b0ad0dc5685f789e4e7a42a73ac26da0187923d0f3c5e7ee18',
-  './js/sidebar-v2.js': '51f59bb7ba990ec93ae931930082c6e0332fff54740eb2fa8e68871f47bc5070',
+  './js/sidebar-v2.js': '183ff014cca9a723231a69f2bd90ca482145b1b803da0f9196efcb8bdb70cece',
   './js/data-store.js': 'ffa4b8001aabde2c4740a129c85832976c20feffecbadbad617cce0117456d1e',
   './js/forms.js': '95f367096cd2f9ff19a90f6b0405f934f47f5f769fa1176cc604e3d8e84d2840',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',

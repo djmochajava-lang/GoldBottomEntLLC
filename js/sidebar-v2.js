@@ -53,13 +53,28 @@ const SidebarV2 = {
 
   /**
    * Attach toggle button handlers.
-   * touchstart = instant visual feedback. click = actual toggle.
+   *
+   * Fast-path: fire toggle on `touchstart` instead of waiting for `click`.
+   * On iOS Safari, when the main thread is busy (initial dashboard render,
+   * Firestore first-snapshot delivery, etc.), the synthetic `click` can sit
+   * in the task queue behind that work for many seconds — even though the
+   * actual JS in toggle() takes 0ms. touchstart is delivered from a
+   * higher-priority pointer-event queue and arrives sooner on a busy thread.
+   *
+   * Desktop and any non-touch device falls through to the click handler.
+   * The lastTouchAt guard suppresses the synthetic click that follows a
+   * real touch so we don't double-toggle.
    */
   attachToggle: function() {
     var self = this;
+    var lastTouchAt = 0;
 
     this.toggleBtn.addEventListener('touchstart', function() {
       self.toggleBtn.classList.add('pressed');
+      var t = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      lastTouchAt = t;
+      try { console.log('[perf] sidebar.touchstart @ ' + Math.round(t) + 'ms'); } catch (e) {}
+      self.toggle();
     }, { passive: true });
 
     this.toggleBtn.addEventListener('touchend', function() {
@@ -70,6 +85,13 @@ const SidebarV2 = {
       e.preventDefault();
       e.stopPropagation();
       self.toggleBtn.classList.remove('pressed');
+      var nowT = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      // Suppress the synthetic click that follows a real touchstart-driven toggle.
+      if (nowT - lastTouchAt < 500) {
+        try { console.log('[perf] sidebar.click suppressed-after-touch @ ' + Math.round(nowT) + 'ms'); } catch (e2) {}
+        return;
+      }
+      try { console.log('[perf] sidebar.click @ ' + Math.round(nowT) + 'ms'); } catch (e3) {}
       self.toggle();
     });
   },
