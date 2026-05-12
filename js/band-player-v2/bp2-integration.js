@@ -12,12 +12,20 @@
   'use strict';
 
   var STEM_LABELS = {
-    vocals: 'Vocals', drums: 'Drums', bass: 'Bass', other: 'Other',
-    guitar: 'Guitar', piano: 'Keys / Piano', instrumental: 'Instrumental'
+    vocals: 'Vocals', drums: 'Drums', percussion: 'Perc',
+    bass: 'Bass',
+    guitar: 'Guitar', saxophone: 'Sax',
+    piano: 'Keys / Piano', keys1: 'Keys 1', keys2: 'Keys 2',
+    other: 'Other', instrumental: 'Instrumental',
+    violin: 'Violin', strings: 'Strings', brass: 'Brass'
   };
   var STEM_COLORS = {
-    vocals: '#00e676', drums: '#ff1744', bass: '#2979ff', other: '#651fff',
-    guitar: '#ff9100', piano: '#d500f9', instrumental: '#78909c'
+    vocals: '#00e676', drums: '#ff1744', percussion: '#e74c3c',
+    bass: '#2979ff',
+    guitar: '#ff9100', saxophone: '#f39c12',
+    piano: '#d500f9', keys1: '#d500f9', keys2: '#8e44ad',
+    other: '#651fff', instrumental: '#78909c',
+    violin: '#1abc9c', strings: '#16a085', brass: '#d4ac0d'
   };
 
   var _current = null;

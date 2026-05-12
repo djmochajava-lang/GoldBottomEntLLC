@@ -52,10 +52,10 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-playlist.js': '9babace653f32ea050e3662c35db3e31600b92031d2fd2149b82355946e71491',
   './js/band-player-v2/bp2-render.js': '3894368326985b79a8b6f370a48e3a6399a2d503ae196ebcac0527e64e11698e',
   './js/band-player-v2/bp2-render-edit.js': 'e4b942ee7fd429ce5afae06e195285e3f08967808677eb36d8425290a6036302',
-  './js/band-player-v2/bp2-render-stems.js': '29763a1e7839f4d5ebc6e0f210e73375d6f3f3a01a99ffbe35d51a9b261d6f2d',
+  './js/band-player-v2/bp2-render-stems.js': '42a4c2efcf8e3142585af89ee6702d6112a8cfaee4bc9ba54afd69ff7daf9b22',
   './js/band-player-v2/bp2-offline.js': 'f8f658739b48821f1471a26d873bbee5a6f20dec37ff0d07bd7f641182efefd7',
   './js/band-player-v2/bp2-stems.js': 'cb9fbc91b34f3248a733d48f1a7d3ceb83639cf3d62c26c62c829c8a4d7b066c',
-  './js/band-player-v2/bp2-mixer.js': 'e0acf817ab8082075894608b06d38407b51ff3f55d175dd6578129b277276b89',
+  './js/band-player-v2/bp2-mixer.js': '0a3dfd66e4281a05c0a7ca2dad52b9112bdd350b393c6024ecc14be92bed530e',
   './js/band-player-v2/bp2-transport.js': 'c86594d9cf2ffa54b1cf0fb072a50380632d2fa324faebbae954fc4bf65b3870',
   './js/band-player-v2/bp2-practice.js': '4b4428730733e4ed2e903464f454261cb7c0bd7f051a5158cf24e99794120158',
   './js/band-player-v2/bp2-charts.js': '9abb8f8f4f5bf2c602e1a09960ed0d5b10a29a5ed60c317e421eb81e9af10f7e',
@@ -64,7 +64,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-upload.js': 'e311617c5bb92f16fdbe687f3a6f5c84321b134328313af188733d45c73e28f4',
   './js/band-player-v2/bp2-permissions.js': '3ddaff2487249c6cee9d0d1f2ea82c416a853c2b43a8ea6059a6d652d8921920',
   './js/band-player-v2/bp2-edit.js': '5e2eca10851e407fedc559a817d9cb7a7882cf520451d6a7c1fba51263f3fb7e',
-  './js/band-player-v2/bp2-integration.js': 'a4692d305c66ae58c434ed2179ff235ec745ceb8b6cdde4fcfc67769f452072a',
+  './js/band-player-v2/bp2-integration.js': 'a4e74c5ce264f7ef56f91a41d6628da8cb7895eeade564ad59c248d676b5ecb6',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
   './js/band-player-v2/bp2-auth.js': '853d982e53d375c82efa325e085be52f93a29345e3f082a7e7be417ce2586f58'
 };

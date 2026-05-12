@@ -17,7 +17,7 @@
   var DEFAULT_FADER = 80;
   var MAX_FADER = 100;
   var _state = {};
-  var _stemNames = ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano'];
+  var _stemNames = ['vocals', 'drums', 'percussion', 'bass', 'keys1', 'keys2', 'piano', 'guitar', 'saxophone', 'other', 'violin', 'strings', 'brass'];
 
   function clamp(v, lo, hi) {
     if (v == null || isNaN(v)) return lo;
