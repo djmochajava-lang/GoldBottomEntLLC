@@ -227,11 +227,10 @@
 
   // ── Send Agreement Modal ───────────────────
   window._showSendAgreement = function(templateId) {
-    // Load musicians from Firestore users collection
-    db.collection('users').where('role', 'in', ['band_member', 'artist']).get().catch(function(err) {
-      // Fallback: try loading all approved users if role query fails
-      console.warn('[Agreements] Role query failed, trying status query:', err.message);
-      return db.collection('users').where('status', '==', 'approved').get();
+    // Load musicians from /roster cache (display-only; per architecture, /users is approval-pipeline-only).
+    db.collection('roster').where('role', 'in', ['band_member', 'artist']).get().catch(function(err) {
+      console.warn('[Agreements] Roster role query failed, trying status query:', err.message);
+      return db.collection('roster').where('status', '==', 'approved').get();
     }).then(function(snap) {
       if (!snap) snap = { forEach: function(){}, size: 0 };
       var musicianOpts = '';
@@ -445,7 +444,7 @@
     var el = document.getElementById('hba-list');
     if (!el || !db) return;
 
-    db.collection('users').where('status', '==', 'approved').get()
+    db.collection('roster').where('status', '==', 'approved').get()
       .then(function(snap) {
         var bandRoles = ['band_member', 'artist'];
         var members = [];
@@ -548,9 +547,11 @@
       '\u2022 You\u2019re responsible for your own gear. We\u2019re not liable for loss or damage unless caused by our direct negligence.\n\n' +
       '\u2022 All obligations are with Gold Bottom Ent LLC only \u2014 no personal liability for Jeffery Ponder or LA Young.';
 
-    // Load user doc + any agreements assigned to this musician
+    // Display-only musician lookup — read from /roster cache; fall back to /users if absent.
     Promise.all([
-      db.collection('users').doc(uid).get(),
+      db.collection('roster').doc(uid).get().then(function(d) {
+        return d.exists ? d : db.collection('users').doc(uid).get();
+      }),
       db.collection('agreements').where('musicianId', '==', uid).orderBy('sentAt', 'desc').get().catch(function() { return { forEach: function(){}, size: 0, empty: true }; })
     ]).then(function(results) {
       var userDoc = results[0];

@@ -129,8 +129,8 @@
         var data = await resp.json();
         (data.musicians || []).forEach(function(m) { musicianNames[m.id] = m.name; });
       }
-      // Also try Firestore users
-      var usersSnap = await fdb.collection('users').get();
+      // Display-only — read from /roster cache (SoR per architecture).
+      var usersSnap = await fdb.collection('roster').get();
       usersSnap.forEach(function(doc) {
         var u = doc.data();
         if (u.displayName) musicianNames[doc.id] = u.displayName;
@@ -312,8 +312,8 @@
     if (!fdb) { document.getElementById('comp-table-container').innerHTML = '<p class="text-muted">Firestore not available.</p>'; return; }
 
     try {
-      // Get all band members (role = band_member, artist, or band_manager)
-      var snap = await fdb.collection('users').where('status', '==', 'approved').get();
+      // Get all band members from /roster cache (display-only).
+      var snap = await fdb.collection('roster').where('status', '==', 'approved').get();
       var bandRoles = ['band_member', 'artist', 'band_manager'];
       var members = [];
       snap.forEach(function(doc) {

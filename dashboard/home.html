@@ -575,7 +575,7 @@
   function startDash() {
     renderDash();
     if (typeof Auth !== 'undefined' && Auth.onAuthStateChanged) {
-      Auth.onAuthStateChanged(function() { renderDash(); });
+      Auth.onAuthStateChanged(function() { renderDash(); }, 'dashboard-home');
     }
   }
 

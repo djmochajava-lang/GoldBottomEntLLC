@@ -1516,18 +1516,59 @@ const Auth = {
 
     // Firebase auth logout
     localStorage.removeItem('gbe-last-activity');
+    // Reset perf instrumentation so the boot.start baseline doesn't leak into
+    // the next sign-in attempt. Without this, auth.total measured against the
+    // old boot.start grows unboundedly across sign-out/sign-in cycles.
+    if (typeof window !== 'undefined' && window.__gbePerf && typeof window.__gbePerf.reset === 'function') {
+      try { window.__gbePerf.reset(); } catch (e) { /* non-fatal */ }
+    }
     if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
     return this._auth.signOut();
   },
 
   /**
-   * Subscribe to auth state changes
+   * Subscribe to auth state changes.
+   *
+   * Two call styles:
+   *   1. onAuthStateChanged(callback) — anonymous, stacks. Fine for one-shot
+   *      callers. Caller is responsible for not re-registering.
+   *   2. onAuthStateChanged(callback, key) — keyed registration. The same key
+   *      replaces any prior registration with that key. Use this from page
+   *      fragments that reload on every nav (dashboard/home.html,
+   *      dashboard/field.html) to prevent listener accumulation.
+   *
+   * Returns an unsubscribe function (Firebase-style).
+   *
    * @param {Function} callback - Called with user object or null
+   * @param {string} [key] - Optional dedupe key; replaces prior registration
+   * @returns {Function} unsubscribe — call to remove this listener
    */
-  onAuthStateChanged: function(callback) {
-    this._listeners.push(callback);
+  onAuthStateChanged: function(callback, key) {
+    if (key) {
+      this._namedListeners = this._namedListeners || {};
+      this._namedListeners[key] = callback;
+    } else {
+      this._listeners.push(callback);
+    }
     // Immediately invoke with current state
-    callback(this._user);
+    try { callback(this._user); } catch (e) { console.error('[Auth] Listener (initial invoke) error:', e); }
+    var self = this;
+    return function unsubscribe() {
+      if (key && self._namedListeners) {
+        delete self._namedListeners[key];
+      } else {
+        var idx = self._listeners.indexOf(callback);
+        if (idx >= 0) self._listeners.splice(idx, 1);
+      }
+    };
+  },
+
+  /**
+   * Remove a previously-registered listener by key.
+   * @param {string} key
+   */
+  offAuthStateChanged: function(key) {
+    if (this._namedListeners) delete this._namedListeners[key];
   },
 
   /**
@@ -2973,10 +3014,15 @@ const Auth = {
    */
   _notifyListeners: function(user) {
     for (var i = 0; i < this._listeners.length; i++) {
-      try {
-        this._listeners[i](user);
-      } catch (e) {
-        console.error('[Auth] Listener error:', e);
+      try { this._listeners[i](user); }
+      catch (e) { console.error('[Auth] Listener error:', e); }
+    }
+    if (this._namedListeners) {
+      for (var key in this._namedListeners) {
+        if (Object.prototype.hasOwnProperty.call(this._namedListeners, key)) {
+          try { this._namedListeners[key](user); }
+          catch (e) { console.error('[Auth] Named listener "' + key + '" error:', e); }
+        }
       }
     }
   }
