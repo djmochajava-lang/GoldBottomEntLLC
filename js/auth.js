@@ -335,6 +335,14 @@ const Auth = {
 
     // Listen for auth state changes
     this._auth.onAuthStateChanged(function(user) {
+      // [authdbg] Trace every auth-state transition so an iPhone Safari repro
+      // (Web Inspector) reveals the exact sequence — e.g. user present then null
+      // is the federated-session-not-persisting loop (cross-origin authDomain +
+      // blocked third-party storage). Filter the console by "[authdbg]".
+      try {
+        console.log('[authdbg] onAuthStateChanged user=' + (user ? (user.uid.slice(0,6) + '… provider=' + ((user.providerData[0]||{}).providerId||'?')) : 'NULL')
+          + ' isPin=' + Auth._isPinAuth);
+      } catch (e) {}
       // Don't override PIN auth state
       if (Auth._isPinAuth) return;
 
@@ -519,7 +527,10 @@ const Auth = {
     // After redirect, the page reloads and getRedirectResult() resolves with the
     // credential. onAuthStateChanged above will fire too, so we only need to
     // catch errors here — the success path is handled by onAuthStateChanged.
-    this._auth.getRedirectResult().catch(function(error) {
+    this._auth.getRedirectResult().then(function(result) {
+      try { console.log('[authdbg] getRedirectResult resolved user=' + (result && result.user ? result.user.uid.slice(0,6) + '…' : 'none')); } catch (e) {}
+    }).catch(function(error) {
+      try { console.log('[authdbg] getRedirectResult error code=' + (error && error.code) + ' msg=' + ((error && error.message)||'').slice(0,80)); } catch (e) {}
       if (!error || !error.code) return;
       var msg = error.message || '';
       // Storage-partition / stale-redirect errors (iOS Safari): the redirect's
@@ -1433,7 +1444,16 @@ const Auth = {
     // producing "Unable to process request due to missing initial state." So on
     // Safari we stay on popup and guide the user rather than trigger a broken redirect.
     var self = this;
-    return this._auth.signInWithPopup(provider).catch(function(err) {
+    try { console.log('[authdbg] signInWithPopup START provider=' + providerName + ' redirectUnsafe=' + self._redirectUnsafe()); } catch (e) {}
+    return this._auth.signInWithPopup(provider).then(function(result) {
+      try {
+        var u = result && result.user;
+        console.log('[authdbg] signInWithPopup SUCCESS uid=' + (u ? u.uid.slice(0,6) + '…' : '?')
+          + ' — now checking if session persists (currentUser=' + (self._auth.currentUser ? 'set' : 'NULL') + ')');
+      } catch (e) {}
+      return result;
+    }).catch(function(err) {
+      try { console.log('[authdbg] signInWithPopup FAILED code=' + err.code + ' msg=' + (err.message||'').slice(0,80)); } catch (e) {}
       var recoverable = err.code === 'auth/network-request-failed' ||
                         err.code === 'auth/popup-blocked' ||
                         err.code === 'auth/internal-error';
