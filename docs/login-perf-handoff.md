@@ -200,6 +200,28 @@ workaround if popup is blocked: use the email/password test accounts (no redirec
 at goldbottoment-llc.com/__/auth/ (same-origin authDomain) so redirect works on Safari — requires
 Firebase Hosting or a proxy. Until then, popup-only on Safari is the ceiling.
 
+## PHASE 4 — iOS Safari LOGIN LOOP (regression from the 24h AuthCache TTL) — FIXED
+User: "It logged me in, I see the page, then the Firebase login returns to start over; click again → blank page."
+CAUSE (regression from `85faeeb`): the router optimistically renders the dashboard whenever the
+**localStorage** AuthCache says authorized (router.js:311), WITHOUT confirming a live Firebase
+session. On iOS Safari (ITP / storage partitioning) Firebase's IndexedDB session can be cleared
+while the localStorage cache survives. The 24h TTL let that cache live long enough to render the
+dashboard ("I see the page") then bounce to the login modal once `onAuthStateChanged` reported no
+user ("login returns") → flash-then-login loop / blank page. The original 5min TTL kept this rare.
+FIX (`48a162d`, auth-cache.js?v=3): reverted TTL 24h→5min; bumped STORAGE_KEY → `gbe-auth-cache-v2`
+so every existing 24h entry in users' localStorage is abandoned immediately on deploy.
+VERIFIED myself (desktop, production, 4 scenarios): (1) stale 24h old-key cache + no Firebase →
+old cache ignored, NO optimistic flash, clean login, no loop; (2) fresh new-key cache + no Firebase
+→ converges to clean login, cache auto-cleared; (3) normal email/password login → dashboard renders
+& STAYS, no modal reappearance; (4) reload as returning user → clean dashboard, Firebase present.
+⚠️ USER ACTION: the iPhone is still running the OLD looping code — **force-quit Safari (or clear
+website data) to load v=3**, then the loop is gone.
+NET ON LOGIN PERF: the 24h instant-returning-user optimization is rolled back (correctness > speed).
+Login is back to the known-good ~509ms returning-user path. A SAFE way to restore the speed-up
+(reconcile AuthCache against Firebase currentUser before optimistic render, or gate optimistic
+render so it can't outlive a cleared Firebase session) is the documented follow-up. The Phase-2
+in-dashboard menu nav fixes (prefetch + fade) are UNAFFECTED and remain live.
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
