@@ -167,6 +167,14 @@ cache-first (narrow network-first to the shell only) AND precache all 39 fragmen
 That would make first-visit-ever instant and avoid per-session re-download. Left for a deliberate,
 clean-browser-validated change. See sw.js:313-337 + the precache ASSETS list (only band-player-v2.html).
 
+**VALIDATED before/after (clean browser, desktop, rigorous click→element-visible, band_manager 17 items):**
+```
+Original (network fetch per tap + 240ms dead-wait fade):  ~300ms/item
+After prefetch (network fetch eliminated):                ~135-167ms/item
+After fade-delay removal (BOTH fixes, shipped):           ~37-66ms/item   ← all under 100ms "instant"
+```
+Both fixes live: `85faeeb`(login) `0fad66f`(bp) `303a824`(prefetch) `77a7130`(fade). Shared by band_member + band_manager (same PageLoader). iPhone gain will be larger (prefetch also kills the cellular fetch). USER must re-validate on iPhone — they tested BEFORE these fixes.
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
