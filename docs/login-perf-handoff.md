@@ -9,6 +9,41 @@ agent memory at `goal_login_perf.md`; this file is the live progress journal.
 
 ---
 
+## ✅ CURRENT STATUS (read first) — latest live = auth.js?v=7 (97d2402)
+
+**SHIPPED + VALIDATED on production (desktop, clean browser):**
+- **In-dashboard menu navigation: FIXED & validated** — ~300ms → **~38–66ms per item** for BOTH
+  band_member and band_manager. Cause was per-tap network fetch + 240ms dead-wait fade. Fixes:
+  PageLoader prefetch (`303a824`) + fade trim 120→30ms (`77a7130`).
+- **Quotes 404: FIXED** (`66a41b4`) — un-gitignored + deployed `dashboard/quotes.html`; renders ~51ms.
+- **Band Player load: instrumented** (`0fad66f`) — `band-player.load` ≈ 419ms desktop.
+- **Gmail/Google sign-in regression I caused: REVERTED** (`97d2402`) — restored the
+  popup→redirect fallback. Verified Gmail OAuth works end-to-end on desktop (QAE acct
+  `gbe.test.musician@gmail.com`). Email/password + Gmail both load the dashboard, no loop.
+- **iOS Safari AuthCache login-loop: FIXED** (`48a162d`) — reverted the 24h TTL to 5min + bumped
+  cache key so stale 24h entries are abandoned.
+
+**OPEN / NOT DONE (need infra or the user's device — NOT codeable on GitHub Pages alone):**
+1. **Gmail on iOS Safari — needs USER confirmation.** v=7 should fix normal-Safari Gmail (redirect
+   path restored). If the user reported "page not loading", it was almost certainly a STALE service
+   worker from today's many deploys — they must CLEAR Safari website data (force-quit isn't enough).
+   The site + dashboard load fine for the agent on desktop; all assets HTTP 200.
+2. **Durable Gmail fix for incognito / strict-ITP = SAME-SITE authDomain.** Root cause: authDomain
+   `goldbottoment.firebaseapp.com` is cross-origin to the app → third-party storage blocked on
+   Safari/incognito. Fix = Firebase Hosting subdomain `auth.goldbottoment-llc.com` + DNS + add to
+   authorized domains + change config.js authDomain (one line). Infra task; not done.
+3. **Cold-login SPEED:** the 24h-cache instant-render optimization was reverted (unsafe). Login is
+   at safe baseline (~509ms returning user). A SAFE redo = reconcile AuthCache optimistic render
+   against Firebase currentUser before trusting it. Not attempted (needs device validation).
+4. **`[authdbg]` console logging is still in auth.js (v=7)** — intentionally, to help confirm the
+   Gmail fix on the iPhone. REMOVE it once the user confirms Gmail login works on their device.
+
+**TESTING CONSTRAINT:** the agent's Playwright is desktop Chromium — it CANNOT reproduce iOS Safari
+/ incognito third-party-storage blocking. Clean-state testing approximates a fresh browser but not
+true incognito. iOS Safari behavior must be confirmed on a real device.
+
+---
+
 ## The Goal (one line)
 Make band-member login on the **live public site** `https://goldbottoment-llc.com` feel
 fast on a **real iPhone**. This is a PRODUCTION issue — measure/verify ONLY against the
