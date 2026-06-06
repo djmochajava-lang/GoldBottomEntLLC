@@ -431,11 +431,22 @@
   }
 
   // ── Full Re-render ───────────────────────────
+  var _firstRenderDone = false;
   function _render() {
     _renderPlaylistDropdown();
     _renderStats();
     _renderTracklist();
     _updateTransportDisplay();
+    // [perf] First render after playlist data loads = Band Player is usable.
+    // Pairs with band-player.load.start (marked in band-player-v2.html before
+    // BP2Core.init). Captures full bootstrap → playlist-visible on real devices.
+    if (!_firstRenderDone) {
+      _firstRenderDone = true;
+      if (typeof Perf !== 'undefined' && Perf.mark) {
+        Perf.mark('band-player.load.ready');
+        Perf.measure('band-player.load', 'band-player.load.start', 'band-player.load.ready');
+      }
+    }
   }
 
   // ── Public API ───────────────────────────────
@@ -502,7 +513,7 @@
     render: _render,
     renderTracklist: _renderTracklist,
     updateTransportDisplay: _updateTransportDisplay,
-    _reset: function() { _rInitialized = false; _core = null; }
+    _reset: function() { _rInitialized = false; _core = null; _firstRenderDone = false; }
   };
 
   if (typeof module !== 'undefined' && module.exports) {

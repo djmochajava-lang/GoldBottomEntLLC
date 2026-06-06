@@ -432,6 +432,11 @@
     if (typeof BP2Edit !== 'undefined') BP2Edit.init();
     if (typeof BP2Auth !== 'undefined') BP2Auth.init();
     if (typeof BP2Offline !== 'undefined' && BP2Offline.init) BP2Offline.init();
+    // [perf] Band Player bootstrap begins here. Pairs with band-player.load.ready
+    // (marked in bp2-render.js on first playlist render). On a real iPhone this
+    // captures the BP2 module init + Firestore playlist fetch + render cost.
+    if (typeof Perf !== 'undefined' && Perf.mark) Perf.mark('band-player.load.start');
+    try { console.log('[perf] band-player.load.start (BP2 bootstrap begins)'); } catch (e) {}
     // Core init triggers all events — must be last
     BP2Core.init({ db: db, storage: storage, user: user, role: role });
   }
