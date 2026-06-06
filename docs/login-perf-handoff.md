@@ -314,6 +314,25 @@ off every non-band-player cold load — meaningful on a slow iPhone CPU. RISK: b
 band's core rehearsal tool; must validate it still loads+plays (desktop QAE musician acct has songs)
 before shipping. Awaiting user OK before touching it.
 
+## PHASE 7 — Cold-start: lazy-load band-player JS (~225KB) — SHIPPED & VALIDATED (349bdc6)
+The 21 `bp2-*` modules (~225KB) loaded via `<script defer>` on EVERY page; only needed for the
+Band Player. Moved them OFF the critical path: a small loader in index.html injects them after
+first paint (in dependency order, `async=false`), exposes `window.__loadBP2()` for on-demand
+trigger, and `dashboard/band-player-v2.html` bootstrap now waits for `BP2Core` before init.
+VALIDATED: dev mirror (localhost:8111, with the local-route guard bypassed) AND production — band
+player loads FUNCTIONAL in ~53ms, all 21 modules load, 3 playlists populate, 0 errors. Cuts ~225KB
+JS download+parse from every non-band-player cold load (helps slow iPhone CPUs most).
+
+**PRE-EXISTING BUG found (NOT mine, NOT fixed — documented):** on a LOCAL/private dashboard
+(`Auth.isLocalDashboard()` true — i.e. localhost or LAN IP), navigating to `dashboard-band-player`
+or `dashboard-musician-home` causes an **infinite `Router.navigateTo` recursion → "Maximum call
+stack size exceeded"**. Both are in `localBlockedRoutes` ("public-site-only"), so the block
+redirects to `dashboard-home` → role-redirects a band_member back to the blocked `dashboard-musician-home`
+→ loops (router.js:449-453 + the dashboard-home role map ~284-298). Does NOT affect production
+(`goldbottoment-llc.com` is not a local dashboard → guard never fires) or normal use (band members
+are remote-only). Fix would be: when a localBlockedRoute redirect resolves to another localBlockedRoute,
+stop instead of re-dispatching. Left alone — touching routing is risky and it's out of the normal path.
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
