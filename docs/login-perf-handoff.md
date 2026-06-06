@@ -153,6 +153,11 @@ that the link was clicked).** Per-page confirm selector = `#dash-<name>` (e.g. `
 until that element has layout + is visible. After prefetch (pre-fade-fix), desktop click→visible
 was ~135–167ms for all working pages. Re-measure after the fade fix should drop further.
 
+**BUG RESOLVED (66a41b4) — Quotes 404 fixed:** un-gitignored + deployed `dashboard/quotes.html`
+after reviewing it for sensitive content (none — same static Firestore-read pattern as other
+tracked fragments). Verified live: HTTP 200, `#dash-quotes` renders the Quote Pipeline table
+(remote read-only) in ~51ms. Original bug below for history:
+
 **BUG FOUND — Quotes is broken on remote (404):** `dashboard/quotes.html` is **gitignored**
 (`.gitignore:50`) so it was never deployed → live site returns HTTP 404 → band managers tapping
 "Quotes" get a "Failed to load" error. Route intends it to work remotely (router.js:157, allowed for
