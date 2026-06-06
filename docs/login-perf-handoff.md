@@ -111,11 +111,35 @@ auth.js v3→v4. Pre-commit hook regens SW hashes. Push master → GitHub Pages 
       NOTE found while instrumenting: the bootstrap polls for `Auth.initialized` every 200ms and
       `db` every 500ms with a 300ms initial delay (`band-player-v2.html:410,415,439`) — built-in
       latency that hurts on slow devices; candidate optimization once measured on iPhone.
-- [ ] **Step 8** — iPhone validation by user: force-quit Safari → reload → sign in → return
-      within 24h → confirm CACHE-HIT + fast render in Web Inspector.
-- [ ] **Step 9** — Update goal DoD + this doc with before/after results. Consider whether
-      to add a clean `auth.signin` metric (submit → auth.ready, excluding type time) for the
-      interactive first-sign-in path.
+      VALIDATED on production (commit 0fad66f live): `band-player.load = 419ms` desktop
+      (BP2 bootstrap → first playlist render; test musician has 3 playlists, 48-song inventory).
+- [ ] **Step 8 — AWAITING USER (iPhone ground-truth)** — Validation script below.
+- [ ] **Step 9** — After iPhone numbers come in: update goal DoD with before/after; decide on
+      `auth.signin` metric (submit → auth.ready, excluding type time) for first-sign-in; consider
+      whether the band-player bootstrap polling (200/500/300ms) is worth optimizing.
+
+## FINDINGS / FOLLOW-UPS discovered this session
+- **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
+  `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
+  the moment Firebase `auth.ready` fires (~post-auth role-home redirect in router.js). Normal
+  in-app navigation (tap Band Player after auth resolved) is unaffected. Worth fixing separately
+  so bookmarks/PWA deep links to the player work. Repro: cold-load `#dashboard-band-player` signed in.
+- **Testing gotcha (for the next agent):** the browser HTTP disk cache serves a stale `index.html`
+  even after SW unregister + CacheStorage clear. To force the very latest deploy in a test browser,
+  load the root with a query cache-bust: `https://goldbottoment-llc.com/?fresh=1#...`. On a real
+  iPhone, force-quit Safari achieves the same.
+- **Band-player bootstrap polling:** `band-player-v2.html:410,415,439` polls Auth/db every
+  200/500ms with a 300ms initial delay — adds latency on slow devices; candidate optimization.
+
+## ⏳ STEP 8 — iPhone validation script (USER ACTION)
+1. Force-quit Safari (swipe up) to drop the cached service worker.
+2. Open `https://goldbottoment-llc.com` and sign in (or you're already signed in).
+3. Open Safari Web Inspector from the Mac (Develop → [iPhone] → the page).
+4. In the console, look for these `[perf]` lines:
+   - On return within 24h: `[perf] auth.path = CACHE-HIT (optimistic, instant render — no Firebase wait)`
+     → login should feel instant. If you instead see `CACHE-MISS`, the cache expired/cleared.
+   - Tap Band Player → `[perf] band-player.load = Xms` → report the number.
+5. Tell the agent: did login FEEL faster, and what were the `auth.total` / `band-player.load` numbers?
 
 ## Key Files
 - `js/auth-cache.js` — the cache (TTL lives here)
