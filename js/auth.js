@@ -1519,8 +1519,15 @@ const Auth = {
     // Reset perf instrumentation so the boot.start baseline doesn't leak into
     // the next sign-in attempt. Without this, auth.total measured against the
     // old boot.start grows unboundedly across sign-out/sign-in cycles.
+    // reset() wipes ALL marks including boot.start, so immediately re-establish
+    // boot.start — otherwise an in-session re-sign-in (no full page reload, e.g.
+    // Playwright sign-in/sign-out loops) finds boot.start == null and auth.total
+    // silently records nothing instead of the warm re-sign-in duration.
     if (typeof window !== 'undefined' && window.__gbePerf && typeof window.__gbePerf.reset === 'function') {
-      try { window.__gbePerf.reset(); } catch (e) { /* non-fatal */ }
+      try {
+        window.__gbePerf.reset();
+        if (typeof window.__gbePerf.mark === 'function') window.__gbePerf.mark('boot.start');
+      } catch (e) { /* non-fatal */ }
     }
     if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
     return this._auth.signOut();

@@ -312,6 +312,12 @@ const Router = {
         // AuthCache says authorized — proceed immediately (optimistic)
         // Auth.guardRoute() is SKIPPED for cached users. Background verify
         // will update the cache and emit 'gbe:auth-ready' if role changes.
+        // [perf] This is the FAST path: dashboard renders now, no Firebase wait.
+        if (typeof Perf !== 'undefined' && Perf.mark) {
+          Perf.mark('auth.cache.hit');
+          Perf.measure('auth.cache.hitToRender', 'boot.start', 'auth.cache.hit');
+        }
+        try { console.log('[perf] auth.path = CACHE-HIT (optimistic, instant render — no Firebase wait)'); } catch (e) {}
       } else if (typeof Auth !== 'undefined' && Auth.initialized && Auth.isAuthenticated && Auth.isAuthenticated()) {
         // Auth is live and says authenticated — proceed (and write cache for next time)
         if (typeof AuthCache !== 'undefined') {
@@ -324,6 +330,9 @@ const Router = {
         }
       } else if (typeof Auth !== 'undefined' && (Auth._initializing || !Auth.initialized)) {
         // Auth still initializing — show loading skeleton, don't block silently
+        // [perf] This is the SLOW path: blocked waiting on Firebase init + Firestore.
+        if (typeof Perf !== 'undefined' && Perf.mark) Perf.mark('auth.cache.miss');
+        try { console.log('[perf] auth.path = CACHE-MISS (blocking on Firebase init + Firestore role lookup)'); } catch (e) {}
         this._pendingDashboardRoute = pageName;
         var _targetLayout = this.getLayoutForPage(pageName);
         if (_targetLayout !== this.currentLayout) {

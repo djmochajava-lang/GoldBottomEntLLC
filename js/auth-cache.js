@@ -7,13 +7,24 @@
  * Read is synchronous (< 1ms). Written by Auth after verification completes.
  * SidebarV2 and Router read from this instead of waiting for Auth.guardRoute().
  *
- * TTL: 5 minutes. Background re-validation by Auth updates the cache.
+ * TTL: 24 hours — deliberately aligned with the app's 24-hour sliding session
+ * expiry (see auth.js: gbe-last-activity / TWENTY_FOUR_HOURS). A returning band
+ * member who is still validly logged in (visited within 24h) gets an INSTANT
+ * optimistic dashboard render from this cache instead of being forced down the
+ * slow blocking Firebase+Firestore path. The old 5-minute TTL meant any return
+ * after 5 minutes — i.e. almost every real return — missed the cache and waited
+ * on the full handshake, which feels slow on a real device/cellular even though
+ * it's ~0.5s on fast desktop. Safety: Auth's background onAuthStateChanged verify
+ * runs on every load and ejects signed-out (clears cache + redirects) and denied
+ * (forces signOut) users; Firestore security rules are the real data gate, so the
+ * optimistic render only ever shows the role-appropriate shell, never unauthorized
+ * data. The 24h bound never outlives the session itself.
  * On sign-out or role change, cache is cleared/rewritten.
  */
 
 const AuthCache = {
   STORAGE_KEY: 'gbe-auth-cache',
-  TTL: 5 * 60 * 1000, // 5 minutes
+  TTL: 24 * 60 * 60 * 1000, // 24 hours — matches the 24h sliding session expiry in auth.js
 
   /**
    * Read cached auth state.
