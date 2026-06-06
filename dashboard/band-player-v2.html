@@ -410,7 +410,10 @@
     // Band Player JS modules are lazy-loaded (off the critical path). Trigger the
     // load immediately on first open, then wait until BP2Core is available before init.
     if (typeof window.__loadBP2 === 'function') window.__loadBP2();
-    if (typeof BP2Core === 'undefined' || !BP2Core.init) { setTimeout(tryInit, 100); return; }
+    // Wait for BP2Auth — the LAST module in the lazy-load order (after the Storage SDK,
+    // which is first). Its presence guarantees the whole bp2 bundle + Storage SDK have
+    // loaded, so every BP2* module init below and Auth.getStorage() are ready.
+    if (typeof BP2Core === 'undefined' || !BP2Core.init || typeof BP2Auth === 'undefined') { setTimeout(tryInit, 100); return; }
     if (typeof Auth === 'undefined' || !Auth.initialized) { setTimeout(tryInit, 200); return; }
     var user = Auth._user || null;
     var role = (Auth.getRole && Auth.getRole()) || 'member';

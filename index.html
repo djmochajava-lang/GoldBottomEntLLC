@@ -531,7 +531,9 @@
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" integrity="sha384-I1LYojsZ5RM1cOda44Z2h42Qa6YfsQ1XkXxREnhp4ueYBR/4d1pG1K+NZM537Vsj" crossorigin="anonymous"></script>
   <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" integrity="sha384-Ke0FJhH7LyRqDxZ0wt+/OXV38yfQVu7g9VPEEGjYmB4RVOY/ta04uecRhsMwT7V3" crossorigin="anonymous"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js" integrity="sha384-XgUhjZUY/4vSJ8bUS7DFmLGK73fbJgS+nlrQDEC5X3QBpGgO+597wN8Syegw3ONj" crossorigin="anonymous"></script>
+  <!-- firebase-storage-compat.js is NOT loaded here — only the Band Player + payment-settings
+       use Storage. It's lazy-loaded with the bp2 bundle (window.__loadBP2) to keep it off the
+       login critical path. Auth.getStorage() lazily inits firebase.storage() once it's loaded. -->
 
   <!-- ── DEFERRED: Auth + Data + Features ── -->
   <script defer src="js/auth.js?v=7"></script>
@@ -565,12 +567,20 @@
     var started = false;
     window.__loadBP2 = function () {
       if (started) return; started = true;
+      // Firebase Storage SDK FIRST (cross-origin — keep its integrity hash), then the bp2
+      // modules (same-origin, SW-hash-verified). async=false preserves execution order, so
+      // firebase.storage is registered before any bp2 module uses it.
+      var fb = document.createElement('script');
+      fb.src = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js';
+      fb.integrity = 'sha384-XgUhjZUY/4vSJ8bUS7DFmLGK73fbJgS+nlrQDEC5X3QBpGgO+597wN8Syegw3ONj';
+      fb.crossOrigin = 'anonymous'; fb.async = false;
+      document.head.appendChild(fb);
       BP2.forEach(function (src) {
         var s = document.createElement('script');
         s.src = src; s.async = false; // async=false → execute in insertion (dependency) order
         document.head.appendChild(s);
       });
-      try { console.log('[perf] band-player: lazy-loading ' + BP2.length + ' modules (off critical path)'); } catch (e) {}
+      try { console.log('[perf] band-player: lazy-loading Storage SDK + ' + BP2.length + ' modules (off critical path)'); } catch (e) {}
     };
     // Auto-warm after first paint so the player is ready by the time it's opened.
     if (document.readyState === 'complete') setTimeout(window.__loadBP2, 1);

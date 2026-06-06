@@ -8,7 +8,11 @@
   if(typeof Auth==='undefined'||!Auth.isAuthenticated()||(!Auth.isBandMember()&&!Auth.isSinger()&&!Auth.isInternalStaff())){document.getElementById('dash-payment-settings').innerHTML='<p style="padding:var(--space-xl);color:var(--color-danger);">Access Denied — Insufficient permissions.</p>';return;}
 
   function doInit() {
-    if (typeof BP2Auth === 'undefined' || typeof BP2Core === 'undefined') return;
+    // BP2 modules are lazy-loaded (off the critical path). Trigger the load and
+    // wait until BP2Auth/BP2Core are available, otherwise this page's Screen 2
+    // (payment/agreement form) would silently not render on a cold direct-load.
+    if (typeof window.__loadBP2 === 'function') window.__loadBP2();
+    if (typeof BP2Auth === 'undefined' || typeof BP2Core === 'undefined') { setTimeout(doInit, 150); return; }
     // Set container override so Screen 2 renders into this page
     var target = document.getElementById('payment-settings-content');
     if (target) BP2Auth.setContainer(target);

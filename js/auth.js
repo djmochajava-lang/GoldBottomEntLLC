@@ -1215,6 +1215,12 @@ const Auth = {
    * @returns {Object|null}
    */
   getStorage: function() {
+    // Storage SDK is lazy-loaded (with the bp2 bundle), so it isn't available at
+    // Auth.init(). Lazily initialize firebase.storage() the first time it's actually
+    // needed (band player / payment-settings), once the SDK has loaded.
+    if (!this._storage && typeof firebase !== 'undefined' && typeof firebase.storage === 'function') {
+      try { this._storage = firebase.storage(); } catch (e) { /* not ready yet */ }
+    }
     return this._storage || null;
   },
 
