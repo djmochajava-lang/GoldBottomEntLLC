@@ -180,6 +180,26 @@ After fade-delay removal (BOTH fixes, shipped):           ~37-66ms/item   ← al
 ```
 Both fixes live: `85faeeb`(login) `0fad66f`(bp) `303a824`(prefetch) `77a7130`(fade). Shared by band_member + band_manager (same PageLoader). iPhone gain will be larger (prefetch also kills the cellular fetch). USER must re-validate on iPhone — they tested BEFORE these fixes.
 
+## PHASE 3 — Firebase "missing initial state" sign-in error (iOS Safari)
+User hit: "Unable to process request due to missing initial state ... signInWithRedirect in a
+storage-partitioned browser." Cause: `loginWithProvider` fell back to `signInWithRedirect` when
+the popup failed, but redirect is broken on storage-partitioned browsers (iOS/desktop Safari)
+because Firebase's `authDomain` (goldbottoment.firebaseapp.com) is cross-origin to the app on
+GitHub Pages — the redirect's sessionStorage "initial state" is partitioned away.
+**FIX shipped (dc0e68f, auth.js?v=5):** `_redirectUnsafe()` detects Safari/iOS (+ iOS Chrome,
+which is WebKit); on those, federated sign-in stays on popup and shows an actionable message
+instead of triggering the broken redirect. Desktop Chrome/Firefox/Edge keep the redirect fallback
+(works there). `getRedirectResult()` now swallows the stale "missing initial state" error so the
+cryptic message never surfaces again.
+**VERIFIED myself (desktop, production):** code live; detection unit-tested across 6 UAs (iPhone/
+iPad/desktop-Safari/iOS-Chrome → popup-only; desktop-Chrome/Android → redirect kept); no spurious
+error on load; **email/password sign-in works end-to-end** (band_manager → authorized).
+**USER must validate on iPhone:** tap "Sign in with Google" → popup completes, no error. Immediate
+workaround if popup is blocked: use the email/password test accounts (no redirect path).
+**Proper long-term cure (NOT possible on GitHub Pages, follow-up):** serve the Firebase auth handler
+at goldbottoment-llc.com/__/auth/ (same-origin authDomain) so redirect works on Safari — requires
+Firebase Hosting or a proxy. Until then, popup-only on Safari is the ceiling.
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
