@@ -333,6 +333,23 @@ redirects to `dashboard-home` → role-redirects a band_member back to the block
 are remote-only). Fix would be: when a localBlockedRoute redirect resolves to another localBlockedRoute,
 stop instead of re-dispatching. Left alone — touching routing is risky and it's out of the normal path.
 
+## PHASE 8 — Firebase Storage SDK lazy-load + bp2-page hardening — SHIPPED & VALIDATED (14f0fc0)
+Storage SDK (firebase-storage-compat, ~50KB) moved OFF the login critical path — only the Band
+Player + payment-settings use Storage. Now loaded FIRST in the __loadBP2 bundle (integrity hash
+preserved); `Auth.getStorage()` lazily inits `firebase.storage()` on first use (auth.js).
+Also hardened the TWO pages that depend on the now-lazy bp2 bundle:
+- `payment-settings.html`: `doInit` now triggers `__loadBP2()` + retries until BP2Auth/BP2Core load
+  (closed a cold-direct-load race where the payment/agreement form could silently fail to render —
+  it uses `Auth.whenReady` which fires once, so without the retry an early call returned blank).
+- `band-player-v2.html`: bootstrap waits for **BP2Auth** (LAST module in load order, after the
+  Storage SDK which is first) instead of just BP2Core — guarantees the full bundle is ready.
+VALIDATED dev mirror + production: payment-settings form renders (~103–116ms), band player
+functional (~61–81ms) with `storageReady=true` + 3 playlists, 0 errors.
+COMBINED with Phase 7: **~275KB JS (21 bp2 modules + Storage SDK) removed from the login critical
+path.** Only band-player + payment-settings pull it, on demand. IMPORTANT for the next agent: only
+TWO pages use the bp2 bundle (band-player-v2.html, payment-settings.html) — if a NEW page uses any
+BP2* global, it must call `window.__loadBP2()` and wait for BP2Auth.
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
