@@ -541,28 +541,42 @@
   <script defer src="js/dashboard-widgets.js"></script>
   <script defer src="js/calendar.js"></script>
 
-  <!-- ── DEFERRED: Band Player (20 modules — not needed for public navigation) ── -->
-  <script defer src="js/band-player-v2/bp2-utils.js"></script>
-  <script defer src="js/band-player-v2/bp2-core.js"></script>
-  <script defer src="js/band-player-v2/bp2-player.js"></script>
-  <script defer src="js/band-player-v2/bp2-playlist.js?v=4"></script>
-  <script defer src="js/band-player-v2/bp2-render.js?v=11"></script>
-  <script defer src="js/band-player-v2/bp2-render-edit.js"></script>
-  <script defer src="js/band-player-v2/bp2-render-stems.js?v=2"></script>
-  <script defer src="js/band-player-v2/bp2-offline.js?v=2"></script>
-  <script defer src="js/band-player-v2/bp2-stems.js?v=4"></script>
-  <script defer src="js/band-player-v2/bp2-mixer.js?v=3"></script>
-  <script defer src="js/band-player-v2/bp2-transport.js?v=2"></script>
-  <script defer src="js/band-player-v2/bp2-practice.js"></script>
-  <script defer src="js/band-player-v2/bp2-charts.js?v=2"></script>
-  <script defer src="js/band-player-v2/bp2-lyrics.js"></script>
-  <script defer src="js/band-player-v2/bp2-notes.js"></script>
-  <script defer src="js/band-player-v2/bp2-upload.js?v=6"></script>
-  <script defer src="js/band-player-v2/bp2-permissions.js"></script>
-  <script defer src="js/band-player-v2/bp2-edit.js"></script>
-  <script defer src="js/band-player-v2/bp2-integration.js?v=6"></script>
-  <script defer src="js/band-player-v2/bp2-progress.js"></script>
-  <script defer src="js/band-player-v2/bp2-auth.js"></script>
+  <!-- ── LAZY: Band Player modules (~225KB, 21 files) — only needed for the Band Player ──
+       Previously 21 <script defer> tags that downloaded+parsed on EVERY page load, slowing
+       cold-start on mobile even though they're only used when the Band Player opens. Now loaded
+       AFTER first paint (off the critical path), in dependency order (async=false preserves order).
+       window.__loadBP2() lets the band-player route force the load immediately; the bootstrap in
+       dashboard/band-player-v2.html waits for BP2Core before initializing. -->
+  <script>
+  (function () {
+    var BP2 = [
+      'js/band-player-v2/bp2-utils.js', 'js/band-player-v2/bp2-core.js',
+      'js/band-player-v2/bp2-player.js', 'js/band-player-v2/bp2-playlist.js?v=4',
+      'js/band-player-v2/bp2-render.js?v=11', 'js/band-player-v2/bp2-render-edit.js',
+      'js/band-player-v2/bp2-render-stems.js?v=2', 'js/band-player-v2/bp2-offline.js?v=2',
+      'js/band-player-v2/bp2-stems.js?v=4', 'js/band-player-v2/bp2-mixer.js?v=3',
+      'js/band-player-v2/bp2-transport.js?v=2', 'js/band-player-v2/bp2-practice.js',
+      'js/band-player-v2/bp2-charts.js?v=2', 'js/band-player-v2/bp2-lyrics.js',
+      'js/band-player-v2/bp2-notes.js', 'js/band-player-v2/bp2-upload.js?v=6',
+      'js/band-player-v2/bp2-permissions.js', 'js/band-player-v2/bp2-edit.js',
+      'js/band-player-v2/bp2-integration.js?v=6', 'js/band-player-v2/bp2-progress.js',
+      'js/band-player-v2/bp2-auth.js'
+    ];
+    var started = false;
+    window.__loadBP2 = function () {
+      if (started) return; started = true;
+      BP2.forEach(function (src) {
+        var s = document.createElement('script');
+        s.src = src; s.async = false; // async=false → execute in insertion (dependency) order
+        document.head.appendChild(s);
+      });
+      try { console.log('[perf] band-player: lazy-loading ' + BP2.length + ' modules (off critical path)'); } catch (e) {}
+    };
+    // Auto-warm after first paint so the player is ready by the time it's opened.
+    if (document.readyState === 'complete') setTimeout(window.__loadBP2, 1);
+    else window.addEventListener('load', function () { setTimeout(window.__loadBP2, 1); });
+  })();
+  </script>
 
   <!-- ── DEFERRED: App Controller (must be last) ── -->
   <script defer src="js/main.js"></script>
