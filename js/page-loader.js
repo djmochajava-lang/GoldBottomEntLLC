@@ -11,7 +11,15 @@ const PageLoader = {
   dashboardContainer: null,
   cache: {},
   loadingClass: 'page-loading',
-  transitionDuration: 120,
+  // The content containers (#dashboard-content / #public-content) have NO CSS
+  // opacity/transform transition (computed transition-duration is 0s), so the
+  // fadeOut/fadeIn opacity changes are instant — there is no visible fade. The
+  // old 120ms here was therefore pure dead wait: 240ms (fadeOut + fadeIn) added
+  // to EVERY navigation with zero visual benefit. Trimmed to one-frame-ish so the
+  // content swap still happens while the container is hidden (no flash of old
+  // content) but without the artificial delay. This is the single biggest, most
+  // device-independent win for in-dashboard menu responsiveness.
+  transitionDuration: 30,
   _navigating: false,
   _navigationId: 0,
 

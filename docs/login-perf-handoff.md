@@ -142,6 +142,26 @@ Once cached, `loadPage()` serves them synchronously with zero network → menu t
 Logs `[perf] menu prefetch complete: N fragments warmed`. Cache-bust kept (freshness preserved);
 taps after prefetch never fetch, so it doesn't matter. `page-loader.js?v=3 → v=4`.
 
+**FIX #2 shipped — the bigger, device-independent win:** the content containers have NO CSS
+opacity transition (computed transition-duration = 0s), so PageLoader's `fadeOut`+`fadeIn`
+`setTimeout(120ms)` were **240ms of pure dead wait per navigation with zero visual effect.**
+Trimmed `transitionDuration` 120 → 30ms. Saves ~180ms on EVERY nav, every device. `page-loader.js?v=5`.
+
+**RIGOROUS MEASUREMENT (per user: measure click → the target page's ELEMENT is visible, not just
+that the link was clicked).** Per-page confirm selector = `#dash-<name>` (e.g. `#dash-roster`),
+`#dash-band-player-v2`, `#br-tabs` (band-readiness). Harness clicks the real sidebar link and polls
+until that element has layout + is visible. After prefetch (pre-fade-fix), desktop click→visible
+was ~135–167ms for all working pages. Re-measure after the fade fix should drop further.
+
+**BUG FOUND — Quotes is broken on remote (404):** `dashboard/quotes.html` is **gitignored**
+(`.gitignore:50`) so it was never deployed → live site returns HTTP 404 → band managers tapping
+"Quotes" get a "Failed to load" error. Route intends it to work remotely (router.js:157, allowed for
+admin/band_manager). DECISION NEEDED (user): either (a) un-gitignore + deploy quotes.html if its
+content is safe for the public repo, or (b) hide the Quotes nav item on remote. NOT auto-fixed —
+publishing a deliberately-gitignored file could expose sensitive pricing/quote logic.
+(27 of 39 dashboard fragments are tracked; the other 12 are intentionally local-only. `dashboard-claude-agent`
+is local-only and correctly 404s on remote — its nav item probably shouldn't show for this account.)
+
 **Deferred (more efficient but higher risk — NOT done):** make the SW serve dashboard fragments
 cache-first (narrow network-first to the shell only) AND precache all 39 fragments at install.
 That would make first-visit-ever instant and avoid per-session re-download. Left for a deliberate,
