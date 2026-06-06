@@ -294,6 +294,26 @@ Hosting so authDomain = the app domain natively. Until then, federated (Google) 
 on iOS Safari; email/password works (but Google-only band members have no password — so the authDomain
 fix is required for them). NOTE: `auth.js?v=6` currently carries `[authdbg]` logging — remove once resolved.
 
+## PHASE 6 — FUNCTIONAL menu-nav validation + cold-start analysis (2026-06-06)
+Per user's stronger methodology: measure click → page element present + PAINTED + FUNCTIONAL
+(real interactive content rendered, no spinner/error), not just visible.
+RESULT (band_manager/admin, 18 pages, production desktop, clean state):
+- **17 pages: 46–111ms** to functional, with real content (4–72 interactive elements each).
+- **band-readiness: 548ms** (heaviest — runs live Firestore gig/musician/check-in queries), functional.
+  (An initial ">9s" reading was a TEST false-negative: the functional check was scoped to the
+  `#br-tabs` tab bar instead of the content container; the page is fine.)
+- Cold returning-user login (desktop): auth.handshake 212ms + auth.registration (Firestore role
+  lookup) 282ms = **~496ms, almost entirely auth network round-trips**. Fragment/render = 99ms
+  (prefetch + SW cache working). On cellular the auth round-trips are the dominant remaining cost.
+
+NEXT SAFE LEVER (proposed, NOT yet done — touches the core Band Player, needs careful validation):
+the **21 `bp2-*` modules = ~225 KB JS load+parse on EVERY page** (deferred in index.html) but are
+only needed when the Band Player opens. Deferring them to load on-demand (with background prefetch
+after dashboard-interactive, and the band-player bootstrap waiting for BP2Core) would cut ~225 KB
+off every non-band-player cold load — meaningful on a slow iPhone CPU. RISK: band player is the
+band's core rehearsal tool; must validate it still loads+plays (desktop QAE musician acct has songs)
+before shipping. Awaiting user OK before touching it.
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
