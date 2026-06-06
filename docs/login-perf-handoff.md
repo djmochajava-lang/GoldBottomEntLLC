@@ -118,6 +118,35 @@ auth.js v3→v4. Pre-commit hook regens SW hashes. Push master → GitHub Pages 
       `auth.signin` metric (submit → auth.ready, excluding type time) for first-sign-in; consider
       whether the band-player bootstrap polling (200/500/300ms) is worth optimizing.
 
+## PHASE 2 — In-dashboard menu navigation (user: "menu items not responding at acceptable rate")
+User tests as **band manager** (the test account `band.manager@gbe-test.local` actually has
+Firestore role=**admin** → lands on `#dashboard-admin`, 19 visible menu items). Both band_manager
+and band_member must be fast.
+
+**Measured production scorecard (desktop, clean browser, 2026-06-06):**
+- band_member (6 items): each settles ~285-360ms; Band Player ~1.6s; ZERO main-thread blocking.
+- admin/band_manager (19 items): each settles ~290-520ms; Band Player ~0.9s; ZERO blocking.
+- EVERY item dominated by `nav.fragment` ≈ **300ms = the network fetch of the HTML fragment**.
+
+**Root cause:** every menu tap re-fetches the page fragment over the network because:
+1. `page-loader.js` cache-busts every fragment fetch with `_v=Date.now()` (unique URL → SW/HTTP
+   cache never matches). 2. The SW is **network-first for all `.html`** (`sw.js:313-337`).
+3. Only **1 of 39** dashboard fragments is precached in the SW. So first-in-session taps always
+   hit the network. ~300ms desktop → multi-second on cellular = the unresponsiveness.
+(Repeat taps of the same item are fast — served from PageLoader's in-memory `this.cache`.)
+
+**FIX shipped (PageLoader-only, low risk — no SW-strategy change):**
+`page-loader.js` `prefetchMenuFragments()` — after the first dashboard page loads, warms the
+in-memory cache for ALL visible menu fragments in the background (idle-scheduled, sequential).
+Once cached, `loadPage()` serves them synchronously with zero network → menu taps render instantly.
+Logs `[perf] menu prefetch complete: N fragments warmed`. Cache-bust kept (freshness preserved);
+taps after prefetch never fetch, so it doesn't matter. `page-loader.js?v=3 → v=4`.
+
+**Deferred (more efficient but higher risk — NOT done):** make the SW serve dashboard fragments
+cache-first (narrow network-first to the shell only) AND precache all 39 fragments at install.
+That would make first-visit-ever instant and avoid per-session re-download. Left for a deliberate,
+clean-browser-validated change. See sw.js:313-337 + the precache ASSETS list (only band-player-v2.html).
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)

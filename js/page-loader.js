@@ -104,6 +104,10 @@ const PageLoader = {
       if (!this._firstDashboardLoaded && pageName.indexOf('dashboard-') === 0) {
         this._firstDashboardLoaded = true;
         document.dispatchEvent(new CustomEvent('gbe:dashboard-loaded', { detail: { pageName: pageName } }));
+        // Warm the in-memory cache for the rest of the menu so subsequent taps
+        // render instantly (no per-tap network fetch). Delay so it never competes
+        // with the dashboard the user just opened.
+        setTimeout(() => PageLoader.prefetchMenuFragments(), 800);
       }
 
       console.log(`📄 Loaded: ${pageName}`);
@@ -151,6 +155,42 @@ const PageLoader = {
     this.cache[pageName] = content;
 
     return content;
+  },
+
+  /**
+   * Prefetch every visible dashboard menu fragment into the in-memory cache,
+   * in the background, after the first dashboard page loads. The dominant cost
+   * of in-dashboard menu navigation is the per-tap network fetch of each fragment
+   * (the SW is network-first for .html and only 1 of 39 fragments is precached),
+   * which is ~300ms on desktop but multiple seconds on cellular. Once a fragment
+   * is in this.cache, loadPage() serves it synchronously with zero network — so
+   * warming the cache up front makes subsequent menu taps render instantly.
+   * Runs once per session, sequentially, during idle time so it never competes
+   * with the page the user is actually looking at.
+   */
+  _menuPrefetched: false,
+  prefetchMenuFragments() {
+    if (this._menuPrefetched) return;
+    this._menuPrefetched = true;
+    const self = this;
+    const routes = (typeof Router !== 'undefined' && Router.routes) ? Router.routes : {};
+    const pages = Array.prototype.slice
+      .call(document.querySelectorAll('.sidebar-nav-item[data-page]'))
+      .filter((a) => a.offsetParent !== null)        // visible to this role only
+      .map((a) => a.getAttribute('data-page'))
+      .filter((p) => routes[p] && !self.cache[p]);    // skip unknown + already-cached
+    if (!pages.length) return;
+    const idle = window.requestIdleCallback || function (fn) { return setTimeout(fn, 200); };
+    let i = 0;
+    function fetchNext() {
+      if (i >= pages.length) {
+        try { console.log('[perf] menu prefetch complete: ' + pages.length + ' fragments warmed'); } catch (e) {}
+        return;
+      }
+      const p = pages[i++];
+      self.getPageContent(p, routes[p]).catch(() => {}).then(() => idle(fetchNext));
+    }
+    idle(fetchNext);
   },
 
   /**
