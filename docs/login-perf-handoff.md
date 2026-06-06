@@ -222,6 +222,19 @@ Login is back to the known-good ~509ms returning-user path. A SAFE way to restor
 render so it can't outlive a cleared Firebase session) is the documented follow-up. The Phase-2
 in-dashboard menu nav fixes (prefetch + fade) are UNAFFECTED and remain live.
 
+## PHASE 5b — Gmail loop was MY REGRESSION (dc0e68f) — REVERTED (97d2402)
+User pointed me back to my own pushed code, and they were right. In `dc0e68f` I made federated
+sign-in **popup-ONLY on Safari/iOS** (gated the redirect fallback behind `_redirectUnsafe()`),
+trying to suppress the "missing initial state" message. But on real iOS Safari the
+**signInWithRedirect fallback (full top-level navigation) is the path that actually completes
+Google sign-in** — popup doesn't persist the cross-origin session there. So removing it forced
+popup-only → the loop. FIX `97d2402` (auth.js?v=7): restored the original popup→redirect fallback
+for ALL browsers; removed `_redirectUnsafe`. LESSON: don't "fix" a cryptic-but-survivable auth
+message by removing the fallback that real users depend on — the redirect path worked; my change
+broke it. USER: force-quit Safari to load v=7, then Gmail sign-in should work as before.
+([authdbg] logging still in auth.js — remove once confirmed good.) The same-site authDomain work
+below is still the durable cure for incognito/strict-ITP, but is no longer blocking normal usage.
+
 ## PHASE 5 — Gmail/Google sign-in LOOP (CONFIRMED root cause; needs infra fix)
 User repro: incognito/fresh browser → dashboard → "Sign in with Google" → logs in → returns to the
 Firebase login menu (loop); the email/password path works. I reproduced the FULL Google OAuth on
