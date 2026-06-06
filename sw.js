@@ -35,7 +35,7 @@ var ASSET_HASHES = {
   './js/router.js': 'ad963f2d88c719ef65a07b3e4f32839aa0254b4d4bd0446ee2941e72af2bacc9',
   './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
-  './js/auth-cache.js': '5f77a00f8c91f18656eaa0ea24028e6f67eb4d82a6dd0c1f7903b41bcbe160f7',
+  './js/auth-cache.js': '6042f6a875e3d6846be70e3b733b6398e680ec1a1448a6e64efd983bb87de5f6',
   './js/sidebar-v2.js': '183ff014cca9a723231a69f2bd90ca482145b1b803da0f9196efcb8bdb70cece',
   './js/data-store.js': 'ffa4b8001aabde2c4740a129c85832976c20feffecbadbad617cce0117456d1e',
   './js/forms.js': '95f367096cd2f9ff19a90f6b0405f934f47f5f769fa1176cc604e3d8e84d2840',

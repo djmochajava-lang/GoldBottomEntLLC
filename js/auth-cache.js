@@ -7,24 +7,25 @@
  * Read is synchronous (< 1ms). Written by Auth after verification completes.
  * SidebarV2 and Router read from this instead of waiting for Auth.guardRoute().
  *
- * TTL: 24 hours — deliberately aligned with the app's 24-hour sliding session
- * expiry (see auth.js: gbe-last-activity / TWENTY_FOUR_HOURS). A returning band
- * member who is still validly logged in (visited within 24h) gets an INSTANT
- * optimistic dashboard render from this cache instead of being forced down the
- * slow blocking Firebase+Firestore path. The old 5-minute TTL meant any return
- * after 5 minutes — i.e. almost every real return — missed the cache and waited
- * on the full handshake, which feels slow on a real device/cellular even though
- * it's ~0.5s on fast desktop. Safety: Auth's background onAuthStateChanged verify
- * runs on every load and ejects signed-out (clears cache + redirects) and denied
- * (forces signOut) users; Firestore security rules are the real data gate, so the
- * optimistic render only ever shows the role-appropriate shell, never unauthorized
- * data. The 24h bound never outlives the session itself.
+ * TTL: 5 minutes. REVERTED from a 24h experiment that caused a login loop on iOS
+ * Safari. The router optimistically renders the dashboard whenever this localStorage
+ * cache says authorized (router.js), WITHOUT first confirming a live Firebase session.
+ * On iOS Safari (ITP / storage partitioning) Firebase's own IndexedDB session can be
+ * cleared while this localStorage cache survives — so a long TTL made the app render
+ * the dashboard ("I see the page") and then bounce to the login modal once Firebase
+ * reported no user ("login returns to start over"), i.e. a flash-then-login loop.
+ * A short 5-minute TTL keeps the optimistic path scoped to genuinely-active sessions,
+ * so a stale cache can't outlive a cleared Firebase session by much. A safer way to
+ * restore the returning-user speed-up (e.g. reconcile the cache against Firebase
+ * currentUser before optimistic render) is tracked as a follow-up.
+ * STORAGE_KEY is versioned (-v2) so every existing 24h-TTL entry already in users'
+ * localStorage is abandoned immediately on deploy rather than lingering up to 24h.
  * On sign-out or role change, cache is cleared/rewritten.
  */
 
 const AuthCache = {
-  STORAGE_KEY: 'gbe-auth-cache',
-  TTL: 24 * 60 * 60 * 1000, // 24 hours — matches the 24h sliding session expiry in auth.js
+  STORAGE_KEY: 'gbe-auth-cache-v2', // -v2 invalidates stale 24h-TTL entries from the reverted experiment
+  TTL: 5 * 60 * 1000, // 5 minutes (reverted from 24h — see header: caused iOS Safari login loop)
 
   /**
    * Read cached auth state.
