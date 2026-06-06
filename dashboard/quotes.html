@@ -1,0 +1,1242 @@
+<!-- dashboard/quotes.html — Quote Pipeline Dashboard (Hybrid: Express + Firestore) -->
+<!-- Pipeline tab: Express API on LAN, Firestore quote_pipeline when remote (read-only). -->
+<!-- Rate Config, Email Logs, Series Calculator tabs: LAN-only. -->
+<div class="dashboard-page" id="dash-quotes">
+  <div class="dashboard-page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
+      <div><h1>Quote Pipeline</h1><p class="text-muted">Monitor booking quote requests, processing status, and email delivery.</p></div>
+      <div style="display:flex;gap:var(--space-sm);" id="quote-actions">
+        <button class="btn btn-outline" id="quote-pull-btn"><i class="fa-solid fa-cloud-arrow-down"></i> Pull Staging</button>
+        <button class="btn btn-primary" id="quote-process-btn"><i class="fa-solid fa-gears"></i> Process Quotes</button>
+        <button class="btn btn-outline" id="quote-send-btn"><i class="fa-solid fa-paper-plane"></i> Send All Pending</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div id="quote-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
+
+  <!-- Tab Bar -->
+  <div id="quote-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);">
+    <button class="quote-tab active" data-tab="pipeline" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;">
+      <i class="fa-solid fa-diagram-project"></i> Pipeline
+    </button>
+    <button class="quote-tab" data-tab="rates" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-sliders"></i> Rate Config
+    </button>
+    <button class="quote-tab" data-tab="logs" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-list-check"></i> Email Logs
+    </button>
+    <button class="quote-tab" data-tab="series" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">
+      <i class="fa-solid fa-layer-group"></i> Series Calculator
+    </button>
+  </div>
+
+  <!-- Pipeline Tab -->
+  <div id="tab-pipeline" class="quote-tab-content">
+    <div id="quote-table-container">
+      <table class="data-table" id="quote-table">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th>Event</th>
+            <th>Format</th>
+            <th>Quote</th>
+            <th>Stage</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="quote-table-body"></tbody>
+      </table>
+      <p id="quote-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
+        No quote requests yet. Submissions from the public form will appear here after processing.
+      </p>
+    </div>
+  </div>
+
+  <!-- Rate Config Tab (band_manager + admin access) -->
+  <div id="tab-rates" class="quote-tab-content" style="display:none;">
+    <div style="max-width:700px;">
+
+      <!-- Package Prices (editable) -->
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md);">
+          <h3 style="margin:0;color:var(--color-gold);"><i class="fa-solid fa-guitar"></i> Show Packages (per gig)</h3>
+          <button class="btn btn-sm" id="rate-edit-toggle" onclick="window._toggleRateEdit()" style="font-size:var(--text-xs);padding:4px 12px;background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);cursor:pointer;">
+            <i class="fa-solid fa-pen"></i> Edit Prices
+          </button>
+        </div>
+        <div id="rate-fields" style="display:grid;grid-template-columns:1fr;gap:var(--space-sm);"></div>
+        <div id="rate-save-bar" style="display:none;margin-top:var(--space-md);text-align:right;">
+          <button class="btn btn-sm" onclick="window._cancelRateEdit()" style="padding:6px 16px;background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-text);cursor:pointer;margin-right:var(--space-sm);">Cancel</button>
+          <button class="btn btn-sm" onclick="window._saveRates()" style="padding:6px 16px;background:var(--color-gold);border:none;border-radius:var(--radius-sm);color:#000;cursor:pointer;font-weight:600;">
+            <i class="fa-solid fa-check"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- Multipliers & Fees (read-only display) -->
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-percent"></i> Multipliers & Fees</h3>
+        <p class="text-muted" style="font-size:var(--text-sm);">Applied automatically during quote calculation based on event type and guest count.</p>
+        <div id="multiplier-display"></div>
+      </div>
+
+      <!-- Sound System Fees -->
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-volume-high"></i> Sound System Add-Ons</h3>
+        <div id="sound-fee-display"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Email Logs Tab -->
+  <div id="tab-logs" class="quote-tab-content" style="display:none;">
+    <div id="email-logs-container">
+      <table class="data-table" id="email-logs-table">
+        <thead>
+          <tr>
+            <th>To</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Sent At</th>
+          </tr>
+        </thead>
+        <tbody id="email-logs-body"></tbody>
+      </table>
+      <p id="email-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
+        No quote emails sent yet.
+      </p>
+    </div>
+  </div>
+
+  <!-- Quote Preview Modal -->
+  <div id="quote-preview-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;justify-content:center;align-items:center;padding:var(--space-lg);">
+    <div id="quote-preview-modal" style="background:#0d1117;border:1px solid var(--color-border);border-radius:var(--radius-lg);max-width:620px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 48px rgba(0,0,0,0.5);">
+      <!-- Modal header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-md) var(--space-lg);border-bottom:1px solid var(--color-border);">
+        <h3 style="margin:0;font-size:var(--text-lg);color:var(--color-gold);"><i class="fa-solid fa-file-invoice-dollar"></i> Quote Preview</h3>
+        <button id="quote-preview-close" style="background:none;border:none;color:var(--color-text-muted);cursor:pointer;font-size:var(--text-lg);padding:4px 8px;" title="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <!-- Modal body (populated by JS) -->
+      <div id="quote-preview-body" style="padding:var(--space-lg);">
+        <div style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size:var(--text-2xl);"></i>
+          <p style="margin-top:var(--space-sm);">Loading quote...</p>
+        </div>
+      </div>
+      <!-- Modal footer -->
+      <div id="quote-preview-footer" style="display:flex;justify-content:flex-end;gap:var(--space-sm);padding:var(--space-md) var(--space-lg);border-top:1px solid var(--color-border);">
+        <button id="quote-preview-send-btn" class="btn btn-primary" style="display:none;"><i class="fa-solid fa-paper-plane"></i> Send Quote</button>
+        <button id="quote-preview-close-btn" class="btn btn-outline">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Series Calculator Tab (FRD-6) -->
+  <div id="tab-series" class="quote-tab-content" style="display:none;">
+    <div style="max-width:960px;">
+
+      <!-- Volume Discount Tiers Reference -->
+      <div class="glass-card" style="padding:var(--space-md);margin-bottom:var(--space-lg);">
+        <h3 style="margin-top:0;font-size:var(--text-sm);color:var(--color-gold);"><i class="fa-solid fa-tags"></i> Volume Discount Tiers</h3>
+        <div id="series-discount-tiers" style="display:flex;flex-wrap:wrap;gap:var(--space-sm);"></div>
+      </div>
+
+      <!-- Promoter Info -->
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-user-tie"></i> Promoter Information</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-md);">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Promoter Name</label>
+            <input type="text" class="form-input" id="series-promoter-name" placeholder="Contact name" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="series-promoter-email" placeholder="promoter@example.com" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Organization</label>
+            <input type="text" class="form-input" id="series-promoter-org" placeholder="Company / venue group" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Shows List -->
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md);">
+          <h3 style="margin:0;color:var(--color-gold);"><i class="fa-solid fa-calendar-days"></i> Shows (<span id="series-show-count">1</span>)</h3>
+          <button class="btn btn-outline btn-sm" id="series-add-show-btn"><i class="fa-solid fa-plus"></i> Add Show</button>
+        </div>
+        <div id="series-shows-container"></div>
+      </div>
+
+      <!-- Custom Overrides -->
+      <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+        <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-sliders"></i> Custom Overrides</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-md);">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Custom Discount %</label>
+            <input type="number" class="form-input" id="series-custom-discount" min="0" max="100" step="1" placeholder="0" value="0" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Deposit %</label>
+            <input type="number" class="form-input" id="series-deposit-pct" min="0" max="100" step="1" placeholder="30" value="30" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Commission %</label>
+            <input type="number" class="form-input" id="series-commission-pct" min="0" max="100" step="1" placeholder="15" value="15" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;gap:var(--space-md);margin-bottom:var(--space-lg);">
+        <button class="btn btn-primary" id="series-calculate-btn"><i class="fa-solid fa-calculator"></i> Calculate Quote</button>
+        <button class="btn btn-outline" id="series-save-btn" disabled><i class="fa-solid fa-floppy-disk"></i> Save Quote</button>
+        <button class="btn btn-outline" id="series-send-btn" disabled><i class="fa-solid fa-paper-plane"></i> Send Quote</button>
+      </div>
+
+      <!-- Results Display -->
+      <div id="series-results" style="display:none;">
+        <!-- Per-Show Breakdown -->
+        <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
+          <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-receipt"></i> Per-Show Breakdown</h3>
+          <div id="series-per-show"></div>
+        </div>
+
+        <!-- Grand Total Summary -->
+        <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);border:1px solid var(--color-gold);">
+          <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-coins"></i> Quote Summary</h3>
+          <div id="series-summary"></div>
+        </div>
+      </div>
+
+      <!-- Saved Quotes List -->
+      <div class="glass-card" style="padding:var(--space-lg);">
+        <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-folder-open"></i> Saved Multi-Show Quotes</h3>
+        <table class="data-table" id="series-saved-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Promoter</th>
+              <th>Shows</th>
+              <th>Net Total</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="series-saved-body"></tbody>
+        </table>
+        <p id="series-saved-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-lg);display:none;">
+          No multi-show quotes saved yet.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
+  var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
+
+  // Remote without Firestore = can't do anything
+  if (!isLocal && !db) {
+    document.getElementById('dash-quotes').innerHTML =
+      '<p style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);">' +
+      '<i class="fa-solid fa-database" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-md);"></i>' +
+      'Please sign in to view the quote pipeline.</p>';
+    return;
+  }
+
+  // Remote mode: hide action buttons, non-pipeline tabs, and show read-only badge
+  if (!isLocal) {
+    var actionsDiv = document.getElementById('quote-actions');
+    if (actionsDiv) actionsDiv.style.display = 'none';
+
+    // Hide Rate Config, Email Logs, and Series Calculator tabs (LAN-only features)
+    document.querySelectorAll('.quote-tab').forEach(function(tab) {
+      if (tab.dataset.tab !== 'pipeline') tab.style.display = 'none';
+    });
+
+    // Add remote view badge
+    var headerDiv = document.querySelector('#dash-quotes .dashboard-page-header > div');
+    if (headerDiv) {
+      var badge = document.createElement('span');
+      badge.style.cssText = 'display:inline-block;padding:3px 10px;border-radius:var(--radius-full);font-size:0.75rem;background:rgba(88,166,255,0.15);color:#58a6ff;font-weight:600;margin-left:var(--space-sm);vertical-align:middle;';
+      badge.innerHTML = '<i class="fa-solid fa-wifi" style="margin-right:4px;"></i>Remote View — read only';
+      var h1 = headerDiv.querySelector('h1');
+      if (h1) h1.appendChild(badge);
+    }
+
+    // Hide stats bar on remote (stats come from Express API)
+    var statsDiv = document.getElementById('quote-stats');
+    if (statsDiv) statsDiv.style.display = 'none';
+  }
+
+  const API = isLocal ? (window.location.origin + '/api/v1') : null;
+  const token = localStorage.getItem('gbe-session-token') || '';
+  const headers = isLocal ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : {};
+
+  function qFetch(path, opts) {
+    var isLAN = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+    if (!isLAN) return Promise.reject(new Error('Remote — LAN required'));
+    opts = opts || {};
+    if (!opts.headers) opts.headers = headers;
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 5000);
+    opts.signal = controller.signal;
+    return fetch(API + path, opts).finally(function() { clearTimeout(timer); });
+  }
+
+  // Helpers
+  function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmtDate(d) {
+    if (!d) return '—';
+    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(_) { return d; }
+  }
+  function stageBadge(stage) {
+    const colors = { lead: '#58a6ff', proposed: '#d29922', negotiating: '#bc8cff', confirmed: '#3fb950', contracted: '#3fb950', completed: '#238636', closed: '#8b949e' };
+    const c = colors[stage] || '#8b949e';
+    return `<span style="padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;background:${c}22;color:${c};font-weight:600;">${(stage || 'unknown').replace('_', ' ')}</span>`;
+  }
+
+  // Tab switching
+  document.querySelectorAll('.quote-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.quote-tab').forEach(t => { t.classList.remove('active'); t.style.color = 'var(--color-text-muted)'; t.style.borderBottomColor = 'transparent'; });
+      tab.classList.add('active'); tab.style.color = 'var(--color-text)'; tab.style.borderBottomColor = 'var(--color-gold)';
+      document.querySelectorAll('.quote-tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
+    });
+  });
+
+  // Load stats
+  async function loadStats() {
+    try {
+      const [intakeRes, emailRes, stagingRes] = await Promise.all([
+        qFetch('/quotes/intake-stats').then(r => r.json()),
+        qFetch('/email/stats').then(r => r.json()),
+        qFetch('/staging/status').then(r => r.json())
+      ]);
+
+      const container = document.getElementById('quote-stats');
+      container.innerHTML = `
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">${intakeRes.pendingQuoteRequests || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Pending Quotes</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">${intakeRes.totalBookings || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Total Bookings</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">${intakeRes.totalQuotes || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Quotes Generated</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:#d29922;">${emailRes.sent || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Emails Sent</div>
+        </div>
+        <div class="glass-card" style="padding:var(--space-md);text-align:center;">
+          <div style="font-size:var(--text-2xl);font-weight:700;color:${stagingRes.configured ? '#3fb950' : '#f85149'};">${stagingRes.configured ? 'Active' : 'Off'}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);">Firestore Pull</div>
+        </div>
+      `;
+    } catch (err) {
+      console.error('[Quotes Dashboard] Stats load failed:', err);
+    }
+  }
+
+  // Load pipeline table — branches on local (Express) vs remote (Firestore)
+  async function loadPipeline() {
+    if (isLocal) {
+      loadPipelineExpress();
+    } else {
+      loadPipelineFirestore();
+    }
+  }
+
+  // Local: load from Express API (full data including client email)
+  async function loadPipelineExpress() {
+    try {
+      const res = await qFetch('/bookings');
+      const data = await res.json();
+      const bookings = (data.records || []).filter(b => {
+        const d = JSON.parse(b.data);
+        return d.source === 'quote_request';
+      });
+
+      const tbody = document.getElementById('quote-table-body');
+      const empty = document.getElementById('quote-empty');
+
+      if (bookings.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      tbody.innerHTML = bookings.map(b => {
+        const d = JSON.parse(b.data);
+        return `<tr>
+          <td>
+            <div style="font-weight:600;">${d.clientName || '—'}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted);">${d.clientEmail || ''}</div>
+          </td>
+          <td>
+            <div>${d.venue || '—'}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted);">${(d.eventType || '').replace(/-/g, ' ')}</div>
+          </td>
+          <td style="text-transform:capitalize;">${(d.performanceFormat || '—').replace(/-/g, ' ')}</td>
+          <td id="quote-val-${b.id}" style="font-weight:600;color:var(--color-gold);">—</td>
+          <td>${stageBadge(d.stage)}</td>
+          <td>${fmtDate(d.eventDate)}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-sm btn-outline" onclick="window._quotePreview('${b.id}')" title="Preview quote" style="margin-right:4px;"><i class="fa-solid fa-eye"></i></button>
+            <button class="btn btn-sm btn-outline" onclick="window._quoteSend('${b.id}')" title="Send quote email"><i class="fa-solid fa-paper-plane"></i></button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Load quote values
+      for (const b of bookings) {
+        try {
+          const qRes = await qFetch('/quotes/' + b.id);
+          if (qRes.ok) {
+            const q = await qRes.json();
+            const el = document.getElementById('quote-val-' + b.id);
+            if (el) el.textContent = fmt(q.total);
+          }
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.error('[Quotes Dashboard] Pipeline load failed:', err);
+    }
+  }
+
+  // Remote: load from Firestore quote_pipeline (read-only, no actions)
+  function loadPipelineFirestore() {
+    if (!db) return;
+    db.collection('quote_pipeline').orderBy('updatedAt', 'desc').get().then(function(snap) {
+      var tbody = document.getElementById('quote-table-body');
+      var empty = document.getElementById('quote-empty');
+
+      if (snap.empty) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      var rows = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        var eventDate = d.eventDate;
+        // Handle Firestore Timestamp objects
+        if (eventDate && typeof eventDate.toDate === 'function') {
+          eventDate = eventDate.toDate().toISOString();
+        }
+        rows.push('<tr>' +
+          '<td><div style="font-weight:600;">' + (d.clientName || '\u2014') + '</div></td>' +
+          '<td>' +
+            '<div>' + (d.venue || '\u2014') + '</div>' +
+            '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + (d.eventType || '').replace(/-/g, ' ') + '</div>' +
+          '</td>' +
+          '<td style="text-transform:capitalize;">' + (d.performanceFormat || '\u2014').replace(/-/g, ' ') + '</td>' +
+          '<td style="font-weight:600;color:var(--color-gold);">' + (d.quoteTotal ? fmt(d.quoteTotal) : '\u2014') + '</td>' +
+          '<td>' + stageBadge(d.stage) + '</td>' +
+          '<td>' + fmtDate(eventDate) + '</td>' +
+          '<td style="color:var(--color-text-muted);font-size:var(--text-xs);font-style:italic;">View only</td>' +
+        '</tr>');
+      });
+      tbody.innerHTML = rows.join('');
+    }).catch(function(err) {
+      console.error('[Quotes Dashboard] Firestore pipeline load failed:', err);
+    });
+  }
+
+  // ── Rate Config (editable by band_manager + admin) ──
+  let _rateData = null;
+  let _editing = false;
+
+  async function loadRates() {
+    try {
+      const res = await qFetch('/quotes/rates');
+      _rateData = await res.json();
+      renderRates(false);
+      renderMultipliers();
+      renderSoundFees();
+    } catch (err) {
+      console.error('[Quotes Dashboard] Rates load failed:', err);
+    }
+  }
+
+  function renderRates(editMode) {
+    const rateFields = document.getElementById('rate-fields');
+    const packages = _rateData.showPackages || [];
+    if (editMode) {
+      rateFields.innerHTML = packages.map(pkg =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);background:var(--color-bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--color-gold);">
+          <div style="flex:1;">
+            <span style="font-weight:600;">${pkg.label}</span>
+            <span style="font-size:0.7rem;color:var(--color-text-muted);display:block;">${pkg.setDescription} &middot; ${pkg.description || ''}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span style="color:var(--color-text-muted);">$</span>
+            <input type="number" data-pkg="${pkg.key}" value="${pkg.idealPrice}" min="0" step="50"
+              style="width:90px;padding:4px 8px;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-gold);font-weight:700;font-size:var(--text-sm);text-align:right;" />
+          </div>
+        </div>`
+      ).join('');
+    } else {
+      rateFields.innerHTML = packages.map(pkg =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);background:var(--color-bg-secondary);border-radius:var(--radius-sm);">
+          <div style="flex:1;">
+            <span style="font-weight:600;">${pkg.label}</span>
+            <span style="font-size:0.7rem;color:var(--color-text-muted);display:block;">${pkg.setDescription}</span>
+          </div>
+          <span style="font-weight:700;color:var(--color-gold);">${fmt(pkg.idealPrice)}</span>
+        </div>`
+      ).join('');
+    }
+  }
+
+  function renderMultipliers() {
+    const el = document.getElementById('multiplier-display');
+    el.innerHTML = `
+      <div style="margin-top:var(--space-md);">
+        <h4 style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Event Type Multipliers</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:var(--space-xs);">
+          ${Object.entries(_rateData.eventTypeMultipliers || {}).map(([k, v]) =>
+            `<span style="padding:2px 10px;border-radius:var(--radius-full);font-size:0.75rem;background:var(--color-bg-secondary);color:var(--color-text-secondary);text-transform:capitalize;">${k.replace(/-/g, ' ')}: ${v}x</span>`
+          ).join('')}
+        </div>
+      </div>
+      <div style="margin-top:var(--space-md);">
+        <h4 style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-xs);">Guest Count Factors</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:var(--space-xs);">
+          ${Object.entries(_rateData.guestCountFactors || {}).map(([k, v]) =>
+            `<span style="padding:2px 10px;border-radius:var(--radius-full);font-size:0.75rem;background:var(--color-bg-secondary);color:var(--color-text-secondary);">${k.replace(/-/g, '–')}: ${v}x</span>`
+          ).join('')}
+        </div>
+      </div>`;
+  }
+
+  function renderSoundFees() {
+    const el = document.getElementById('sound-fee-display');
+    if (!el) return;
+    el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:var(--space-xs);margin-top:var(--space-sm);">
+      ${Object.entries(_rateData.soundSystemFees || {}).map(([k, v]) =>
+        `<span style="padding:4px 12px;border-radius:var(--radius-full);font-size:0.8rem;background:var(--color-bg-secondary);color:var(--color-text-secondary);text-transform:capitalize;">${k.replace(/-/g, ' ')}: ${v === 0 ? 'Included' : fmt(v)}</span>`
+      ).join('')}
+    </div>`;
+  }
+
+  // Edit mode toggle
+  window._toggleRateEdit = function() {
+    _editing = !_editing;
+    renderRates(_editing);
+    document.getElementById('rate-save-bar').style.display = _editing ? 'block' : 'none';
+    document.getElementById('rate-edit-toggle').innerHTML = _editing
+      ? '<i class="fa-solid fa-xmark"></i> Cancel'
+      : '<i class="fa-solid fa-pen"></i> Edit Prices';
+  };
+
+  window._cancelRateEdit = function() {
+    _editing = false;
+    renderRates(false);
+    document.getElementById('rate-save-bar').style.display = 'none';
+    document.getElementById('rate-edit-toggle').innerHTML = '<i class="fa-solid fa-pen"></i> Edit Prices';
+  };
+
+  // Save overrides to server
+  window._saveRates = async function() {
+    const inputs = document.querySelectorAll('#rate-fields input[data-pkg]');
+    const packagePrices = {};
+    for (const inp of inputs) {
+      const val = parseFloat(inp.value);
+      if (isNaN(val) || val < 0) {
+        if (typeof Toast !== 'undefined') Toast.error('Invalid price for ' + inp.dataset.pkg);
+        inp.focus();
+        return;
+      }
+      packagePrices[inp.dataset.pkg] = val;
+    }
+
+    try {
+      const res = await qFetch('/quotes/rates', {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packagePrices })
+      });
+      if (!res.ok) throw new Error('Save failed');
+      if (typeof Toast !== 'undefined') Toast.success('Package prices updated');
+      _editing = false;
+      document.getElementById('rate-save-bar').style.display = 'none';
+      document.getElementById('rate-edit-toggle').innerHTML = '<i class="fa-solid fa-pen"></i> Edit Prices';
+      await loadRates(); // Reload from server to confirm
+    } catch (err) {
+      console.error('[Quotes Dashboard] Save rates failed:', err);
+      if (typeof Toast !== 'undefined') Toast.error('Failed to save prices');
+    }
+  };
+
+  // Load email logs
+  async function loadEmailLogs() {
+    try {
+      const res = await qFetch('/email/logs?limit=50');
+      const data = await res.json();
+      const logs = (data.logs || []).filter(l => l.subject && l.subject.includes('Quote'));
+
+      const tbody = document.getElementById('email-logs-body');
+      const empty = document.getElementById('email-empty');
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      tbody.innerHTML = logs.map(l => {
+        const statusColor = l.status === 'sent' ? '#3fb950' : '#f85149';
+        return `<tr>
+          <td>${l.to_addr || '—'}</td>
+          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.subject || '—'}</td>
+          <td><span style="padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;background:${statusColor}22;color:${statusColor};">${l.status}</span></td>
+          <td>${fmtDate(l.created_at)}</td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      console.error('[Quotes Dashboard] Email logs load failed:', err);
+    }
+  }
+
+  // Action buttons (LAN-only — hidden and non-functional when remote)
+  if (isLocal) {
+    document.getElementById('quote-pull-btn').addEventListener('click', async () => {
+      try {
+        const res = await qFetch('/staging/pull', { method: 'POST' });
+        const data = await res.json();
+        if (typeof Toast !== 'undefined') Toast.success(`Staging pull: ${data.inserted || 0} new records`);
+        loadStats();
+      } catch (err) {
+        if (typeof Toast !== 'undefined') Toast.error('Pull failed: ' + err.message);
+      }
+    });
+
+    document.getElementById('quote-process-btn').addEventListener('click', async () => {
+      try {
+        const res = await qFetch('/quotes/process', { method: 'POST' });
+        const data = await res.json();
+        if (typeof Toast !== 'undefined') Toast.success(`Processed ${data.processed || 0} quotes (${data.errors || 0} errors)`);
+        loadStats();
+        loadPipeline();
+      } catch (err) {
+        if (typeof Toast !== 'undefined') Toast.error('Process failed: ' + err.message);
+      }
+    });
+
+    document.getElementById('quote-send-btn').addEventListener('click', async () => {
+      try {
+        const res = await qFetch('/quotes/send-all-pending', { method: 'POST' });
+        const data = await res.json();
+        if (typeof Toast !== 'undefined') Toast.success(`Sent ${data.sent || 0} emails (${data.failed || 0} failed)`);
+        loadStats();
+        loadPipeline();
+        loadEmailLogs();
+      } catch (err) {
+        if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + err.message);
+      }
+    });
+  }
+
+  // Send single quote
+  window._quoteSend = async function(bookingId) {
+    try {
+      const res = await qFetch('/quotes/send/' + bookingId, { method: 'POST' });
+      const data = await res.json();
+      if (data.clientResult && data.clientResult.success) {
+        if (typeof Toast !== 'undefined') Toast.success('Quote email sent!');
+      } else {
+        if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + (data.clientResult?.error || 'Unknown'));
+      }
+      loadPipeline();
+      loadEmailLogs();
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + err.message);
+    }
+  };
+
+  // ═══════════════════════════════════════════════
+  // Quote Preview Modal
+  // ═══════════════════════════════════════════════
+
+  const previewOverlay = document.getElementById('quote-preview-overlay');
+  const previewBody = document.getElementById('quote-preview-body');
+  const previewSendBtn = document.getElementById('quote-preview-send-btn');
+  let _previewBookingId = null;
+
+  function openPreviewModal() {
+    previewOverlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+  function closePreviewModal() {
+    previewOverlay.style.display = 'none';
+    document.body.style.overflow = '';
+    _previewBookingId = null;
+  }
+
+  document.getElementById('quote-preview-close').addEventListener('click', closePreviewModal);
+  document.getElementById('quote-preview-close-btn').addEventListener('click', closePreviewModal);
+  previewOverlay.addEventListener('click', (e) => { if (e.target === previewOverlay) closePreviewModal(); });
+
+  function fmtDateLong(d) {
+    if (!d) return 'TBD';
+    try { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); } catch(_) { return d; }
+  }
+
+  function renderQuotePreview(booking, quote) {
+    const lineItems = (typeof quote.line_items === 'string' ? JSON.parse(quote.line_items) : quote.lineItems || quote.line_items || [])
+      .map(function(item) { const { _internal, ...rest } = item; return rest; });
+    const subtotal = quote.subtotal || quote.total || 0;
+    const depositPct = quote.deposit_percent || quote.depositPercent || 50;
+    const depositAmt = quote.deposit_amount || quote.depositAmount || 0;
+    const quoteDate = quote.created_at ? fmtDate(quote.created_at) : fmtDate(new Date().toISOString());
+
+    // Calculate validity (14 days from quote creation)
+    let validUntil = 'TBD';
+    if (quote.created_at) {
+      try {
+        const d = new Date(quote.created_at);
+        d.setDate(d.getDate() + 14);
+        validUntil = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      } catch(_) {}
+    }
+
+    const lineItemsHtml = lineItems.map(item =>
+      `<tr style="border-bottom:1px solid #21262d;">
+        <td style="padding:8px 12px;color:var(--color-text);">${item.label || item.description || 'Item'}</td>
+        <td style="padding:8px 12px;text-align:right;font-weight:600;white-space:nowrap;color:var(--color-text);">${fmt(item.amount)}</td>
+      </tr>`
+    ).join('');
+
+    previewBody.innerHTML = `
+      <!-- Company Header -->
+      <div style="text-align:center;padding-bottom:var(--space-md);border-bottom:2px solid var(--color-gold);margin-bottom:var(--space-lg);">
+        <h2 style="margin:0;font-size:var(--text-xl);color:var(--color-gold);font-family:Montserrat,Helvetica,sans-serif;">Gold Bottom Ent. LLC</h2>
+        <p style="margin:4px 0 0;font-size:var(--text-sm);color:var(--color-text-muted);">Performance Quote</p>
+      </div>
+
+      <!-- Quote Meta -->
+      <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-lg);font-size:var(--text-sm);color:var(--color-text-muted);">
+        <span>Quote Date: ${quoteDate}</span>
+        <span>Valid Until: ${validUntil}</span>
+      </div>
+
+      <!-- Customer & Event Details -->
+      <div style="background:#161b22;border-radius:var(--radius-md);padding:var(--space-md);margin-bottom:var(--space-lg);border:1px solid #30363d;">
+        <h4 style="margin:0 0 var(--space-sm);font-size:var(--text-sm);color:var(--color-gold);">Event Details</h4>
+        <table style="width:100%;font-size:var(--text-sm);color:var(--color-text);" cellpadding="4" cellspacing="0">
+          <tr><td style="color:var(--color-text-muted);width:100px;">Client</td><td style="font-weight:600;">${booking.clientName || 'TBD'}</td></tr>
+          <tr><td style="color:var(--color-text-muted);">Date</td><td>${fmtDateLong(booking.eventDate)}</td></tr>
+          <tr><td style="color:var(--color-text-muted);">Time</td><td style="text-transform:capitalize;">${(booking.eventTime || 'TBD').replace('-', ' ')}</td></tr>
+          <tr><td style="color:var(--color-text-muted);">Venue</td><td>${booking.venue || 'TBD'}</td></tr>
+          <tr><td style="color:var(--color-text-muted);">Type</td><td style="text-transform:capitalize;">${(booking.eventType || 'TBD').replace(/-/g, ' ')}</td></tr>
+          <tr><td style="color:var(--color-text-muted);">Guests</td><td>${(booking.guestCount || 'TBD').replace('-', '\u2013')}</td></tr>
+          <tr><td style="color:var(--color-text-muted);">Setting</td><td style="text-transform:capitalize;">${(booking.indoorOutdoor || 'TBD').replace('-', '/')}</td></tr>
+        </table>
+      </div>
+
+      <!-- Line Items Table -->
+      <div style="background:#161b22;border-radius:var(--radius-md);padding:var(--space-md);margin-bottom:var(--space-lg);border:1px solid #30363d;">
+        <h4 style="margin:0 0 var(--space-sm);font-size:var(--text-sm);color:var(--color-gold);">Quote Breakdown</h4>
+        <table style="width:100%;border-collapse:collapse;" cellpadding="0" cellspacing="0">
+          ${lineItemsHtml}
+          <tr style="border-top:2px solid var(--color-gold);">
+            <td style="padding:12px 12px 4px;font-weight:700;color:var(--color-text);">Subtotal</td>
+            <td style="padding:12px 12px 4px;text-align:right;font-weight:700;font-size:var(--text-lg);color:var(--color-gold);">${fmt(subtotal)}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 12px;color:var(--color-text-muted);font-size:var(--text-sm);">Deposit Required (${depositPct}%)</td>
+            <td style="padding:4px 12px;text-align:right;color:var(--color-text-muted);font-size:var(--text-sm);">${fmt(depositAmt)}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 12px;font-weight:700;color:var(--color-text);">Total</td>
+            <td style="padding:4px 12px;text-align:right;font-weight:700;color:var(--color-gold);">${fmt(subtotal)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Notes -->
+      <div style="background:rgba(212,160,23,0.08);border:1px solid rgba(212,160,23,0.25);border-radius:var(--radius-md);padding:var(--space-md);">
+        <p style="margin:0 0 6px;font-size:var(--text-sm);color:var(--color-text-secondary);">
+          <i class="fa-solid fa-music" style="color:var(--color-gold);margin-right:4px;"></i>
+          Standard package includes (2) 45-minute sets
+        </p>
+        <p style="margin:0 0 6px;font-size:var(--text-sm);color:var(--color-gold);font-weight:600;">
+          <i class="fa-solid fa-star" style="margin-right:4px;"></i>
+          Ask about Multi-Show Discounts
+        </p>
+        <p style="margin:0;font-size:var(--text-sm);color:var(--color-text-secondary);">
+          <i class="fa-solid fa-phone" style="color:var(--color-gold);margin-right:4px;"></i>
+          Call for custom pricing
+        </p>
+      </div>
+    `;
+  }
+
+  window._quotePreview = async function(bookingId) {
+    _previewBookingId = bookingId;
+    previewBody.innerHTML = '<div style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin" style="font-size:var(--text-2xl);"></i><p style="margin-top:var(--space-sm);">Loading quote...</p></div>';
+    previewSendBtn.style.display = 'none';
+    openPreviewModal();
+
+    try {
+      // Fetch booking data
+      const bookingRes = await qFetch('/bookings/' + bookingId);
+      if (!bookingRes.ok) throw new Error('Booking not found');
+      const bookingRow = await bookingRes.json();
+      const booking = typeof bookingRow.data === 'string' ? JSON.parse(bookingRow.data) : bookingRow.data;
+
+      // Fetch latest quote for this booking
+      const quoteRes = await qFetch('/quotes/' + bookingId);
+      if (!quoteRes.ok) throw new Error('No quote found for this booking. Process quotes first.');
+      const quote = await quoteRes.json();
+
+      renderQuotePreview(booking, quote);
+      previewSendBtn.style.display = 'inline-flex';
+    } catch (err) {
+      previewBody.innerHTML = `<div style="text-align:center;padding:var(--space-xl);color:#f85149;"><i class="fa-solid fa-triangle-exclamation" style="font-size:var(--text-2xl);"></i><p style="margin-top:var(--space-sm);">${err.message}</p></div>`;
+    }
+  };
+
+  previewSendBtn.addEventListener('click', async () => {
+    if (!_previewBookingId) return;
+    previewSendBtn.disabled = true;
+    previewSendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+    try {
+      const res = await qFetch('/quotes/send/' + _previewBookingId, { method: 'POST' });
+      const data = await res.json();
+      if (data.clientResult && data.clientResult.success) {
+        if (typeof Toast !== 'undefined') Toast.success('Quote email sent!');
+        closePreviewModal();
+        loadPipeline();
+        loadEmailLogs();
+      } else {
+        if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + (data.clientResult?.error || 'Unknown error'));
+      }
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + err.message);
+    } finally {
+      previewSendBtn.disabled = false;
+      previewSendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Quote';
+    }
+  });
+
+  // Initial load
+  loadPipeline();
+  if (isLocal) {
+    loadStats();
+    loadRates();
+    loadEmailLogs();
+  }
+
+  // ═══════════════════════════════════════════════
+  // Series Calculator (FRD-6) — LAN only
+  // ═══════════════════════════════════════════════
+  if (!isLocal) return; // Everything below is LAN-only (series calculator)
+
+  let seriesShowIndex = 0;
+  let lastCalculatedQuote = null;
+  let lastSavedId = null;
+
+  // Load volume discount tiers
+  async function loadDiscountTiers() {
+    try {
+      const res = await qFetch('/multi-show/discounts');
+      const data = await res.json();
+      const container = document.getElementById('series-discount-tiers');
+      if (!container || !data.tiers) return;
+      container.innerHTML = data.tiers.map(t => {
+        const maxLabel = t.maxShows ? t.maxShows : '13+';
+        const rangeLabel = t.maxShows ? `${t.minShows}-${t.maxShows} shows` : `${t.minShows}+ shows`;
+        return `<span style="padding:4px 12px;border-radius:var(--radius-full);font-size:0.8rem;background:var(--color-gold)22;color:var(--color-gold);font-weight:600;">${rangeLabel}: ${t.discountPercent}%</span>`;
+      }).join('');
+    } catch (err) {
+      console.error('[Series] Failed to load discount tiers:', err);
+    }
+  }
+
+  function createShowRow(index) {
+    const div = document.createElement('div');
+    div.className = 'series-show-row';
+    div.dataset.index = index;
+    div.style.cssText = 'padding:var(--space-md);background:var(--color-bg-secondary);border-radius:var(--radius-md);margin-bottom:var(--space-md);position:relative;';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm);">
+        <strong style="color:var(--color-gold);">Show #${index + 1}</strong>
+        <button class="btn btn-sm" style="color:#f85149;background:none;border:none;cursor:pointer;font-size:var(--text-sm);" onclick="window._seriesRemoveShow(${index})" title="Remove show"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-sm);">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Event Name</label>
+          <input type="text" class="form-input" data-field="eventName" placeholder="Show name" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Event Date</label>
+          <input type="date" class="form-input" data-field="eventDate" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Event Time</label>
+          <select class="form-select" data-field="eventTime">
+            <option value="">Select...</option>
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+            <option value="late-night">Late Night</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:var(--space-sm);margin-top:var(--space-sm);">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Venue</label>
+          <input type="text" class="form-input" data-field="venue" placeholder="Venue name" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Performance Format</label>
+          <select class="form-select" data-field="performanceFormat">
+            <option value="solo">Solo w/ Tracks</option>
+            <option value="duo">Acoustic Duo</option>
+            <option value="la-with-dj">L.A. with DJ</option>
+            <option value="small-band" selected>Small Band (5-Piece)</option>
+            <option value="full-band">Full Band (7-Piece)</option>
+            <option value="full-show">Full Show / Tribute</option>
+            <option value="hosting-mc">Hosting & MC</option>
+            <option value="studio-session">Studio Session</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Duration (hrs)</label>
+          <select class="form-select" data-field="hours">
+            <option value="1">1 hr</option>
+            <option value="2" selected>2 hrs</option>
+            <option value="3">3 hrs</option>
+            <option value="4">4 hrs</option>
+            <option value="5">5 hrs</option>
+            <option value="6">6 hrs</option>
+            <option value="8">8 hrs</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Guest Count</label>
+          <select class="form-select" data-field="guestCount">
+            <option value="under-50">Under 50</option>
+            <option value="50-100">50-100</option>
+            <option value="100-250">100-250</option>
+            <option value="250-500">250-500</option>
+            <option value="500-1000">500-1,000</option>
+            <option value="1000-plus">1,000+</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-top:var(--space-sm);">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Sound System</label>
+          <select class="form-select" data-field="soundSystem">
+            <option value="">Not specified</option>
+            <option value="venue-provides">Venue provides</option>
+            <option value="we-need">We need PA</option>
+            <option value="not-sure">Not sure</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:var(--text-xs);">Notes</label>
+          <input type="text" class="form-input" data-field="notes" placeholder="Special requirements" maxlength="2000" />
+        </div>
+      </div>
+    `;
+    return div;
+  }
+
+  function addShowRow() {
+    const container = document.getElementById('series-shows-container');
+    if (!container) return;
+    container.appendChild(createShowRow(seriesShowIndex));
+    seriesShowIndex++;
+    updateShowCount();
+  }
+
+  function updateShowCount() {
+    const rows = document.querySelectorAll('.series-show-row');
+    const countEl = document.getElementById('series-show-count');
+    if (countEl) countEl.textContent = rows.length;
+  }
+
+  window._seriesRemoveShow = function(index) {
+    const row = document.querySelector(`.series-show-row[data-index="${index}"]`);
+    if (row) {
+      row.remove();
+      updateShowCount();
+    }
+    // Renumber remaining rows
+    document.querySelectorAll('.series-show-row').forEach((r, i) => {
+      r.querySelector('strong').textContent = 'Show #' + (i + 1);
+    });
+  };
+
+  function gatherShowsData() {
+    const rows = document.querySelectorAll('.series-show-row');
+    const shows = [];
+    rows.forEach(row => {
+      const get = (field) => {
+        const el = row.querySelector(`[data-field="${field}"]`);
+        return el ? el.value : '';
+      };
+      shows.push({
+        eventDate: get('eventDate'),
+        eventTime: get('eventTime'),
+        venue: get('venue'),
+        eventType: get('eventName'),
+        guestCount: get('guestCount'),
+        performanceFormat: get('performanceFormat'),
+        hours: get('hours'),
+        soundSystem: get('soundSystem'),
+        notes: get('notes')
+      });
+    });
+    return shows;
+  }
+
+  function buildPayload() {
+    const shows = gatherShowsData();
+    if (shows.length === 0) {
+      if (typeof Toast !== 'undefined') Toast.error('Add at least one show');
+      return null;
+    }
+    const customDiscount = parseFloat(document.getElementById('series-custom-discount').value) || 0;
+    return {
+      promoterName: document.getElementById('series-promoter-name').value.trim(),
+      promoterEmail: document.getElementById('series-promoter-email').value.trim(),
+      promoterOrg: document.getElementById('series-promoter-org').value.trim(),
+      shows: shows,
+      overrides: {
+        customDiscount: customDiscount / 100,
+        depositPercent: parseFloat(document.getElementById('series-deposit-pct').value) || 30,
+        commissionPercent: parseFloat(document.getElementById('series-commission-pct').value) || 15
+      }
+    };
+  }
+
+  function renderResults(quote) {
+    const resultsDiv = document.getElementById('series-results');
+    const perShowDiv = document.getElementById('series-per-show');
+    const summaryDiv = document.getElementById('series-summary');
+    if (!resultsDiv || !perShowDiv || !summaryDiv) return;
+
+    // Per-show breakdown
+    perShowDiv.innerHTML = quote.shows.map((s, i) => {
+      const lineItemsHtml = s.lineItems.map(li =>
+        `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:var(--text-sm);">
+          <span style="color:var(--color-text-secondary);">${li.label || li.description || 'Item'}</span>
+          <span style="font-weight:600;">${fmt(li.amount)}</span>
+        </div>`
+      ).join('');
+      return `
+        <div style="padding:var(--space-md);background:var(--color-bg-secondary);border-radius:var(--radius-sm);margin-bottom:var(--space-sm);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-xs);">
+            <strong>Show #${s.showNumber}</strong>
+            <span style="font-size:var(--text-xs);color:var(--color-text-muted);">
+              ${s.venue || 'TBD'} ${s.eventDate ? ' | ' + fmtDate(s.eventDate) : ''} | ${(s.performanceFormat || 'flexible').replace(/-/g, ' ')} | ${s.hours}hr
+            </span>
+          </div>
+          ${lineItemsHtml}
+          <div style="display:flex;justify-content:space-between;padding-top:var(--space-xs);border-top:1px solid var(--color-border);margin-top:var(--space-xs);font-weight:700;">
+            <span>Subtotal</span>
+            <span style="color:var(--color-gold);">${fmt(s.subtotal)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Summary
+    const p = quote.pricing;
+    let summaryHtml = `
+      <div style="display:grid;gap:var(--space-sm);">
+        <div style="display:flex;justify-content:space-between;font-size:var(--text-base);">
+          <span>Gross Total (${quote.showCount} shows)</span>
+          <span style="font-weight:600;">${fmt(p.grossTotal)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;color:#3fb950;">
+          <span><i class="fa-solid fa-tag"></i> ${p.volumeDiscount.tier} (${p.volumeDiscount.percent}%)</span>
+          <span>-${fmt(p.volumeDiscount.amount)}</span>
+        </div>
+    `;
+    if (p.customDiscount) {
+      summaryHtml += `
+        <div style="display:flex;justify-content:space-between;color:#3fb950;">
+          <span><i class="fa-solid fa-gift"></i> Custom Discount (${p.customDiscount.percent}%)</span>
+          <span>-${fmt(p.customDiscount.amount)}</span>
+        </div>
+      `;
+    }
+    summaryHtml += `
+        <div style="display:flex;justify-content:space-between;font-size:var(--text-lg);font-weight:700;padding-top:var(--space-sm);border-top:2px solid var(--color-gold);margin-top:var(--space-xs);">
+          <span>Net Total</span>
+          <span style="color:var(--color-gold);">${fmt(p.netTotal)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:var(--text-sm);color:var(--color-text-secondary);">
+          <span>Per-Show Average</span>
+          <span>${fmt(p.perShowAverage)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:var(--text-sm);color:var(--color-text-secondary);">
+          <span>Deposit Due (${p.depositPercent}%)</span>
+          <span style="font-weight:600;">${fmt(p.depositAmount)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:var(--text-sm);color:var(--color-text-secondary);">
+          <span>Commission (${p.commissionPercent}%)</span>
+          <span>${fmt(p.commissionAmount)}</span>
+        </div>
+      </div>
+    `;
+    summaryDiv.innerHTML = summaryHtml;
+    resultsDiv.style.display = 'block';
+  }
+
+  // Calculate
+  document.getElementById('series-calculate-btn').addEventListener('click', async () => {
+    const payload = buildPayload();
+    if (!payload) return;
+
+    const btn = document.getElementById('series-calculate-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Calculating...';
+
+    try {
+      const res = await qFetch('/multi-show/calculate', {
+        method: 'POST', body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Calculation failed');
+      }
+      lastCalculatedQuote = await res.json();
+      lastSavedId = null;
+      renderResults(lastCalculatedQuote);
+      document.getElementById('series-save-btn').disabled = false;
+      document.getElementById('series-send-btn').disabled = true;
+      if (typeof Toast !== 'undefined') Toast.success('Quote calculated for ' + lastCalculatedQuote.showCount + ' shows');
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Calculate failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-calculator"></i> Calculate Quote';
+    }
+  });
+
+  // Save
+  document.getElementById('series-save-btn').addEventListener('click', async () => {
+    const payload = buildPayload();
+    if (!payload) return;
+
+    const btn = document.getElementById('series-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+    try {
+      const res = await qFetch('/multi-show/save', {
+        method: 'POST', body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Save failed');
+      }
+      const data = await res.json();
+      lastSavedId = data.multiShowId;
+      document.getElementById('series-send-btn').disabled = false;
+      if (typeof Toast !== 'undefined') Toast.success('Multi-show quote saved: ' + lastSavedId);
+      loadSavedQuotes();
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Quote';
+    }
+  });
+
+  // Send (placeholder — marks status as sent)
+  document.getElementById('series-send-btn').addEventListener('click', async () => {
+    if (!lastSavedId) {
+      if (typeof Toast !== 'undefined') Toast.error('Save the quote first');
+      return;
+    }
+
+    const btn = document.getElementById('series-send-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+
+    try {
+      const res = await qFetch('/multi-show/' + lastSavedId + '/status', {
+        method: 'PUT', body: JSON.stringify({ status: 'sent' })
+      });
+      if (!res.ok) throw new Error('Status update failed');
+      if (typeof Toast !== 'undefined') Toast.success('Quote marked as sent');
+      loadSavedQuotes();
+    } catch (err) {
+      if (typeof Toast !== 'undefined') Toast.error('Send failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Quote';
+    }
+  });
+
+  // Load saved multi-show quotes
+  async function loadSavedQuotes() {
+    try {
+      const res = await qFetch('/multi-show');
+      const data = await res.json();
+      const quotes = data.quotes || [];
+      const tbody = document.getElementById('series-saved-body');
+      const empty = document.getElementById('series-saved-empty');
+
+      if (quotes.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      tbody.innerHTML = quotes.map(q => {
+        const statusColors = { draft: '#8b949e', sent: '#d29922', accepted: '#3fb950', declined: '#f85149', expired: '#8b949e', cancelled: '#8b949e' };
+        const sc = statusColors[q.status] || '#8b949e';
+        return `<tr>
+          <td style="font-size:var(--text-xs);font-family:monospace;">${q.id}</td>
+          <td>
+            <div style="font-weight:600;">${q.promoter_name || '—'}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted);">${q.promoter_email || ''}</div>
+          </td>
+          <td style="text-align:center;">${q.show_count}</td>
+          <td style="font-weight:600;color:var(--color-gold);">${fmt(q.net_total)}</td>
+          <td><span style="padding:2px 8px;border-radius:var(--radius-full);font-size:0.75rem;background:${sc}22;color:${sc};font-weight:600;">${q.status}</span></td>
+          <td>${fmtDate(q.created_at)}</td>
+        </tr>`;
+      }).join('');
+    } catch (err) {
+      console.error('[Series] Failed to load saved quotes:', err);
+    }
+  }
+
+  // Add show button
+  document.getElementById('series-add-show-btn').addEventListener('click', addShowRow);
+
+  // Initialize series tab
+  addShowRow(); // Start with 1 show
+  loadDiscountTiers();
+  loadSavedQuotes();
+})();
+</script>
