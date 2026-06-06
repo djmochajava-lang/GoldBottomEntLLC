@@ -520,11 +520,22 @@ const Auth = {
     // credential. onAuthStateChanged above will fire too, so we only need to
     // catch errors here — the success path is handled by onAuthStateChanged.
     this._auth.getRedirectResult().catch(function(error) {
-      if (error && error.code && error.code !== 'auth/popup-closed-by-user') {
-        console.warn('[Auth] Redirect sign-in error:', error.code, error.message);
-        if (error.code === 'auth/account-exists-with-different-credential') {
-          Auth._showLoginError('An account already exists with this email using a different sign-in method.');
-        }
+      if (!error || !error.code) return;
+      var msg = error.message || '';
+      // Storage-partition / stale-redirect errors (iOS Safari): the redirect's
+      // sessionStorage "initial state" was partitioned or cleared. This is fully
+      // recoverable — the user can just sign in again via popup — so swallow it
+      // rather than surface the alarming raw Firebase message.
+      if (error.code === 'auth/popup-closed-by-user' ||
+          error.code === 'auth/missing-or-invalid-nonce' ||
+          msg.toLowerCase().indexOf('missing initial state') !== -1) {
+        console.warn('[Auth] Ignoring recoverable redirect-state error:', error.code);
+        try { sessionStorage.removeItem('gbe-auth-redirect-route'); } catch (e) {}
+        return;
+      }
+      console.warn('[Auth] Redirect sign-in error:', error.code, error.message);
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        Auth._showLoginError('An account already exists with this email using a different sign-in method.');
       }
     });
 
@@ -1413,21 +1424,51 @@ const Auth = {
     if (!this._auth) return Promise.reject(new Error('Auth not initialized'));
     var provider = this._providers[providerName];
     if (!provider) return Promise.reject(new Error('Unknown provider: ' + providerName));
-    // Try popup first. If it fails with network/cookie error, fall back to redirect.
-    // Popup works on most browsers; redirect is blocked by iOS Safari ITP.
+    // Popup is the primary federated sign-in path. We only fall back to
+    // signInWithRedirect on browsers where redirect actually works.
+    // signInWithRedirect is BROKEN on storage-partitioned browsers (iOS/desktop
+    // Safari ITP) when Firebase's authDomain (goldbottoment.firebaseapp.com) is
+    // cross-origin to the app (goldbottoment-llc.com) — as it is on GitHub Pages.
+    // There the redirect's sessionStorage "initial state" is partitioned away,
+    // producing "Unable to process request due to missing initial state." So on
+    // Safari we stay on popup and guide the user rather than trigger a broken redirect.
     var self = this;
     return this._auth.signInWithPopup(provider).catch(function(err) {
-      if (err.code === 'auth/network-request-failed' ||
-          err.code === 'auth/popup-blocked' ||
-          err.code === 'auth/internal-error') {
-        // Popup failed — try redirect as fallback
+      var recoverable = err.code === 'auth/network-request-failed' ||
+                        err.code === 'auth/popup-blocked' ||
+                        err.code === 'auth/internal-error';
+      if (recoverable && !self._redirectUnsafe()) {
+        // Non-Safari (desktop Chrome/Firefox/Edge): redirect fallback works.
         console.warn('[Auth] Popup failed (' + err.code + '), trying redirect...');
         var pendingRoute = self._pendingRoute || 'dashboard-home';
         try { sessionStorage.setItem('gbe-auth-redirect-route', pendingRoute); } catch (e) {}
         return self._auth.signInWithRedirect(provider);
       }
-      throw err; // Re-throw other errors (cancelled, duplicate account, etc.)
+      if (recoverable) {
+        // Safari/iOS: redirect would fail with "missing initial state". Give the
+        // user an actionable message instead of a broken redirect.
+        self._showLoginError('Pop-up was blocked. Please allow pop-ups for this site and tap the button again — or use email sign-in below.');
+      }
+      throw err; // Re-throw (cancelled, duplicate account, popup-blocked-on-Safari, etc.)
     });
+  },
+
+  /**
+   * True for browsers where signInWithRedirect breaks: storage-partitioned
+   * engines (iOS Safari, desktop Safari) combined with our cross-origin Firebase
+   * authDomain. On these, federated sign-in must use popup only. (The real cure is
+   * serving the Firebase auth handler on goldbottoment-llc.com, which GitHub Pages
+   * can't do — tracked as a follow-up.)
+   * @private
+   */
+  _redirectUnsafe: function() {
+    try {
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPad|iPhone|iPod/.test(ua) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var isSafari = /^((?!chrome|android|crios|fxios|edg|opr).)*safari/i.test(ua);
+      return isIOS || isSafari;
+    } catch (e) { return false; }
   },
 
   /**
