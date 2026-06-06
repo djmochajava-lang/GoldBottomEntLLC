@@ -222,6 +222,30 @@ Login is back to the known-good ~509ms returning-user path. A SAFE way to restor
 render so it can't outlive a cleared Firebase session) is the documented follow-up. The Phase-2
 in-dashboard menu nav fixes (prefetch + fade) are UNAFFECTED and remain live.
 
+## PHASE 5 — Gmail/Google sign-in LOOP (CONFIRMED root cause; needs infra fix)
+User repro: incognito/fresh browser → dashboard → "Sign in with Google" → logs in → returns to the
+Firebase login menu (loop); the email/password path works. I reproduced the FULL Google OAuth on
+desktop Chromium using the QAE Gmail account (`gbe.test.musician@gmail.com`, creds in
+GBE-HomeOffice/server/.secrets/qae-test-credentials.json) and added `[authdbg]` tracing (auth.js?v=6).
+RESULT on desktop (third-party storage ALLOWED): sign-in SUCCEEDS and STAYS — `signInWithPopup SUCCESS
+… currentUser=set`, `Signed in (approved)`, dashboard renders, NO `onAuthStateChanged user=NULL`, NO loop.
+This DISCRIMINATING test proves the loop is NOT a code bug — it's specific to browsers that block
+THIRD-PARTY STORAGE (iOS Safari ITP, incognito).
+ROOT CAUSE (confirmed): the OAuth handler + Firebase's auth-state iframe run on the cross-origin
+`authDomain` = `goldbottoment.firebaseapp.com` (redirect_uri seen in the popup confirms this), which
+is THIRD-PARTY to the app at `goldbottoment-llc.com`. On Safari/incognito that third-party storage is
+blocked → the federated session can't be read back by the app → "logged in then bounced to login."
+Desktop even logs `Cross-Origin-Opener-Policy policy would block window.closed/close` from
+firebase-auth-compat — the cross-origin popup channel, which Safari isolation makes fatal.
+**THE FIX IS INFRASTRUCTURE, not a code edit (can't be done on GitHub Pages alone):** make `authDomain`
+SAME-SITE as the app. Options: (A) stand up Firebase Hosting and point a subdomain
+`auth.goldbottoment-llc.com` (same registrable domain → Safari treats it first-party) at it, add it to
+Firebase Auth authorized domains, then set `config.js` authDomain to `auth.goldbottoment-llc.com`
+(one-line change I can make once the subdomain is live); OR (B) migrate the app itself to Firebase
+Hosting so authDomain = the app domain natively. Until then, federated (Google) sign-in is unreliable
+on iOS Safari; email/password works (but Google-only band members have no password — so the authDomain
+fix is required for them). NOTE: `auth.js?v=6` currently carries `[authdbg]` logging — remove once resolved.
+
 ## FINDINGS / FOLLOW-UPS discovered this session
 - **Deep-link redirect bug (not login-perf, but real):** a band_member who DEEP-LINKS to
   `#dashboard-band-player` on a cold load gets bounced to their role home (`#dashboard-musician`)
