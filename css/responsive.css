@@ -17,6 +17,11 @@
   .dashboard-sidebar {
     transform: translate3d(-100%, 0, 0);
     will-change: transform;
+    /* Slide the overlay in/out (GPU-composited) rather than snapping. The
+       slide-out is the feedback channel: after a nav tap the just-selected
+       item stays highlighted and visibly glides away with the menu, so the
+       user knows their tap registered. Kept short so open still feels instant. */
+    transition: transform var(--transition-fast);
     z-index: var(--z-overlay);
     box-shadow: var(--shadow-xl);
   }

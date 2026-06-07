@@ -468,13 +468,17 @@ const Router = {
     // Update vertical theme and nav visibility
     this.updateTheme(pageName);
 
-    // Close mobile menus
-    this.closeMobileMenus();
-
-    // Mark the target nav link as loading so the user sees instant feedback
-    // on tap — without this, on slow networks the sidebar shows no change
-    // until loadPage resolves and updateActiveNav fires (could be 30s+).
+    // Mark the target nav link as loading AND selected BEFORE closing the
+    // mobile sidebar — so the user sees which item they tapped highlighted
+    // while the menu is still on screen, then watches it slide away carrying
+    // that highlight. Without this, on touch devices (no :hover) the sidebar
+    // gave zero clue which item was picked until loadPage resolved and the
+    // final updateActiveNav fired (could be 30s+ on slow networks).
     this.markNavLoading(pageName);
+    this.updateActiveNav(pageName);
+
+    // Close mobile menus (slides out via CSS transform transition)
+    this.closeMobileMenus();
 
     // Load the page
     try {

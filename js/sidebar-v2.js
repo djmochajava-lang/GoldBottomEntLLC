@@ -42,6 +42,7 @@ const SidebarV2 = {
     }
 
     this.attachToggle();
+    this.attachNavFeedback();
     this.attachNavClicks();
     this.attachBackdropClose();
     this.filterByRole();
@@ -93,6 +94,38 @@ const SidebarV2 = {
       }
       try { console.log('[perf] sidebar.click @ ' + Math.round(nowT) + 'ms'); } catch (e3) {}
       self.toggle();
+    });
+  },
+
+  /**
+   * Instant visual feedback when a nav item is pressed.
+   *
+   * On touch devices there is no :hover, and the synthetic `click` that drives
+   * navigation can sit behind a busy main thread for many seconds. So we
+   * highlight the pressed item immediately on `touchstart` (delivered from the
+   * high-priority pointer-event queue) — the user sees which item they selected
+   * the instant their finger lands, before navigation or page load even begins.
+   * `mousedown` gives the same instant feedback on non-touch devices.
+   *
+   * We add the same `.active` class the router uses for the current page, so the
+   * highlight looks identical and Router.updateActiveNav() later reconciles it
+   * to the page that actually loads (a no-op when, as usual, they match).
+   */
+  attachNavFeedback: function() {
+    var self = this;
+    var markPressed = function(target) {
+      var item = (target && target.closest) ? target.closest('.sidebar-nav-item') : null;
+      if (!item) return;
+      self.sidebar.querySelectorAll('.sidebar-nav-item.active').forEach(function(el) {
+        if (el !== item) el.classList.remove('active');
+      });
+      item.classList.add('active');
+    };
+    this.sidebar.addEventListener('touchstart', function(e) {
+      markPressed(e.target);
+    }, { passive: true });
+    this.sidebar.addEventListener('mousedown', function(e) {
+      markPressed(e.target);
     });
   },
 
