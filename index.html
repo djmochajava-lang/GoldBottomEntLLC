@@ -582,9 +582,26 @@
       });
       try { console.log('[perf] band-player: lazy-loading Storage SDK + ' + BP2.length + ' modules (off critical path)'); } catch (e) {}
     };
-    // Auto-warm after first paint so the player is ready by the time it's opened.
-    if (document.readyState === 'complete') setTimeout(window.__loadBP2, 1);
-    else window.addEventListener('load', function () { setTimeout(window.__loadBP2, 1); });
+    // Pre-warm the player ONLY after the dashboard is interactive, and only when
+    // idle — never on the public site, and never during login / first menu taps.
+    //
+    // The old behavior warmed on EVERY page's `load` event (even logged-out on the
+    // public homepage). On a real iPhone over cellular, downloading + parsing these
+    // 21 modules (~225KB) + the Storage SDK starved the main thread for many seconds
+    // right after sign-in, so menu taps registered no feedback until it finished —
+    // the "20-30s before the menu responds" symptom. Desktop hid it (fast cache/CPU).
+    //
+    // Now: skip warming entirely off-dashboard; on the dashboard, wait for the first
+    // fragment to render, let it settle, then warm during idle time so it can never
+    // compete with the user's interaction. Opening the Band Player or Payment
+    // Settings still force-loads on demand via __loadBP2() (see those fragments).
+    var warmBP2Once = function once() {
+      document.removeEventListener('gbe:dashboard-loaded', once);
+      var idle = window.requestIdleCallback || function (fn) { return setTimeout(fn, 1500); };
+      // Let the just-rendered dashboard + menu settle before we touch the network.
+      setTimeout(function () { idle(function () { window.__loadBP2(); }, { timeout: 10000 }); }, 2500);
+    };
+    document.addEventListener('gbe:dashboard-loaded', warmBP2Once);
   })();
   </script>
 
