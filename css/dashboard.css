@@ -1931,3 +1931,143 @@ body.auth-initializing .sidebar-footer {
   font-size: var(--text-sm, 0.875rem);
   color: var(--color-text-muted, #7d8590);
 }
+
+/* =========================================================================
+   Dedicated full-screen MOBILE dashboard menu (#gbe-dmenu)
+   Modeled on the L.A. Young pattern: a separate, pre-rendered, full-screen
+   overlay that slides in. Open/close/highlight are pure CSS class toggles,
+   fully decoupled from the router/page fetch. Mobile only — hidden >=1025px
+   where the sidebar is a static desktop column. JS: js/mobile-dash-menu.js
+   ========================================================================= */
+.gbe-dmenu {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  background: rgba(13, 17, 23, 0.985);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  transform: translateX(-100%);
+  /* GPU-composited slide — the visible motion IS the "your tap registered"
+     feedback. Stays short so opening still feels instant. */
+  transition: transform 0.26s ease;
+  visibility: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.gbe-dmenu.open {
+  transform: translateX(0);
+  visibility: visible;
+}
+.gbe-dmenu-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.gbe-dmenu-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(13, 17, 23, 0.985);
+  border-bottom: 1px solid var(--color-border, #30363d);
+}
+.gbe-dmenu-title {
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  color: var(--color-gold, #d4a017);
+}
+.gbe-dmenu-title i { margin-right: 8px; }
+.gbe-dmenu-close {
+  background: none;
+  border: none;
+  color: var(--color-gold, #d4a017);
+  font-size: 38px;
+  line-height: 1;
+  padding: 0 8px;
+  cursor: pointer;
+}
+.gbe-dmenu-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0 40px;
+}
+.gbe-dmenu .sidebar-nav-group {
+  display: flex;
+  flex-direction: column;
+}
+.gbe-dmenu .sidebar-nav-label {
+  padding: 18px 20px 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted, #7d8590);
+}
+/* Big, finger-friendly rows — overrides the compact desktop .sidebar-nav-item */
+.gbe-dmenu .sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 20px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  background: none;
+  color: var(--color-text-secondary, #c9d1d9);
+  font-size: 17px;
+  font-weight: var(--fw-medium, 500);
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  transform: none;
+  transition: background 0.12s ease, color 0.12s ease, padding-left 0.12s ease;
+}
+.gbe-dmenu .sidebar-nav-item i,
+.gbe-dmenu .sidebar-nav-item .nav-icon {
+  width: 26px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 18px;
+  color: var(--color-gold, #d4a017);
+  opacity: 0.85;
+}
+.gbe-dmenu .sidebar-nav-item .sidebar-nav-text { overflow: hidden; }
+/* Instant pressed + selected state (JS toggles .active on touchstart) */
+.gbe-dmenu .sidebar-nav-item:active,
+.gbe-dmenu .sidebar-nav-item.active {
+  background: rgba(212, 160, 23, 0.14);
+  color: #fff;
+  padding-left: 26px;
+}
+.gbe-dmenu .sidebar-nav-item.active {
+  box-shadow: inset 3px 0 0 var(--color-gold, #d4a017);
+}
+.gbe-dmenu-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--color-border, #30363d);
+}
+.gbe-dmenu-footer .sidebar-nav-item { color: var(--color-text-muted, #7d8590); }
+body.gbe-dmenu-open { overflow: hidden; }
+/* Rows slide in when the menu opens (cheap, GPU-composited) */
+.gbe-dmenu.open .sidebar-nav-item { animation: gbeDmenuRowIn 0.3s ease backwards; }
+.gbe-dmenu.open .sidebar-nav-group:nth-child(1) .sidebar-nav-item { animation-delay: 0.02s; }
+.gbe-dmenu.open .sidebar-nav-group:nth-child(2) .sidebar-nav-item { animation-delay: 0.06s; }
+.gbe-dmenu.open .sidebar-nav-group:nth-child(3) .sidebar-nav-item { animation-delay: 0.10s; }
+.gbe-dmenu.open .sidebar-nav-group:nth-child(4) .sidebar-nav-item { animation-delay: 0.14s; }
+@keyframes gbeDmenuRowIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+/* Desktop: the static sidebar column is used instead — never show the overlay */
+@media (min-width: 1025px) {
+  .gbe-dmenu { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gbe-dmenu,
+  .gbe-dmenu .sidebar-nav-item { transition: none !important; animation: none !important; }
+}

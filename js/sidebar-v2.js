@@ -169,6 +169,14 @@ const SidebarV2 = {
    */
   toggle: function() {
     if (typeof Perf !== 'undefined') Perf.mark('sidebar.toggle.tap');
+    // On mobile, the hamburger opens the dedicated full-screen overlay
+    // (MobileDashMenu) instead of the narrow drawer — a pre-rendered, decoupled
+    // menu whose open/highlight never wait on a page fetch. Desktop (>1024px,
+    // where the sidebar is a static column) keeps the original drawer behavior.
+    if (window.innerWidth <= 1024 && window.MobileDashMenu && window.MobileDashMenu.initialized) {
+      window.MobileDashMenu.toggle();
+      return;
+    }
     var isOpen = this.sidebar.classList.contains('mobile-open');
     if (isOpen) {
       this.close();
