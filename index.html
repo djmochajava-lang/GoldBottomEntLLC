@@ -605,6 +605,45 @@
   })();
   </script>
 
+  <!-- ── Opt-in on-screen perf HUD (activate by adding ?perf=1 to the URL) ──
+       Lets a real iPhone surface main-thread responsiveness WITHOUT Safari Web
+       Inspector. A 250ms tick measures actual-vs-expected gap: a big gap == the
+       main thread was blocked. Green ≈ healthy, amber = sluggish, red = blocked.
+       Also reports tap→highlight latency for sidebar items. No-op unless ?perf=1. -->
+  <script>
+  (function () {
+    if (location.href.indexOf('perf=1') < 0) return;
+    var tapCount = 0, lastTapLatency = null, tapAt = null;
+    var hud = document.createElement('div');
+    hud.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:2147483647;background:rgba(0,0,0,.82);' +
+      'color:#0f0;font:11px/1.35 ui-monospace,Menlo,monospace;padding:6px 8px;border-radius:6px;' +
+      'pointer-events:none;white-space:pre;max-width:64vw;';
+    hud.textContent = 'perf HUD…';
+    (function mount(){ if (document.body) document.body.appendChild(hud); else setTimeout(mount, 50); })();
+    var last = performance.now(), maxGap = 0, win = [];
+    setInterval(function () {
+      var now = performance.now(), gap = now - last; last = now;
+      win.push(gap); if (win.length > 12) win.shift();
+      var recentMax = Math.round(win.reduce(function (m, g) { return Math.max(m, g); }, 0));
+      if (gap > maxGap) maxGap = Math.round(gap);
+      hud.style.color = recentMax > 800 ? '#ff3b30' : (recentMax > 400 ? '#ffcc00' : '#34c759');
+      hud.textContent =
+        'thread gap now ' + Math.round(gap) + 'ms\n' +
+        'recent max(3s) ' + recentMax + 'ms\n' +
+        'session max    ' + maxGap + 'ms\n' +
+        'taps ' + tapCount + '  tap→hi ' + (lastTapLatency == null ? '—' : lastTapLatency + 'ms');
+    }, 250);
+    document.addEventListener('touchstart', function (e) {
+      var it = (e.target && e.target.closest) ? e.target.closest('.sidebar-nav-item') : null;
+      if (!it) return;
+      tapCount++; tapAt = performance.now();
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        if (tapAt != null) lastTapLatency = Math.round(performance.now() - tapAt);
+      }); });
+    }, { passive: true });
+  })();
+  </script>
+
   <!-- ── DEFERRED: App Controller (must be last) ── -->
   <script defer src="js/main.js"></script>
 
