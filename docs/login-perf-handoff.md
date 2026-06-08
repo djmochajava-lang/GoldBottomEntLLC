@@ -5,11 +5,45 @@ If you are a fresh agent picking this up: read this top-to-bottom, then check `g
 and `git status` to see what actually landed. The authoritative goal spec lives in
 agent memory at `goal_login_perf.md`; this file is the live progress journal.
 
-**Last updated:** 2026-06-06 (session 1f5ffe48 continuation)
+**Last updated:** 2026-06-08
 
 ---
 
-## ✅ CURRENT STATUS (read first) — latest live = auth.js?v=7 (97d2402)
+## ✅✅ RESOLVED 2026-06-08 — Dashboard MENU responsiveness P0 is DONE (iPhone-validated)
+
+**User confirmed on a real iPhone: the dashboard menu response is now INSTANTANEOUS.**
+This closes the menu-unresponsiveness / no-feedback symptom (reported as "20-30s before any
+hover/selected state; multiple items flashing"). Backlog: `feat-perf-sidebar-render` (Story 3)
+→ **completed**, with story `story-perf-sidebar-mobile-menu` + 5 tasks marked done in
+`GBE-HomeOffice/server/data/gbe-data.db`.
+
+**Two root causes, both fixed (PUBLIC repo, frontend-only):**
+1. **Main-thread contention** — `__loadBP2()` auto-loaded the 21 band-player modules (~225KB) +
+   Storage SDK on EVERY page load (even logged-out on the public homepage), starving the thread
+   right after sign-in on cellular. Now warms only after `gbe:dashboard-loaded` + 2.5s settle +
+   `requestIdleCallback`; never on the public site. On-demand open still force-loads. **`513a074`.**
+2. **Menu architecture** — the mobile menu was the desktop sidebar reused as a narrow drawer with
+   its highlight tied to the router/page-fetch pipeline. Replaced with a dedicated full-screen
+   overlay modeled on the L.A. Young pattern: pre-rendered `#gbe-dmenu` at body level, nav items
+   cloned ONCE from `#sidebar` (single source of truth), pure-CSS open/close/highlight decoupled
+   from page loading, role-filtered, Sign Out re-wired. `sidebar-v2` toggle delegates on mobile;
+   desktop sidebar untouched. **`a2a6744`.**
+
+**Supporting commits:** `7656fad` (instant touchstart highlight + slide-out), `27936f1` (opt-in
+`?perf=1` on-device perf HUD — still live, harmless, can be removed later).
+
+**Diagnostic note for the next agent:** the 20-30s freeze was NOT reproducible in desktop Chrome
+under ANY throttle (warm, 20× CPU, cold/incognito/no-cache + Fast-3G → worst main-thread stall
+20ms). It is iOS-Safari/cellular-only. Use the `?perf=1` HUD or Safari Web Inspector heartbeat-gap
+on a real device to diagnose this class of issue; desktop Playwright cannot validate it.
+
+**Still open (optional, lower priority now):** clean interactive `auth.signin` metric (submit →
+auth.ready, excluding type time); same-site authDomain (`auth.goldbottoment-llc.com`) for durable
+iOS federated-auth latency; `[authdbg]` logging removal in auth.js once Gmail-on-iPhone is confirmed.
+
+---
+
+## ✅ EARLIER STATUS (2026-06-06) — latest live = auth.js?v=7 (97d2402)
 
 **SHIPPED + VALIDATED on production (desktop, clean browser):**
 - **In-dashboard menu navigation: FIXED & validated** — ~300ms → **~38–66ms per item** for BOTH
