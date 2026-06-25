@@ -196,7 +196,7 @@
   };
 
   function loadContracts(){
-    if(isLocal && typeof Utils!=='undefined' && Utils.apiFetch){
+    if(typeof Utils!=='undefined' && Utils.apiFetch){
       Utils.apiFetch('/api/v1/contracts').then(function(res){
         if(!res.ok) throw new Error('HTTP '+res.status);
         return res.json();
