@@ -559,7 +559,7 @@
           var sessions = [];
           snap.forEach(function(doc) {
             var d = doc.data ? doc.data() : {};
-            if ((d.status || '').toLowerCase() !== 'cancelled') sessions.push(d);
+            if ((d.status || '').toLowerCase() === 'confirmed') sessions.push(d);
           });
           var next = sessions[0] || null;
           var el = document.getElementById('bm-next-show');
