@@ -383,7 +383,7 @@
   async function loadInquiries() {
     if (!document.getElementById('tab-inquiries')) return; // not on the booking page — exit silently
     try {
-      var data = await Utils.apiFetch('/booking-inbox?limit=200');
+      var data = await Utils.apiFetch('/booking-inbox?limit=200', { remote: true });
       inquiriesData = data.data || [];
       // Build byStage map from flat row array using classification + is_read fields
       var byStage = { new: [], reviewing: [], info_requested: [], qualified: [], declined: [] };
@@ -480,7 +480,7 @@
   /* ---- Inquiry Detail Modal ---- */
   async function openInquiryDetail(id) {
     try {
-      var r = await Utils.apiFetch('/booking-inbox/' + id);
+      var r = await Utils.apiFetch('/booking-inbox/' + id, { remote: true });
 
       var senderDisplay = r.from_name ? (r.from_name + ' <' + r.from_addr + '>') : (r.from_addr || 'Unknown');
       var html = '<h2 style="margin:0 0 var(--space-sm) 0;font-size:1.2rem;">' + esc(r.subject || 'Booking Inquiry') + '</h2>';
@@ -545,7 +545,7 @@
         var endpoint = '/booking-inbox/' + btn.dataset.id + (isRead ? '/unread' : '/read');
         btn.disabled = true;
         try {
-          await Utils.apiFetch(endpoint, { method: 'PUT' });
+          await Utils.apiFetch(endpoint, { method: 'PUT', remote: true });
           closeModal();
           if (typeof Toast !== 'undefined') Toast.success(isRead ? 'Marked unread' : 'Marked read');
           loadInquiries();
@@ -560,7 +560,7 @@
         var btn = this;
         btn.disabled = true;
         try {
-          var result = await Utils.apiFetch('/booking-inbox/' + btn.dataset.id + '/star', { method: 'PUT' });
+          var result = await Utils.apiFetch('/booking-inbox/' + btn.dataset.id + '/star', { method: 'PUT', remote: true });
           closeModal();
           if (typeof Toast !== 'undefined') Toast.success(result.is_starred ? 'Starred' : 'Unstarred');
           loadInquiries();
@@ -579,6 +579,7 @@
         try {
           await Utils.apiFetch('/booking-inbox/' + btn.dataset.id + '/classify', {
             method: 'PUT',
+            remote: true,
             body: JSON.stringify({ classification: classification })
           });
           closeModal();
@@ -597,7 +598,7 @@
         var btn = this;
         btn.disabled = true;
         try {
-          await Utils.apiFetch('/booking-inbox/' + btn.dataset.id, { method: 'DELETE' });
+          await Utils.apiFetch('/booking-inbox/' + btn.dataset.id, { method: 'DELETE', remote: true });
           closeModal();
           if (typeof Toast !== 'undefined') Toast.success('Inquiry deleted');
           loadInquiries();
