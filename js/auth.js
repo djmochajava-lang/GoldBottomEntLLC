@@ -2084,8 +2084,6 @@ const Auth = {
       var emailRequirements = document.getElementById('auth-email-requirements');
 
       if (emailSubmit && emailInput && emailPassword) {
-        var isRegisterMode = false;
-
         // Focus styling for email inputs
         [emailInput, emailPassword, emailName].forEach(function(input) {
           if (!input) return;
@@ -2097,23 +2095,20 @@ const Auth = {
           });
         });
 
-        // Toggle between sign-in and register mode
+        // Invite-only: "Create an account" shows info modal instead of toggling register mode
         if (emailToggle) {
           emailToggle.addEventListener('click', function(e) {
             e.preventDefault();
-            isRegisterMode = !isRegisterMode;
-            if (emailName) emailName.style.display = isRegisterMode ? 'block' : 'none';
-            if (emailRequirements) emailRequirements.style.display = isRegisterMode ? 'block' : 'none';
-            if (emailForgot) emailForgot.style.display = isRegisterMode ? 'none' : '';
-            emailSubmit.querySelector('span').textContent = isRegisterMode
-              ? 'Create Account' : 'Sign In with Email';
-            emailToggle.textContent = isRegisterMode
-              ? 'Sign in instead' : 'Create an account';
-            emailPassword.setAttribute('autocomplete', isRegisterMode
-              ? 'new-password' : 'current-password');
-            // Hide any previous error
-            var errorDiv = document.getElementById('auth-error');
-            if (errorDiv) errorDiv.style.display = 'none';
+            Modal.open({
+              title: 'Account Access',
+              content: '<div style="text-align:center;padding:8px 0;">' +
+                '<i class="fa-solid fa-envelope-open-text" style="font-size:32px;color:#d4a017;margin-bottom:14px;display:block;"></i>' +
+                '<p style="margin:0 0 20px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">GBE uses an invite-only system.<br>Contact your Band Manager to request access.</p>' +
+                '<button onclick="Modal.close()" style="padding:10px 28px;border-radius:8px;border:none;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;font-size:14px;font-family:inherit;cursor:pointer;">Got it</button>' +
+                '</div>',
+              size: 'sm',
+              showFooter: false
+            });
           });
         }
 
@@ -2176,12 +2171,6 @@ const Auth = {
             emailPassword.focus();
             return;
           }
-          if (isRegisterMode && password.length < 8) {
-            Auth._showLoginError('Password must be at least 8 characters.');
-            emailPassword.focus();
-            return;
-          }
-
           // Disable form during auth
           emailInput.disabled = true;
           emailPassword.disabled = true;
@@ -2189,8 +2178,7 @@ const Auth = {
           emailSubmit.style.opacity = '0.5';
           emailSubmit.style.cursor = 'wait';
           var originalLabel = emailSubmit.querySelector('span').textContent;
-          emailSubmit.querySelector('span').textContent = isRegisterMode
-            ? 'Creating account...' : 'Signing in...';
+          emailSubmit.querySelector('span').textContent = 'Signing in...';
           var errorDiv = document.getElementById('auth-error');
           if (errorDiv) errorDiv.style.display = 'none';
 
@@ -2198,12 +2186,7 @@ const Auth = {
           var provBtns = document.querySelectorAll('.auth-provider-btn');
           provBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
 
-          var action;
-          if (isRegisterMode) {
-            action = Auth.registerWithEmail(email, password, name || email.split('@')[0]);
-          } else {
-            action = Auth.loginWithEmail(email, password);
-          }
+          var action = Auth.loginWithEmail(email, password);
 
           action.catch(function(error) {
             // Re-enable form

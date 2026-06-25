@@ -1062,6 +1062,16 @@
         d.projectExpenses=[];
         d.projectTasks=[];
         var newRelease=DataStore.addRelease(d);
+        if(isLocal){
+          Utils.apiFetch('/distribution',{
+            method:'POST',
+            body:JSON.stringify({title:d.title,artist:d.artist,release_type:d.type,release_date:d.releaseDate,platforms:(d.platforms||[]).join(','),notes:d.notes||''})
+          }).then(function(){
+            // synced to server
+          }).catch(function(err){
+            console.warn('[distribution] server sync failed (non-blocking):',err);
+          });
+        }
         Modal.close();
         Toast.success('Release added: '+d.title);
         selectedReleaseId=newRelease.id;
