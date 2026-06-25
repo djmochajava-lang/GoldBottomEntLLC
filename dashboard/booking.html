@@ -17,6 +17,10 @@
       <i class="fa-solid fa-diagram-project"></i> Pipeline
       <span id="tab-count-pipeline" style="margin-left:6px;padding:1px 8px;border-radius:var(--radius-full);font-size:0.7rem;background:rgba(63,185,80,0.15);color:#3fb950;">0</span>
     </button>
+    <button class="booking-tab" data-tab="quotes" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 150ms ease;">
+      <i class="fa-solid fa-file-invoice-dollar"></i> Quotes
+      <span id="tab-count-quotes" style="margin-left:6px;padding:1px 8px;border-radius:var(--radius-full);font-size:0.7rem;background:rgba(88,166,255,0.15);color:#58a6ff;">0</span>
+    </button>
   </div>
 
   <!-- ==================== INQUIRIES TAB ==================== -->
@@ -138,6 +142,13 @@
         </div>
         <div class="pipeline-column-cards" id="col-closed"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== QUOTES TAB ==================== -->
+  <div id="tab-quotes" class="booking-tab-content" style="display:none;">
+    <div id="quotes-list-container" style="margin-bottom:var(--space-lg);">
+      <p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Loading quotes...</p>
     </div>
   </div>
 
@@ -649,10 +660,16 @@
       if (isLocal) {
         var items = await apiFetch('/bookings');
         pipelineData = items || [];
-      } else if (typeof DataStore !== 'undefined') {
-        pipelineData = DataStore.getBookings() || [];
       } else {
-        pipelineData = [];
+        // Remote path — read from Firestore (public site never calls HomeOffice directly)
+        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db :
+                 (typeof firebase !== 'undefined' ? firebase.firestore() : null);
+        if (!db) throw new Error('Firestore not available');
+        var snap = await db.collection('bookings')
+          .orderBy('updated_at', 'desc')
+          .limit(200)
+          .get();
+        pipelineData = snap.docs.map(function(d) { return d.data(); });
       }
       renderPipelineStats();
       renderPipelineKanban();
@@ -750,8 +767,9 @@
       var b;
       if (isLocal) {
         b = await apiFetch('/bookings/' + id);
-      } else if (typeof DataStore !== 'undefined') {
-        b = DataStore.getBooking(id);
+      } else {
+        // Remote — find from already-loaded Firestore data
+        b = pipelineData.find(function(x) { return String(x.id) === String(id); });
       }
       if (!b) return;
 
@@ -809,6 +827,11 @@
 
       // Action buttons
       html += '<div style="display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-top:var(--space-md);padding-top:var(--space-md);border-top:1px solid var(--color-border);">';
+      if (!isLocal) {
+        // Remote: Generate Quote button (write via Utils.apiFetch with auth token)
+        html += '<button id="bk-gen-quote-btn" data-id="' + b.id + '" class="btn" style="background:rgba(88,166,255,0.1);color:#58a6ff;border:1px solid rgba(88,166,255,0.2);"><i class="fa-solid fa-calculator"></i> Generate Quote</button>';
+        html += '<span id="bk-quote-result" style="font-size:var(--text-sm);color:var(--color-text-muted);display:flex;align-items:center;"></span>';
+      }
       if (isLocal) {
         // Publish to Band button — only for confirmed/contracted/completed bookings
         if (['confirmed', 'contracted', 'completed'].includes(b.stage)) {
@@ -824,6 +847,36 @@
       html += '</div>';
 
       openModal(html);
+
+      // Remote: Generate Quote button handler
+      var genQuoteBtn = document.getElementById('bk-gen-quote-btn');
+      if (genQuoteBtn) {
+        genQuoteBtn.addEventListener('click', async function() {
+          var btn = this;
+          var resultEl = document.getElementById('bk-quote-result');
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+          try {
+            var result = await Utils.apiFetch('/quotes/auto/' + btn.dataset.id, { method: 'POST' });
+            var total = result && (result.total || result.total_amount) ? (result.total || result.total_amount) : null;
+            if (total !== null) {
+              var fmt = '$' + parseFloat(total).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+              if (resultEl) resultEl.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#3fb950;margin-right:4px;"></i> Quote generated: <strong style="color:#3fb950;margin-left:4px;">' + fmt + '</strong>';
+              if (typeof Toast !== 'undefined') Toast.success('Quote generated: ' + fmt);
+              loadQuotes();
+            } else {
+              if (resultEl) resultEl.textContent = 'Quote generated';
+              if (typeof Toast !== 'undefined') Toast.success('Quote generated');
+            }
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Done';
+          } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-calculator"></i> Generate Quote';
+            if (typeof Toast !== 'undefined') Toast.error('Quote failed: ' + e.message);
+            else alert('Quote failed: ' + e.message);
+          }
+        });
+      }
 
       // Load conversation thread if linked
       if (isLocal && b.inquiryId) {
@@ -1127,18 +1180,109 @@
     });
   }
 
+  /* ==================================================================
+     QUOTES TAB — Firestore booking_quotes (remote) / API (local)
+     ================================================================== */
+
+  var quotesData = [];
+
+  async function loadQuotes() {
+    var container = document.getElementById('quotes-list-container');
+    if (!container) return;
+    try {
+      if (isLocal) {
+        // Local: fetch intake stats as a proxy — adapt if a dedicated /quotes endpoint exists
+        var data = await apiFetch('/quotes/intake-stats');
+        quotesData = (data && data.quotes) ? data.quotes : (Array.isArray(data) ? data : []);
+      } else {
+        // Remote — read from Firestore
+        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db :
+                 (typeof firebase !== 'undefined' ? firebase.firestore() : null);
+        if (!db) throw new Error('Firestore not available');
+        var snap = await db.collection('booking_quotes')
+          .orderBy('created_at', 'desc')
+          .limit(100)
+          .get();
+        quotesData = snap.docs.map(function(d) { return d.data(); });
+      }
+      document.getElementById('tab-count-quotes').textContent = quotesData.length;
+      renderQuotesList();
+    } catch (e) {
+      console.error('[Booking] Quotes load error:', e);
+      container.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Failed to load quotes.</p>';
+    }
+  }
+
+  function renderQuotesList() {
+    var container = document.getElementById('quotes-list-container');
+    if (!container) return;
+
+    if (!quotesData.length) {
+      container.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">No quotes yet.</p>';
+      return;
+    }
+
+    var statusColors = {
+      draft:    { bg: 'rgba(139,148,158,0.15)', color: '#8b949e' },
+      sent:     { bg: 'rgba(88,166,255,0.15)',  color: '#58a6ff' },
+      accepted: { bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' },
+      declined: { bg: 'rgba(248,81,73,0.15)',   color: '#f85149' },
+      expired:  { bg: 'rgba(139,148,158,0.1)',  color: '#6e7681' }
+    };
+
+    var html = '<div style="overflow-x:auto;"><table class="data-table" style="width:100%;">';
+    html += '<thead><tr>';
+    html += '<th style="text-align:left;">Booking</th>';
+    html += '<th style="text-align:right;">Total</th>';
+    html += '<th style="text-align:right;">Deposit</th>';
+    html += '<th style="text-align:center;">Status</th>';
+    html += '<th style="text-align:left;">Date</th>';
+    html += '</tr></thead><tbody>';
+
+    quotesData.forEach(function(q) {
+      // Look up booking name from pipelineData
+      var bookingName = '';
+      if (q.booking_id) {
+        var bk = pipelineData.find(function(x) { return String(x.id) === String(q.booking_id); });
+        bookingName = bk ? (bk.name || bk.contactName || q.booking_id) : q.booking_id;
+      }
+
+      var total   = q.total_amount != null ? q.total_amount : (q.total != null ? q.total : null);
+      var deposit = q.deposit_amount != null ? q.deposit_amount : null;
+      var status  = q.status || 'draft';
+      var sc      = statusColors[status] || statusColors.draft;
+      var dateStr = q.created_at ? new Date(q.created_at.seconds ? q.created_at.seconds * 1000 : q.created_at).toLocaleDateString() : '-';
+
+      html += '<tr>';
+      html += '<td data-label="Booking" style="font-size:var(--text-sm);font-weight:500;">' + esc(bookingName || '-') + '</td>';
+      html += '<td data-label="Total" style="text-align:right;font-size:var(--text-sm);font-weight:600;color:var(--color-text);">' +
+              (total != null ? '$' + parseFloat(total).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-') + '</td>';
+      html += '<td data-label="Deposit" style="text-align:right;font-size:var(--text-sm);color:var(--color-text-muted);">' +
+              (deposit != null ? '$' + parseFloat(deposit).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-') + '</td>';
+      html += '<td data-label="Status" style="text-align:center;">' +
+              pill(sc.bg, sc.color, status.charAt(0).toUpperCase() + status.slice(1)) + '</td>';
+      html += '<td data-label="Date" style="font-size:0.8rem;color:var(--color-text-muted);">' + esc(dateStr) + '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
   /* ---- Initial Load ---- */
   // Load email protocol first, then data
   loadEmailProtocol().then(function() {
     injectEmailBadges();
     loadInquiries();
     loadPipeline();
+    loadQuotes();
   });
 
   // Auto-refresh every 60 seconds
   setInterval(function() {
     loadInquiries();
     loadPipeline();
+    loadQuotes();
   }, 60000);
 })();
 </script>
