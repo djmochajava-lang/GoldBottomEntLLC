@@ -21,7 +21,7 @@ var ASSET_HASHES = {
   './css/components.css': '6f570f9a4aaa3c36d36fb09c9c54ce6df43474ec2516834c15e75d9ca9b7130b',
   './css/sections.css': 'e9218a68c262d4a3d8767c1a3f305c3c1e0ab5693598319aa434991678535b29',
   './css/pages.css': '10b388c8d0d39bc508a028fe9dfeefa89b3415af7fc8104d194aab71d909afa2',
-  './css/dashboard.css': '7749bad418e675a0047a7ae450e65686cb35e7116386cc1d0c50b252c5ba1cfd',
+  './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
   './js/config.js': 'ecccd34b9e117160fdcc939503a32a021e01603bbb454e0966a3ec98b3b733f3',

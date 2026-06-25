@@ -133,7 +133,8 @@
       var usersSnap = await fdb.collection('roster').get();
       usersSnap.forEach(function(doc) {
         var u = doc.data();
-        if (u.displayName) musicianNames[doc.id] = u.displayName;
+        var n = u.name || u.displayName;
+        if (n) musicianNames[doc.id] = n;
       });
     } catch (e) { /* non-fatal */ }
 
@@ -319,7 +320,7 @@
       snap.forEach(function(doc) {
         var d = doc.data();
         if (bandRoles.indexOf(d.role) >= 0) {
-          members.push({ uid: doc.id, name: d.displayName || d.email || doc.id, role: d.role, data: d });
+          members.push({ uid: doc.id, name: d.name || d.displayName || d.email || doc.id, role: d.role, data: d });
         }
       });
 
