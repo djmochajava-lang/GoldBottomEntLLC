@@ -1524,6 +1524,31 @@ const Auth = {
   },
 
   /**
+   * Check client-side rate limit for password reset.
+   * Max 3 attempts per email per 60 minutes (stored in sessionStorage).
+   * Returns true if allowed, false if rate-limited.
+   */
+  _checkResetRateLimit: function(email) {
+    var key = 'gbe_rst_' + btoa(email).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+    var now = Date.now();
+    var windowMs = 60 * 60 * 1000; // 60 minutes
+    var maxAttempts = 3;
+    var stored = null;
+    try { stored = JSON.parse(sessionStorage.getItem(key)); } catch(e) {}
+    if (!stored || (now - stored.start) > windowMs) {
+      // Fresh window
+      try { sessionStorage.setItem(key, JSON.stringify({ start: now, count: 1 })); } catch(e) {}
+      return true;
+    }
+    if (stored.count >= maxAttempts) {
+      return false; // Rate limited
+    }
+    // Increment
+    try { sessionStorage.setItem(key, JSON.stringify({ start: stored.start, count: stored.count + 1 })); } catch(e) {}
+    return true;
+  },
+
+  /**
    * Sign out the current user (handles both PIN and Firebase auth)
    * @returns {Promise}
    */
@@ -2102,21 +2127,34 @@ const Auth = {
               emailInput.focus();
               return;
             }
+            // Rate limit check
+            if (!Auth._checkResetRateLimit(email)) {
+              Auth._showLoginError('Too many reset attempts. Please wait before requesting another reset.');
+              return;
+            }
             Auth.sendPasswordReset(email).then(function() {
               // Show as info (gold) instead of error (red)
               var errorDiv = document.getElementById('auth-error');
               if (errorDiv) {
-                errorDiv.textContent = 'Password reset email sent. Check your inbox.';
+                errorDiv.textContent = 'If this email is registered, you’ll receive a reset link shortly.';
                 errorDiv.style.display = 'block';
                 errorDiv.style.background = 'rgba(212,160,23,0.15)';
                 errorDiv.style.color = '#d4a017';
               }
             }).catch(function(err) {
-              var msg = 'Failed to send reset email.';
-              if (err && err.code === 'auth/user-not-found') {
-                msg = 'No account found with this email.';
+              var code = err && err.code;
+              if (code === 'auth/network-request-failed') {
+                Auth._showLoginError('Something went wrong. Please check your connection and try again.');
+              } else {
+                // Do NOT distinguish user-not-found from email-sent — prevents email enumeration
+                var errorDiv = document.getElementById('auth-error');
+                if (errorDiv) {
+                  errorDiv.textContent = 'If this email is registered, you’ll receive a reset link shortly.';
+                  errorDiv.style.display = 'block';
+                  errorDiv.style.background = 'rgba(212,160,23,0.15)';
+                  errorDiv.style.color = '#d4a017';
+                }
               }
-              Auth._showLoginError(msg);
             });
           });
         }
