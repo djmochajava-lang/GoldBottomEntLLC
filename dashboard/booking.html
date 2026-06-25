@@ -383,8 +383,22 @@
   async function loadInquiries() {
     if (!document.getElementById('tab-inquiries')) return; // not on the booking page — exit silently
     try {
-      var data = await Utils.apiFetch('/booking-inbox?limit=200');
-      inquiriesData = data.data || [];
+      var rawRows;
+      if (isLocal) {
+        var data = await Utils.apiFetch('/booking-inbox?limit=200');
+        rawRows = data.data || [];
+      } else {
+        // Remote path — read from Firestore (public site never calls HomeOffice directly)
+        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db :
+                 (typeof firebase !== 'undefined' ? firebase.firestore() : null);
+        if (!db) throw new Error('Firestore not available');
+        var snap = await db.collection('booking_inbox')
+          .orderBy('created_at', 'desc')
+          .limit(200)
+          .get();
+        rawRows = snap.docs.map(function(doc) { return doc.data(); });
+      }
+      inquiriesData = rawRows;
       // Build byStage map from flat row array using classification + is_read fields
       var byStage = { new: [], reviewing: [], info_requested: [], qualified: [], declined: [] };
       inquiriesData.forEach(function(r) {
@@ -403,7 +417,7 @@
       });
       renderInquiriesStats(byStage);
       renderInquiriesKanban(byStage);
-      document.getElementById('tab-count-inquiries').textContent = data.total || 0;
+      document.getElementById('tab-count-inquiries').textContent = isLocal ? (data && data.total ? data.total : inquiriesData.length) : inquiriesData.length;
     } catch (e) {
       console.error('[Booking] Inquiries load error:', e);
       document.getElementById('inquiries-pipeline').innerHTML =
@@ -480,7 +494,13 @@
   /* ---- Inquiry Detail Modal ---- */
   async function openInquiryDetail(id) {
     try {
-      var r = await Utils.apiFetch('/booking-inbox/' + id);
+      var r;
+      if (isLocal) {
+        r = await Utils.apiFetch('/booking-inbox/' + id);
+      } else {
+        r = inquiriesData.find(function(x) { return String(x.id) === String(id); });
+        if (!r) { if (typeof Toast !== 'undefined') Toast.error('Detail not available'); return; }
+      }
 
       var senderDisplay = r.from_name ? (r.from_name + ' <' + r.from_addr + '>') : (r.from_addr || 'Unknown');
       var html = '<h2 style="margin:0 0 var(--space-sm) 0;font-size:1.2rem;">' + esc(r.subject || 'Booking Inquiry') + '</h2>';
@@ -511,25 +531,27 @@
         html += '</div>';
       }
 
-      // Action buttons — read/unread, star, reclassify
-      html += '<div style="padding-top:var(--space-md);border-top:1px solid var(--color-border);display:flex;gap:var(--space-sm);flex-wrap:wrap;align-items:center;">';
-      html += '<button id="inq-read-btn" data-id="' + r.id + '" data-is-read="' + (r.is_read ? '1' : '0') + '" class="btn" style="font-size:var(--text-sm);">' +
-        '<i class="fa-solid ' + (r.is_read ? 'fa-envelope' : 'fa-envelope-open') + '"></i> ' + (r.is_read ? 'Mark Unread' : 'Mark Read') + '</button>';
-      html += '<button id="inq-star-btn" data-id="' + r.id + '" class="btn" style="font-size:var(--text-sm);' + (r.is_starred ? 'color:#d4a017;' : '') + '">' +
-        '<i class="fa-' + (r.is_starred ? 'solid' : 'regular') + ' fa-star"></i> ' + (r.is_starred ? 'Unstar' : 'Star') + '</button>';
+      // Action buttons — read/unread, star, reclassify (LAN only — mutations require HomeOffice API)
+      if (isLocal) {
+        html += '<div style="padding-top:var(--space-md);border-top:1px solid var(--color-border);display:flex;gap:var(--space-sm);flex-wrap:wrap;align-items:center;">';
+        html += '<button id="inq-read-btn" data-id="' + r.id + '" data-is-read="' + (r.is_read ? '1' : '0') + '" class="btn" style="font-size:var(--text-sm);">' +
+          '<i class="fa-solid ' + (r.is_read ? 'fa-envelope' : 'fa-envelope-open') + '"></i> ' + (r.is_read ? 'Mark Unread' : 'Mark Read') + '</button>';
+        html += '<button id="inq-star-btn" data-id="' + r.id + '" class="btn" style="font-size:var(--text-sm);' + (r.is_starred ? 'color:#d4a017;' : '') + '">' +
+          '<i class="fa-' + (r.is_starred ? 'solid' : 'regular') + ' fa-star"></i> ' + (r.is_starred ? 'Unstar' : 'Star') + '</button>';
 
-      // Reclassify (classify action)
-      html += '<select id="inq-classify-select" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">';
-      ['booking_inquiry', 'booking_followup', 'spam', 'notification', 'internal'].forEach(function(c) {
-        html += '<option value="' + c + '"' + (r.classification === c ? ' selected' : '') + '>' + (classLabel[c] || c) + '</option>';
-      });
-      html += '</select>';
-      html += '<button id="inq-classify-btn" data-id="' + r.id + '" class="btn btn-primary" style="font-size:var(--text-sm);">Reclassify</button>';
+        // Reclassify (classify action)
+        html += '<select id="inq-classify-select" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">';
+        ['booking_inquiry', 'booking_followup', 'spam', 'notification', 'internal'].forEach(function(c) {
+          html += '<option value="' + c + '"' + (r.classification === c ? ' selected' : '') + '>' + (classLabel[c] || c) + '</option>';
+        });
+        html += '</select>';
+        html += '<button id="inq-classify-btn" data-id="' + r.id + '" class="btn btn-primary" style="font-size:var(--text-sm);">Reclassify</button>';
 
-      // Delete (soft)
-      html += '<button id="inq-delete-btn" data-id="' + r.id + '" class="btn" style="margin-left:auto;font-size:var(--text-sm);background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);">' +
-        '<i class="fa-solid fa-trash"></i> Delete</button>';
-      html += '</div>';
+        // Delete (soft)
+        html += '<button id="inq-delete-btn" data-id="' + r.id + '" class="btn" style="margin-left:auto;font-size:var(--text-sm);background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);">' +
+          '<i class="fa-solid fa-trash"></i> Delete</button>';
+        html += '</div>';
+      }
 
       // LAN-only: email reply notice
       if (isLocal) {
@@ -537,6 +559,8 @@
       }
 
       openModal(html);
+
+      if (!isLocal) return; // remote: modal is read-only, no mutation listeners needed
 
       // Read/Unread toggle
       document.getElementById('inq-read-btn').addEventListener('click', async function() {
