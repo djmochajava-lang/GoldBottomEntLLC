@@ -129,7 +129,15 @@
         var data = await resp.json();
         (data.musicians || []).forEach(function(m) { musicianNames[m.id] = m.name; });
       }
-      // Display-only — read from /roster cache (SoR per architecture).
+      // Map invitation IDs (inv_...) → musician names from Firestore invitations collection
+      try {
+        var invSnap = await fdb.collection('invitations').get();
+        invSnap.forEach(function(doc) {
+          var n = doc.data().musicianName || doc.data().name;
+          if (n) musicianNames[doc.id] = n;
+        });
+      } catch (e) { /* non-fatal */ }
+      // Also map roster doc IDs → names (Firebase UIDs, fb_ prefixed, etc.)
       var usersSnap = await fdb.collection('roster').get();
       usersSnap.forEach(function(doc) {
         var u = doc.data();
