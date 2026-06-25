@@ -2103,7 +2103,7 @@ const Auth = {
               title: 'Account Access',
               content: '<div style="text-align:center;padding:8px 0;">' +
                 '<i class="fa-solid fa-envelope-open-text" style="font-size:32px;color:#d4a017;margin-bottom:14px;display:block;"></i>' +
-                '<p style="margin:0 0 20px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">GBE uses an invite-only system.<br>Contact your Band Manager to request access.</p>' +
+                '<p style="margin:0 0 20px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">GBE uses an invite-only system.<br>Contact your GBE representative to request access.</p>' +
                 '<button onclick="Modal.close()" style="padding:10px 28px;border-radius:8px;border:none;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;font-size:14px;font-family:inherit;cursor:pointer;">Got it</button>' +
                 '</div>',
               size: 'sm',

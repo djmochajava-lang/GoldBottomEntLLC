@@ -1065,7 +1065,7 @@
         if(isLocal){
           Utils.apiFetch('/distribution',{
             method:'POST',
-            body:JSON.stringify({title:d.title,artist:d.artist,release_type:d.type,release_date:d.releaseDate,platforms:(d.platforms||[]).join(','),notes:d.notes||''})
+            body:JSON.stringify({title:d.title,artist:d.artist,release_type:d.type,release_date:d.releaseDate,platforms:(d.platforms||[]).join(','),notes:d.notes||'',isrc:d.isrc||'',upc:d.upc||''})
           }).then(function(){
             // synced to server
           }).catch(function(err){
