@@ -30,7 +30,7 @@
         <i class="fa-solid fa-record-vinyl" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
         <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">SoundExchange</span>
       </a>
-      <a href="#" onclick="document.getElementById('add-release-btn').click();return false;" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
+      <a id="new-release-card" href="#" onclick="document.getElementById('add-release-btn').click();return false;" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
         <i class="fa-solid fa-compact-disc" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
         <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">New Release</span>
       </a>
@@ -662,10 +662,12 @@
 
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
 
-  /* Hide Add Release button when not local */
+  /* Hide Add Release button and New Release quick-action card when not local */
   if(!isLocal){
     var addReleaseBtn=document.getElementById('add-release-btn');
     if(addReleaseBtn) addReleaseBtn.style.display='none';
+    var newReleaseCard=document.getElementById('new-release-card');
+    if(newReleaseCard) newReleaseCard.style.display='none';
   }
 
   var TOTAL_STEPS=14;
