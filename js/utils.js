@@ -441,62 +441,24 @@ if (document.readyState === 'loading') {
 
 /**
  * Global API fetch wrapper — rejects immediately on remote (iPhone/public site)
- * unless called with { remote: true }, which routes the request to the home
- * office server via the Cloudflare tunnel using Firebase ID token auth.
+ * and enforces a timeout on LAN to prevent UI hangs.
  *
- * @param {string} url - Relative API path (e.g. '/booking-inbox?limit=200')
+ * @param {string} url - API URL (absolute or relative like '/api/v1/...')
  * @param {object} [opts] - fetch options (method, headers, body, etc.)
- *   opts.remote {boolean} - if true, bypass isLocal guard and use Firebase JWT + tunnel URL
  * @param {number} [timeoutMs=5000] - abort timeout in ms
  * @returns {Promise<Response>}
  */
 Utils.apiFetch = function(url, opts, timeoutMs) {
-  opts = opts || {};
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
-  var isRemote = !!opts.remote;
-
-  // Strip the internal flag before passing to fetch
-  if (isRemote) {
-    opts = Object.assign({}, opts);
-    delete opts.remote;
-  }
-
-  if (!isLocal && !isRemote) return Promise.reject(new Error('remote'));
-
-  var ms = timeoutMs || 8000;
-
-  if (isRemote && !isLocal) {
-    // Remote path: get Firebase ID token, route to tunnel URL
-    var firebaseUser = (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser)
-      ? firebase.auth().currentUser
-      : null;
-    if (!firebaseUser) return Promise.reject(new Error('remote-no-auth'));
-
-    var homeOfficeUrl = (typeof SiteConfig !== 'undefined' && SiteConfig.server && SiteConfig.server.homeOfficeUrl)
-      ? SiteConfig.server.homeOfficeUrl
-      : 'https://portal.goldbottoment-llc.com';
-
-    return firebaseUser.getIdToken().then(function(idToken) {
-      if (!opts.headers) opts.headers = {};
-      opts.headers['Authorization'] = 'Bearer ' + idToken;
-      if (!opts.headers['Content-Type'] && opts.body) {
-        opts.headers['Content-Type'] = 'application/json';
-      }
-      var controller = new AbortController();
-      var timer = setTimeout(function() { controller.abort(); }, ms);
-      opts.signal = controller.signal;
-      var fullUrl = homeOfficeUrl + '/api/v1' + url;
-      return fetch(fullUrl, opts).finally(function() { clearTimeout(timer); });
-    });
-  }
-
-  // LAN path (original behaviour)
+  if (!isLocal) return Promise.reject(new Error('remote'));
+  opts = opts || {};
   var token = localStorage.getItem('gbe-session-token') || '';
   if (token && !opts.headers) {
     opts.headers = { 'X-GBE-Session': token };
   } else if (token && opts.headers && !opts.headers['X-GBE-Session'] && !opts.headers['Authorization']) {
     opts.headers['X-GBE-Session'] = token;
   }
+  var ms = timeoutMs || 5000;
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, ms);
   opts.signal = controller.signal;

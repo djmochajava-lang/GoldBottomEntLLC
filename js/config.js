@@ -94,16 +94,6 @@ const SiteConfig = {
     member:       { label: 'Member',       icon: 'fa-user',          color: '#8b949e',  description: 'Default — awaiting role assignment' }
   },
 
-  /**
-   * Home office server — Cloudflare tunnel URL for remote API access.
-   * The public site uses this base URL when Utils.apiFetch is called
-   * with { remote: true } (booking inbox, remote-capable endpoints).
-   * Never expose secrets here — only the tunnel hostname.
-   */
-  server: {
-    homeOfficeUrl: 'https://portal.goldbottoment-llc.com'
-  },
-
   version: '1.0.0-prototype'
 };
 
