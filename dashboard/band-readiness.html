@@ -115,11 +115,12 @@
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   async function init() {
-    if (typeof Auth === 'undefined' || !Auth._db) {
+    // Prefer Auth._db; fall back to firebase.firestore() if not yet set
+    fdb = (typeof Auth !== 'undefined' && Auth._db) || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && firebase.firestore());
+    if (!fdb) {
       document.getElementById('br-gigs-container').innerHTML = '<p class="text-muted">Firestore not available.</p>';
       return;
     }
-    fdb = Auth._db;
 
     // Load musician names from server if local, or from Firestore users
     try {
