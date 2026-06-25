@@ -135,9 +135,14 @@
     Utils.apiFetch('/api/v1/agreements' + params)
       .then(function(data) {
         allAgreements = (data && data.agreements) ? data.agreements : [];
-        // Normalize field names for rendering (API uses musicianName; Firestore used musicianId as display)
+        // Normalize snake_case SQLite field names to camelCase for rendering
         allAgreements.forEach(function(a) {
           if (!a._id && a.id) a._id = a.id;
+          if (!a.musicianName && a.musician_name) a.musicianName = a.musician_name;
+          if (!a.musicianId && a.musician_id) a.musicianId = a.musician_id;
+          if (!a.sentAt && a.sent_at) a.sentAt = a.sent_at;
+          if (!a.signedAt && a.signed_at) a.signedAt = a.signed_at;
+          if (!a.countersignedAt && a.countersigned_at) a.countersignedAt = a.countersigned_at;
           if (!a.musicianId) a.musicianId = a.musicianName || '';
         });
         updateStats();
