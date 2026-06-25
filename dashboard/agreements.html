@@ -657,6 +657,7 @@
               '</p>' +
             '</div>' +
             '<span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:' + badgeBg + ';color:' + badgeColor + ';">' + statusLabel + '</span>' +
+          (a.status === 'pending' ? '<a href="#sign?id=' + doc.id + '" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;min-height:44px;border-radius:var(--radius-full);background:var(--color-gold);color:#000;font-size:var(--text-sm);font-weight:var(--fw-semibold);text-decoration:none;white-space:nowrap;"><i class="fa-solid fa-pen-nib"></i> Sign Agreement</a>' : '') +
           '</div>';
         });
       }
