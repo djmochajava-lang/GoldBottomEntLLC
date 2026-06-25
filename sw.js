@@ -11,7 +11,7 @@
 // commit recreates the install-storm-vs-OAuth bug we fixed in May 2026.
 // Activate handler still deletes other gbe-shell-vN caches so a one-off bump
 // remains a working escape hatch.
-var SHELL_CACHE = 'gbe-shell-v38';
+var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
