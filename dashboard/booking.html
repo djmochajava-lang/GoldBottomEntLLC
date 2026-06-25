@@ -61,7 +61,7 @@
           <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-circle-check" style="color:#3fb950;"></i> Qualified</h3>
           <span class="badge" id="inq-count-qualified" style="background:rgba(63,185,80,0.2);color:#3fb950;">0</span>
         </div>
-        <div class="pipeline-column-cards" id="inq-col-qualified"></div>
+        <div class="pipeline-column-cards" id="inq-col-qualified"><p style="font-size:var(--text-xs);color:var(--color-text-muted);padding:var(--space-sm);text-align:center;margin:0;">Manually promote from Reviewing.</p></div>
       </div>
 
       <!-- Declined -->
@@ -509,7 +509,7 @@
       var html = '<h2 style="margin:0 0 var(--space-sm) 0;font-size:1.2rem;">' + esc(r.subject || 'Booking Inquiry') + '</h2>';
 
       // Classification + priority badges
-      var classLabel = { booking_inquiry: 'Booking Inquiry', booking_followup: 'Follow-up', spam: 'Spam', notification: 'Notification', internal: 'Internal' };
+      var classLabel = { booking_inquiry: 'Booking Inquiry', booking_followup: 'Follow-up', spam: 'Spam', notification: 'Auto-Notification', internal: 'Internal Note' };
       var classColors = { booking_inquiry: '#58a6ff', booking_followup: '#bc8cff', spam: '#8b949e', notification: '#8b949e', internal: '#8b949e' };
       var clsColor = classColors[r.classification] || '#8b949e';
       html += '<div style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-md);">';
