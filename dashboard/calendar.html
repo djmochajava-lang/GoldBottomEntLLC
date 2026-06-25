@@ -87,7 +87,7 @@
 
   var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   /* Extended type colors — includes band_sessions session_type values */
-  var TYPE_COLORS={gig:'#d4a017',meeting:'#58a6ff',studio:'#bc8cff',deadline:'#f85149',travel:'#3fb950',rehearsal:'#3fb950',sectional:'#58a6ff',recording:'#bc8cff',show:'#d4a017'};
+  var TYPE_COLORS={gig:'#d4a017',meeting:'#58a6ff',studio:'#bc8cff',deadline:'#f85149',travel:'#0d9488',rehearsal:'#3fb950',sectional:'#58a6ff',recording:'#bc8cff',show:'#d4a017'};
   var TYPE_BADGES={gig:'badge-gold',meeting:'badge-info',studio:'badge',deadline:'badge-danger',travel:'badge-success',rehearsal:'badge-success',sectional:'badge-info',recording:'badge',show:'badge-gold'};
   var TYPE_LABELS={gig:'Gig',meeting:'Meeting',studio:'Studio',deadline:'Deadline',travel:'Travel',rehearsal:'Rehearsal',sectional:'Sectional',recording:'Recording',show:'Show'};
 
@@ -121,6 +121,7 @@
       type: sType,
       venue: d.venue || d.location || '',
       color: TYPE_COLORS[sType] || '#d4a017',
+      tentative: (d.status && d.status !== 'confirmed'),
       _isSession: true  // flag to distinguish from DataStore events
     };
   }
@@ -307,7 +308,7 @@
       html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-md);padding:var(--space-sm) 0;border-bottom:1px solid var(--color-border);">';
       html+='<div style="flex:1;">';
       if(time) html+='<span style="font-size:var(--text-xs);color:var(--color-text-muted);margin-right:var(--space-sm);">'+time+'</span>';
-      html+='<strong style="color:var(--color-text);font-size:var(--text-sm);">'+esc(ev.title)+'</strong>';
+      html+='<strong style="color:var(--color-text);font-size:var(--text-sm);">'+esc(ev.title)+'</strong>'+(ev.tentative?'<span style="font-size:0.7em;opacity:0.75;margin-left:4px;">(Tentative)</span>':'');
       html+=' <span class="badge '+badgeClass+'" style="margin-left:var(--space-xs);">'+typeLabel+'</span>';
       if(ev.venue) html+='<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;"><i class="fa-solid fa-location-dot"></i> '+esc(ev.venue)+'</div>';
       html+='</div>';
@@ -347,7 +348,7 @@
       html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-sm);">';
       html+='<div style="flex:1;min-width:0;">';
       html+='<div style="font-size:var(--text-xs);color:var(--color-text-muted);">'+dateDisplay+'</div>';
-      html+='<div style="font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ev.title)+'</div>';
+      html+='<div style="font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(ev.title)+(ev.tentative?'<span style="font-size:0.7em;opacity:0.75;margin-left:4px;">(Tentative)</span>':'')+'</div>';
       html+='<div style="display:flex;align-items:center;gap:var(--space-xs);margin-top:2px;">';
       html+='<span class="badge '+badgeClass+'">'+typeLabel+'</span>';
       if(ev.venue) html+='<span style="font-size:11px;color:var(--color-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(ev.venue)+'</span>';
