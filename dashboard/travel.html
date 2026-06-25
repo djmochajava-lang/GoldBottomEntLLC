@@ -53,7 +53,7 @@
     var thHeaders=['Trip','Date','City','Venue','Hotel'];
     if(isLocal) thHeaders.push('Budget');
     if(isLocal) thHeaders.push('Actions');
-    var html='<table class="data-table"><thead><tr>';
+    var html='<table class="data-table data-table-responsive"><thead><tr>';
     thHeaders.forEach(function(h){html+='<th>'+h+'</th>';});
     html+='</tr></thead><tbody>';
     data.forEach(function(t){

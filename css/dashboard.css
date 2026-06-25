@@ -1839,9 +1839,20 @@
   .profile-card { flex-direction: column; gap: var(--space-md); align-items: flex-start; }
 }
 @media (max-width: 480px) {
-  .musician-stats-row { grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+  .musician-stats-row { grid-template-columns: 1fr; gap: var(--space-sm); }
   .musician-stat-card { padding: var(--space-md); }
   .musician-actions-grid { grid-template-columns: 1fr; }
+}
+
+/* Calendar two-column layout — stacks on mobile */
+.cal-two-col {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+@media (max-width: 768px) {
+  .cal-two-col { grid-template-columns: 1fr; }
 }
 
 /* =============================================
