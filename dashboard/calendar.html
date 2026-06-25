@@ -85,12 +85,79 @@
   }
 
   var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  var TYPE_COLORS={gig:'#d4a017',meeting:'#58a6ff',studio:'#bc8cff',deadline:'#f85149',travel:'#3fb950'};
-  var TYPE_BADGES={gig:'badge-gold',meeting:'badge-info',studio:'badge',deadline:'badge-danger',travel:'badge-success'};
+  /* Extended type colors — includes band_sessions session_type values */
+  var TYPE_COLORS={gig:'#d4a017',meeting:'#58a6ff',studio:'#bc8cff',deadline:'#f85149',travel:'#3fb950',rehearsal:'#3fb950',sectional:'#58a6ff',recording:'#bc8cff',show:'#d4a017'};
+  var TYPE_BADGES={gig:'badge-gold',meeting:'badge-info',studio:'badge',deadline:'badge-danger',travel:'badge-success',rehearsal:'badge-success',sectional:'badge-info',recording:'badge',show:'badge-gold'};
+  var TYPE_LABELS={gig:'Gig',meeting:'Meeting',studio:'Studio',deadline:'Deadline',travel:'Travel',rehearsal:'Rehearsal',sectional:'Sectional',recording:'Recording',show:'Show'};
 
   var currentYear=new Date().getFullYear();
   var currentMonth=new Date().getMonth();
   var selectedDay=null;
+
+  /* ── Band Sessions from Firestore ──
+     When remote (public site), pull from Firestore `sessions` collection
+     (read permission: isBandTeam — any authenticated band member or manager).
+     Sessions are mapped to the calendar event format and merged with
+     DataStore.getEvents() (manager-added local events). */
+  var _sessionEvents = [];
+  var _sessionsLoaded = false;
+
+  function _mapSession(doc) {
+    var d = doc.data ? doc.data() : doc;
+    var id = doc.id || d.id || ('sess_' + Math.random().toString(36).slice(2));
+    var dateStr = d.date || '';
+    var timeStr = d.time || '';
+    // Combine date + time into ISO format for calendar
+    var isoDate = dateStr ? (dateStr.length === 10 && timeStr ? dateStr + 'T' + timeStr + ':00' : dateStr + 'T00:00:00') : null;
+    if (!isoDate) return null;
+    var sType = d.session_type || d.sessionType || 'rehearsal';
+    return {
+      id: id,
+      title: d.title || 'Band Session',
+      date: isoDate,
+      type: sType,
+      venue: d.venue || d.location || '',
+      color: TYPE_COLORS[sType] || '#d4a017',
+      _isSession: true  // flag to distinguish from DataStore events
+    };
+  }
+
+  function _loadFirestoreSessions() {
+    if (_sessionsLoaded) { renderCalendar(); renderUpcoming(); return; }
+    var db = (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore() : null;
+    if (!db) { renderCalendar(); renderUpcoming(); return; }
+    db.collection('sessions')
+      .orderBy('date', 'asc')
+      .limit(200)
+      .get()
+      .then(function(snap) {
+        _sessionEvents = [];
+        snap.forEach(function(doc) {
+          var ev = _mapSession(doc);
+          if (ev) _sessionEvents.push(ev);
+        });
+        _sessionsLoaded = true;
+        console.log('[calendar] Loaded ' + _sessionEvents.length + ' sessions from Firestore');
+        renderCalendar();
+        renderUpcoming();
+      })
+      .catch(function(err) {
+        console.warn('[calendar] Firestore sessions fetch failed:', err);
+        _sessionsLoaded = true;
+        renderCalendar();
+        renderUpcoming();
+      });
+  }
+
+  function _getAllEvents() {
+    // Merge DataStore events (manager-added) with Firestore band sessions
+    var local = (typeof DataStore !== 'undefined') ? DataStore.getEvents() : [];
+    // Deduplicate: if a DataStore event has same id as a session, prefer session
+    var sessionIds = {};
+    _sessionEvents.forEach(function(s){ sessionIds[s.id] = true; });
+    var filtered = local.filter(function(e){ return !sessionIds[e.id]; });
+    return filtered.concat(_sessionEvents);
+  }
 
   // --- Render Calendar Grid ---
   function renderCalendar(){
@@ -105,7 +172,7 @@
     var today=new Date();
     var todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
 
-    var events=DataStore.getEvents();
+    var events=_getAllEvents();
     var monthPrefix=currentYear+'-'+String(currentMonth+1).padStart(2,'0');
 
     // Build map of events per day
@@ -206,7 +273,7 @@
     var listEl=document.getElementById('cal-day-list');
     if(!container||!titleEl||!listEl)return;
 
-    var events=DataStore.getEvents().filter(function(e){
+    var events=_getAllEvents().filter(function(e){
       return e.date&&e.date.substring(0,10)===dateStr;
     });
 
@@ -233,11 +300,12 @@
         time=h+':'+String(m).padStart(2,'0')+' '+ampm;
       }
       var badgeClass=TYPE_BADGES[ev.type]||'badge';
+      var typeLabel=TYPE_LABELS[ev.type]||(ev.type||'event');
       html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-md);padding:var(--space-sm) 0;border-bottom:1px solid var(--color-border);">';
       html+='<div style="flex:1;">';
       if(time) html+='<span style="font-size:var(--text-xs);color:var(--color-text-muted);margin-right:var(--space-sm);">'+time+'</span>';
       html+='<strong style="color:var(--color-text);font-size:var(--text-sm);">'+ev.title+'</strong>';
-      html+=' <span class="badge '+badgeClass+'" style="margin-left:var(--space-xs);">'+(ev.type||'event')+'</span>';
+      html+=' <span class="badge '+badgeClass+'" style="margin-left:var(--space-xs);">'+typeLabel+'</span>';
       if(ev.venue) html+='<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;"><i class="fa-solid fa-location-dot"></i> '+ev.venue+'</div>';
       html+='</div>';
       if(isLocal){
@@ -257,7 +325,7 @@
     if(!listEl)return;
 
     var now=new Date().toISOString().substring(0,10);
-    var events=DataStore.getEvents()
+    var events=_getAllEvents()
       .filter(function(e){return e.date&&e.date.substring(0,10)>=now;})
       .sort(function(a,b){return a.date.localeCompare(b.date);})
       .slice(0,8);
@@ -271,13 +339,14 @@
     events.forEach(function(ev){
       var dateDisplay=(typeof Utils!=='undefined')?Utils.formatDate(ev.date):ev.date.substring(0,10);
       var badgeClass=TYPE_BADGES[ev.type]||'badge';
+      var typeLabel=TYPE_LABELS[ev.type]||(ev.type||'event');
       html+='<div style="padding:var(--space-sm) 0;border-bottom:1px solid var(--color-border);">';
       html+='<div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-sm);">';
       html+='<div style="flex:1;min-width:0;">';
       html+='<div style="font-size:var(--text-xs);color:var(--color-text-muted);">'+dateDisplay+'</div>';
       html+='<div style="font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+ev.title+'</div>';
       html+='<div style="display:flex;align-items:center;gap:var(--space-xs);margin-top:2px;">';
-      html+='<span class="badge '+badgeClass+'">'+(ev.type||'event')+'</span>';
+      html+='<span class="badge '+badgeClass+'">'+typeLabel+'</span>';
       if(ev.venue) html+='<span style="font-size:11px;color:var(--color-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+ev.venue+'</span>';
       html+='</div></div>';
       if(isLocal){
@@ -412,7 +481,17 @@
   });
 
   // --- Initial render ---
+  // Always render immediately with DataStore events so the grid appears instantly,
+  // then load Firestore sessions and re-render to merge in band session data.
   renderCalendar();
   renderUpcoming();
+
+  // Load band sessions from Firestore (authenticated users only)
+  // Works on both LAN and remote public site — Firestore rules allow isBandTeam() read
+  if(typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().onAuthStateChanged(function(user) {
+      if(user) _loadFirestoreSessions();
+    });
+  }
 })();
 </script>
