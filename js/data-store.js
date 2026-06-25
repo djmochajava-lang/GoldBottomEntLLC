@@ -1061,7 +1061,7 @@ const DataStore = {
 
   seedEvents() {
     this._save(this.KEYS.EVENTS, [
-      { id: 'evt-001', title: 'L.A. Young — [Venue Name]', date: '2026-06-15T20:00:00', endDate: '2026-06-15T23:00:00', type: 'gig', venue: '[Venue, City]', notes: '[SAMPLE] Edit with your actual event', color: '#d4a017', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 'evt-001', title: 'L.A. Young — Blues Alley Summer Show', date: '2026-06-15T20:00:00', endDate: '2026-06-15T23:00:00', type: 'gig', venue: 'Blues Alley, Washington DC', notes: 'Full band, 2 sets. Rider confirmed by venue.', color: '#d4a017', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-06-25T00:00:00Z' },
       { id: 'evt-002', title: 'Studio Session', date: '2026-03-10T14:00:00', endDate: '2026-03-10T18:00:00', type: 'studio', venue: '[Studio Name]', notes: '[SAMPLE] Edit with your actual session details', color: '#58a6ff', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
       { id: 'evt-003', title: 'Quarterly Tax Deadline', date: '2026-04-15T00:00:00', endDate: '', type: 'deadline', venue: '', notes: 'Q1 estimated tax payment due', color: '#f85149', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
       { id: 'evt-004', title: 'Networking Event', date: '2026-05-20T18:00:00', endDate: '2026-05-20T21:00:00', type: 'meeting', venue: '[Event Location]', notes: '[SAMPLE] Edit with your actual event', color: '#3fb950', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
