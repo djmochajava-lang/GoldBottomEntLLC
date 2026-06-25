@@ -1222,13 +1222,15 @@
       return;
     }
 
-    var statusColors = {
-      draft:    { bg: 'rgba(139,148,158,0.15)', color: '#8b949e' },
-      sent:     { bg: 'rgba(88,166,255,0.15)',  color: '#58a6ff' },
-      accepted: { bg: 'rgba(63,185,80,0.15)',   color: '#3fb950' },
-      declined: { bg: 'rgba(248,81,73,0.15)',   color: '#f85149' },
-      expired:  { bg: 'rgba(139,148,158,0.1)',  color: '#6e7681' }
-    };
+    // Simple two-state pill: sent = gold, anything else = gray.
+    // Backend only writes 'sent' and 'draft' — no multi-state lifecycle yet.
+    function quoteStatusPill(status) {
+      if (status === 'sent') {
+        return pill('rgba(212,160,23,0.15)', '#d4a017', 'Sent');
+      }
+      var label = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Draft';
+      return pill('rgba(139,148,158,0.15)', '#8b949e', label);
+    }
 
     var html = '<div style="overflow-x:auto;"><table class="data-table" style="width:100%;">';
     html += '<thead><tr>';
@@ -1250,7 +1252,6 @@
       var total   = q.total_amount != null ? q.total_amount : (q.total != null ? q.total : null);
       var deposit = q.deposit_amount != null ? q.deposit_amount : null;
       var status  = q.status || 'draft';
-      var sc      = statusColors[status] || statusColors.draft;
       var dateStr = q.created_at ? new Date(q.created_at.seconds ? q.created_at.seconds * 1000 : q.created_at).toLocaleDateString() : '-';
 
       html += '<tr>';
@@ -1259,8 +1260,7 @@
               (total != null ? '$' + parseFloat(total).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-') + '</td>';
       html += '<td data-label="Deposit" style="text-align:right;font-size:var(--text-sm);color:var(--color-text-muted);">' +
               (deposit != null ? '$' + parseFloat(deposit).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-') + '</td>';
-      html += '<td data-label="Status" style="text-align:center;">' +
-              pill(sc.bg, sc.color, status.charAt(0).toUpperCase() + status.slice(1)) + '</td>';
+      html += '<td data-label="Status" style="text-align:center;">' + quoteStatusPill(status) + '</td>';
       html += '<td data-label="Date" style="font-size:0.8rem;color:var(--color-text-muted);">' + esc(dateStr) + '</td>';
       html += '</tr>';
     });
