@@ -375,23 +375,34 @@
   });
 
   /* ==================================================================
-     INQUIRIES TAB — Server API only (not available on GitHub Pages)
+     INQUIRIES TAB — /api/v1/booking-inbox (public + local)
      ================================================================== */
 
   var inquiriesData = [];
 
   async function loadInquiries() {
     if (!document.getElementById('tab-inquiries')) return; // not on the booking page — exit silently
-    if (!isLocal) {
-      document.getElementById('tab-inquiries').innerHTML =
-        '<p class="text-muted" style="text-align:center;padding:var(--space-xl);"><i class="fa-solid fa-lock"></i> Booking inquiries are only available on the private server dashboard.</p>';
-      return;
-    }
     try {
-      var data = await apiFetch('/queue/inquiries?limit=200');
-      inquiriesData = data.records || [];
-      renderInquiriesStats();
-      renderInquiriesKanban(data.byStage || {});
+      var data = await Utils.apiFetch('/booking-inbox?limit=200');
+      inquiriesData = data.data || [];
+      // Build byStage map from flat row array using classification + is_read fields
+      var byStage = { new: [], reviewing: [], info_requested: [], qualified: [], declined: [] };
+      inquiriesData.forEach(function(r) {
+        if (r.classification === 'booking_inquiry') {
+          if (!r.is_read) {
+            byStage.new.push(r);
+          } else {
+            byStage.reviewing.push(r);
+          }
+        } else if (r.classification === 'booking_followup') {
+          byStage.info_requested.push(r);
+        } else if (r.classification === 'spam' || r.classification === 'notification' || r.classification === 'internal') {
+          byStage.declined.push(r);
+        }
+        // qualified column intentionally left empty (none qualify automatically)
+      });
+      renderInquiriesStats(byStage);
+      renderInquiriesKanban(byStage);
       document.getElementById('tab-count-inquiries').textContent = data.total || 0;
     } catch (e) {
       console.error('[Booking] Inquiries load error:', e);
@@ -400,11 +411,11 @@
     }
   }
 
-  function renderInquiriesStats() {
+  function renderInquiriesStats(byStage) {
     var bar = document.getElementById('inquiries-stats-bar');
     if (!bar) return; // not on the booking page — exit silently
-    var counts = { new: 0, reviewing: 0, info_requested: 0, qualified: 0, declined: 0 };
-    inquiriesData.forEach(function(r) { if (counts[r.inquiry_stage] !== undefined) counts[r.inquiry_stage]++; });
+    byStage = byStage || { new: [], reviewing: [], info_requested: [], qualified: [], declined: [] };
+    var counts = { new: (byStage.new||[]).length, reviewing: (byStage.reviewing||[]).length, info_requested: (byStage.info_requested||[]).length, qualified: (byStage.qualified||[]).length, declined: (byStage.declined||[]).length };
 
     var html = '';
     inquiryStages.forEach(function(s) {
@@ -432,30 +443,29 @@
       var html = '';
       items.forEach(function(r) {
         var pp = priorityPill[r.priority] || priorityPill.P3;
-        var msgPreview = (r.message || '').substring(0, 80);
-        if ((r.message || '').length > 80) msgPreview += '...';
+        var senderDisplay = r.from_name || r.from_addr || r.name || r.email || 'Unknown';
+        var bodyPreview = (r.body_text || r.message || '').substring(0, 80);
+        if ((r.body_text || r.message || '').length > 80) bodyPreview += '...';
+        var isUnread = !r.is_read;
+        var isStarred = !!r.is_starred;
 
-        html += '<div class="pipeline-card card inquiry-card" data-id="' + r.id + '" style="margin-bottom:var(--space-sm);padding:var(--space-sm);border-left:3px solid ' + stage.color + ';cursor:pointer;">';
+        html += '<div class="pipeline-card card inquiry-card" data-id="' + r.id + '" style="margin-bottom:var(--space-sm);padding:var(--space-sm);border-left:3px solid ' + stage.color + ';cursor:pointer;' + (isUnread ? 'font-weight:600;' : '') + '">';
         html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;">';
-        html += '<strong style="font-size:0.85rem;line-height:1.3;">' + esc(r.name || r.email) + '</strong>';
-        html += pill(pp.bg, pp.color, r.priority);
+        html += '<strong style="font-size:0.85rem;line-height:1.3;">' + esc(senderDisplay) + (isStarred ? ' <i class="fa-solid fa-star" style="color:#d4a017;font-size:0.7rem;"></i>' : '') + '</strong>';
+        html += pill(pp.bg, pp.color, r.priority || 'P3');
         html += '</div>';
         if (r.subject) {
           html += '<div style="font-size:0.8rem;color:var(--color-text);margin-top:4px;font-weight:500;">' + esc(r.subject) + '</div>';
         }
-        if (msgPreview) {
-          html += '<div style="font-size:0.78rem;color:var(--color-text-muted);margin-top:4px;line-height:1.4;">' + esc(msgPreview) + '</div>';
+        if (bodyPreview) {
+          html += '<div style="font-size:0.78rem;color:var(--color-text-muted);margin-top:4px;line-height:1.4;">' + esc(bodyPreview) + '</div>';
         }
         html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">';
-        html += '<span style="font-size:0.7rem;color:var(--color-text-muted);">' + timeAgo(r.submitted_at || r.ingested_at) + '</span>';
-        if (r.source) {
-          var srcColors = { 'direct-email': '#3fb950', 'la-young': '#d4a017', 'la-young-epk': '#d4a017', 'gbe-public': '#58a6ff' };
-          html += '<span style="font-size:0.68rem;color:' + (srcColors[r.source] || '#8b949e') + ';">' + esc(r.source) + '</span>';
+        html += '<span style="font-size:0.7rem;color:var(--color-text-muted);">' + timeAgo(r.received_at || r.submitted_at || r.created_at) + '</span>';
+        if (isUnread) {
+          html += '<span style="font-size:0.68rem;color:#58a6ff;"><i class="fa-solid fa-circle" style="font-size:0.5rem;"></i> Unread</span>';
         }
         html += '</div>';
-        if (r.booking_id) {
-          html += '<div style="margin-top:4px;">' + pill('rgba(63,185,80,0.15)', '#3fb950', 'Booking Created') + '</div>';
-        }
         html += '</div>';
       });
       col.innerHTML = html;
@@ -470,103 +480,130 @@
   /* ---- Inquiry Detail Modal ---- */
   async function openInquiryDetail(id) {
     try {
-      var r = await apiFetch('/queue/' + id);
+      var r = await Utils.apiFetch('/booking-inbox/' + id);
 
+      var senderDisplay = r.from_name ? (r.from_name + ' <' + r.from_addr + '>') : (r.from_addr || 'Unknown');
       var html = '<h2 style="margin:0 0 var(--space-sm) 0;font-size:1.2rem;">' + esc(r.subject || 'Booking Inquiry') + '</h2>';
 
-      // Stage + priority badges
-      var stageInfo = inquiryStages.find(function(s) { return s.key === r.inquiry_stage; }) || inquiryStages[0];
+      // Classification + priority badges
+      var classLabel = { booking_inquiry: 'Booking Inquiry', booking_followup: 'Follow-up', spam: 'Spam', notification: 'Notification', internal: 'Internal' };
+      var classColors = { booking_inquiry: '#58a6ff', booking_followup: '#bc8cff', spam: '#8b949e', notification: '#8b949e', internal: '#8b949e' };
+      var clsColor = classColors[r.classification] || '#8b949e';
       html += '<div style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-md);">';
-      html += pill('rgba(' + hexToRGB(stageInfo.color) + ',0.15)', stageInfo.color, stageInfo.label);
+      html += pill('rgba(' + hexToRGB(clsColor) + ',0.15)', clsColor, classLabel[r.classification] || r.classification);
       var pp = priorityPill[r.priority] || priorityPill.P3;
-      html += pill(pp.bg, pp.color, r.priority);
+      html += pill(pp.bg, pp.color, r.priority || 'P3');
+      if (r.is_read) html += pill('rgba(139,148,158,0.15)', '#8b949e', 'Read');
+      else html += pill('rgba(88,166,255,0.15)', '#58a6ff', 'Unread');
+      if (r.is_starred) html += pill('rgba(212,160,23,0.15)', '#d4a017', '★ Starred');
       html += '</div>';
-
-      // Reply From indicator
-      html += replyFromHTML(r.inquiry_stage);
 
       // Contact info
       html += '<div style="display:grid;grid-template-columns:110px 1fr;gap:4px var(--space-sm);margin-bottom:var(--space-md);font-size:var(--text-sm);">';
-      html += '<div style="color:var(--color-text-muted);font-weight:600;">From</div><div>' + esc(r.name ? (r.name + ' <' + r.email + '>') : r.email) + '</div>';
-      if (r.phone) html += '<div style="color:var(--color-text-muted);font-weight:600;">Phone</div><div>' + esc(r.phone) + '</div>';
-      if (r.company) html += '<div style="color:var(--color-text-muted);font-weight:600;">Venue/Org</div><div>' + esc(r.company) + '</div>';
-      if (r.event_date) html += '<div style="color:var(--color-text-muted);font-weight:600;">Event Date</div><div>' + esc(r.event_date) + '</div>';
-      if (r.budget) html += '<div style="color:var(--color-text-muted);font-weight:600;">Budget</div><div>' + esc(r.budget) + '</div>';
-      html += '<div style="color:var(--color-text-muted);font-weight:600;">Received</div><div>' + new Date(r.submitted_at).toLocaleString() + '</div>';
+      html += '<div style="color:var(--color-text-muted);font-weight:600;">From</div><div>' + esc(senderDisplay) + '</div>';
+      html += '<div style="color:var(--color-text-muted);font-weight:600;">Received</div><div>' + new Date(r.received_at || r.created_at).toLocaleString() + '</div>';
       html += '</div>';
 
-      // Conversation Thread
-      html += '<div style="margin-bottom:var(--space-md);">';
-      html += '<h3 style="font-size:0.9rem;margin:0 0 var(--space-sm) 0;"><i class="fa-solid fa-comments" style="color:var(--color-gold);margin-right:4px;"></i> Conversation</h3>';
-
-      // Load thread messages
-      var threadMsgs = [];
-      if (r.thread_key) {
-        try {
-          var threadData = await apiFetch('/queue/thread/' + encodeURIComponent(r.thread_key));
-          threadMsgs = threadData.messages || [];
-        } catch (e) {
-          threadMsgs = [r]; // Fallback: just show this record
-        }
-      } else {
-        threadMsgs = [r];
+      // Body
+      if (r.body_text) {
+        html += '<div style="margin-bottom:var(--space-md);padding:var(--space-md);background:var(--color-bg);border-radius:var(--radius-sm);border:1px solid var(--color-border);">';
+        html += '<div style="font-size:0.82rem;color:var(--color-text-muted);white-space:pre-wrap;line-height:1.6;max-height:300px;overflow-y:auto;">' + esc(r.body_text) + '</div>';
+        html += '</div>';
       }
 
-      threadMsgs.forEach(function(msg) {
-        html += '<div style="border-left:3px solid var(--color-gold);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-sm);background:var(--color-bg);border-radius:0 var(--radius-sm) var(--radius-sm) 0;">';
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
-        html += '<strong style="font-size:0.8rem;">' + esc(msg.name || msg.email) + '</strong>';
-        html += '<span style="font-size:0.72rem;color:var(--color-text-muted);">' + new Date(msg.submitted_at).toLocaleString() + '</span>';
-        html += '</div>';
-        if (msg.subject) html += '<div style="font-size:0.8rem;font-weight:500;margin-bottom:4px;">' + esc(msg.subject) + '</div>';
-        if (msg.message) html += '<div style="font-size:0.82rem;color:var(--color-text-muted);white-space:pre-wrap;line-height:1.5;max-height:200px;overflow-y:auto;">' + esc(msg.message) + '</div>';
-        html += '</div>';
-      });
-      html += '</div>';
-
-      // Stage Actions
+      // Action buttons — read/unread, star, reclassify
       html += '<div style="padding-top:var(--space-md);border-top:1px solid var(--color-border);display:flex;gap:var(--space-sm);flex-wrap:wrap;align-items:center;">';
-      html += '<label style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-muted);">Move to:</label>';
-      html += '<select id="inq-stage-select" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">';
-      inquiryStages.forEach(function(s) {
-        html += '<option value="' + s.key + '"' + (r.inquiry_stage === s.key ? ' selected' : '') + '>' + s.label + '</option>';
+      html += '<button id="inq-read-btn" data-id="' + r.id + '" data-is-read="' + (r.is_read ? '1' : '0') + '" class="btn" style="font-size:var(--text-sm);">' +
+        '<i class="fa-solid ' + (r.is_read ? 'fa-envelope' : 'fa-envelope-open') + '"></i> ' + (r.is_read ? 'Mark Unread' : 'Mark Read') + '</button>';
+      html += '<button id="inq-star-btn" data-id="' + r.id + '" class="btn" style="font-size:var(--text-sm);' + (r.is_starred ? 'color:#d4a017;' : '') + '">' +
+        '<i class="fa-' + (r.is_starred ? 'solid' : 'regular') + ' fa-star"></i> ' + (r.is_starred ? 'Unstar' : 'Star') + '</button>';
+
+      // Reclassify (classify action)
+      html += '<select id="inq-classify-select" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">';
+      ['booking_inquiry', 'booking_followup', 'spam', 'notification', 'internal'].forEach(function(c) {
+        html += '<option value="' + c + '"' + (r.classification === c ? ' selected' : '') + '>' + (classLabel[c] || c) + '</option>';
       });
       html += '</select>';
-      html += '<button id="inq-save-btn" data-id="' + r.id + '" class="btn btn-primary" style="margin-left:auto;">Update Stage</button>';
+      html += '<button id="inq-classify-btn" data-id="' + r.id + '" class="btn btn-primary" style="font-size:var(--text-sm);">Reclassify</button>';
+
+      // Delete (soft)
+      html += '<button id="inq-delete-btn" data-id="' + r.id + '" class="btn" style="margin-left:auto;font-size:var(--text-sm);background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);">' +
+        '<i class="fa-solid fa-trash"></i> Delete</button>';
       html += '</div>';
 
-      if (r.booking_id) {
-        html += '<div style="margin-top:var(--space-sm);padding:var(--space-sm);background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.2);border-radius:var(--radius-sm);font-size:var(--text-sm);">';
-        html += '<i class="fa-solid fa-circle-check" style="color:#3fb950;"></i> Booking created: <strong>' + esc(r.booking_id) + '</strong> — visible in Pipeline tab.';
-        html += '</div>';
+      // LAN-only: email reply notice
+      if (isLocal) {
+        html += replyFromHTML(r.classification === 'booking_inquiry' ? 'new' : r.classification);
       }
 
       openModal(html);
 
-      // Save handler
-      document.getElementById('inq-save-btn').addEventListener('click', async function() {
+      // Read/Unread toggle
+      document.getElementById('inq-read-btn').addEventListener('click', async function() {
         var btn = this;
-        var newStage = document.getElementById('inq-stage-select').value;
+        var isRead = btn.dataset.isRead === '1';
+        var endpoint = '/booking-inbox/' + btn.dataset.id + (isRead ? '/unread' : '/read');
+        btn.disabled = true;
+        try {
+          await Utils.apiFetch(endpoint, { method: 'PUT' });
+          closeModal();
+          if (typeof Toast !== 'undefined') Toast.success(isRead ? 'Marked unread' : 'Marked read');
+          loadInquiries();
+        } catch (e) {
+          alert('Failed: ' + e.message);
+          btn.disabled = false;
+        }
+      });
+
+      // Star toggle
+      document.getElementById('inq-star-btn').addEventListener('click', async function() {
+        var btn = this;
+        btn.disabled = true;
+        try {
+          var result = await Utils.apiFetch('/booking-inbox/' + btn.dataset.id + '/star', { method: 'PUT' });
+          closeModal();
+          if (typeof Toast !== 'undefined') Toast.success(result.is_starred ? 'Starred' : 'Unstarred');
+          loadInquiries();
+        } catch (e) {
+          alert('Failed: ' + e.message);
+          btn.disabled = false;
+        }
+      });
+
+      // Reclassify
+      document.getElementById('inq-classify-btn').addEventListener('click', async function() {
+        var btn = this;
+        var classification = document.getElementById('inq-classify-select').value;
         btn.disabled = true;
         btn.textContent = 'Saving...';
         try {
-          var result = await apiFetch('/queue/' + btn.dataset.id + '/inquiry-stage', {
+          await Utils.apiFetch('/booking-inbox/' + btn.dataset.id + '/classify', {
             method: 'PUT',
-            body: JSON.stringify({ stage: newStage })
+            body: JSON.stringify({ classification: classification })
           });
           closeModal();
-          if (result.booking) {
-            if (typeof Toast !== 'undefined') Toast.success(result.message || 'Inquiry qualified — booking created!');
-          } else {
-            if (typeof Toast !== 'undefined') Toast.success('Inquiry moved to ' + newStage);
-          }
+          if (typeof Toast !== 'undefined') Toast.success('Reclassified as ' + (classLabel[classification] || classification));
           loadInquiries();
-          loadPipeline();
         } catch (e) {
-          alert('Failed to update: ' + e.message);
-        } finally {
+          alert('Failed: ' + e.message);
           btn.disabled = false;
-          btn.textContent = 'Update Stage';
+          btn.textContent = 'Reclassify';
+        }
+      });
+
+      // Delete (soft)
+      document.getElementById('inq-delete-btn').addEventListener('click', async function() {
+        if (!confirm('Delete this inquiry?')) return;
+        var btn = this;
+        btn.disabled = true;
+        try {
+          await Utils.apiFetch('/booking-inbox/' + btn.dataset.id, { method: 'DELETE' });
+          closeModal();
+          if (typeof Toast !== 'undefined') Toast.success('Inquiry deleted');
+          loadInquiries();
+        } catch (e) {
+          alert('Failed: ' + e.message);
+          btn.disabled = false;
         }
       });
 
