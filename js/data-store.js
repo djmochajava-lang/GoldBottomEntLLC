@@ -709,6 +709,23 @@ const DataStore = {
       console.log('🖥️ DataStore: migrated IT servers');
     }
 
+    // One-time migration: contracts schema name→title (STORY-002 2026-06-25)
+    var existingContracts = this._getAll(this.KEYS.CONTRACTS);
+    if (existingContracts.length > 0 && existingContracts[0].title === undefined && existingContracts[0].name !== undefined) {
+      var migratedContracts = existingContracts.map(function(c) {
+        var parts = (c.parties || '').split(' / ');
+        return Object.assign({}, c, {
+          title: c.name,
+          partyA: parts[0] || 'Gold Bottom Ent LLC',
+          partyB: parts[1] || '[Party Name]',
+          name: undefined,
+          parties: undefined
+        });
+      });
+      this._save(this.KEYS.CONTRACTS, migratedContracts);
+      console.log('📄 DataStore: migrated contracts name→title');
+    }
+
     if (Utils.storage.get(this.KEYS.ROSTER)) {
       // Migrate: inject Soul Society band members if missing
       var roster = this._getAll(this.KEYS.ROSTER);
