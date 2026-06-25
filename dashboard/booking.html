@@ -381,6 +381,7 @@
   var inquiriesData = [];
 
   async function loadInquiries() {
+    if (!document.getElementById('tab-inquiries')) return; // not on the booking page — exit silently
     if (!isLocal) {
       document.getElementById('tab-inquiries').innerHTML =
         '<p class="text-muted" style="text-align:center;padding:var(--space-xl);"><i class="fa-solid fa-lock"></i> Booking inquiries are only available on the private server dashboard.</p>';
@@ -400,10 +401,11 @@
   }
 
   function renderInquiriesStats() {
+    var bar = document.getElementById('inquiries-stats-bar');
+    if (!bar) return; // not on the booking page — exit silently
     var counts = { new: 0, reviewing: 0, info_requested: 0, qualified: 0, declined: 0 };
     inquiriesData.forEach(function(r) { if (counts[r.inquiry_stage] !== undefined) counts[r.inquiry_stage]++; });
 
-    var bar = document.getElementById('inquiries-stats-bar');
     var html = '';
     inquiryStages.forEach(function(s) {
       html += '<div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);text-align:center;">' +
@@ -581,6 +583,7 @@
   var pipelineData = [];
 
   async function loadPipeline() {
+    if (!document.getElementById('pipeline-stats-bar')) return; // not on the booking page — exit silently
     try {
       if (isLocal) {
         var items = await apiFetch('/bookings');
@@ -606,6 +609,7 @@
 
   function renderPipelineStats() {
     var bar = document.getElementById('pipeline-stats-bar');
+    if (!bar) return; // not on the booking page — exit silently
     var total = pipelineData.length;
     var pipelineValue = 0;
     var activeCount = 0;

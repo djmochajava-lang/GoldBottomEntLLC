@@ -354,6 +354,7 @@
 
   // Load pipeline table — branches on local (Express) vs remote (Firestore)
   async function loadPipeline() {
+    if (!document.getElementById('quote-table-body')) return; // not on the quotes page — exit silently
     if (isLocal) {
       loadPipelineExpress();
     } else {
