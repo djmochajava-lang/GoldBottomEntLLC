@@ -1966,7 +1966,7 @@ const Auth = {
             '<a id="auth-email-toggle" href="#" style="color:#d4a017;font-size:12px;' +
               'text-decoration:none;transition:opacity 0.2s;">Create an account</a>' +
             '<a id="auth-email-forgot" href="#" style="color:rgba(255,255,255,0.4);font-size:12px;' +
-              'text-decoration:none;transition:opacity 0.2s;">Forgot password?</a>' +
+              'text-decoration:none;transition:opacity 0.2s;min-height:44px;display:inline-flex;align-items:center;padding:8px 0;">Forgot password?</a>' +
           '</div>' +
         '</form>' +
         // Error area
