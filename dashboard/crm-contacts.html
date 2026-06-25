@@ -272,6 +272,7 @@
 
   /* ---- Edit Contact ---- */
   window.crmEditContact = function(id) {
+    if (!isLocal) return;
     var ct = contactsCache.find(function(c) { return c.id === id; });
     if (!ct || typeof Modal === 'undefined') return;
     Modal.open({
@@ -294,6 +295,7 @@
 
   /* ---- Delete Contact (soft-delete) ---- */
   window.crmDeleteContact = function(id) {
+    if (!isLocal) return;
     var ct = contactsCache.find(function(c) { return c.id === id; });
     if (!ct) return;
     Modal.confirm('Delete "' + ct.name + '" from CRM contacts?', function() {
