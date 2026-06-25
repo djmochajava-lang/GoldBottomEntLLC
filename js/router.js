@@ -158,8 +158,8 @@ const Router = {
     'dashboard-export',
     // dashboard-quotes removed from local-only — now uses Firestore quote_pipeline for remote read access
     // dashboard-inbox removed from local-only — now uses Firestore inbox_pipeline for remote read access
-    'dashboard-contacts',
-    'dashboard-crm-contacts',
+    // dashboard-contacts removed from local-only — crm-contacts.html has graceful empty state when HomeOffice is offline
+    // dashboard-crm-contacts removed from local-only — same reason
     'dashboard-claude-agent',
     // dashboard-tickets removed from local-only — now uses Firestore for event/tier CRUD (DEF-013)
     // dashboard-field is intentionally NOT local-only — it has offline fallbacks
