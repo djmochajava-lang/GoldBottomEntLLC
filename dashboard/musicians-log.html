@@ -49,6 +49,17 @@
     </button>
   </div>
 
+  <!-- Name Search -->
+  <div style="margin-bottom:var(--space-sm);display:flex;align-items:center;gap:var(--space-sm);">
+    <div style="position:relative;flex:1;max-width:360px;">
+      <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-text-muted);pointer-events:none;font-size:13px;"></i>
+      <input id="ml-name-search" type="search" placeholder="Search by name…" autocomplete="off"
+        style="width:100%;box-sizing:border-box;padding:8px 36px 8px 34px;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);color:var(--color-text);font-size:14px;min-height:40px;" />
+      <button id="ml-name-search-clear" type="button" aria-label="Clear search"
+        style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--color-text-muted);cursor:pointer;font-size:14px;padding:4px;line-height:1;min-height:32px;min-width:32px;">×</button>
+    </div>
+  </div>
+
   <!-- Instrument Filter -->
   <div style="margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-sm);">
     <label style="font-size:var(--text-sm);color:var(--color-text-muted);white-space:nowrap;"><i class="fa-solid fa-guitar" style="margin-right:4px;"></i>Instrument</label>
@@ -266,6 +277,7 @@
   var _musicians = [];
   var _filter = 'all';
   var _instrumentFilter = '';
+  var _nameSearch = '';
   var _editId = null;
   var _encKey = null; // CryptoKey for AES-256-GCM
   var _pendingByEmail = {}; // lowercased email → { uid, displayName, registeredAt }
@@ -473,6 +485,12 @@
         return (m.instrument || '').toLowerCase() === _instrumentFilter.toLowerCase();
       });
     }
+    if (_nameSearch) {
+      var q = _nameSearch.toLowerCase();
+      list = list.filter(function(m) {
+        return (m._fullName || '').toLowerCase().indexOf(q) !== -1;
+      });
+    }
     return list;
   }
 
@@ -529,8 +547,12 @@
     var list = getFiltered();
 
     if (!list.length) {
-      var msg = _filter === 'all' ? 'No musicians yet. Tap + to add one.' : 'No musicians with status "' + (STATUS_LABELS[_filter] || _filter) + '".';
-      container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-address-book" style="font-size:2.5rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;"></i>' + esc(msg) + '</div>';
+      if (_nameSearch) {
+        container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-magnifying-glass" style="font-size:2rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;"></i>No musicians match "<strong>' + esc(_nameSearch) + '</strong>".</div>';
+      } else {
+        var msg = _filter === 'all' ? 'No musicians yet. Tap + to add one.' : 'No musicians with status "' + (STATUS_LABELS[_filter] || _filter) + '".';
+        container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);grid-column:1/-1;"><i class="fa-solid fa-address-book" style="font-size:2.5rem;display:block;margin-bottom:var(--space-sm);opacity:0.2;"></i>' + esc(msg) + '</div>';
+      }
       return;
     }
 
@@ -1234,6 +1256,26 @@
       renderCards();
     });
   });
+
+  // ═══ NAME SEARCH ═══
+
+  var nameSearch = document.getElementById('ml-name-search');
+  var nameSearchClear = document.getElementById('ml-name-search-clear');
+  if (nameSearch) {
+    nameSearch.addEventListener('input', function() {
+      _nameSearch = this.value.trim();
+      if (nameSearchClear) nameSearchClear.style.display = _nameSearch ? 'block' : 'none';
+      renderCards();
+    });
+  }
+  if (nameSearchClear) {
+    nameSearchClear.addEventListener('click', function() {
+      _nameSearch = '';
+      if (nameSearch) { nameSearch.value = ''; }
+      nameSearchClear.style.display = 'none';
+      renderCards();
+    });
+  }
 
   // ═══ INSTRUMENT FILTER ═══
 
