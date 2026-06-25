@@ -124,17 +124,28 @@
 
   // ── Load Agreements ────────────────────────
   function loadAgreements() {
-    db.collection('agreements').orderBy('sentAt', 'desc').limit(50).get()
-      .then(function(snap) {
-        allAgreements = [];
-        snap.forEach(function(doc) { allAgreements.push(Object.assign({ _id: doc.id }, doc.data())); });
+    var el = document.getElementById('agr-list');
+    if (el) el.innerHTML = '<div style="text-align:center;padding:var(--space-lg);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+
+    // Band Manager / admin sees all; band_member sees only their own agreements
+    var uid = Auth.getCurrentUser ? Auth.getCurrentUser().uid : null;
+    var isBM = Auth.isInternalStaff ? Auth.isInternalStaff() : false;
+    var params = '?limit=100' + ((!isBM && uid) ? '&musicianId=' + encodeURIComponent(uid) : '');
+
+    Utils.apiFetch('/api/v1/agreements' + params)
+      .then(function(data) {
+        allAgreements = (data && data.agreements) ? data.agreements : [];
+        // Normalize field names for rendering (API uses musicianName; Firestore used musicianId as display)
+        allAgreements.forEach(function(a) {
+          if (!a._id && a.id) a._id = a.id;
+          if (!a.musicianId) a.musicianId = a.musicianName || '';
+        });
         updateStats();
         renderAgreements();
       })
       .catch(function(err) {
-        console.warn('[Agreements] Load failed:', err.message);
-        var el = document.getElementById('agr-list');
-        if (el) el.innerHTML = '<p class="text-muted">Could not load agreements: ' + err.message + '</p>';
+        console.warn('[Agreements] Load failed:', err && err.message ? err.message : err);
+        if (el) el.innerHTML = '<p class="text-muted">Could not load agreements. The server may be offline.</p>';
       });
   }
 
@@ -164,8 +175,8 @@
 
     var html = '';
     filtered.forEach(function(a) {
-      var sentDate = a.sentAt && a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : '';
-      var signedDate = a.signedAt && a.signedAt.toDate ? a.signedAt.toDate().toLocaleDateString() : '';
+      var sentDate = a.sentAt ? (a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : new Date(a.sentAt).toLocaleDateString()) : '';
+      var signedDate = a.signedAt ? (a.signedAt.toDate ? a.signedAt.toDate().toLocaleDateString() : new Date(a.signedAt).toLocaleDateString()) : '';
       var badgeClass = a.status === 'completed' ? 'agr-badge-signed' : a.status === 'signed' ? 'agr-badge-signed' : a.status === 'pending' ? 'agr-badge-pending' : 'agr-badge-expired';
       var statusLabel = a.status === 'completed' ? 'Completed' + (signedDate ? ' ' + signedDate : '') : a.status === 'signed' ? 'Signed' + (signedDate ? ' ' + signedDate : '') : a.status === 'pending' ? 'Pending' : a.status;
 
@@ -180,7 +191,7 @@
       html += '<div class="agr-row">'
         + '<div class="agr-row-info">'
         + '<h3>' + esc(a.title || 'Agreement') + '</h3>'
-        + '<p>' + esc(a.musicianId || 'Unknown musician') + (sentDate ? ' &middot; Sent ' + sentDate : '') + '</p>'
+        + '<p>' + esc(a.musicianName || a.musicianId || 'Unknown musician') + (sentDate ? ' &middot; Sent ' + sentDate : '') + '</p>'
         + '</div>'
         + '<div style="display:flex;align-items:center;gap:var(--space-sm);">' + actions + '</div></div>';
     });
