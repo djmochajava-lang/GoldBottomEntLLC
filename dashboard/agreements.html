@@ -157,7 +157,7 @@
   function updateStats() {
     var pending = 0, signed = 0, expired = 0;
     allAgreements.forEach(function(a) {
-      if (a.status === 'pending') pending++;
+      if (a.status === 'sent' || a.status === 'viewed') pending++;
       else if (a.status === 'signed') signed++;
       else if (a.status === 'expired') expired++;
     });
@@ -171,10 +171,10 @@
     var el = document.getElementById('agr-list');
     if (!el) return;
 
-    var filtered = currentFilter === 'all' ? allAgreements : allAgreements.filter(function(a) { return a.status === currentFilter; });
+    var filtered = currentFilter === 'all' ? allAgreements : currentFilter === 'pending' ? allAgreements.filter(function(a) { return a.status === 'sent' || a.status === 'viewed'; }) : allAgreements.filter(function(a) { return a.status === currentFilter; });
 
     if (filtered.length === 0) {
-      el.innerHTML = '<div class="musician-empty-state"><i class="fa-solid fa-file-circle-check"></i><p>No agreements ' + (currentFilter === 'all' ? '' : 'with status "' + currentFilter + '"') + '.</p></div>';
+      el.innerHTML = '<div class="musician-empty-state"><i class="fa-solid fa-file-circle-check"></i><p>No agreements ' + (currentFilter === 'all' ? '' : currentFilter === 'pending' ? 'pending signature' : 'with status "' + currentFilter + '"') + '.</p></div>';
       return;
     }
 
@@ -182,8 +182,8 @@
     filtered.forEach(function(a) {
       var sentDate = a.sentAt ? (a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : new Date(a.sentAt).toLocaleDateString()) : '';
       var signedDate = a.signedAt ? (a.signedAt.toDate ? a.signedAt.toDate().toLocaleDateString() : new Date(a.signedAt).toLocaleDateString()) : '';
-      var badgeClass = a.status === 'completed' ? 'agr-badge-signed' : a.status === 'signed' ? 'agr-badge-signed' : a.status === 'pending' ? 'agr-badge-pending' : 'agr-badge-expired';
-      var statusLabel = a.status === 'completed' ? 'Completed' + (signedDate ? ' ' + signedDate : '') : a.status === 'signed' ? 'Signed' + (signedDate ? ' ' + signedDate : '') : a.status === 'pending' ? 'Pending' : a.status;
+      var badgeClass = a.status === 'completed' ? 'agr-badge-signed' : a.status === 'signed' ? 'agr-badge-signed' : (a.status === 'sent' || a.status === 'viewed') ? 'agr-badge-pending' : 'agr-badge-expired';
+      var statusLabel = a.status === 'completed' ? 'Completed' + (signedDate ? ' ' + signedDate : '') : a.status === 'signed' ? 'Signed' + (signedDate ? ' ' + signedDate : '') : a.status === 'sent' ? 'Pending' : a.status === 'viewed' ? 'Viewed' : a.status;
 
       var actions = '<span class="agr-badge ' + badgeClass + '">' + statusLabel + '</span>';
       if (a.status === 'signed' && !a.countersignedAt) {
