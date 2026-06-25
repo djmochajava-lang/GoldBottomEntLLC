@@ -73,10 +73,8 @@ const Router = {
     'dashboard-metrics': 'dashboard/metrics.html',
     'dashboard-export': 'dashboard/export.html',
 
-    // Booking Inbox + CRM
-    'dashboard-contacts': 'dashboard/contacts.html',
-
-    // CRM Contacts (local-only admin page)
+    // Contacts / CRM — quick link and dedicated route both load crm-contacts.html
+    'dashboard-contacts': 'dashboard/crm-contacts.html',
     'dashboard-crm-contacts': 'dashboard/crm-contacts.html',
 
     // Band Manager Field View (mobile-optimized)
@@ -712,6 +710,7 @@ const Router = {
       'dashboard-field': 'Field View',
       'dashboard-band-player': 'Band Player',
       'dashboard-payment-settings': 'Payment Info',
+      'dashboard-contacts':      'Contacts',
       'dashboard-crm-contacts': 'CRM Contacts',
       'dashboard-quotes': 'Quote Pipeline',
       'dashboard-tickets': 'Ticket Sales',
