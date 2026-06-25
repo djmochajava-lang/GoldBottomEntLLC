@@ -94,6 +94,9 @@ const Router = {
     // Agreement Management (band manager)
     'dashboard-agreements': 'dashboard/agreements.html',
 
+    // Deals & Agreements Tracker (band manager) — STORY-009
+    'dashboard-deals': 'dashboard/deals.html',
+
     // Ticket Sales (FRD-8)
     'dashboard-tickets': 'dashboard/tickets.html',
 
@@ -397,6 +400,7 @@ const Router = {
           'dashboard-sessions': ['admin', 'band_manager'],
           'dashboard-my-portal': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-agreements': ['admin', 'band_manager', 'artist', 'band_member'],
+          'dashboard-deals':      ['admin', 'band_manager'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
         var _currentRole = Auth.getRole ? Auth.getRole() : 'member';
