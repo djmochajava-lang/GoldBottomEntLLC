@@ -9,6 +9,9 @@
     </div>
   </div>
 
+  <!-- Pending Agreement Alert (rendered by JS when agreements need action) -->
+  <div id="mp-agreement-alert"></div>
+
   <!-- Quick Stats Row -->
   <div class="musician-stats-row" id="mp-stats-row">
     <div class="musician-stat-card">
@@ -48,6 +51,17 @@
       <div class="musician-empty-state" id="mp-agreements-empty">
         <i class="fa-solid fa-file-circle-check"></i>
         <p>No agreements pending.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rehearsal Playlist -->
+  <div class="musician-section" id="mp-playlist-section">
+    <h2><i class="fa-solid fa-music" style="color:var(--color-gold);"></i> Rehearsal Playlist</h2>
+    <div id="mp-playlist-card">
+      <div class="musician-empty-state" id="mp-playlist-empty">
+        <i class="fa-solid fa-list-music"></i>
+        <p>No rehearsal playlist assigned.</p>
       </div>
     </div>
   </div>
@@ -131,6 +145,10 @@
         <i class="fa-solid fa-plane"></i>
         <span>Travel</span>
       </a>
+      <a href="#dashboard-agreements" class="musician-action-card">
+        <i class="fa-solid fa-file-signature"></i>
+        <span>Agreements</span>
+      </a>
     </div>
   </div>
 
@@ -168,6 +186,7 @@
     loadTimeline();
     loadPayments();
     loadProfile();
+    loadPlaylist();
   }
 
   // ── Load Upcoming Gigs ──────────────────────
@@ -282,13 +301,15 @@
   }
 
   // ── Load Agreements ─────────────────────────
+  var PENDING_STATUSES = ['awaiting_signature', 'pending_signature', 'sent', 'pending'];
+
   function loadAgreements() {
-    if (!db) { updateAgreementStats(0); return; }
+    if (!db) { updateAgreementStats(0); renderAgreementAlert(0); return; }
 
     db.collection('agreements')
       .where('musicianId', '==', uid)
       .orderBy('sentAt', 'desc')
-      .limit(10)
+      .limit(20)
       .get()
       .then(function(snapshot) {
         var agreements = [];
@@ -296,13 +317,43 @@
           agreements.push(Object.assign({ _id: doc.id }, doc.data()));
         });
         renderAgreements(agreements);
-        var pending = agreements.filter(function(a) { return a.status === 'pending'; }).length;
+        var pending = agreements.filter(function(a) {
+          return PENDING_STATUSES.indexOf((a.status || '').toLowerCase()) !== -1;
+        }).length;
         updateAgreementStats(pending);
+        renderAgreementAlert(pending);
       })
       .catch(function(err) {
         console.warn('[MusicianPortal] Agreements load error:', err.message);
         updateAgreementStats(0);
+        renderAgreementAlert(0);
       });
+  }
+
+  function renderAgreementAlert(pendingCount) {
+    var el = document.getElementById('mp-agreement-alert');
+    if (!el) return;
+    if (pendingCount <= 0) { el.innerHTML = ''; return; }
+    var n = pendingCount;
+    el.innerHTML =
+      '<div style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md) var(--space-lg);'
+      + 'background:rgba(212,160,23,0.12);border:1px solid rgba(212,160,23,0.4);'
+      + 'border-radius:var(--radius-lg);margin-bottom:var(--space-lg);">'
+      + '<div style="flex-shrink:0;width:40px;height:40px;border-radius:var(--radius-md);'
+      + 'background:rgba(212,160,23,0.2);display:flex;align-items:center;justify-content:center;'
+      + 'font-size:18px;color:#d4a017;">'
+      + '<i class="fa-solid fa-file-signature"></i></div>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-weight:var(--fw-semibold);color:var(--color-text);margin-bottom:2px;">'
+      + 'You have ' + n + ' agreement' + (n > 1 ? 's' : '') + ' awaiting your signature.</div>'
+      + '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">Review and sign to complete your onboarding.</div>'
+      + '</div>'
+      + '<a href="#dashboard-agreements" style="flex-shrink:0;display:inline-flex;align-items:center;'
+      + 'gap:6px;padding:10px 16px;min-height:44px;border-radius:var(--radius-md);'
+      + 'background:#d4a017;color:#0d1117;font-weight:var(--fw-bold);font-size:var(--text-sm);'
+      + 'text-decoration:none;white-space:nowrap;">'
+      + 'Tap to review <i class="fa-solid fa-arrow-right"></i></a>'
+      + '</div>';
   }
 
   function renderAgreements(agreements) {
@@ -630,6 +681,46 @@
       }
     });
   };
+
+  // ── Load Rehearsal Playlist ──────────────────
+  function loadPlaylist() {
+    var card = document.getElementById('mp-playlist-card');
+    if (!card) return;
+    if (typeof Utils === 'undefined' || !Utils.apiFetch) return;
+
+    Utils.apiFetch('/api/v1/portal/my-playlists')
+      .then(function(r) { return r.ok ? r.json() : { playlists: [] }; })
+      .then(function(data) {
+        var playlists = data.playlists || [];
+        var pl = playlists[0] || null;
+        if (!pl) return; // leave empty state
+        var trackCount = pl.trackCount || pl.track_count || (pl.tracks ? pl.tracks.length : null);
+        var trackStr = trackCount != null ? trackCount + ' track' + (trackCount !== 1 ? 's' : '') : '';
+        var emptyEl = document.getElementById('mp-playlist-empty');
+        if (emptyEl) emptyEl.style.display = 'none';
+        card.innerHTML =
+          '<div style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-md);'
+          + 'background:var(--color-bg-tertiary);border:1px solid var(--color-border);'
+          + 'border-radius:var(--radius-md);">'
+          + '<div style="flex-shrink:0;width:40px;height:40px;border-radius:var(--radius-md);'
+          + 'background:rgba(212,160,23,0.15);display:flex;align-items:center;justify-content:center;'
+          + 'font-size:18px;color:#d4a017;"><i class="fa-solid fa-music"></i></div>'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-weight:var(--fw-semibold);color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+          + escapeHtml(pl.name || pl.title || 'Rehearsal Playlist') + '</div>'
+          + (trackStr ? '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">' + trackStr + '</div>' : '')
+          + '</div>'
+          + '<a href="#dashboard-band-player" style="flex-shrink:0;display:inline-flex;align-items:center;'
+          + 'gap:6px;padding:8px 14px;min-height:44px;border-radius:var(--radius-md);'
+          + 'background:rgba(88,166,255,0.15);color:#58a6ff;font-size:var(--text-sm);'
+          + 'font-weight:var(--fw-semibold);text-decoration:none;white-space:nowrap;">'
+          + 'Open Player <i class="fa-solid fa-arrow-right"></i></a>'
+          + '</div>';
+      })
+      .catch(function() {
+        // leave empty state — no playlist assigned
+      });
+  }
 
   // ── Utility ─────────────────────────────────
   function escapeHtml(str) {
