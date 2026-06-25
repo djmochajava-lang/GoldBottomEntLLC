@@ -128,6 +128,7 @@ const Router = {
     'services': 'home',
     'about': 'home',
     'dashboard-band-player-v2': 'dashboard-band-player',
+    'ent-events': 'ent-home',
   },
 
   /**
