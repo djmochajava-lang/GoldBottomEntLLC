@@ -484,54 +484,144 @@
 
   /* ===== BAND MEMBER ===== */
   function renderBandMemberDash() {
-    var events = DataStore.getEvents ? DataStore.getEvents() : [];
-    var now = new Date();
-    var upcoming = events.filter(function(e){return new Date(e.date)>=now;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
-    var nextGig = upcoming[0] || null;
+    var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
+    var uid = (typeof Auth !== 'undefined' && Auth._currentUser) ? Auth._currentUser.uid : null;
+    var subtitle = document.getElementById('dash-home-subtitle');
+    if (subtitle) subtitle.textContent = 'Band Member · Welcome back';
 
-    var html =
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);">'+
+    var cardStyle = 'background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);';
+    var qlStyle = 'display:flex;flex-direction:column;align-items:center;gap:6px;padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-secondary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);';
 
-      /* Next Gig */
-      '<div class="card" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
-        '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-music" style="color:#3fb950;"></i> Next Gig</h3>';
-    if(!nextGig){
-      html += '<p class="text-muted">No upcoming gigs scheduled.</p>';
-    } else {
-      var gigDate = new Date(nextGig.date);
-      var daysUntil = Math.ceil((gigDate-now)/(1000*60*60*24));
-      html +=
-        '<div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;margin-bottom:4px;">'+daysUntil+' days away</div>'+
-        '<div style="font-weight:600;font-size:var(--text-lg);margin-bottom:4px;">'+Utils.escapeHtml(nextGig.title||nextGig.name||'Show')+'</div>'+
-        '<div style="color:var(--color-text-muted);font-size:var(--text-sm);">'+Utils.formatDate(nextGig.date)+(nextGig.venue?' · '+Utils.escapeHtml(nextGig.venue):'')+'</div>';
-    }
-    html += '</div>'+
+    main.innerHTML =
+      /* Agreement alert slot — filled async */
+      '<div id="bm-agreement-alert" style="margin-bottom:var(--space-lg);"></div>'+
 
-    /* Schedule */
-    '<div class="card" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
-      '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days" style="color:#d4a017;"></i> Upcoming Schedule</h3>';
-    if(!upcoming.length){ html += '<p class="text-muted">Nothing scheduled yet.</p>'; }
-    else {
-      html += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
-      upcoming.slice(0,4).forEach(function(e){
-        html += '<div style="padding:10px 12px;border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);">'+
-          '<div style="font-weight:600;font-size:var(--text-sm);">'+Utils.escapeHtml(e.title||e.name||'Event')+'</div>'+
-          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">'+Utils.formatDate(e.date)+'</div></div>';
-      });
-      html += '</div>';
-    }
-    html += '</div></div>'+
-
-    /* Quick Links */
-    '<div style="margin-top:var(--space-lg);">'+
-      '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt" style="color:#d4a017;"></i> Quick Links</h3>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--space-sm);">'+
-        '<a href="#dashboard-calendar" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-secondary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-calendar-days" style="font-size:20px;color:#d29922;"></i><span>Calendar</span></a>'+
-        '<a href="#dashboard-travel" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-secondary);border:1px solid var(--color-border);text-decoration:none;color:var(--color-text-secondary);text-align:center;font-size:var(--text-sm);"><i class="fa-solid fa-plane" style="font-size:20px;color:#3fb950;"></i><span>Travel</span></a>'+
+      /* 2-col info grid */
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);" id="bm-info-grid">'+
+        '<div class="card" style="'+cardStyle+'" id="bm-next-show">'+
+          '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days" style="color:#3fb950;"></i> Next Show</h3>'+
+          '<p class="text-muted">Loading...</p>'+
+        '</div>'+
+        '<div class="card" style="'+cardStyle+'" id="bm-playlist">'+
+          '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-music" style="color:#d4a017;"></i> Rehearsal Playlist</h3>'+
+          '<p class="text-muted">Loading...</p>'+
+        '</div>'+
       '</div>'+
-    '</div>';
 
-    main.innerHTML = html;
+      /* Quick Links */
+      '<div style="margin-top:var(--space-lg);">'+
+        '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt" style="color:#d4a017;"></i> Quick Links</h3>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--space-sm);">'+
+          '<a href="#dashboard-calendar" style="'+qlStyle+'"><i class="fa-solid fa-calendar-days" style="font-size:20px;color:#d29922;"></i><span>Calendar</span></a>'+
+          '<a href="#dashboard-travel" style="'+qlStyle+'"><i class="fa-solid fa-plane" style="font-size:20px;color:#3fb950;"></i><span>Travel</span></a>'+
+          '<a href="#dashboard-agreements" style="'+qlStyle+'"><i class="fa-solid fa-file-signature" style="font-size:20px;color:#d4a017;"></i><span>Agreements</span></a>'+
+          '<a href="#dashboard-band-player" style="'+qlStyle+'"><i class="fa-solid fa-headphones" style="font-size:20px;color:#58a6ff;"></i><span>Band Player</span></a>'+
+        '</div>'+
+      '</div>';
+
+    /* ---- TASK-001: Pending agreements (Firestore) ---- */
+    if (db && uid) {
+      db.collection('agreements')
+        .where('musicianId', '==', uid)
+        .get()
+        .catch(function() { return { docs: [], forEach: function(){}, empty: true, size: 0 }; })
+        .then(function(snap) {
+          var pending = [];
+          snap.forEach(function(doc) {
+            var d = doc.data ? doc.data() : doc;
+            var s = (d.status || '').toLowerCase();
+            if (s === 'awaiting_signature' || s === 'pending_signature' || s === 'sent' || s === 'pending') {
+              pending.push(d);
+            }
+          });
+          var alertEl = document.getElementById('bm-agreement-alert');
+          if (!alertEl || !pending.length) return;
+          var n = pending.length;
+          alertEl.innerHTML =
+            '<div style="background:rgba(212,160,23,0.12);border:1px solid rgba(212,160,23,0.4);border-radius:var(--radius-lg);padding:var(--space-lg);display:flex;align-items:center;gap:var(--space-md);flex-wrap:wrap;">'+
+              '<i class="fa-solid fa-file-signature" style="font-size:28px;color:#d4a017;flex-shrink:0;"></i>'+
+              '<div style="flex:1;min-width:0;">'+
+                '<div style="font-weight:var(--fw-semibold);font-size:var(--text-base);margin-bottom:4px;">You have '+n+' agreement'+(n>1?'s':'')+' awaiting your signature.</div>'+
+                '<a href="#dashboard-agreements" style="display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 var(--space-lg);border-radius:var(--radius-md);background:#d4a017;color:#0d1117;font-weight:var(--fw-bold);font-size:var(--text-sm);text-decoration:none;">Tap to review &#8594;</a>'+
+              '</div>'+
+            '</div>';
+        });
+
+      /* ---- TASK-002: Next Show (Firestore sessions) ---- */
+      var today = new Date().toISOString().split('T')[0];
+      db.collection('sessions')
+        .where('date', '>=', today)
+        .orderBy('date', 'asc')
+        .limit(5)
+        .get()
+        .catch(function() { return { docs: [], forEach: function(){} }; })
+        .then(function(snap) {
+          var sessions = [];
+          snap.forEach(function(doc) {
+            var d = doc.data ? doc.data() : {};
+            if ((d.status || '').toLowerCase() !== 'cancelled') sessions.push(d);
+          });
+          var next = sessions[0] || null;
+          var el = document.getElementById('bm-next-show');
+          if (!el) return;
+          var inner = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days" style="color:#3fb950;"></i> Next Show</h3>';
+          if (!next) {
+            inner += '<p class="text-muted">No upcoming shows scheduled.</p>';
+          } else {
+            var sType = (next.session_type || next.type || '').toLowerCase();
+            var isGig = sType === 'gig' || sType === 'show' || sType === 'performance';
+            var badgeColor = isGig ? '#3fb950' : '#d4a017';
+            var badgeLabel = isGig ? 'Gig' : (sType || 'Rehearsal');
+            var now2 = new Date();
+            var showDate = new Date(next.date);
+            var daysAway = Math.ceil((showDate - now2) / (1000 * 60 * 60 * 24));
+            inner +=
+              '<div style="margin-bottom:var(--space-sm);">'+
+                '<span style="display:inline-block;padding:2px 10px;border-radius:var(--radius-full);background:'+badgeColor+';color:#0d1117;font-size:var(--text-xs);font-weight:var(--fw-bold);">'+Utils.escapeHtml(badgeLabel)+'</span>'+
+              '</div>'+
+              '<div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:'+badgeColor+';margin-bottom:4px;">'+
+                (isGig ? daysAway+' days away' : 'Rehearsal')+
+              '</div>'+
+              '<div style="font-weight:var(--fw-semibold);font-size:var(--text-lg);margin-bottom:4px;">'+Utils.escapeHtml(next.title || next.name || 'Session')+'</div>'+
+              '<div style="color:var(--color-text-muted);font-size:var(--text-sm);">'+Utils.formatDate(next.date)+(next.time ? ' · '+Utils.escapeHtml(next.time) : '')+(next.venue ? ' · '+Utils.escapeHtml(next.venue) : '')+'</div>';
+          }
+          el.innerHTML = inner;
+        });
+    } else {
+      /* db not ready — static fallback */
+      var showEl = document.getElementById('bm-next-show');
+      if (showEl) showEl.innerHTML = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days" style="color:#3fb950;"></i> Next Show</h3><p class="text-muted">No upcoming shows scheduled.</p>';
+    }
+
+    /* ---- TASK-003: Rehearsal Playlist (API) ---- */
+    if (typeof Utils !== 'undefined' && Utils.apiFetch) {
+      Utils.apiFetch('/api/v1/portal/my-playlists')
+        .then(function(r) { return r.ok ? r.json() : { playlists: [] }; })
+        .then(function(data) {
+          var playlists = (data && data.playlists) ? data.playlists : [];
+          var pl = playlists[0] || null;
+          var el = document.getElementById('bm-playlist');
+          if (!el) return;
+          var inner = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-music" style="color:#d4a017;"></i> Rehearsal Playlist</h3>';
+          if (!pl) {
+            inner += '<p class="text-muted">No rehearsal playlist assigned.</p>';
+          } else {
+            var tc = pl.trackCount || (pl.playlist_tracks ? pl.playlist_tracks.length : null);
+            inner +=
+              '<div style="font-weight:var(--fw-semibold);font-size:var(--text-lg);margin-bottom:4px;">'+Utils.escapeHtml(pl.name || 'Playlist')+'</div>'+
+              (tc ? '<div style="color:var(--color-text-muted);font-size:var(--text-sm);margin-bottom:var(--space-md);">'+tc+' track'+(tc!==1?'s':'')+'</div>' : '<div style="margin-bottom:var(--space-md);"></div>')+
+              '<a href="#dashboard-band-player" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-md);background:#d4a017;color:#0d1117;font-weight:var(--fw-bold);font-size:var(--text-sm);text-decoration:none;">Open Player &#8594;</a>';
+          }
+          el.innerHTML = inner;
+        })
+        .catch(function() {
+          var el = document.getElementById('bm-playlist');
+          if (el) el.innerHTML = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-music" style="color:#d4a017;"></i> Rehearsal Playlist</h3><p class="text-muted">No rehearsal playlist assigned.</p>';
+        });
+    } else {
+      var plEl = document.getElementById('bm-playlist');
+      if (plEl) plEl.innerHTML = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-music" style="color:#d4a017;"></i> Rehearsal Playlist</h3><p class="text-muted">No rehearsal playlist assigned.</p>';
+    }
   }
 
   /* ===== VENUE OWNER / PROMOTER ===== */
