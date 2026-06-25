@@ -211,6 +211,8 @@
     if (csBtn) { window._countersign(csBtn.getAttribute('data-countersign')); return; }
     var tplBtn = e.target.closest('[data-use-tpl]');
     if (tplBtn) { window._useTemplate(tplBtn.getAttribute('data-use-tpl')); return; }
+    var delTplBtn = e.target.closest('[data-del-tpl]');
+    if (delTplBtn && isLocal) { window._deleteTemplate(delTplBtn.getAttribute('data-del-tpl')); return; }
   });
 
   window._filterAgreements = function(status, btn) {
@@ -221,23 +223,49 @@
   };
 
   // ── Load Templates ─────────────────────────
+  // Source of truth: SQLite via GET /api/v1/agreements/templates
+  // Firestore 'agreement-templates' collection is no longer used.
+  var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
+
+  // Gate Create Template button — LAN only
+  (function() {
+    var btn = document.getElementById('agr-create-tpl-btn');
+    if (btn) btn.style.display = isLocal ? '' : 'none';
+  })();
+
   function loadTemplates() {
-    db.collection('agreement-templates').orderBy('createdAt', 'desc').get()
-      .then(function(snap) {
-        var el = document.getElementById('agr-templates-list');
-        if (!el) return;
-        if (snap.empty) { el.innerHTML = '<p class="text-muted">No templates yet. Create one to get started.</p>'; return; }
+    var el = document.getElementById('agr-templates-list');
+    if (!el) return;
+    el.innerHTML = '<div style="text-align:center;padding:var(--space-md);color:var(--color-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+
+    Utils.apiFetch('/agreements/templates')
+      .then(function(data) {
+        var templates = (data && data.templates) ? data.templates : [];
+        // Show only active templates
+        var active = templates.filter(function(t) { return !t.status || t.status === 'active'; });
+        if (active.length === 0) {
+          el.innerHTML = '<p class="text-muted">No templates yet.' + (isLocal ? ' Create one to get started.' : '') + '</p>';
+          return;
+        }
         var html = '';
-        snap.forEach(function(doc) {
-          var t = doc.data();
-          html += '<div class="tpl-row"><div><h4>' + esc(t.name || 'Template') + '</h4><p>' + esc(t.type || 'custom') + '</p></div>'
-            + '<button class="btn-checkpoint" data-use-tpl="' + doc.id + '"><i class="fa-solid fa-paper-plane"></i> Use</button></div>';
+        active.forEach(function(t) {
+          var tId = t.id || t._id || '';
+          var typLabel = esc(t.template_type || t.type || 'custom');
+          var statusBadge = '<span style="padding:2px 8px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;background:rgba(63,185,80,0.15);color:#3fb950;">' + esc(t.status || 'active') + '</span>';
+          html += '<div class="tpl-row">';
+          html += '<div><h4>' + esc(t.name || 'Template') + '</h4><p>' + typLabel + '</p></div>';
+          html += '<div style="display:flex;align-items:center;gap:var(--space-sm);">' + statusBadge;
+          if (isLocal) {
+            html += '<button class="btn-checkpoint" data-use-tpl="' + esc(tId) + '" title="Use template"><i class="fa-solid fa-paper-plane"></i> Use</button>';
+            html += '<button class="btn-checkpoint" data-del-tpl="' + esc(tId) + '" title="Delete template" style="color:#f85149;"><i class="fa-solid fa-trash"></i></button>';
+          }
+          html += '</div></div>';
         });
         el.innerHTML = html;
       })
-      .catch(function() {
-        var el = document.getElementById('agr-templates-list');
-        if (el) el.innerHTML = '<p class="text-muted">Templates not available.</p>';
+      .catch(function(err) {
+        console.warn('[Agreements] Templates load failed:', err && err.message ? err.message : err);
+        if (el) el.innerHTML = '<p class="text-muted">Templates not available.' + (isLocal ? ' The server may be offline.' : ' HomeOffice connection required.') + '</p>';
       });
   }
 
@@ -376,18 +404,37 @@
   };
 
   window._useTemplate = function(templateId) {
-    db.collection('agreement-templates').doc(templateId).get().then(function(doc) {
-      if (!doc.exists) return;
-      var tpl = doc.data();
-      window._showSendAgreement(templateId);
-      // Pre-fill after modal renders
-      setTimeout(function() {
-        var titleEl = document.getElementById('agr-title');
-        var contentEl = document.getElementById('agr-content');
-        if (titleEl && tpl.name) titleEl.value = tpl.name;
-        if (contentEl && tpl.content) contentEl.value = tpl.content;
-      }, 200);
-    });
+    Utils.apiFetch('/agreements/templates/' + encodeURIComponent(templateId))
+      .then(function(data) {
+        var tpl = (data && data.template) ? data.template : data;
+        if (!tpl) return;
+        window._showSendAgreement(templateId);
+        // Pre-fill after modal renders
+        setTimeout(function() {
+          var titleEl = document.getElementById('agr-title');
+          var contentEl = document.getElementById('agr-content');
+          if (titleEl && tpl.name) titleEl.value = tpl.name;
+          if (contentEl && (tpl.content || tpl.description)) contentEl.value = tpl.content || tpl.description || '';
+        }, 200);
+      })
+      .catch(function(err) {
+        console.warn('[Agreements] Use template fetch failed:', err && err.message ? err.message : err);
+        // Fall back to opening the send modal without pre-fill
+        window._showSendAgreement(templateId);
+      });
+  };
+
+  window._deleteTemplate = function(templateId) {
+    if (!isLocal) return;
+    if (!confirm('Delete this template? This cannot be undone.')) return;
+    Utils.apiFetch('/agreements/templates/' + encodeURIComponent(templateId), { method: 'DELETE' })
+      .then(function() {
+        if (typeof Toast !== 'undefined') Toast.success('Template deleted');
+        loadTemplates();
+      })
+      .catch(function(err) {
+        if (typeof Toast !== 'undefined') Toast.error('Delete failed: ' + (err && err.message ? err.message : 'Unknown error'));
+      });
   };
 
   // ── Create Template Modal ──────────────────
@@ -410,17 +457,20 @@
         onSave: function() {
           var name = val('tpl-name');
           if (!name) { if (typeof Toast !== 'undefined') Toast.error('Template name required'); return; }
-          db.collection('agreement-templates').add({
-            name: name,
-            type: val('tpl-type') || 'custom',
-            content: val('tpl-content') || '',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          Utils.apiFetch('/agreements/templates', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: name,
+              template_type: val('tpl-type') || 'custom',
+              description: val('tpl-content') || '',
+              variables: {}
+            })
           }).then(function() {
             if (typeof Modal !== 'undefined') Modal.close();
             if (typeof Toast !== 'undefined') Toast.success('Template created!');
             loadTemplates();
           }).catch(function(err) {
-            if (typeof Toast !== 'undefined') Toast.error('Failed: ' + err.message);
+            if (typeof Toast !== 'undefined') Toast.error('Failed: ' + (err && err.message ? err.message : 'Unknown error'));
           });
         }
       });
