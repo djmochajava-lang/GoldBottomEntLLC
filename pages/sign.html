@@ -163,9 +163,15 @@
   var isDrawing = false;
 
   function init() {
-    // Parse agreement ID from hash
-    var hashParts = window.location.hash.split('?');
-    var params = new URLSearchParams(hashParts[1] || '');
+    // Parse agreement ID — prefer Router.currentQueryParams (set before page load)
+    // over window.location.hash (updated after page load, causing timing bug AC-5)
+    var params;
+    if (typeof Router !== 'undefined' && Router.currentQueryParams) {
+      params = new URLSearchParams(Router.currentQueryParams);
+    } else {
+      var hashParts = window.location.hash.split('?');
+      params = new URLSearchParams(hashParts[1] || '');
+    }
     agreementId = params.get('id');
 
     if (!agreementId) {
