@@ -510,8 +510,17 @@ const Auth = {
 
         // If there's a pending dashboard route (queued before auth was ready),
         // show the login modal now so the user can authenticate.
-        if (Auth._pendingRoute && typeof Router !== 'undefined' &&
-            Router.isDashboardRoute(Auth._pendingRoute)) {
+        // Also covers Router._pendingDashboardRoute (set when auth was mid-init
+        // and router queued the destination + showed PageLoader spinner — that
+        // spinner must be hidden here or it stays forever on iOS Safari where
+        // Firebase session may not persist across the page load).
+        var _pendingDash = (typeof Router !== 'undefined' && Router._pendingDashboardRoute) ||
+                           Auth._pendingRoute;
+        if (_pendingDash && typeof Router !== 'undefined' &&
+            Router.isDashboardRoute(_pendingDash)) {
+          // Clear the router's queued route and hide the spinner before showing modal
+          if (typeof Router !== 'undefined') Router._pendingDashboardRoute = null;
+          if (typeof PageLoader !== 'undefined') PageLoader.hideLoading();
           Auth.showLoginModal();
         }
         // If currently on a dashboard route, redirect to home
@@ -519,6 +528,9 @@ const Auth = {
             Router.currentPage &&
             Router.isDashboardRoute(Router.currentPage)) {
           Router.navigateTo('home');
+        } else {
+          // No pending route and not on a dashboard page — just make sure spinner is gone
+          if (typeof PageLoader !== 'undefined') PageLoader.hideLoading();
         }
       }
     });
