@@ -510,17 +510,8 @@ const Auth = {
 
         // If there's a pending dashboard route (queued before auth was ready),
         // show the login modal now so the user can authenticate.
-        // Also covers Router._pendingDashboardRoute (set when auth was mid-init
-        // and router queued the destination + showed PageLoader spinner — that
-        // spinner must be hidden here or it stays forever on iOS Safari where
-        // Firebase session may not persist across the page load).
-        var _pendingDash = (typeof Router !== 'undefined' && Router._pendingDashboardRoute) ||
-                           Auth._pendingRoute;
-        if (_pendingDash && typeof Router !== 'undefined' &&
-            Router.isDashboardRoute(_pendingDash)) {
-          // Clear the router's queued route and hide the spinner before showing modal
-          if (typeof Router !== 'undefined') Router._pendingDashboardRoute = null;
-          if (typeof PageLoader !== 'undefined') PageLoader.hideLoading();
+        if (Auth._pendingRoute && typeof Router !== 'undefined' &&
+            Router.isDashboardRoute(Auth._pendingRoute)) {
           Auth.showLoginModal();
         }
         // If currently on a dashboard route, redirect to home
@@ -528,9 +519,6 @@ const Auth = {
             Router.currentPage &&
             Router.isDashboardRoute(Router.currentPage)) {
           Router.navigateTo('home');
-        } else {
-          // No pending route and not on a dashboard page — just make sure spinner is gone
-          if (typeof PageLoader !== 'undefined') PageLoader.hideLoading();
         }
       }
     });
@@ -1536,31 +1524,6 @@ const Auth = {
   },
 
   /**
-   * Check client-side rate limit for password reset.
-   * Max 3 attempts per email per 60 minutes (stored in sessionStorage).
-   * Returns true if allowed, false if rate-limited.
-   */
-  _checkResetRateLimit: function(email) {
-    var key = 'gbe_rst_' + btoa(email).replace(/[^a-z0-9]/gi, '').substring(0, 16);
-    var now = Date.now();
-    var windowMs = 60 * 60 * 1000; // 60 minutes
-    var maxAttempts = 3;
-    var stored = null;
-    try { stored = JSON.parse(sessionStorage.getItem(key)); } catch(e) {}
-    if (!stored || (now - stored.start) > windowMs) {
-      // Fresh window
-      try { sessionStorage.setItem(key, JSON.stringify({ start: now, count: 1 })); } catch(e) {}
-      return true;
-    }
-    if (stored.count >= maxAttempts) {
-      return false; // Rate limited
-    }
-    // Increment
-    try { sessionStorage.setItem(key, JSON.stringify({ start: stored.start, count: stored.count + 1 })); } catch(e) {}
-    return true;
-  },
-
-  /**
    * Sign out the current user (handles both PIN and Firebase auth)
    * @returns {Promise}
    */
@@ -1978,7 +1941,7 @@ const Auth = {
             '<a id="auth-email-toggle" href="#" style="color:#d4a017;font-size:12px;' +
               'text-decoration:none;transition:opacity 0.2s;">Create an account</a>' +
             '<a id="auth-email-forgot" href="#" style="color:rgba(255,255,255,0.4);font-size:12px;' +
-              'text-decoration:none;transition:opacity 0.2s;min-height:44px;display:inline-flex;align-items:center;padding:8px 0;">Forgot password?</a>' +
+              'text-decoration:none;transition:opacity 0.2s;">Forgot password?</a>' +
           '</div>' +
         '</form>' +
         // Error area
@@ -2096,6 +2059,8 @@ const Auth = {
       var emailRequirements = document.getElementById('auth-email-requirements');
 
       if (emailSubmit && emailInput && emailPassword) {
+        var isRegisterMode = false;
+
         // Focus styling for email inputs
         [emailInput, emailPassword, emailName].forEach(function(input) {
           if (!input) return;
@@ -2107,20 +2072,23 @@ const Auth = {
           });
         });
 
-        // Invite-only: "Create an account" shows info modal instead of toggling register mode
+        // Toggle between sign-in and register mode
         if (emailToggle) {
           emailToggle.addEventListener('click', function(e) {
             e.preventDefault();
-            Modal.open({
-              title: 'Account Access',
-              content: '<div style="text-align:center;padding:8px 0;">' +
-                '<i class="fa-solid fa-envelope-open-text" style="font-size:32px;color:#d4a017;margin-bottom:14px;display:block;"></i>' +
-                '<p style="margin:0 0 20px;color:rgba(255,255,255,0.75);font-size:14px;line-height:1.6;">GBE uses an invite-only system.<br>Contact your GBE representative to request access.</p>' +
-                '<button onclick="Modal.close()" style="padding:10px 28px;border-radius:8px;border:none;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;font-size:14px;font-family:inherit;cursor:pointer;">Got it</button>' +
-                '</div>',
-              size: 'sm',
-              showFooter: false
-            });
+            isRegisterMode = !isRegisterMode;
+            if (emailName) emailName.style.display = isRegisterMode ? 'block' : 'none';
+            if (emailRequirements) emailRequirements.style.display = isRegisterMode ? 'block' : 'none';
+            if (emailForgot) emailForgot.style.display = isRegisterMode ? 'none' : '';
+            emailSubmit.querySelector('span').textContent = isRegisterMode
+              ? 'Create Account' : 'Sign In with Email';
+            emailToggle.textContent = isRegisterMode
+              ? 'Sign in instead' : 'Create an account';
+            emailPassword.setAttribute('autocomplete', isRegisterMode
+              ? 'new-password' : 'current-password');
+            // Hide any previous error
+            var errorDiv = document.getElementById('auth-error');
+            if (errorDiv) errorDiv.style.display = 'none';
           });
         }
 
@@ -2134,34 +2102,21 @@ const Auth = {
               emailInput.focus();
               return;
             }
-            // Rate limit check
-            if (!Auth._checkResetRateLimit(email)) {
-              Auth._showLoginError('Too many reset attempts. Please wait before requesting another reset.');
-              return;
-            }
             Auth.sendPasswordReset(email).then(function() {
               // Show as info (gold) instead of error (red)
               var errorDiv = document.getElementById('auth-error');
               if (errorDiv) {
-                errorDiv.textContent = 'If this email is registered, you’ll receive a reset link shortly.';
+                errorDiv.textContent = 'Password reset email sent. Check your inbox.';
                 errorDiv.style.display = 'block';
                 errorDiv.style.background = 'rgba(212,160,23,0.15)';
                 errorDiv.style.color = '#d4a017';
               }
             }).catch(function(err) {
-              var code = err && err.code;
-              if (code === 'auth/network-request-failed') {
-                Auth._showLoginError('Something went wrong. Please check your connection and try again.');
-              } else {
-                // Do NOT distinguish user-not-found from email-sent — prevents email enumeration
-                var errorDiv = document.getElementById('auth-error');
-                if (errorDiv) {
-                  errorDiv.textContent = 'If this email is registered, you’ll receive a reset link shortly.';
-                  errorDiv.style.display = 'block';
-                  errorDiv.style.background = 'rgba(212,160,23,0.15)';
-                  errorDiv.style.color = '#d4a017';
-                }
+              var msg = 'Failed to send reset email.';
+              if (err && err.code === 'auth/user-not-found') {
+                msg = 'No account found with this email.';
               }
+              Auth._showLoginError(msg);
             });
           });
         }
@@ -2183,6 +2138,12 @@ const Auth = {
             emailPassword.focus();
             return;
           }
+          if (isRegisterMode && password.length < 8) {
+            Auth._showLoginError('Password must be at least 8 characters.');
+            emailPassword.focus();
+            return;
+          }
+
           // Disable form during auth
           emailInput.disabled = true;
           emailPassword.disabled = true;
@@ -2190,7 +2151,8 @@ const Auth = {
           emailSubmit.style.opacity = '0.5';
           emailSubmit.style.cursor = 'wait';
           var originalLabel = emailSubmit.querySelector('span').textContent;
-          emailSubmit.querySelector('span').textContent = 'Signing in...';
+          emailSubmit.querySelector('span').textContent = isRegisterMode
+            ? 'Creating account...' : 'Signing in...';
           var errorDiv = document.getElementById('auth-error');
           if (errorDiv) errorDiv.style.display = 'none';
 
@@ -2198,7 +2160,12 @@ const Auth = {
           var provBtns = document.querySelectorAll('.auth-provider-btn');
           provBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
 
-          var action = Auth.loginWithEmail(email, password);
+          var action;
+          if (isRegisterMode) {
+            action = Auth.registerWithEmail(email, password, name || email.split('@')[0]);
+          } else {
+            action = Auth.loginWithEmail(email, password);
+          }
 
           action.catch(function(error) {
             // Re-enable form

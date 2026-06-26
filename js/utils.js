@@ -440,71 +440,29 @@ if (document.readyState === 'loading') {
 }
 
 /**
- * Global API fetch wrapper — supports both LAN (PIN session) and remote (RBAC token)
- * authenticated calls. Enforces a timeout to prevent UI hangs.
+ * Global API fetch wrapper — rejects immediately on remote (iPhone/public site)
+ * and enforces a timeout on LAN to prevent UI hangs.
  *
- * Auth resolution order:
- *   1. Local (LAN/localhost): uses gbe-session-token from localStorage via X-GBE-Session header.
- *   2. Remote with server URL configured (Auth._serverUrl set): uses gbe-session-token or
- *      gbe-rbac-token via X-RBAC-Token header. Resolves relative paths against Auth._serverUrl.
- *   3. Remote with no server URL: rejects with Error('remote') — server unreachable.
- *
- * @param {string} url - API path (relative like '/quotes/auto/123') or absolute URL
+ * @param {string} url - API URL (absolute or relative like '/api/v1/...')
  * @param {object} [opts] - fetch options (method, headers, body, etc.)
  * @param {number} [timeoutMs=5000] - abort timeout in ms
- * @returns {Promise<any>} Parsed JSON response
+ * @returns {Promise<Response>}
  */
 Utils.apiFetch = function(url, opts, timeoutMs) {
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
-  var serverUrl = (typeof Auth !== 'undefined' && Auth._serverUrl) ? Auth._serverUrl : null;
-
-  // If not local and no server URL configured, this server is unreachable from remote.
-  if (!isLocal && !serverUrl) return Promise.reject(new Error('remote'));
-
+  if (!isLocal) return Promise.reject(new Error('remote'));
   opts = opts || {};
-
-  // Build auth header using the best available token.
-  // Priority: RBAC token (field users) > PIN session token (LAN users)
-  var rbacToken   = localStorage.getItem('gbe-rbac-token') || '';
-  var sessionToken = localStorage.getItem('gbe-session-token') || '';
-  var token = rbacToken || sessionToken;
-
-  if (token) {
-    if (!opts.headers) opts.headers = {};
-    if (!opts.headers['X-GBE-Session'] && !opts.headers['Authorization'] && !opts.headers['X-RBAC-Token']) {
-      if (rbacToken) {
-        opts.headers['X-RBAC-Token'] = rbacToken;
-      } else {
-        opts.headers['X-GBE-Session'] = sessionToken;
-      }
-    }
+  var token = localStorage.getItem('gbe-session-token') || '';
+  if (token && !opts.headers) {
+    opts.headers = { 'X-GBE-Session': token };
+  } else if (token && opts.headers && !opts.headers['X-GBE-Session'] && !opts.headers['Authorization']) {
+    opts.headers['X-GBE-Session'] = token;
   }
-
-  // Resolve relative paths against the server base URL.
-  var resolvedUrl = url;
-  if (!/^https?:\/\//i.test(url)) {
-    var base = serverUrl || window.location.origin;
-    // Strip trailing slash from base, ensure leading slash on url
-    base = base.replace(/\/$/, '');
-    var path = url.charAt(0) === '/' ? url : '/' + url;
-    resolvedUrl = base + '/api/v1' + path;
-  }
-
-  var ms = timeoutMs || 8000;
+  var ms = timeoutMs || 5000;
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, ms);
   opts.signal = controller.signal;
-
-  return fetch(resolvedUrl, opts)
-    .then(function(resp) {
-      if (!resp.ok) {
-        var err = new Error('API ' + resp.status);
-        err.status = resp.status;
-        throw err;
-      }
-      return resp.json();
-    })
-    .finally(function() { clearTimeout(timer); });
+  return fetch(url, opts).finally(function() { clearTimeout(timer); });
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Utils;
