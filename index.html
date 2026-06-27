@@ -13,7 +13,14 @@
   <script>
   (function(){
     try {
-      if ((location.search + location.hash).indexOf('authdebug') === -1) return;
+      var urlStr = location.search + location.hash;
+      // ?authdebug=0 turns it OFF (clears the persisted flag).
+      if (/authdebug=0/.test(urlStr)) { try { localStorage.removeItem('gbe-authdebug'); } catch(e){} return; }
+      var urlHas = urlStr.indexOf('authdebug') !== -1;
+      var stored = false; try { stored = localStorage.getItem('gbe-authdebug') === '1'; } catch(e){}
+      // Persist across the Google redirect (which strips the query) via localStorage.
+      if (urlHas) { try { localStorage.setItem('gbe-authdebug','1'); } catch(e){} }
+      if (!urlHas && !stored) return;
       var box = document.createElement('div');
       box.id = 'gbe-authdebug';
       box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:60vh;overflow:auto;z-index:2147483647;background:rgba(0,0,0,.92);color:#19ff19;font:11px/1.4 monospace;padding:8px 8px 14px;white-space:pre-wrap;word-break:break-word;border-top:2px solid #19ff19;-webkit-overflow-scrolling:touch;';
