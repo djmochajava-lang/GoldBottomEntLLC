@@ -1770,7 +1770,6 @@ const Auth = {
           // Try popup for auto-login; fall back to redirect if blocked
           firebase.auth().signInWithPopup(provider).catch(function(err) {
             if (err.code === 'auth/network-request-failed' ||
-                err.code === 'auth/popup-blocked' ||
                 err.code === 'auth/internal-error') {
               try { sessionStorage.setItem('gbe-auth-redirect-route', 'dashboard-home'); } catch (e) {}
               firebase.auth().signInWithRedirect(provider);
