@@ -218,6 +218,24 @@ const Router = {
   },
 
   /**
+   * Safely check if firebase.auth().currentUser is non-null.
+   * Returns false if firebase is not yet initialized, not loaded, or currentUser is null.
+   * Used by the AuthCache optimistic path to prevent stale-cache renders when
+   * Firebase has not yet resolved the persisted session.
+   * @returns {boolean}
+   */
+  _firebaseUserAvailable: function() {
+    try {
+      return typeof firebase !== 'undefined' &&
+             firebase.auth &&
+             typeof firebase.auth === 'function' &&
+             firebase.auth().currentUser !== null;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /**
    * Detect vertical context from route name
    * @returns {'ent' | 'biz' | 'neutral'}
    */
@@ -310,8 +328,8 @@ const Router = {
     if (this.isDashboardRoute(pageName)) {
       var _authCache = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
 
-      if (_authCache && _authCache.authorized) {
-        // AuthCache says authorized — proceed immediately (optimistic)
+      if (_authCache && _authCache.authorized && this._firebaseUserAvailable()) {
+        // AuthCache says authorized AND Firebase confirms currentUser is non-null.
         // Auth.guardRoute() is SKIPPED for cached users. Background verify
         // will update the cache and emit 'gbe:auth-ready' if role changes.
         // [perf] This is the FAST path: dashboard renders now, no Firebase wait.
@@ -320,6 +338,7 @@ const Router = {
           Perf.measure('auth.cache.hitToRender', 'boot.start', 'auth.cache.hit');
         }
         try { console.log('[perf] auth.path = CACHE-HIT (optimistic, instant render — no Firebase wait)'); } catch (e) {}
+        try { console.log('[perf] auth.cache.reconciled: firebase.currentUser present = true'); } catch (e) {}
       } else if (typeof Auth !== 'undefined' && Auth.initialized && Auth.isAuthenticated && Auth.isAuthenticated()) {
         // Auth is live and says authenticated — proceed (and write cache for next time)
         if (typeof AuthCache !== 'undefined') {
