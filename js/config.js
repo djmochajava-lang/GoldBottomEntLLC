@@ -50,7 +50,7 @@ const SiteConfig = {
     youtubeStudio: { connected: false },
     firebase: {
       apiKey: 'AIzaSyBxdl4Rq11ogyXwhH-2QCKhxB_RnT_bSEk',
-      authDomain: 'goldbottoment.firebaseapp.com',
+      authDomain: 'auth.goldbottoment-llc.com',
       projectId: 'goldbottoment',
       storageBucket: 'goldbottoment.firebasestorage.app',
       messagingSenderId: '963268881384',
