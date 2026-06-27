@@ -135,6 +135,15 @@ const Auth = {
   init: function() {
     if (this.initialized || this._initializing) return;
 
+    // Synchronously set _authViaRedirect from localStorage BEFORE any async code runs.
+    // signInWithRedirect() writes 'gbe-pending-redirect' before the page navigates away;
+    // reading it here (before onAuthStateChanged fires) eliminates the race condition where
+    // the async getRedirectResult().then() callback set this flag too late.
+    if (localStorage.getItem('gbe-pending-redirect')) {
+      Auth._authViaRedirect = true;
+      localStorage.removeItem('gbe-pending-redirect');
+    }
+
     // Detect if we're on the local server
     this._serverUrl = this._detectServerUrl();
 
@@ -532,9 +541,10 @@ const Auth = {
     // catch errors here — the success path is handled by onAuthStateChanged.
     this._auth.getRedirectResult().then(function(result) {
       try { console.log('[authdbg] getRedirectResult resolved user=' + (result && result.user ? result.user.uid.slice(0,6) + '…' : 'none')); } catch (e) {}
-      if (result && result.user) {
-        Auth._authViaRedirect = true;
-      }
+      // _authViaRedirect is now set synchronously at init() via localStorage
+      // (written before signInWithRedirect navigates away, read back before any
+      // async code runs). No need to set it here — this callback fires after
+      // onAuthStateChanged and would be too late to affect routing.
     }).catch(function(error) {
       try { console.log('[authdbg] getRedirectResult error code=' + (error && error.code) + ' msg=' + ((error && error.message)||'').slice(0,80)); } catch (e) {}
       if (!error || !error.code) return;
@@ -1472,6 +1482,7 @@ const Auth = {
         console.warn('[Auth] Popup failed (' + err.code + '), trying redirect...');
         var pendingRoute = self._pendingRoute || 'dashboard-home';
         try { sessionStorage.setItem('gbe-auth-redirect-route', pendingRoute); } catch (e) {}
+        try { localStorage.setItem('gbe-pending-redirect', '1'); } catch(e) {}
         return self._auth.signInWithRedirect(provider);
       }
       throw err; // Re-throw other errors (cancelled, duplicate account, etc.)
@@ -1778,6 +1789,7 @@ const Auth = {
             if (err.code === 'auth/network-request-failed' ||
                 err.code === 'auth/internal-error') {
               try { sessionStorage.setItem('gbe-auth-redirect-route', 'dashboard-home'); } catch (e) {}
+              try { localStorage.setItem('gbe-pending-redirect', '1'); } catch(e) {}
               firebase.auth().signInWithRedirect(provider);
             } else if (err.code !== 'auth/popup-closed-by-user') {
               console.error('[Auth] Auto-login failed:', err.code);
