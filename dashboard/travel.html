@@ -46,9 +46,9 @@
     if(addTripBtn) addTripBtn.style.display='none';
   }
 
-  function renderTable(){
+  function renderTable(data){
     var c=document.getElementById('travel-table-container');
-    var data=DataStore.getTravel();
+    data=data||DataStore.getTravel();
     if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-plane"></i></div><h3 class="empty-state-title">No trips yet</h3><p class="empty-state-text">Add your first trip to start planning.</p></div>';return;}
     var thHeaders=['Trip','Date','City','Venue','Hotel'];
     if(isLocal) thHeaders.push('Budget');
@@ -98,6 +98,21 @@
     document.getElementById('pd-total').textContent='$'+(r*d*p).toFixed(2);
   }
 
-  renderTable();
+  function loadTravel(){
+    if(typeof Utils!=='undefined' && Utils.apiFetch){
+      Utils.apiFetch('/api/v1/travel').then(function(res){
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        return res.json();
+      }).then(function(data){
+        renderTable(data);
+      }).catch(function(){
+        /* API unavailable — fall back to DataStore */
+        renderTable();
+      });
+    } else {
+      renderTable();
+    }
+  }
+  loadTravel();
 })();
 </script>
