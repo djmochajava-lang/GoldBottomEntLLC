@@ -86,6 +86,10 @@
   document.addEventListener('gbe:auth-ready', function () {
     Perf.mark('auth.ready');
     Perf.measure('auth.total', 'boot.start', 'auth.ready');
+    // If a signin submit was marked, measure total sign-in flow duration
+    if (Perf.marks['auth.signin.submit']) {
+      Perf.measure('auth.signin', 'auth.signin.submit', 'auth.ready');
+    }
     setTimeout(function () { Perf.dump(); }, 0);
     _startHeartbeat();
   });

@@ -2123,6 +2123,7 @@ const Auth = {
 
         // Submit handler (sign in or register)
         emailSubmit.addEventListener('click', function() {
+          if (typeof Perf !== 'undefined' && Perf.mark) Perf.mark('auth.signin.submit');
           var email = emailInput.value.trim();
           var password = emailPassword.value;
           var name = emailName ? emailName.value.trim() : '';
@@ -2776,6 +2777,7 @@ const Auth = {
    * @private
    */
   _handleProviderSignIn: function(providerName, btn) {
+    if (typeof Perf !== 'undefined' && Perf.mark) Perf.mark('auth.signin.submit');
     if (this._signingIn) return;
     this._signingIn = true;
 
