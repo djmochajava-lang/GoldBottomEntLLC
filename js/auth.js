@@ -458,6 +458,9 @@ const Auth = {
               // so role-based guards and data refresh properly
               var _restoreRole = Auth._activeRole || Auth._role || '';
               Router.navigateTo(Auth._roleLandingPage(_restoreRole), true);
+            } else if (typeof Router !== 'undefined' && Auth._authViaRedirect) {
+              Auth._authViaRedirect = false;
+              Router.navigateTo(Auth._roleLandingPage(Auth._activeRole || Auth._role || ''), true);
             }
             // Otherwise: user is browsing a public page — don't hijack navigation.
             // They can tap Dashboard in the menu when they want it.
@@ -529,6 +532,9 @@ const Auth = {
     // catch errors here — the success path is handled by onAuthStateChanged.
     this._auth.getRedirectResult().then(function(result) {
       try { console.log('[authdbg] getRedirectResult resolved user=' + (result && result.user ? result.user.uid.slice(0,6) + '…' : 'none')); } catch (e) {}
+      if (result && result.user) {
+        Auth._authViaRedirect = true;
+      }
     }).catch(function(error) {
       try { console.log('[authdbg] getRedirectResult error code=' + (error && error.code) + ' msg=' + ((error && error.message)||'').slice(0,80)); } catch (e) {}
       if (!error || !error.code) return;
