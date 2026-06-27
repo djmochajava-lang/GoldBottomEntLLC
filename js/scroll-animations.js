@@ -108,6 +108,20 @@
     }, { threshold: 0.5 });
 
     counters.forEach(function(el) { observer.observe(el); });
+
+    // Safety fallback: if the observer never fires (e.g. fragment injected by
+    // PageLoader after the page settles), counters can be left showing the
+    // literal "0" placeholder. After a short delay, force any un-animated
+    // counter to its final value so real numbers always display.
+    setTimeout(function() {
+      counters.forEach(function(el) {
+        if (el.textContent.trim() === '0') {
+          var prefix = el.getAttribute('data-prefix') || '';
+          var suffix = el.getAttribute('data-suffix') || '';
+          el.textContent = prefix + el.getAttribute('data-count') + suffix;
+        }
+      });
+    }, 1200);
   }
 
   /* ---------- Public Init ---------- */
