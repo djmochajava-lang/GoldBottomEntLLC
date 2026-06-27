@@ -126,8 +126,12 @@ const Router = {
   legacyRedirects: {
     'roster': 'ent-roster',
     'shop': 'ent-shop',
-    'services': 'home',
-    'about': 'home',
+    'services': 'ent-home',
+    'about': 'ent-home',
+    // Enterprise vertical HIDDEN 2026-06-27 — route the "Two Brands" vertical
+    // selector straight to Entertainment. To REACTIVATE Enterprise: remove the
+    // 'home' line below (and restore 'services'/'about' to 'home' if desired).
+    'home': 'ent-home',
     'dashboard-band-player-v2': 'dashboard-band-player',
     'ent-events': 'ent-home',
   },
@@ -170,7 +174,7 @@ const Router = {
   currentLayout: null,
   currentVertical: null,
   currentQueryParams: null,
-  defaultPage: 'home',
+  defaultPage: 'ent-home', // Enterprise vertical HIDDEN 2026-06-27 — was 'home' (vertical selector). Reactivate: set back to 'home'.
 
   initialized: false,
 
@@ -323,6 +327,11 @@ const Router = {
       console.warn(`Route "${pageName}" not found, loading 404`);
       pageName = '404';
     }
+
+    // Enterprise vertical HIDDEN 2026-06-27 — biz-* pages are preserved but
+    // noindex'd so search engines don't surface them while hidden. To reactivate:
+    // remove this call and the _updateRobotsMeta method below.
+    this._updateRobotsMeta(pageName);
 
     // Auth guard — V2 optimistic path (AuthCache) or V1 blocking path (guardRoute)
     if (this.isDashboardRoute(pageName)) {
@@ -608,6 +617,30 @@ const Router = {
   /**
    * Handle initial page load from URL hash
    */
+  /**
+   * Enterprise vertical HIDDEN 2026-06-27 — inject a <meta name="robots" noindex>
+   * into <head> while a biz-* (Enterprise) page is active so search engines do not
+   * surface the preserved-but-unlinked Enterprise pages; remove it on any other
+   * route so the Entertainment site stays fully indexable. Reversal: delete this
+   * method and its call in navigateTo().
+   */
+  _updateRobotsMeta(pageName) {
+    try {
+      var ID = 'gbe-enterprise-noindex';
+      var existing = document.getElementById(ID);
+      var isHidden = typeof pageName === 'string' && pageName.indexOf('biz-') === 0;
+      if (isHidden && !existing) {
+        var m = document.createElement('meta');
+        m.id = ID;
+        m.name = 'robots';
+        m.content = 'noindex, nofollow';
+        document.head.appendChild(m);
+      } else if (!isHidden && existing) {
+        existing.parentNode.removeChild(existing);
+      }
+    } catch (e) { /* non-fatal */ }
+  },
+
   handleInitialRoute() {
     const rawHash = window.location.hash.substring(1);
     const { route, query } = this._parseHash(rawHash);
