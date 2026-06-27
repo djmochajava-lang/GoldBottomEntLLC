@@ -336,6 +336,27 @@ self.addEventListener('fetch', function(event) {
       })
     );
   } else if (url.origin === self.location.origin) {
+    // Auth-critical JS → NETWORK-FIRST (always fresh, like HTML). Serving STALE
+    // auth code strands returning users on broken login after a deploy (e.g. an
+    // old cached config.js with a pre-fix authDomain → storage-partition failure
+    // → bounce to homepage). This removes the dependency on manually bumping ?v=.
+    // Falls back to cache only when offline.
+    if (/\/js\/(config|auth|router|auth-cache|main)\.js$/.test(url.pathname)) {
+      event.respondWith(
+        fetch(req).then(function(response) {
+          if (response && response.ok) {
+            var freshClone = response.clone();
+            caches.open(SHELL_CACHE).then(function(cache) { cache.put(req, freshClone); });
+          }
+          return response;
+        }).catch(function() {
+          return caches.match(req).then(function(cached) {
+            return cached || new Response('', { status: 503, statusText: 'Offline' });
+          });
+        })
+      );
+      return;
+    }
     // CSS/JS/images: serve cached version immediately, fetch fresh in background
     event.respondWith(
       caches.match(req).then(function(cached) {
