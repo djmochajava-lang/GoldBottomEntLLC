@@ -1460,7 +1460,6 @@ const Auth = {
     }).catch(function(err) {
       try { console.log('[authdbg] signInWithPopup FAILED code=' + err.code + ' — falling back to redirect if recoverable'); } catch (e) {}
       if (err.code === 'auth/network-request-failed' ||
-          err.code === 'auth/popup-blocked' ||
           err.code === 'auth/internal-error') {
         // Popup failed — fall back to redirect (works on most browsers incl. the
         // real-world iOS Safari sign-in path).
