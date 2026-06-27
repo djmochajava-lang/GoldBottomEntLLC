@@ -6,6 +6,62 @@
   <meta name="description" content="Gold Bottom Ent. LLC — Talent Management, Booking & Creative Services for live music and entertainment." />
   <title>Gold Bottom Ent. LLC</title>
 
+  <!-- ⚙️ AUTH DEBUG OVERLAY — diagnostic only, OFF unless URL has ?authdebug=1.
+       Surfaces [authdbg]/[perf]/[Auth]/[Router] console output + auth-state snapshots
+       on-screen for browsers we can't remote-inspect (Chrome iOS). No tokens/emails are
+       shown (uid is truncated). Temporary — remove after BUG-CHROME-IOS-01 is fixed. -->
+  <script>
+  (function(){
+    try {
+      if ((location.search + location.hash).indexOf('authdebug') === -1) return;
+      var box = document.createElement('div');
+      box.id = 'gbe-authdebug';
+      box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:60vh;overflow:auto;z-index:2147483647;background:rgba(0,0,0,.92);color:#19ff19;font:11px/1.4 monospace;padding:8px 8px 14px;white-space:pre-wrap;word-break:break-word;border-top:2px solid #19ff19;-webkit-overflow-scrolling:touch;';
+      var t0 = Date.now();
+      function add(tag, args){
+        try {
+          var ms = Date.now()-t0;
+          var stamp = '+' + (ms<1000 ? ms+'ms' : (ms/1000).toFixed(1)+'s');
+          var body = Array.prototype.map.call(args, function(a){
+            try { return typeof a==='object' ? JSON.stringify(a) : String(a); } catch(e){ return String(a); }
+          }).join(' ');
+          var line = document.createElement('div');
+          line.textContent = (stamp + ' ' + tag + ' ' + body).slice(0,400);
+          box.appendChild(line); box.scrollTop = box.scrollHeight;
+        } catch(e){}
+      }
+      (function attach(){ if(document.body){ document.body.appendChild(box); } else { setTimeout(attach,30); } })();
+      ['log','warn','error'].forEach(function(k){
+        var orig = console[k];
+        console[k] = function(){
+          try { var s=String(arguments[0]||''); if(/\[(authdbg|perf|Auth|Router)\]|firebase|redirect|dashboard|initial state|auth/i.test(s)) add('['+k+']', arguments); } catch(e){}
+          return orig.apply(console, arguments);
+        };
+      });
+      window.addEventListener('error', function(e){ add('[window.error]', [e.message]); });
+      window.addEventListener('unhandledrejection', function(e){ add('[promise.reject]', [(e.reason && e.reason.message) || e.reason]); });
+      var ticks=0, iv=setInterval(function(){
+        ticks++;
+        try {
+          var fb = (typeof firebase!=='undefined');
+          var cu = fb && firebase.auth && firebase.auth().currentUser;
+          add('[state]', [
+            'fb='+fb,
+            'currentUser='+(cu ? cu.uid.slice(0,6)+'…' : 'null'),
+            'page='+(typeof Router!=='undefined' ? Router.currentPage : '?'),
+            'hash='+location.hash,
+            'signin-initiated='+(localStorage.getItem('gbe-signin-initiated')?'set':'-'),
+            'pending-redirect='+(localStorage.getItem('gbe-pending-redirect')?'set':'-'),
+            'ls='+localStorage.length+' ss='+sessionStorage.length
+          ]);
+        } catch(e){ add('[state-err]', [e.message]); }
+        if (ticks>60) clearInterval(iv);
+      }, 1500);
+      add('[authdebug]', ['overlay ON — do the login, then screenshot this panel']);
+    } catch(e){}
+  })();
+  </script>
+
   <!-- Favicon -->
   <link rel="icon" href="images/logo/gbe-logo.svg" type="image/svg+xml" />
 
