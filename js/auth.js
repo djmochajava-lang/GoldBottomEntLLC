@@ -473,12 +473,17 @@ const Auth = {
               Router.navigateTo(Auth._roleLandingPage(Auth._activeRole || Auth._role || ''), true);
             } else {
               // Final fallback: sign-in was initiated on this device (popup or redirect)
-              // but sessionStorage was lost and _authViaRedirect was not set (e.g. Chrome
-              // iOS opens popups as full-page navigations without triggering popup-blocked).
+              // but the storage breadcrumb was partitioned away by the browser. Chrome iOS
+              // inconsistently wipes localStorage/sessionStorage across the OAuth redirect,
+              // which is why login "works sometimes." A FIRST-PARTY COOKIE survives the
+              // same-origin round-trip far more reliably, so check it too — either signal
+              // means this user just authenticated and should land in their dashboard.
               try {
                 var _siTs = parseInt(localStorage.getItem('gbe-signin-initiated') || '0');
-                if (_siTs && (Date.now() - _siTs) < 300000) {
+                var _cookieInit = /(?:^|;\s*)gbe_postlogin=1(?:;|$)/.test(document.cookie);
+                if (_cookieInit || (_siTs && (Date.now() - _siTs) < 300000)) {
                   localStorage.removeItem('gbe-signin-initiated');
+                  document.cookie = 'gbe_postlogin=; path=/; max-age=0; SameSite=Lax';
                   if (typeof Router !== 'undefined') {
                     Router.navigateTo(Auth._roleLandingPage(Auth._activeRole || Auth._role || ''), true);
                   }
@@ -1483,6 +1488,10 @@ const Auth = {
     // Read back in the approved routing block to navigate to dashboard even when
     // sessionStorage is cleared (Chrome iOS full-page popup navigation).
     try { localStorage.setItem('gbe-signin-initiated', Date.now().toString()); } catch (e) {}
+    // First-party cookie breadcrumb — survives the OAuth redirect round-trip on Chrome
+    // iOS, where localStorage/sessionStorage get partitioned away inconsistently (the
+    // cause of "login works sometimes"). Read back in the approved routing block.
+    try { document.cookie = 'gbe_postlogin=1; path=/; max-age=300; SameSite=Lax'; } catch (e) {}
     try { console.log('[authdbg] signInWithPopup START provider=' + providerName); } catch (e) {}
     return this._auth.signInWithPopup(provider).then(function(result) {
       try {
