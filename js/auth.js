@@ -469,7 +469,21 @@ const Auth = {
               Router.navigateTo(Auth._roleLandingPage(_restoreRole), true);
             } else if (typeof Router !== 'undefined' && Auth._authViaRedirect) {
               Auth._authViaRedirect = false;
+              localStorage.removeItem('gbe-signin-initiated');
               Router.navigateTo(Auth._roleLandingPage(Auth._activeRole || Auth._role || ''), true);
+            } else {
+              // Final fallback: sign-in was initiated on this device (popup or redirect)
+              // but sessionStorage was lost and _authViaRedirect was not set (e.g. Chrome
+              // iOS opens popups as full-page navigations without triggering popup-blocked).
+              try {
+                var _siTs = parseInt(localStorage.getItem('gbe-signin-initiated') || '0');
+                if (_siTs && (Date.now() - _siTs) < 300000) {
+                  localStorage.removeItem('gbe-signin-initiated');
+                  if (typeof Router !== 'undefined') {
+                    Router.navigateTo(Auth._roleLandingPage(Auth._activeRole || Auth._role || ''), true);
+                  }
+                }
+              } catch (e) {}
             }
             // Otherwise: user is browsing a public page — don't hijack navigation.
             // They can tap Dashboard in the menu when they want it.
@@ -1465,6 +1479,10 @@ const Auth = {
     // in storage-partitioned contexts like incognito; the real cure is a same-site
     // authDomain, tracked as a follow-up.)
     var self = this;
+    // Write sign-in intent before ANY auth attempt (popup or redirect).
+    // Read back in the approved routing block to navigate to dashboard even when
+    // sessionStorage is cleared (Chrome iOS full-page popup navigation).
+    try { localStorage.setItem('gbe-signin-initiated', Date.now().toString()); } catch (e) {}
     try { console.log('[authdbg] signInWithPopup START provider=' + providerName); } catch (e) {}
     return this._auth.signInWithPopup(provider).then(function(result) {
       try {
