@@ -646,10 +646,10 @@
   (function () {
     // ── Per-collection read-source flag for the band-player catalog ──
     // bp2-data.js reads this to choose the Firestore (default) or Supabase read
-    // path for songs/playlists. DARK BUILD: BOTH default 'firestore'. The flip to
-    // 'supabase' is CEO real-device gated (D-20) — never flipped autonomously.
-    // The `|| existing` guard is idempotent and lets a future flip override it.
-    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'firestore', playlists: 'firestore' };
+    // path for songs/playlists. LIVE: songs+playlists flipped to 'supabase' under
+    // direct CEO authorization (D-20 Condition 1 = GO) for the owner's real-device test.
+    // Instant rollback = set both back to 'firestore'. Firebase read code intact underneath.
+    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'supabase', playlists: 'supabase' };
     var BP2 = [
       'js/band-player-v2/bp2-utils.js', 'js/band-player-v2/bp2-core.js?v=1',
       'js/band-player-v2/bp2-data.js?v=1',
