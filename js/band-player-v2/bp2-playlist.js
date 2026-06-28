@@ -89,12 +89,9 @@
       var user = c.getUser();
       var isManager = c.isManager();
 
-      db.collection('playlists').orderBy('createdAt', 'desc').get()
-        .then(function(snap) {
-          var playlists = [];
-          snap.forEach(function(doc) {
-            playlists.push(Object.assign({ id: doc.id }, doc.data()));
-          });
+      BP2Data.getPlaylists()
+        .then(function(playlists) {
+          // playlists is already the plain array of {id, ...} objects.
 
           // Band members: filter to gig-linked playlists
           if (!isManager && user) {
@@ -158,14 +155,12 @@
       var c = _getCore();
       if (!c || !c.getDb()) return;
 
-      c.getDb().collection('songs').orderBy('createdAt', 'desc').get()
-        .then(function(snap) {
-          var inventory = [];
+      BP2Data.getSongs()
+        .then(function(inventory) {
           var songsMap = c.ref('allSongsMap');
-          snap.forEach(function(doc) {
-            var data = Object.assign({ id: doc.id }, doc.data());
-            inventory.push(data);
-            songsMap[doc.id] = data;
+          inventory.forEach(function(data) {
+            // data already has .id (plain object from the shim)
+            songsMap[data.id] = data;
           });
           c.set('inventory', inventory);
           console.log('[BP2Playlist] Inventory loaded: ' + inventory.length + ' songs');
@@ -210,23 +205,15 @@
         return;
       }
 
-      // Batch-fetch songs (Firestore in-queries max 10)
-      var db = c.getDb();
-      var batches = [];
-      for (var b = 0; b < uniqueIds.length; b += 10) {
-        batches.push(uniqueIds.slice(b, b + 10));
-      }
-
-      Promise.all(batches.map(function(batch) {
-        return db.collection('songs').where(firebase.firestore.FieldPath.documentId(), 'in', batch).get();
-      }))
-      .then(function(snapshots) {
+      // Fetch songs for this playlist's ids via the read shim (the shim's
+      // Firestore impl handles the in-query 10-batch chunking; the Supabase
+      // impl does a single .in() — Postgres has no in-list limit).
+      BP2Data.getSongsByIds(uniqueIds)
+      .then(function(songsArr) {
         var songMap = c.ref('allSongsMap');
-        snapshots.forEach(function(snap) {
-          snap.forEach(function(doc) {
-            var data = Object.assign({ id: doc.id }, doc.data());
-            songMap[doc.id] = data;
-          });
+        songsArr.forEach(function(data) {
+          // data already has .id (plain object from the shim)
+          songMap[data.id] = data;
         });
 
         // Resolve artwork URLs for songs that have artworkPath.
@@ -465,19 +452,21 @@
       if (!c || !c.getDb()) return;
       var db = c.getDb();
 
-      db.collection('playlists').where('isDefault', '==', true).get()
-        .then(function(snap) {
+      BP2Data.getDefaultPlaylists()
+        .then(function(defaults) {
+          // defaults is the plain array of default playlist {id, ...} objects.
+          // The playlist-permissions batch WRITE stays Firestore (writes never flip).
           var batch = db.batch();
-          snap.forEach(function(doc) {
+          defaults.forEach(function(pl) {
             var permRef = db.collection('playlist-permissions').doc();
             batch.set(permRef, {
               user_uid: uid,
-              playlist_id: doc.id,
+              playlist_id: pl.id,
               granted_at: firebase.firestore.FieldValue.serverTimestamp(),
               granted_by: 'system_onboarding'
             });
           });
-          if (!snap.empty) return batch.commit();
+          if (defaults.length > 0) return batch.commit();
         })
         .catch(function(err) {
           console.warn('[BP2Playlist] Failed to grant default playlists:', err.message);
