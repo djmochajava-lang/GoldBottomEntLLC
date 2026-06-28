@@ -85,37 +85,51 @@
   var todayStr = now.toISOString().slice(0,10);
 
   var actionStages = ['proposed','negotiating','confirmed'];
-  var pipelineItems = bookings.filter(function(b){ return actionStages.indexOf(b.stage) !== -1; })
-    .sort(function(a,b){ var p = {negotiating:0,proposed:1,confirmed:2}; return (p[a.stage]||9) - (p[b.stage]||9); });
+
+  /* Derive the action-needed pipeline list from a bookings array. */
+  function _derivePipelineItems(arr) {
+    return (arr||[]).filter(function(b){ return actionStages.indexOf(b.stage) !== -1; })
+      .sort(function(a,b){ var p = {negotiating:0,proposed:1,confirmed:2}; return (p[a.stage]||9) - (p[b.stage]||9); });
+  }
+  /* Stale follow-ups: proposed bookings untouched ≥3 days. */
+  function _deriveStaleFollowups(arr) {
+    return (arr||[]).filter(function(b){
+      if (b.stage !== 'proposed') return false;
+      var ts = b.updatedAt || b.updated_at || b.createdAt || b.created_at || 0;
+      var ms = (ts && ts.toMillis) ? ts.toMillis() : new Date(ts||0).getTime();
+      var diff = (Date.now() - ms) / 86400000;
+      return diff >= 3;
+    });
+  }
 
   var pendingContracts = contracts.filter(function(c){
     var s = (c.status||'').toLowerCase();
     return s==='pending'||s==='pending-signature'||s==='sent'||s==='draft';
   });
 
-  var staleFollowups = bookings.filter(function(b){
-    if (b.stage !== 'proposed') return false;
-    var diff = (Date.now() - new Date(b.updatedAt||b.createdAt||0).getTime()) / 86400000;
-    return diff >= 3;
-  });
-
-  /* ── Ops metrics ── */
-  var bmHtml =
-    metricCard('fa-filter',           '#f0883e', pipelineItems.length,    'Pipeline Actions') +
-    metricCard('fa-file-signature',   '#3fb950', m.activeContracts,       'Active Contracts') +
-    metricCard('fa-pen-nib',          '#d29922', pendingContracts.length,  'Pending Signatures') +
-    metricCard('fa-calendar-days',    '#d29922', m.upcomingEvents,        'Upcoming Shows') +
-    metricCard('fa-clock-rotate-left','#c778d9', staleFollowups.length,   'Follow-ups Due') +
-    metricCard('fa-users',            '#d4a017', m.totalRoster,           'Roster');
-  if (isLocal) {
-    bmHtml += metricCard('fa-chart-line','#3fb950', Utils.formatCurrency(m.revenueYTD), 'Revenue YTD');
+  /* ── Ops metrics renderer ── */
+  /* opts: { pipelineCount, activeContracts, pendingSignatures, upcomingShows, followupsDue, roster } */
+  function _renderMetrics(opts) {
+    var bmm = document.getElementById('bm-metrics');
+    if (!bmm) return;
+    var bmHtml =
+      metricCard('fa-filter',           '#f0883e', opts.pipelineCount,    'Pipeline Actions') +
+      metricCard('fa-file-signature',   '#3fb950', opts.activeContracts,  'Active Contracts') +
+      metricCard('fa-pen-nib',          '#d29922', opts.pendingSignatures,'Pending Signatures') +
+      metricCard('fa-calendar-days',    '#d29922', opts.upcomingShows,    'Upcoming Shows') +
+      metricCard('fa-clock-rotate-left','#c778d9', opts.followupsDue,     'Follow-ups Due') +
+      metricCard('fa-users',            '#d4a017', opts.roster,           'Roster');
+    if (isLocal) {
+      bmHtml += metricCard('fa-chart-line','#3fb950', Utils.formatCurrency(m.revenueYTD), 'Revenue YTD');
+    }
+    bmm.innerHTML = bmHtml;
   }
-  var bmm = document.getElementById('bm-metrics');
-  if (bmm) bmm.innerHTML = bmHtml;
 
-  /* ── Pipeline card ── */
-  var bmp = document.getElementById('bm-pipeline');
-  if (bmp) {
+  /* ── Pipeline card renderer ── */
+  function _renderPipelineCard(items) {
+    var bmp = document.getElementById('bm-pipeline');
+    if (!bmp) return;
+    var pipelineItems = items || [];
     var stageColors = {lead:'#8b949e',qualified:'#58a6ff',proposed:'#d4a017',negotiating:'#f0883e',confirmed:'#3fb950',contracted:'#3fb950',completed:'#3fb950',closed:'#f85149'};
     var stageLabels = {lead:'New Lead',qualified:'Qualified',proposed:'Proposed',negotiating:'Negotiating',confirmed:'Confirmed',contracted:'Contracted',completed:'Completed',closed:'Closed'};
     var pHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-filter" style="color:#f0883e;"></i> Pipeline — Needs Action</h3>';
@@ -125,10 +139,11 @@
       pHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
       pipelineItems.slice(0,5).forEach(function(b){
         var color = stageColors[b.stage]||'#8b949e';
+        var date  = b.eventDate || b.date || '';
         pHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+color+';">'+
-          '<div><div style="font-weight:600;">'+Utils.escapeHtml(b.clientName||b.venue||'Client')+'</div>'+
-          '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+(b.eventDate?Utils.formatDate(b.eventDate):'')+' '+Utils.escapeHtml(b.venue||'')+'</div></div>'+
-          '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba('+hexToRGB(color)+',0.15);color:'+color+';font-weight:600;white-space:nowrap;">'+stageLabels[b.stage]+'</span></div>';
+          '<div><div style="font-weight:600;">'+Utils.escapeHtml(b.clientName||b.name||b.contactName||b.venue||'Client')+'</div>'+
+          '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+(date?Utils.formatDate(date):'')+' '+Utils.escapeHtml(b.venue||'')+'</div></div>'+
+          '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba('+hexToRGB(color)+',0.15);color:'+color+';font-weight:600;white-space:nowrap;">'+(stageLabels[b.stage]||Utils.escapeHtml(b.stage||''))+'</span></div>';
       });
       pHtml += '</div>';
       if (pipelineItems.length > 5) pHtml += '<p style="margin-top:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">+' + (pipelineItems.length-5) + ' more</p>';
@@ -136,6 +151,22 @@
     pHtml += '<a href="#dashboard-booking" style="display:inline-flex;align-items:center;gap:6px;margin-top:var(--space-md);font-size:var(--text-sm);color:#f0883e;text-decoration:none;font-weight:600;">Full Pipeline <i class="fa-solid fa-arrow-right"></i></a>';
     bmp.innerHTML = pHtml;
   }
+
+  /* ── Initial synchronous render from DataStore (baseline / local / fallback) ── */
+  var _dsPipelineItems  = _derivePipelineItems(bookings);
+  var _dsStaleFollowups = _deriveStaleFollowups(bookings);
+  function _renderFromDataStore() {
+    _renderMetrics({
+      pipelineCount:     _dsPipelineItems.length,
+      activeContracts:   m.activeContracts,
+      pendingSignatures: pendingContracts.length,
+      upcomingShows:     m.upcomingEvents,
+      followupsDue:      _dsStaleFollowups.length,
+      roster:            m.totalRoster
+    });
+    _renderPipelineCard(_dsPipelineItems);
+  }
+  _renderFromDataStore();
 
   /* ── Quick actions ── */
   var qaGrid = document.getElementById('bm-qa-grid');
@@ -416,15 +447,18 @@
     Auth._db.collection('agreements')
       .where('status', 'in', ['sent', 'pending'])
       .orderBy('sentAt', 'desc')
-      .limit(10)
+      .limit(200)
       .get()
       .then(function(snap) {
+        /* Shared single read: this sent/pending agreements snapshot also feeds the
+           Pending Signatures + Active Contracts metric cards (no duplicate read). */
+        _onAgreementsSnap(snap);
         var paHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-file-signature" style="color:#d29922;"></i> Pending Agreements</h3>';
         if (snap.empty) {
           paHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i> All agreements signed</p>';
         } else {
           paHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
-          snap.forEach(function(doc) {
+          snap.docs.slice(0, 10).forEach(function(doc) {
             var a = doc.data();
             var sentDate = a.sentAt && a.sentAt.toDate ? a.sentAt.toDate().toLocaleDateString() : '';
             var statusColor = a.status === 'sent' ? '#d29922' : '#f0883e';
@@ -460,34 +494,140 @@
     pendAgEl.innerHTML = paHtml;
   }
 
-  /* ── Upcoming shows ── */
-  var upc = document.getElementById('bm-upcoming');
-  if (upc) {
-    var events   = DataStore.getEvents ? DataStore.getEvents() : [];
-    var upcoming = events.filter(function(e){ return new Date(e.date) >= now; }).slice(0,5);
-    var confirmedShows = bookings.filter(function(b){
-      return (b.stage==='confirmed'||b.stage==='contracted') && (b.eventDate||b.date) >= todayStr;
-    }).sort(function(a,b){ return (a.eventDate||a.date) > (b.eventDate||b.date) ? 1 : -1; }).slice(0,5);
-
+  /* ── Upcoming shows renderer ──
+     `items` is a normalized array: { title, venue, date, kind ('session'|'event'|'booking'), badge } */
+  function _renderUpcomingCard(items) {
+    var upc = document.getElementById('bm-upcoming');
+    if (!upc) return;
+    var allUp = (items || []).slice(0,6);
     var uHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days text-gold"></i> Upcoming Shows & Events</h3>';
-    var allUp = confirmedShows.concat(upcoming).slice(0,6);
     if (!allUp.length) { uHtml += '<p class="text-muted">No upcoming shows scheduled.</p>'; }
     else {
       uHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-sm);">';
       allUp.forEach(function(item){
-        var isBooking = !!item.stage;
-        var title = item.clientName||item.name||item.title||'Event';
-        var venue = item.venue||item.location||'';
-        var date  = Utils.formatDate(item.eventDate||item.date);
-        var color = isBooking ? '#3fb950' : '#d4a017';
+        var color = item.kind === 'event' ? '#d4a017' : '#3fb950';
+        var date  = item.date ? Utils.formatDate(item.date) : '';
         uHtml += '<div style="padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+color+';">'+
-          '<div style="font-weight:600;">'+Utils.escapeHtml(title)+'</div>'+
-          '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+date+(venue?' · '+Utils.escapeHtml(venue):'')+'</div>'+
-          (isBooking?'<span style="font-size:var(--text-xs);padding:2px 8px;border-radius:var(--radius-full);background:rgba(63,185,80,0.12);color:#3fb950;font-weight:600;">'+Utils.escapeHtml(item.stage)+'</span>':'')+'</div>';
+          '<div style="font-weight:600;">'+Utils.escapeHtml(item.title||'Event')+'</div>'+
+          '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+date+(item.venue?' · '+Utils.escapeHtml(item.venue):'')+'</div>'+
+          (item.badge?'<span style="font-size:var(--text-xs);padding:2px 8px;border-radius:var(--radius-full);background:rgba(63,185,80,0.12);color:#3fb950;font-weight:600;">'+Utils.escapeHtml(item.badge)+'</span>':'')+'</div>';
       });
       uHtml += '</div>';
     }
     upc.innerHTML = uHtml;
+  }
+
+  /* Build upcoming list from DataStore (baseline / local / fallback). */
+  function _dsUpcomingItems() {
+    var events   = DataStore.getEvents ? DataStore.getEvents() : [];
+    var upcoming = events.filter(function(e){ return new Date(e.date) >= now; })
+      .map(function(e){ return { title:e.title||e.name||'Event', venue:e.venue||e.location||'', date:e.date, kind:'event' }; });
+    var confirmedShows = bookings.filter(function(b){
+      return (b.stage==='confirmed'||b.stage==='contracted') && (b.eventDate||b.date) >= todayStr;
+    }).sort(function(a,b){ return (a.eventDate||a.date) > (b.eventDate||b.date) ? 1 : -1; })
+      .map(function(b){ return { title:b.clientName||b.name||'Event', venue:b.venue||b.location||'', date:b.eventDate||b.date, kind:'booking', badge:b.stage }; });
+    return confirmedShows.concat(upcoming);
+  }
+  _renderUpcomingCard(_dsUpcomingItems());
+
+  /* ══════════════════════════════════════════════════════════════════
+     LIVE FIRESTORE PATH (remote / public site only) — RULE-S06.
+     Replaces the DataStore baseline above once live collections resolve.
+     Each query is .limit()-capped (RULE: caps). On error, the DataStore
+     baseline already rendered above remains in place.
+     ══════════════════════════════════════════════════════════════════ */
+  /* Live metric values (null = not yet resolved → fall back to DataStore baseline).
+     Two async sources write here: the Promise.all below (bookings/sessions/roster)
+     and _onAgreementsSnap (agreements card, defined above). Each writes its own
+     keys then calls _applyLiveMetrics() so cards update as data arrives. */
+  var _live = {
+    pipelineCount: null, activeContracts: null, pendingSignatures: null,
+    upcomingShows: null, followupsDue: null, roster: null,
+    _sessionItems: null, _confirmedShows: null
+  };
+
+  function _applyLiveMetrics() {
+    if (isLocal) return; // local stays on DataStore baseline (incl. Revenue YTD)
+    _renderMetrics({
+      pipelineCount:     _live.pipelineCount     != null ? _live.pipelineCount     : _dsPipelineItems.length,
+      activeContracts:   _live.activeContracts   != null ? _live.activeContracts   : m.activeContracts,
+      pendingSignatures: _live.pendingSignatures != null ? _live.pendingSignatures : pendingContracts.length,
+      upcomingShows:     _live.upcomingShows     != null ? _live.upcomingShows     : m.upcomingEvents,
+      followupsDue:      _live.followupsDue       != null ? _live.followupsDue      : _dsStaleFollowups.length,
+      roster:            _live.roster            != null ? _live.roster            : m.totalRoster
+    });
+  }
+
+  /* Called from the (already-present, single) Pending Agreements query .then().
+     Feeds Pending Signatures (exact) + Active Contracts metric cards from the
+     SAME sent/pending snapshot — no duplicate Firestore read. */
+  function _onAgreementsSnap(snap) {
+    if (isLocal || !snap) return;
+    // snap is the sent/pending set. Pending Signatures = exact count.
+    _live.pendingSignatures = snap.size;
+    // Active Contracts: best available live source without a 2nd read is this
+    // same in-flight (sent/pending) agreements set. (Follow-up: dedicated query
+    // for fully-signed-but-active agreements if a cleaner metric is wanted.)
+    _live.activeContracts = snap.size;
+    _applyLiveMetrics();
+  }
+
+  if (!isLocal && typeof Auth !== 'undefined' && Auth._db) {
+    var _db = Auth._db;
+
+    /* bookings → Pipeline Actions, Follow-ups Due, Pipeline card, confirmed Upcoming Shows */
+    var _pBookings = _db.collection('bookings').orderBy('updated_at', 'desc').limit(200).get()
+      .then(function(snap){ return snap.docs.map(function(d){ return d.data(); }); })
+      .catch(function(err){ console.error('[Manager] live bookings load failed:', err); return null; });
+
+    /* sessions → Upcoming Shows metric + Upcoming Shows card */
+    var _pSessions = _db.collection('sessions').orderBy('date', 'asc').limit(200).get()
+      .then(function(snap){ return snap.docs.map(function(d){ var x=d.data()||{}; x._id=d.id; return x; }); })
+      .catch(function(err){ console.error('[Manager] live sessions load failed:', err); return null; });
+
+    /* roster → Roster metric (count) */
+    var _pRoster = _db.collection('roster').limit(500).get()
+      .then(function(snap){ return snap.size; })
+      .catch(function(err){ console.error('[Manager] live roster load failed:', err); return null; });
+
+    Promise.all([_pBookings, _pSessions, _pRoster]).then(function(res){
+      var liveBookings   = res[0];
+      var liveSessions   = res[1];
+      var liveRosterCount= res[2];
+
+      /* Pipeline card + pipeline-derived metrics (only if bookings loaded) */
+      if (liveBookings) {
+        var pipelineItems = _derivePipelineItems(liveBookings);
+        var followups     = _deriveStaleFollowups(liveBookings);
+        _live.pipelineCount = pipelineItems.length;
+        _live.followupsDue  = followups.length;
+        _live._confirmedShows = liveBookings.filter(function(b){
+          return (b.stage==='confirmed'||b.stage==='contracted') && ((b.eventDate||b.date)||'') >= todayStr;
+        }).map(function(b){ return { title:b.name||b.contactName||b.clientName||'Event', venue:b.venue||b.location||'', date:b.eventDate||b.date, kind:'booking', badge:b.stage }; });
+        _renderPipelineCard(pipelineItems);
+      }
+
+      /* Upcoming shows from sessions */
+      if (liveSessions) {
+        _live._sessionItems = liveSessions.filter(function(s){ return (s.date||'') >= todayStr; })
+          .map(function(s){ return { title:s.title||'Band Session', venue:s.venue||s.location||'', date:s.date, kind:'session', badge:(s.status && s.status!=='confirmed')?s.status:(s.session_type||s.sessionType||'') }; });
+        _live.upcomingShows = _live._sessionItems.length;
+      }
+
+      /* roster count */
+      if (liveRosterCount != null) _live.roster = liveRosterCount;
+
+      /* Compose & render Upcoming Shows card from whatever live data we have */
+      if (liveSessions || liveBookings) {
+        var combinedUp = (_live._confirmedShows||[]).concat(_live._sessionItems||[])
+          .sort(function(a,b){ return ((a.date)||'') > ((b.date)||'') ? 1 : -1; });
+        _renderUpcomingCard(combinedUp);
+      }
+
+      _applyLiveMetrics();
+    }).catch(function(err){
+      console.error('[Manager] live summary cards load failed; DataStore baseline retained:', err);
+    });
   }
 
   /* ── Band Readiness (Firestore) ── */
