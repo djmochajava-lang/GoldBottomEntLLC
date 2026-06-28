@@ -559,16 +559,14 @@
   }
 
   /* Called from the (already-present, single) Pending Agreements query .then().
-     Feeds Pending Signatures (exact) + Active Contracts metric cards from the
-     SAME sent/pending snapshot — no duplicate Firestore read. */
+     Feeds the Pending Signatures metric ONLY, from the sent/pending snapshot.
+     Active Contracts is now sourced from a DISTINCT executed-agreements query
+     (see _pExecAgreements below) so the two metrics are genuinely different
+     populations (DS-MGR01-01). */
   function _onAgreementsSnap(snap) {
     if (isLocal || !snap) return;
     // snap is the sent/pending set. Pending Signatures = exact count.
     _live.pendingSignatures = snap.size;
-    // Active Contracts: best available live source without a 2nd read is this
-    // same in-flight (sent/pending) agreements set. (Follow-up: dedicated query
-    // for fully-signed-but-active agreements if a cleaner metric is wanted.)
-    _live.activeContracts = snap.size;
     _applyLiveMetrics();
   }
 
@@ -590,10 +588,21 @@
       .then(function(snap){ return snap.size; })
       .catch(function(err){ console.error('[Manager] live roster load failed:', err); return null; });
 
-    Promise.all([_pBookings, _pSessions, _pRoster]).then(function(res){
+    /* executed agreements → Active Contracts metric (DISTINCT from Pending Signatures).
+       Sourced from in-force statuses only (signed/countersigned/active/executed), so
+       Active Contracts ≠ the sent/pending set that feeds Pending Signatures (DS-MGR01-01).
+       Firestore `in` query: 4 values (≤10 limit). On error/empty → DataStore fallback. */
+    var _pExecAgreements = _db.collection('agreements')
+      .where('status', 'in', ['signed', 'countersigned', 'active', 'executed'])
+      .limit(200).get()
+      .then(function(snap){ return snap.size; })
+      .catch(function(err){ console.error('[Manager] live executed agreements load failed:', err); return null; });
+
+    Promise.all([_pBookings, _pSessions, _pRoster, _pExecAgreements]).then(function(res){
       var liveBookings   = res[0];
       var liveSessions   = res[1];
       var liveRosterCount= res[2];
+      var liveActiveCount= res[3];
 
       /* Pipeline card + pipeline-derived metrics (only if bookings loaded) */
       if (liveBookings) {
@@ -611,16 +620,22 @@
       if (liveSessions) {
         _live._sessionItems = liveSessions.filter(function(s){ return (s.date||'') >= todayStr; })
           .map(function(s){ return { title:s.title||'Band Session', venue:s.venue||s.location||'', date:s.date, kind:'session', badge:(s.status && s.status!=='confirmed')?s.status:(s.session_type||s.sessionType||'') }; });
-        _live.upcomingShows = _live._sessionItems.length;
       }
 
       /* roster count */
       if (liveRosterCount != null) _live.roster = liveRosterCount;
 
-      /* Compose & render Upcoming Shows card from whatever live data we have */
+      /* Active Contracts ← executed agreements (distinct from Pending Signatures) */
+      if (liveActiveCount != null) _live.activeContracts = liveActiveCount;
+
+      /* Compose & render Upcoming Shows card from whatever live data we have.
+         TC-02: the Upcoming Shows METRIC now matches the SAME combined list the
+         card displays (confirmed/contracted bookings + upcoming sessions), so the
+         count and the card never disagree. */
       if (liveSessions || liveBookings) {
         var combinedUp = (_live._confirmedShows||[]).concat(_live._sessionItems||[])
           .sort(function(a,b){ return ((a.date)||'') > ((b.date)||'') ? 1 : -1; });
+        _live.upcomingShows = combinedUp.length;
         _renderUpcomingCard(combinedUp);
       }
 
