@@ -645,13 +645,13 @@
   <script>
   (function () {
     var BP2 = [
-      'js/band-player-v2/bp2-utils.js', 'js/band-player-v2/bp2-core.js',
-      'js/band-player-v2/bp2-player.js', 'js/band-player-v2/bp2-playlist.js?v=4',
+      'js/band-player-v2/bp2-utils.js', 'js/band-player-v2/bp2-core.js?v=1',
+      'js/band-player-v2/bp2-player.js?v=1', 'js/band-player-v2/bp2-playlist.js?v=5',
       'js/band-player-v2/bp2-render.js?v=11', 'js/band-player-v2/bp2-render-edit.js',
-      'js/band-player-v2/bp2-render-stems.js?v=2', 'js/band-player-v2/bp2-offline.js?v=2',
+      'js/band-player-v2/bp2-render-stems.js?v=2', 'js/band-player-v2/bp2-offline.js?v=3',
       'js/band-player-v2/bp2-stems.js?v=4', 'js/band-player-v2/bp2-mixer.js?v=3',
       'js/band-player-v2/bp2-transport.js?v=2', 'js/band-player-v2/bp2-practice.js',
-      'js/band-player-v2/bp2-charts.js?v=2', 'js/band-player-v2/bp2-lyrics.js',
+      'js/band-player-v2/bp2-charts.js?v=3', 'js/band-player-v2/bp2-lyrics.js',
       'js/band-player-v2/bp2-notes.js', 'js/band-player-v2/bp2-upload.js?v=6',
       'js/band-player-v2/bp2-permissions.js', 'js/band-player-v2/bp2-edit.js',
       'js/band-player-v2/bp2-integration.js?v=6', 'js/band-player-v2/bp2-progress.js',
@@ -668,6 +668,14 @@
       fb.integrity = 'sha384-XgUhjZUY/4vSJ8bUS7DFmLGK73fbJgS+nlrQDEC5X3QBpGgO+597wN8Syegw3ONj';
       fb.crossOrigin = 'anonymous'; fb.async = false;
       document.head.appendChild(fb);
+      // Supabase JS v2 (UMD global `window.supabase`) — band media (audio/charts/
+      // artwork) is served from PRIVATE Supabase Storage via signed URLs. Loaded
+      // here (async=false) so the global is registered before any bp2 module runs;
+      // bp2-core creates the client (anon/publishable key — client-safe).
+      var sb = document.createElement('script');
+      sb.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+      sb.crossOrigin = 'anonymous'; sb.async = false;
+      document.head.appendChild(sb);
       BP2.forEach(function (src) {
         var s = document.createElement('script');
         s.src = src; s.async = false; // async=false → execute in insertion (dependency) order

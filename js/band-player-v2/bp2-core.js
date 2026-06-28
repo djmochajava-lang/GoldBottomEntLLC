@@ -24,6 +24,39 @@
 (function(global) {
   'use strict';
 
+  // ── Supabase Storage (band-media) ────────────
+  // Media (audio/charts/artwork) is served from a PRIVATE Supabase Storage
+  // bucket via short-lived signed URLs minted at use. Firebase Storage stays
+  // loaded underneath as a guarded fallback / clean rollback. The anon
+  // (publishable) key is client-safe and intentionally committed; the
+  // service_role key must NEVER appear here (RULE-S05).
+  var SUPABASE_URL = 'https://rklvvuzedmadydmohouu.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_oIOHXXN_pwkeoeAfcQkNbg_rJkDFNZK';
+  var SUPABASE_BUCKET = 'band-media';
+  var _supabase = null;
+
+  function _initSupabase() {
+    if (_supabase) return _supabase;
+    // window.supabase is the UMD global from @supabase/supabase-js v2,
+    // loaded alongside the Firebase Storage SDK in index.html's __loadBP2().
+    if (global.supabase && typeof global.supabase.createClient === 'function') {
+      try {
+        _supabase = global.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        global.GBE_SUPABASE = _supabase;
+      } catch (e) {
+        console.warn('[BP2Core] Supabase client init failed:', e && e.message);
+      }
+    }
+    return _supabase;
+  }
+
+  // Firestore song fields carry the FULL bucket path (e.g.
+  // "band-media/audio/<id>.mp3") but objects were uploaded with STRIPPED keys
+  // ("audio/<id>.mp3"). Strip the leading "band-media/" before createSignedUrl.
+  function _supaKey(path) {
+    return String(path || '').replace(/^band-media\//, '');
+  }
+
   // ── Event Bus ────────────────────────────────
   var _listeners = {};
 
@@ -123,6 +156,9 @@
     _state.db = opts.db || null;
     _state.storage = opts.storage || null;
 
+    // Create the Supabase Storage client once (media path).
+    _initSupabase();
+
     // Auth context
     _state.user = opts.user || null;
     _state.role = opts.role || 'member';
@@ -183,6 +219,11 @@
     // Convenience — frequently accessed
     getDb: function() { return _state.db; },
     getStorage: function() { return _state.storage; },
+    // Supabase Storage singleton + key helper (media: audio/charts/artwork).
+    // Lazily inits if not yet created (e.g. called before BP2Core.init()).
+    getSupabase: function() { return _supabase || _initSupabase(); },
+    supaBucket: function() { return SUPABASE_BUCKET; },
+    supaKey: _supaKey,
     getUser: function() { return _state.user; },
     getRole: function() { return _state.role; },
     isManager: function() { return _state.role === 'admin' || _state.role === 'band_manager'; },

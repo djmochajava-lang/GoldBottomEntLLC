@@ -229,22 +229,31 @@
           });
         });
 
-        // Resolve artwork URLs for songs that have artworkPath
+        // Resolve artwork URLs for songs that have artworkPath.
+        // Primary case (band-media/ relative paths) → Supabase signed URL.
+        // Legacy gs:// / https:// values → guarded Firebase fallback.
+        var supabase = c.getSupabase ? c.getSupabase() : null;
         var storage = c.getStorage ? c.getStorage() : null;
-        if (storage) {
-          Object.keys(songMap).forEach(function(sid) {
-            var s = songMap[sid];
-            if (s.artworkPath && !s.artworkUrl) {
-              var ref = s.artworkPath.startsWith('gs://') || s.artworkPath.startsWith('https://')
-                ? storage.refFromURL(s.artworkPath) : storage.ref(s.artworkPath);
-              ref.getDownloadURL().then(function(url) {
-                s.artworkUrl = url;
-                // Re-render if tracklist is visible
-                c.emit('render:tracklist');
+        Object.keys(songMap).forEach(function(sid) {
+          var s = songMap[sid];
+          if (!s.artworkPath || s.artworkUrl) return;
+          var isLegacy = s.artworkPath.startsWith('gs://') || s.artworkPath.startsWith('https://');
+          if (!isLegacy && supabase) {
+            supabase.storage.from(c.supaBucket()).createSignedUrl(c.supaKey(s.artworkPath), 3600)
+              .then(function(res) {
+                if (res && res.data && res.data.signedUrl) {
+                  s.artworkUrl = res.data.signedUrl;
+                  c.emit('render:tracklist');
+                }
               }).catch(function() { /* use fallback */ });
-            }
-          });
-        }
+          } else if (isLegacy && storage) {
+            // Legacy Firebase artwork (gs:// / https://) — leave on Firebase.
+            storage.refFromURL(s.artworkPath).getDownloadURL().then(function(url) {
+              s.artworkUrl = url;
+              c.emit('render:tracklist');
+            }).catch(function() { /* use fallback */ });
+          }
+        });
 
         var songs = [];
         var finalPlayOrder = [];

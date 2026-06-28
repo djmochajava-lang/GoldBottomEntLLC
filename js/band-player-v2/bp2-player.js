@@ -193,17 +193,24 @@
         if (cachedUrl) {
           _loadAndPlay(cachedUrl);
         } else {
-          var storage = c.getStorage();
-          if (!storage) {
+          // Mint a short-lived Supabase signed URL at play-tap time.
+          var supabase = c.getSupabase ? c.getSupabase() : null;
+          if (!supabase) {
             if (typeof Toast !== 'undefined') Toast.error('Storage not available');
             return;
           }
-          storage.ref(song.audioPath).getDownloadURL().then(function(url) {
-            _loadAndPlay(url);
-          }).catch(function(e) {
-            console.error('[BP2Player] Failed to get audio URL:', e);
-            if (typeof Toast !== 'undefined') Toast.error('Could not load audio file');
-          });
+          supabase.storage.from(c.supaBucket()).createSignedUrl(c.supaKey(song.audioPath), 3600)
+            .then(function(res) {
+              if (res && res.data && res.data.signedUrl) {
+                _loadAndPlay(res.data.signedUrl);
+              } else {
+                console.error('[BP2Player] Failed to get audio URL:', res && res.error);
+                if (typeof Toast !== 'undefined') Toast.error('Could not load audio file');
+              }
+            }).catch(function(e) {
+              console.error('[BP2Player] Failed to get audio URL:', e);
+              if (typeof Toast !== 'undefined') Toast.error('Could not load audio file');
+            });
         }
       });
     },

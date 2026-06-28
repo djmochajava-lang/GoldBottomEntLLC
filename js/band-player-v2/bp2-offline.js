@@ -122,8 +122,17 @@
       var self = this;
       if (typeof Toast !== 'undefined') Toast.info('Saving "' + song.title + '" for offline...');
 
-      storage.ref(song.audioPath).getDownloadURL().then(function(url) {
-        return fetch(url);
+      // Mint a fresh Supabase signed URL AT FETCH TIME (a load-time URL would be
+      // stale by the time the offline cache fetch runs).
+      var c = _c();
+      var supabase = c && c.getSupabase ? c.getSupabase() : null;
+      if (!supabase) {
+        if (typeof Toast !== 'undefined') Toast.error('Storage not available');
+        return;
+      }
+      supabase.storage.from(c.supaBucket()).createSignedUrl(c.supaKey(song.audioPath), 3600).then(function(res) {
+        if (!res || !res.data || !res.data.signedUrl) throw new Error('Could not sign audio URL');
+        return fetch(res.data.signedUrl);
       }).then(function(response) {
         if (!response.ok) throw new Error('Download failed');
         return caches.open(CACHE_NAME).then(function(cache) {
@@ -173,17 +182,25 @@
         if (typeof Toast !== 'undefined') Toast.info('Downloads are disabled for this playlist.');
         return;
       }
-      if (!storage) return;
-      storage.ref(song.audioPath).getDownloadURL().then(function(url) {
+      // Mint a fresh Supabase signed URL AT DOWNLOAD-TAP TIME (NOT page load) so
+      // the 1-hour expiry is measured from the user's tap.
+      var c = _c();
+      var supabase = c && c.getSupabase ? c.getSupabase() : null;
+      if (!supabase) {
+        if (typeof Toast !== 'undefined') Toast.error('Storage not available');
+        return;
+      }
+      supabase.storage.from(c.supaBucket()).createSignedUrl(c.supaKey(song.audioPath), 3600).then(function(res) {
+        if (!res || !res.data || !res.data.signedUrl) throw new Error('Could not sign audio URL');
         var a = document.createElement('a');
-        a.href = url;
+        a.href = res.data.signedUrl;
         a.download = (song.title || 'track') + '.' + (song.audioPath.split('.').pop() || 'mp3');
         a.target = '_blank';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
       }).catch(function(err) {
-        if (typeof Toast !== 'undefined') Toast.error('Download failed: ' + err.message);
+        if (typeof Toast !== 'undefined') Toast.error('Download failed: ' + (err && err.message));
       });
     }
   };

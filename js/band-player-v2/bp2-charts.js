@@ -131,11 +131,29 @@
 
     openChartFile: function(storagePath, title) {
       var c = _c();
-      var storage = c ? c.getStorage() : null;
+      if (!c) return;
+      var isLegacy = storagePath.startsWith('gs://') || storagePath.startsWith('https://');
+      if (!isLegacy) {
+        // Primary case: band-media/ relative path → Supabase signed URL,
+        // minted at chart-open tap.
+        var supabase = c.getSupabase ? c.getSupabase() : null;
+        if (!supabase) return;
+        supabase.storage.from(c.supaBucket()).createSignedUrl(c.supaKey(storagePath), 3600)
+          .then(function(res) {
+            if (res && res.data && res.data.signedUrl) {
+              window.open(res.data.signedUrl, '_blank');
+            } else if (typeof Toast !== 'undefined') {
+              Toast.error('Could not load chart');
+            }
+          }).catch(function(e) {
+            if (typeof Toast !== 'undefined') Toast.error('Could not load chart');
+          });
+        return;
+      }
+      // Legacy gs:// / https:// chart path — guarded Firebase fallback.
+      var storage = c.getStorage ? c.getStorage() : null;
       if (!storage) return;
-      var ref = (storagePath.startsWith('gs://') || storagePath.startsWith('https://'))
-        ? storage.refFromURL(storagePath) : storage.ref(storagePath);
-      ref.getDownloadURL().then(function(url) {
+      storage.refFromURL(storagePath).getDownloadURL().then(function(url) {
         window.open(url, '_blank');
       }).catch(function(e) {
         if (typeof Toast !== 'undefined') Toast.error('Could not load chart');
@@ -202,6 +220,11 @@
           storagePath = match ? decodeURIComponent(match[1]) : storagePath;
         }
 
+        // NOTE (Supabase Week-1 rescue): this is the chart RE-UPLOAD (WRITE) path,
+        // not a getDownloadURL read. Per SPEC §3 the in-app upload path is DEFERRED
+        // ("re-hosting / read path is the rescue; the upload path is later work"),
+        // so this write deliberately stays on Firebase Storage. Do NOT half-migrate
+        // the upload path. The READ side (openChartFile) is the part swapped to Supabase.
         if (typeof Toast !== 'undefined') Toast.info('Uploading ' + instrument + ' chart...');
         var ref = storage.ref(storagePath);
         ref.put(file, { contentType: 'application/pdf' }).then(function() {
