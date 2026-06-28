@@ -48,6 +48,7 @@ var ASSET_HASHES = {
   './dashboard/band-player-v2.html': 'b870a370beb3c2eeeb768f149339157729a184722d08869822df155b2e591b96',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': '34965b8c06c37001253fff1c3011fc3015ab9c754f72f98deb907ea2b87801c0',
+  './js/band-player-v2/bp2-data.js': 'ecf9f523bc58c5d2f1aa636125f3213180c06968c4b4912882932c0317e14ffa',
   './js/band-player-v2/bp2-player.js': 'c4df39f7ac377cffb56b6ab6596f37e1a5a1dbb8f117dc0e07f50f1599770fe3',
   './js/band-player-v2/bp2-playlist.js': 'f0ac87570ddd2f5bb977db54f18e18b488e1324d6f90f081d367424221115a34',
   './js/band-player-v2/bp2-render.js': 'e8f68e74f53bf4bfb604e046e65c4576f96768f5e621aa67c2b6f0fd70cbffde',
