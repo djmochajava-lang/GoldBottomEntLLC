@@ -649,7 +649,7 @@
     // path for songs/playlists. DARK BUILD: BOTH default 'firestore'. The flip to
     // 'supabase' is CEO real-device gated (D-20) — never flipped autonomously.
     // The `|| existing` guard is idempotent and lets a future flip override it.
-    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'supabase', playlists: 'supabase' };
+    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'firestore', playlists: 'firestore' };
     var BP2 = [
       'js/band-player-v2/bp2-utils.js', 'js/band-player-v2/bp2-core.js?v=1',
       'js/band-player-v2/bp2-data.js?v=1',
