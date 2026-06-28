@@ -111,6 +111,7 @@ var PRECACHE_ASSETS = [
   './dashboard/band-player-v2.html',
   './js/band-player-v2/bp2-utils.js',
   './js/band-player-v2/bp2-core.js',
+  './js/band-player-v2/bp2-data.js',
   './js/band-player-v2/bp2-player.js',
   './js/band-player-v2/bp2-playlist.js',
   './js/band-player-v2/bp2-render.js',
