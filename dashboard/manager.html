@@ -27,11 +27,11 @@
   </div>
 
   <!-- Pipeline + Quick Actions -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:var(--space-lg);margin-top:var(--space-lg);">
     <div class="card" id="bm-pipeline" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>
     <div class="card" id="bm-qa-wrap" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">
       <h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt text-gold"></i> Quick Actions</h3>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm);" id="bm-qa-grid"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,90px),1fr));gap:var(--space-sm);" id="bm-qa-grid"></div>
     </div>
   </div>
 
@@ -503,7 +503,7 @@
     var uHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days text-gold"></i> Upcoming Shows & Events</h3>';
     if (!allUp.length) { uHtml += '<p class="text-muted">No upcoming shows scheduled.</p>'; }
     else {
-      uHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-sm);">';
+      uHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:var(--space-sm);">';
       allUp.forEach(function(item){
         var color = item.kind === 'event' ? '#d4a017' : '#3fb950';
         var date  = item.date ? Utils.formatDate(item.date) : '';
