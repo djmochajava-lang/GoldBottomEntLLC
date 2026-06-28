@@ -35,7 +35,7 @@
   <!-- Pipeline Tab -->
   <div id="tab-pipeline" class="quote-tab-content">
     <div id="quote-table-container">
-      <table class="data-table" id="quote-table">
+      <div class="table-wrapper"><table class="data-table" id="quote-table">
         <thead>
           <tr>
             <th>Client</th>
@@ -48,7 +48,7 @@
           </tr>
         </thead>
         <tbody id="quote-table-body"></tbody>
-      </table>
+      </table></div>
       <p id="quote-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
         No quote requests yet. Submissions from the public form will appear here after processing.
       </p>
@@ -95,7 +95,7 @@
   <!-- Email Logs Tab -->
   <div id="tab-logs" class="quote-tab-content" style="display:none;">
     <div id="email-logs-container">
-      <table class="data-table" id="email-logs-table">
+      <div class="table-wrapper"><table class="data-table" id="email-logs-table">
         <thead>
           <tr>
             <th>To</th>
@@ -105,7 +105,7 @@
           </tr>
         </thead>
         <tbody id="email-logs-body"></tbody>
-      </table>
+      </table></div>
       <p id="email-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
         No quote emails sent yet.
       </p>
@@ -148,7 +148,7 @@
       <!-- Promoter Info -->
       <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
         <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-user-tie"></i> Promoter Information</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-md);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 240px), 1fr));gap:var(--space-md);">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Promoter Name</label>
             <input type="text" class="form-input" id="series-promoter-name" placeholder="Contact name" />
@@ -176,7 +176,7 @@
       <!-- Custom Overrides -->
       <div class="glass-card" style="padding:var(--space-lg);margin-bottom:var(--space-lg);">
         <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-sliders"></i> Custom Overrides</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-md);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 240px), 1fr));gap:var(--space-md);">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Custom Discount %</label>
             <input type="number" class="form-input" id="series-custom-discount" min="0" max="100" step="1" placeholder="0" value="0" />
@@ -217,7 +217,7 @@
       <!-- Saved Quotes List -->
       <div class="glass-card" style="padding:var(--space-lg);">
         <h3 style="margin-top:0;color:var(--color-gold);"><i class="fa-solid fa-folder-open"></i> Saved Multi-Show Quotes</h3>
-        <table class="data-table" id="series-saved-table">
+        <div class="table-wrapper"><table class="data-table" id="series-saved-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -229,7 +229,7 @@
             </tr>
           </thead>
           <tbody id="series-saved-body"></tbody>
-        </table>
+        </table></div>
         <p id="series-saved-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-lg);display:none;">
           No multi-show quotes saved yet.
         </p>
@@ -884,7 +884,7 @@
         <strong style="color:var(--color-gold);">Show #${index + 1}</strong>
         <button class="btn btn-sm" style="color:#f85149;background:none;border:none;cursor:pointer;font-size:var(--text-sm);" onclick="window._seriesRemoveShow(${index})" title="Remove show"><i class="fa-solid fa-trash-can"></i></button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-sm);">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 240px), 1fr));gap:var(--space-sm);">
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-label" style="font-size:var(--text-xs);">Event Name</label>
           <input type="text" class="form-input" data-field="eventName" placeholder="Show name" />
@@ -904,7 +904,7 @@
           </select>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:var(--space-sm);margin-top:var(--space-sm);">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 180px), 1fr));gap:var(--space-sm);margin-top:var(--space-sm);">
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-label" style="font-size:var(--text-xs);">Venue</label>
           <input type="text" class="form-input" data-field="venue" placeholder="Venue name" />
@@ -946,7 +946,7 @@
           </select>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-top:var(--space-sm);">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);margin-top:var(--space-sm);">
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-label" style="font-size:var(--text-xs);">Sound System</label>
           <select class="form-select" data-field="soundSystem">

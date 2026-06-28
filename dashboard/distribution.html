@@ -9,7 +9,7 @@
 
   <!-- Quick Actions Toolbar -->
   <div class="card" style="margin-bottom:var(--space-lg);padding:var(--space-md);">
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:var(--space-sm);">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 120px), 1fr));gap:var(--space-sm);">
       <a href="https://www.usisrc.org" target="_blank" rel="noopener" class="glass-card" style="display:flex;flex-direction:column;align-items:center;gap:var(--space-xs);padding:var(--space-sm);text-decoration:none;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s;" onmouseover="this.style.borderColor='rgba(184,134,11,0.3)';this.style.transform='translateY(-2px)';" onmouseout="this.style.borderColor='';this.style.transform='';">
         <i class="fa-solid fa-barcode" style="font-size:var(--text-lg);color:var(--color-gold);"></i>
         <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">Register ISRC</span>
@@ -566,7 +566,7 @@
   <div class="glass-card" style="margin-top:var(--space-lg);">
     <h3><i class="fa-solid fa-calculator text-gold"></i> Per-Stream Royalty Rate Reference</h3>
     <p class="text-muted" style="font-size:0.85rem;margin-bottom:var(--space-sm);">Estimated per-stream payout rates by platform. Use these to project revenue from your releases.</p>
-    <table class="data-table" style="font-size:0.85rem;">
+    <div class="table-wrapper"><table class="data-table" style="font-size:0.85rem;">
       <thead>
         <tr><th>Platform</th><th>Est. Per-Stream Rate</th><th>Notes</th></tr>
       </thead>
@@ -581,7 +581,7 @@
         <tr><td><i class="fa-solid fa-heart" style="color:#e0245e;"></i> Bandcamp</td><td>80–85% of sale</td><td>Direct sales model — you set the price, fans pay</td></tr>
         <tr><td><i class="fa-solid fa-store" style="color:#00d4aa;"></i> Audiomack</td><td>$0.001 – $0.003</td><td>Growing platform; strong in hip-hop, R&B, Afrobeats</td></tr>
       </tbody>
-    </table>
+    </table></div>
     <p class="text-muted" style="font-size:0.75rem;margin-top:var(--space-sm);font-style:italic;">
       <i class="fa-solid fa-triangle-exclamation"></i> Rates fluctuate based on region, subscription type, and platform payouts. These are 2025/2026 estimates. Always check each platform's artist dashboard for current payouts.
     </p>
@@ -707,7 +707,7 @@
     var thHeaders=['Title','Artist','Type','ISRC','UPC','Method','Release Date','Status'];
     if(isLocal) thHeaders.push('Royalties');
     if(isLocal) thHeaders.push('Actions');
-    var html='<table class="data-table"><thead><tr>';
+    var html='<div class="table-wrapper"><table class="data-table"><thead><tr>';
     thHeaders.forEach(function(h){html+='<th>'+h+'</th>';});
     html+='</tr></thead><tbody>';
     data.forEach(function(r){
@@ -735,7 +735,7 @@
         '</div></td>':'')+
         '</tr>';
     });
-    html+='</tbody></table>';
+    html+='</tbody></table></div>';
     c.innerHTML=html;
   }
 

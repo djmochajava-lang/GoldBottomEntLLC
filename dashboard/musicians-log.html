@@ -594,7 +594,7 @@
 
       // Details (expandable)
       html += '<div class="ml-card-details" id="ml-detail-' + esc(m.id) + '">';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-bottom:var(--space-sm);">';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);margin-bottom:var(--space-sm);">';
       html += '<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);">Email</span><br>' + esc(m._email || '—') + '</div>';
       html += '<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);">Phone</span><br>' + esc(m._phone || '—') + '</div>';
       html += '</div>';

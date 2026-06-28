@@ -31,7 +31,7 @@
     <!-- Trademark Action Plan -->
     <div style="margin-top:var(--space-lg);padding:20px;background:rgba(212,160,23,0.06);border:1px solid rgba(212,160,23,0.2);border-radius:10px;">
       <h3 style="color:var(--color-gold);margin:0 0 12px;font-size:16px;"><i class="fa-solid fa-list-check" style="margin-right:8px;"></i>Trademark Filing Action Plan</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%, 280px), 1fr));gap:16px;">
         <!-- Phase 1 -->
         <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;padding:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -144,7 +144,7 @@
     if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-copyright"></i></div><h3 class="empty-state-title">No IP entries</h3><p class="empty-state-text">Register your first intellectual property.</p></div>';return;}
     var thHeaders=['Title','Type','Artist/Creator','Owner(s)','Ownership','Registration','PRO'];
     if(isLocal) thHeaders.push('Actions');
-    var html='<table class="data-table"><thead><tr>';
+    var html='<div class="table-wrapper"><table class="data-table"><thead><tr>';
     thHeaders.forEach(function(h){html+='<th>'+h+'</th>';});
     html+='</tr></thead><tbody>';
     data.forEach(function(ip){
@@ -158,7 +158,7 @@
         (isLocal?'<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editIP(\''+ip.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteIP(\''+ip.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td>':'')+
         '</tr>';
     });
-    html+='</tbody></table>';c.innerHTML=html;
+    html+='</tbody></table></div>';c.innerHTML=html;
   }
 
   document.getElementById('add-ip-btn').addEventListener('click',function(){
@@ -205,7 +205,7 @@
     if(!data.length){c.innerHTML='<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-trademark"></i></div><h3 class="empty-state-title">No trademarks</h3><p class="empty-state-text">Add your first trademark to track.</p></div>';return;}
     var thHeaders=['Mark','Owner','Status','Class','Phase','Artist','Use in Commerce'];
     if(isLocal) thHeaders.push('Actions');
-    var html='<table class="data-table"><thead><tr>';
+    var html='<div class="table-wrapper"><table class="data-table"><thead><tr>';
     thHeaders.forEach(function(h){html+='<th>'+h+'</th>';});
     html+='</tr></thead><tbody>';
     data.forEach(function(tm){
@@ -222,7 +222,7 @@
         (isLocal?'<td data-label="Actions"><div class="data-table-actions"><button class="btn btn-ghost btn-sm" onclick="editTM(\''+tm.id+'\')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-ghost btn-sm text-danger" onclick="deleteTM(\''+tm.id+'\')"><i class="fa-solid fa-trash"></i></button></div></td>':'')+
         '</tr>';
     });
-    html+='</tbody></table>';c.innerHTML=html;
+    html+='</tbody></table></div>';c.innerHTML=html;
   }
 
   /* Trademark form HTML builder */

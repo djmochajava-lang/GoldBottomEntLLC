@@ -289,7 +289,7 @@
         + '<div><label class="form-label">Musician *</label><select id="agr-musician" class="form-input">' + musicianOpts + '</select></div>'
         + '<div><label class="form-label">Agreement Title *</label><input id="agr-title" class="form-input" placeholder="e.g. Performance Agreement — Friday Night Jazz" /></div>'
         + '<div><label class="form-label">Content</label><textarea id="agr-content" class="form-input" rows="6" placeholder="Agreement text (supports HTML)..."></textarea></div>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:12px;">'
         + '<div><label class="form-label">Pay ($)</label><input id="agr-pay" class="form-input" type="number" placeholder="250" /></div>'
         + '<div><label class="form-label">Call Time</label><input id="agr-calltime" class="form-input" placeholder="6:00 PM" /></div>'
         + '<div><label class="form-label">Set Length</label><input id="agr-setlength" class="form-input" placeholder="2 hours" /></div>'

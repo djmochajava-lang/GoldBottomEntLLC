@@ -38,7 +38,7 @@
     <div style="display:flex;justify-content:flex-end;margin-bottom:var(--space-md);">
       <button class="btn btn-primary" id="tix-create-event-btn"><i class="fa-solid fa-plus"></i> New Event</button>
     </div>
-    <table class="data-table" id="tix-events-table">
+    <div class="table-wrapper"><table class="data-table" id="tix-events-table">
       <thead>
         <tr>
           <th>Event</th>
@@ -50,7 +50,7 @@
         </tr>
       </thead>
       <tbody id="tix-events-body"></tbody>
-    </table>
+    </table></div>
     <p id="tix-events-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
       No events yet. Create your first event to start selling tickets.
     </p>
@@ -67,7 +67,7 @@
       </div>
       <button class="btn btn-primary btn-sm" id="tix-add-tier-btn" disabled><i class="fa-solid fa-plus"></i> Add Tier</button>
     </div>
-    <table class="data-table" id="tix-tiers-table">
+    <div class="table-wrapper"><table class="data-table" id="tix-tiers-table">
       <thead>
         <tr>
           <th>Tier Name</th>
@@ -79,7 +79,7 @@
         </tr>
       </thead>
       <tbody id="tix-tiers-body"></tbody>
-    </table>
+    </table></div>
     <p id="tix-tiers-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">
       Select an event above to manage its ticket tiers.
     </p>
@@ -102,7 +102,7 @@
           <option value="refunded">Refunded</option>
         </select>
       </div>
-      <table class="data-table" id="tix-orders-table">
+      <div class="table-wrapper"><table class="data-table" id="tix-orders-table">
         <thead>
           <tr>
             <th>Order #</th>
@@ -117,7 +117,7 @@
           </tr>
         </thead>
         <tbody id="tix-orders-body"></tbody>
-      </table>
+      </table></div>
       <p id="tix-orders-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
         No orders found. Orders will appear here when tickets are purchased.
       </p>
@@ -131,7 +131,7 @@
       <div style="display:flex;justify-content:flex-end;margin-bottom:var(--space-md);">
         <button class="btn btn-primary btn-sm" id="tix-create-promo-btn"><i class="fa-solid fa-plus"></i> New Promo Code</button>
       </div>
-      <table class="data-table" id="tix-promos-table">
+      <div class="table-wrapper"><table class="data-table" id="tix-promos-table">
         <thead>
           <tr>
             <th>Code</th>
@@ -143,7 +143,7 @@
           </tr>
         </thead>
         <tbody id="tix-promos-body"></tbody>
-      </table>
+      </table></div>
       <p id="tix-promos-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
         No promo codes yet. Create one to offer discounts on tickets.
       </p>
@@ -164,7 +164,7 @@
         <button class="btn btn-primary btn-sm" id="tix-add-guest-btn" disabled><i class="fa-solid fa-user-plus"></i> Add Guest</button>
       </div>
       <div id="tix-door-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--space-md);margin-bottom:var(--space-lg);"></div>
-      <table class="data-table" id="tix-door-table">
+      <div class="table-wrapper"><table class="data-table" id="tix-door-table">
         <thead>
           <tr>
             <th>Name</th>
@@ -176,7 +176,7 @@
           </tr>
         </thead>
         <tbody id="tix-door-body"></tbody>
-      </table>
+      </table></div>
       <p id="tix-door-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">
         Select an event to view its door list.
       </p>
@@ -189,7 +189,7 @@
     <div id="tix-analytics-content" style="display:none;">
       <div id="tix-analytics-global" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-md);margin-bottom:var(--space-xl);"></div>
       <h3 style="margin-bottom:var(--space-md);color:var(--color-text-secondary);"><i class="fa-solid fa-chart-bar"></i> Per-Event Breakdown</h3>
-      <table class="data-table" id="tix-analytics-table">
+      <div class="table-wrapper"><table class="data-table" id="tix-analytics-table">
         <thead>
           <tr>
             <th>Event</th>
@@ -201,7 +201,7 @@
           </tr>
         </thead>
         <tbody id="tix-analytics-body"></tbody>
-      </table>
+      </table></div>
       <p id="tix-analytics-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
         No analytics data yet. Create events and sell tickets to see stats.
       </p>
@@ -425,7 +425,7 @@
       '<div style="display:flex;flex-direction:column;gap:var(--space-md);max-height:70vh;overflow-y:auto;padding:var(--space-sm);">' +
         '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Event Name *</label>' +
         '<input id="ev-name" type="text" value="' + escHtml(ev.eventName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. Jazz Night at The Blue Note"></div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">' +
           '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Date *</label>' +
           '<input id="ev-date" type="date" value="' + (ev.eventDate || '').split('T')[0] + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);"></div>' +
           '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Capacity</label>' +
@@ -543,7 +543,7 @@
       '<div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">' +
         '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Tier Name *</label>' +
         '<input id="tier-name" type="text" value="' + escHtml(t.tierName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. VIP, General Admission"></div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">' +
           '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Price *</label>' +
           '<input id="tier-price" type="number" min="0" step="0.01" value="' + (t.price != null ? t.price : '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="0.00"></div>' +
           '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Quantity</label>' +
@@ -724,13 +724,13 @@
         '<div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">' +
           '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Promo Code *</label>' +
           '<input id="promo-code" type="text" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);text-transform:uppercase;" placeholder="e.g. EARLYBIRD20"></div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">' +
             '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Discount Type *</label>' +
             '<select id="promo-type" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);"><option value="percent">Percent (%)</option><option value="fixed">Fixed ($)</option></select></div>' +
             '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Discount Value *</label>' +
             '<input id="promo-value" type="number" min="0" step="0.01" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. 20"></div>' +
           '</div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">' +
             '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Max Uses</label>' +
             '<input id="promo-max" type="number" min="1" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Unlimited"></div>' +
             '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Expires</label>' +

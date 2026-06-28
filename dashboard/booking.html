@@ -166,7 +166,7 @@
   <!-- Cancellation Policy -->
   <div class="glass-card" style="margin-top:var(--space-lg);">
     <h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-shield-halved text-gold"></i> Cancellation Policy</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-md);">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%, 280px), 1fr));gap:var(--space-md);">
       <div style="padding:var(--space-md);border:1px solid var(--color-border);border-radius:var(--radius-md);background:rgba(255,255,255,0.02);">
         <h4 style="margin:0 0 var(--space-sm) 0;font-size:0.9rem;"><i class="fa-solid fa-user" style="color:#d29922;margin-right:var(--space-xs);"></i> Cancellation by Client</h4>
         <ul style="list-style:none;padding:0;margin:0;font-size:0.84rem;color:var(--color-text-muted);line-height:1.8;">
@@ -775,7 +775,7 @@
 
       // Booking form
       html += '<form id="bk-form">';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">';
       html += formField('Contact Name', 'contactName', b.contactName || b.name || '');
       html += formField('Contact Email', 'contactEmail', b.contactEmail || '');
       html += formField('Contact Phone', 'contactPhone', b.contactPhone || '');
@@ -787,7 +787,7 @@
       html += '</div>';
 
       // Stage select
-      html += '<div style="margin-top:var(--space-md);display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">';
+      html += '<div style="margin-top:var(--space-md);display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">';
       html += '<div class="form-group"><label style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-muted);display:block;margin-bottom:4px;">Stage</label>';
       html += '<select name="stage" class="form-select" style="width:100%;padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">';
       pipelineStages.forEach(function(s) {
@@ -1076,7 +1076,7 @@
   document.getElementById('add-booking-btn').addEventListener('click', function() {
     var html = '<h2 style="margin:0 0 var(--space-md) 0;font-size:1.2rem;">Add Booking</h2>';
     html += '<form id="bk-form">';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">';
     html += formField('Contact Name', 'contactName', '');
     html += formField('Contact Email', 'contactEmail', '');
     html += formField('Contact Phone', 'contactPhone', '');
@@ -1299,7 +1299,7 @@
         return '<span style="padding:2px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;background:' + bg + ';color:' + color + ';">' + esc(label) + '</span>';
       }
 
-      var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--space-md);">';
+      var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%, 300px), 1fr));gap:var(--space-md);">';
       leads.forEach(function(lead) {
         var cityState = [lead.city, lead.state].filter(Boolean).join(', ');
         var notes = lead.notes || '';

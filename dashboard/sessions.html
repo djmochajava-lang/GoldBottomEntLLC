@@ -50,11 +50,11 @@
             <option value="sectional">Sectional</option>
           </select>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">
           <div><label class="sess-label">Date *</label><input id="sess-date" type="date" class="sess-input" /></div>
           <div><label class="sess-label">Time</label><input id="sess-time" type="time" class="sess-input" /></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">
           <div><label class="sess-label">Duration</label><input id="sess-duration" type="text" placeholder="3h" class="sess-input" /></div>
           <div><label class="sess-label">Status</label>
             <select id="sess-status" class="sess-input">
@@ -73,11 +73,11 @@
 
         <!-- Type-specific fields (toggled by session type) -->
         <div id="sess-gig-fields">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">
             <div><label class="sess-label">Pay / Musician ($)</label><input id="sess-pay" type="number" placeholder="250" class="sess-input" /></div>
             <div><label class="sess-label">Dress Code</label><input id="sess-dress" type="text" placeholder="All black" class="sess-input" /></div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-top:var(--space-sm);">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);margin-top:var(--space-sm);">
             <div><label class="sess-label">Load-in Time</label><input id="sess-loadin" type="time" class="sess-input" /></div>
             <div><label class="sess-label">Set Times</label><input id="sess-sets" type="text" placeholder="20:00-21:00, 21:30-22:30" class="sess-input" /></div>
           </div>

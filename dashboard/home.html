@@ -75,11 +75,11 @@
       '<div id="admin-metrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-lg);"></div>'+
 
       /* System status + User approvals */
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-lg);margin-top:var(--space-lg);">'+
         '<div class="card" id="admin-activity" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>'+
         '<div class="card" id="admin-system" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
           '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-shield-halved" style="color:#58a6ff;"></i> System Controls</h3>'+
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);" id="admin-sys-grid"></div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);" id="admin-sys-grid"></div>'+
         '</div>'+
       '</div>'+
 
@@ -187,11 +187,11 @@
       '<div id="bm-metrics" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--space-lg);"></div>'+
 
       /* Pipeline + Quick Actions */
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);margin-top:var(--space-lg);">'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-lg);margin-top:var(--space-lg);">'+
         '<div class="card" id="bm-pipeline" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);"></div>'+
         '<div class="card" id="bm-qa-wrap" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
           '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-bolt text-gold"></i> Quick Actions</h3>'+
-          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm);" id="bm-qa-grid"></div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 90px), 1fr));gap:var(--space-sm);" id="bm-qa-grid"></div>'+
         '</div>'+
       '</div>'+
 
@@ -322,7 +322,7 @@
       var allUp = confirmedShows.concat(upcoming).slice(0,6);
       if(!allUp.length){ uHtml += '<p class="text-muted">No upcoming shows scheduled.</p>'; }
       else {
-        uHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-sm);">';
+        uHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%, 260px), 1fr));gap:var(--space-sm);">';
         allUp.forEach(function(item){
           var isBooking = !!item.stage;
           var title  = item.clientName||item.name||item.title||'Event';
@@ -435,7 +435,7 @@
     var contracts = DataStore.getContracts ? DataStore.getContracts().filter(function(c){return c.status==='active';}) : [];
 
     var html =
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);">'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-lg);">'+
 
       /* My Schedule */
       '<div class="card" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);">'+
@@ -497,7 +497,7 @@
       '<div id="bm-agreement-alert" style="margin-bottom:var(--space-lg);"></div>'+
 
       /* 2-col info grid */
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);" id="bm-info-grid">'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-lg);" id="bm-info-grid">'+
         '<div class="card" style="'+cardStyle+'" id="bm-next-show">'+
           '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-calendar-days" style="color:#3fb950;"></i> Next Show</h3>'+
           '<p class="text-muted">Loading...</p>'+

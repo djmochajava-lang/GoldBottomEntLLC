@@ -277,7 +277,7 @@
       return;
     }
 
-    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    var html = '<div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
     html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">ID</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Subject</th>';
@@ -299,7 +299,7 @@
       html += '</tr>';
     }
 
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     document.getElementById('agent-inbox-container').innerHTML = html;
 
     // Pagination
@@ -376,7 +376,7 @@
       return;
     }
 
-    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    var html = '<div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
     html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Task ID</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Type</th>';
@@ -413,7 +413,7 @@
       html += '</tr>';
     }
 
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     document.getElementById('agent-task-container').innerHTML = html;
 
     // Pagination
@@ -495,7 +495,7 @@
       return;
     }
 
-    var html = '<table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
+    var html = '<div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
     html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Timestamp</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Action</th>';
@@ -513,7 +513,7 @@
       html += '</tr>';
     }
 
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     document.getElementById('agent-audit-container').innerHTML = html;
   }
 
