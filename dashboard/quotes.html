@@ -5,7 +5,7 @@
   <div class="dashboard-page-header">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
       <div><h1>Quote Pipeline</h1><p class="text-muted">Monitor booking quote requests, processing status, and email delivery.</p></div>
-      <div style="display:flex;gap:var(--space-sm);" id="quote-actions">
+      <div style="display:flex;flex-wrap:wrap;gap:var(--space-sm);max-width:100%;" id="quote-actions">
         <button class="btn btn-outline" id="quote-pull-btn"><i class="fa-solid fa-cloud-arrow-down"></i> Pull Staging</button>
         <button class="btn btn-primary" id="quote-process-btn"><i class="fa-solid fa-gears"></i> Process Quotes</button>
         <button class="btn btn-outline" id="quote-send-btn"><i class="fa-solid fa-paper-plane"></i> Send All Pending</button>
