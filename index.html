@@ -605,7 +605,24 @@
   <!-- These auto-init immediately — page is interactive after this block -->
   <!-- perf.js MUST load first so boot.start is captured before any other JS -->
   <script src="js/perf.js?v=2"></script>
-  <script src="js/config.js?v=1"></script>
+  <script src="js/config.js?v=2"></script>
+  <!-- ── DARK AUTH SOURCE FLAG (Week-3 Supabase Auth cutover) ──
+       Mirrors BP2_READ_SOURCE. Default 'firebase' => auth.js authenticates via
+       Firebase exactly as today; the Supabase branch in auth.js is present but
+       UNREACHED. The owner flips this to 'supabase' (one line, like the
+       BP2_READ_SOURCE line below) only while physically present for the AC-1
+       real-device test. Flip-back is the same single line. Firebase Auth stays
+       LIVE underneath the whole window as the rollback net. -->
+  <script>window.GBE_AUTH_SOURCE = window.GBE_AUTH_SOURCE || 'firebase';</script>
+  <!-- Supabase JS v2 (UMD global window.supabase). Loaded NON-deferred and
+       BEFORE the deferred auth.js below, so window.supabase.createClient is
+       registered before auth.js runs. (Non-deferred scripts execute before
+       deferred ones regardless of position.) This is SEPARATE from the late
+       band-media __loadBP2() loader, which injects supabase-js dynamically
+       AFTER auth.js and only on the band-player route — auth cannot rely on it.
+       Present-but-dark: with GBE_AUTH_SOURCE='firebase', auth.js never calls
+       createClient, so this is an idle ~40KB download, no behavior change. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
   <script src="js/utils.js"></script>
   <script src="js/mobile-detect.js"></script>
   <script src="js/toast.js"></script>
@@ -629,7 +646,7 @@
        login critical path. Auth.getStorage() lazily inits firebase.storage() once it's loaded. -->
 
   <!-- ── DEFERRED: Auth + Data + Features ── -->
-  <script defer src="js/auth.js?v=13"></script>
+  <script defer src="js/auth.js?v=14"></script>
   <script defer src="js/data-store.js?v=2"></script>
   <script defer src="js/forms.js"></script>
   <script defer src="js/table-manager.js"></script>

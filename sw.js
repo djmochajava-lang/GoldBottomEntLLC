@@ -24,12 +24,12 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/config.js': '20c2f09058bc3246381b0e9db5d20792edb0e1a2695345202bdf2d8305fe4645',
+  './js/config.js': '721dafdf151a0f0826339d1f7ea3d6d2e0d29b5bb83f6172fa28d7328357c0a0',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
   './js/toast.js': '74bfec8e52dbd0cc437b09851756f642d268ba21c2b28cd3563c3ca703f146f4',
   './js/modal.js': 'fd60926db530a6855a03a486b48500a4463808bfae140a592cc86cffcc8b006b',
-  './js/auth.js': '771d4ad02941f985a2d7492c5fac9031dd912c7828f03f632dc88f5f5202e6a5',
+  './js/auth.js': '7f8a62e21c185aee952fd98d6ab510380dd8f9e4407c8c803a4fde4167909168',
   './js/page-loader.js': '4dbe80f06bed8021ffd1da9d21f5d51925fce5d4557c721e658ff6f9e7795bac',
   './js/scroll-animations.js': '8432cbd23b9bd38d07f0a081a1cafc8cdc30ef55f9f6b2c7a4cca4db6cc9cef1',
   './js/router.js': 'd828e09f9c1abcad49587a3f4335610af3d0cda88e8f3cf380b35f563115dc02',
@@ -76,6 +76,14 @@ var FIREBASE_API_HOSTS = [
   'identitytoolkit.googleapis.com',
   'securetoken.googleapis.com',
   'firebasestorage.googleapis.com',
+];
+
+// Supabase backend hostname(s) — never intercept; the supabase-js SDK manages
+// auth (PKCE token exchange, session refresh), Postgres REST, and Storage signed
+// URLs directly. Intercepting these would break the OAuth ?code= exchange and
+// token refresh. (Week-3 Supabase Auth cutover; also covers band-media Storage.)
+var SUPABASE_API_HOSTS = [
+  'rklvvuzedmadydmohouu.supabase.co',
 ];
 
 // Same-origin assets to precache at install time
@@ -311,6 +319,13 @@ self.addEventListener('fetch', function(event) {
     return url.hostname === host;
   });
   if (isFirebaseApi) return;
+
+  // Skip Supabase backend calls — supabase-js manages auth/PKCE/REST/Storage
+  // directly; intercepting would break the OAuth code exchange + token refresh.
+  var isSupabaseApi = SUPABASE_API_HOSTS.some(function(host) {
+    return url.hostname === host;
+  });
+  if (isSupabaseApi) return;
 
   // HTML navigation requests: NETWORK FIRST, cache fallback.
   // The HTML shell controls which JS/CSS versions load via ?v=N params.

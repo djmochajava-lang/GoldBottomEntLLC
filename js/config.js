@@ -56,6 +56,16 @@ const SiteConfig = {
       messagingSenderId: '963268881384',
       appId: '1:963268881384:web:2ca6af27366263f23dd25d',
       connected: false
+    },
+    // Supabase Auth (Week-3 cutover backend). Present-but-DARK: auth.js only
+    // reads these when window.GBE_AUTH_SOURCE === 'supabase' (default 'firebase',
+    // set in index.html). The url + anon/publishable key are CLIENT-SAFE and
+    // intentionally committed (same pair already in bp2-core.js for band media).
+    // The service_role / sb_secret key must NEVER appear here (RULE-S05).
+    supabase: {
+      url: 'https://rklvvuzedmadydmohouu.supabase.co',
+      anonKey: 'sb_publishable_oIOHXXN_pwkeoeAfcQkNbg_rJkDFNZK',
+      connected: false
     }
   },
 

@@ -192,21 +192,47 @@ const Auth = {
             localStorage.removeItem('gbe-session-token');
             Auth._sessionToken = null;
             console.log('[Auth] PIN session expired — cleared');
-            // Fall through to Firebase init
-            Auth._initFirebase();
+            // Fall through to federated auth init (Firebase or, when the dark
+            // flag is flipped, Supabase)
+            Auth._initAuthBackend();
           }
         }).catch(function() {
           Auth._initializing = false;
-          // Server unreachable — keep the token but init Firebase as fallback
-          console.warn('[Auth] Server unreachable — trying Firebase auth');
-          Auth._initFirebase();
+          // Server unreachable — keep the token but init federated auth as fallback
+          console.warn('[Auth] Server unreachable — trying federated auth');
+          Auth._initAuthBackend();
         });
-        return; // Don't init Firebase yet — wait for verify result
+        return; // Don't init federated auth yet — wait for verify result
       }
     }
 
-    // No PIN session — initialize Firebase Auth normally
-    this._initFirebase();
+    // No PIN session — initialize federated auth normally
+    this._initAuthBackend();
+  },
+
+  /**
+   * Dispatch to the active federated-auth backend.
+   *
+   * DARK FLAG (Week-3 Supabase Auth cutover): window.GBE_AUTH_SOURCE is set in
+   * index.html and defaults to 'firebase'. With the default, this calls the
+   * unchanged Firebase path. The owner flips the flag to 'supabase' (one line in
+   * index.html) only while present for the AC-1 real-device test; until then the
+   * Supabase branch is present but UNREACHED, and the live site authenticates via
+   * Firebase exactly as before.
+   *
+   * CRITICAL: this runs ONLY at the no-PIN fallthrough — AFTER the PIN/LAN bypass
+   * has already set _isPinAuth=true and returned (init() above). Neither backend
+   * is ever initialized on the PIN path (AC-9). Supabase init is never hoisted to
+   * the top of init().
+   * @private
+   */
+  _initAuthBackend: function() {
+    var src = (typeof window !== 'undefined' && window.GBE_AUTH_SOURCE) || 'firebase';
+    if (src === 'supabase') {
+      this._initSupabase();
+    } else {
+      this._initFirebase();
+    }
   },
 
   /**
@@ -342,8 +368,53 @@ const Auth = {
     // Mark Firebase init complete — auth listeners are attached, providers ready.
     if (typeof Perf !== 'undefined') Perf.mark('firebase.ready');
 
-    // Listen for auth state changes
+    // Listen for auth state changes. The handler body is extracted into
+    // _handleAuthStateChange(user) so the Supabase branch (_initSupabase) can
+    // reuse it VERBATIM — only the event source and the user shape differ
+    // (the Supabase adapter normalizes user.uid / providerData / emailVerified).
     this._auth.onAuthStateChanged(function(user) {
+      Auth._handleAuthStateChange(user);
+    });
+
+    // Handle redirect result (for mobile sign-in which uses signInWithRedirect).
+    // After redirect, the page reloads and getRedirectResult() resolves with the
+    // credential. onAuthStateChanged above will fire too, so we only need to
+    // catch errors here — the success path is handled by onAuthStateChanged.
+    // NOTE: Firebase-branch ONLY. The Supabase branch uses detectSessionInUrl +
+    // exchangeCodeForSession instead (wired in _initSupabase).
+    this._auth.getRedirectResult().then(function(result) {
+      try { console.log('[authdbg] getRedirectResult resolved user=' + (result && result.user ? result.user.uid.slice(0,6) + '…' : 'none')); } catch (e) {}
+    }).catch(function(error) {
+      try { console.log('[authdbg] getRedirectResult error code=' + (error && error.code) + ' msg=' + ((error && error.message)||'').slice(0,80)); } catch (e) {}
+      if (!error || !error.code) return;
+      var msg = error.message || '';
+      if (error.code === 'auth/popup-closed-by-user' ||
+          error.code === 'auth/missing-or-invalid-nonce' ||
+          msg.toLowerCase().indexOf('missing initial state') !== -1) {
+        console.warn('[Auth] Ignoring recoverable redirect-state error:', error.code);
+        try { sessionStorage.removeItem('gbe-auth-redirect-route'); } catch (e) {}
+        return;
+      }
+      console.warn('[Auth] Redirect sign-in error:', error.code, error.message);
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        Auth._showLoginError('An account already exists with this email using a different sign-in method.');
+      }
+    });
+
+    this.initialized = true;
+    console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft, Email/Password + Firestore)');
+  },
+
+  /**
+   * The shared auth-state-change handler body — extracted VERBATIM from the old
+   * inline Firebase onAuthStateChanged callback so BOTH the Firebase listener and
+   * the Supabase onAuthStateChange adapter drive identical registration/routing/
+   * role/expiry/fail-open logic. The only difference is the `user` shape, which
+   * the Supabase adapter normalizes (uid, providerData[0].providerId,
+   * emailVerified) before calling this.
+   * @private
+   */
+  _handleAuthStateChange: function(user) {
       // [authdbg] Trace every auth-state transition so an iPhone Safari repro
       // (Web Inspector) reveals the exact sequence — e.g. user present then null
       // is the federated-session-not-persisting loop (cross-origin authDomain +
@@ -552,41 +623,370 @@ const Auth = {
           Router.navigateTo('home');
         }
       }
-    });
+  },
 
-    // Handle redirect result (for mobile sign-in which uses signInWithRedirect).
-    // After redirect, the page reloads and getRedirectResult() resolves with the
-    // credential. onAuthStateChanged above will fire too, so we only need to
-    // catch errors here — the success path is handled by onAuthStateChanged.
-    this._auth.getRedirectResult().then(function(result) {
-      try { console.log('[authdbg] getRedirectResult resolved user=' + (result && result.user ? result.user.uid.slice(0,6) + '…' : 'none')); } catch (e) {}
-      // _authViaRedirect is now set synchronously at init() via localStorage
-      // (written before signInWithRedirect navigates away, read back before any
-      // async code runs). No need to set it here — this callback fires after
-      // onAuthStateChanged and would be too late to affect routing.
-    }).catch(function(error) {
-      try { console.log('[authdbg] getRedirectResult error code=' + (error && error.code) + ' msg=' + ((error && error.message)||'').slice(0,80)); } catch (e) {}
-      if (!error || !error.code) return;
-      var msg = error.message || '';
-      // Storage-partition / stale-redirect errors (iOS Safari): the redirect's
-      // sessionStorage "initial state" was partitioned or cleared. This is fully
-      // recoverable — the user can just sign in again via popup — so swallow it
-      // rather than surface the alarming raw Firebase message.
-      if (error.code === 'auth/popup-closed-by-user' ||
-          error.code === 'auth/missing-or-invalid-nonce' ||
-          msg.toLowerCase().indexOf('missing initial state') !== -1) {
-        console.warn('[Auth] Ignoring recoverable redirect-state error:', error.code);
-        try { sessionStorage.removeItem('gbe-auth-redirect-route'); } catch (e) {}
-        return;
+  /**
+   * Initialize SUPABASE Auth + a Firestore-shaped data adapter (DARK by default).
+   *
+   * Reached ONLY when window.GBE_AUTH_SOURCE === 'supabase' (owner-flipped, see
+   * _initAuthBackend). Runs at the SAME no-PIN fallthrough point _initFirebase()
+   * runs — AFTER the PIN/LAN bypass has already returned (AC-9: PIN path never
+   * touches Supabase). createClient is NEVER hoisted to the top of init().
+   *
+   * Populates this._auth and this._db with thin ADAPTER objects so the shared
+   * _handleAuthStateChange body, _checkRegistration, and every role predicate
+   * stay structurally unchanged — only the data source flips Firestore→Supabase.
+   *
+   * Provider scope at cutover: GOOGLE + email/password are LIVE; apple/azure
+   * scaffolding is present but DORMANT (those providers are NOT enabled in the
+   * Supabase dashboard this window).
+   * @private
+   */
+  _initSupabase: function() {
+    if (this.initialized) return;
+    this._initializing = true;
+
+    if (document.body) {
+      document.body.classList.add('auth-initializing');
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        if (Auth._initializing && !Auth.initialized) document.body.classList.add('auth-initializing');
+      });
+    }
+
+    // The Supabase UMD global (window.supabase) is loaded by a dedicated
+    // non-deferred <script> in index.html, BEFORE this deferred auth.js — so it
+    // is present here. (NOT the late band-media __loadBP2 loader.)
+    if (typeof window === 'undefined' || !window.supabase ||
+        typeof window.supabase.createClient !== 'function') {
+      console.warn('[Auth] Supabase SDK not loaded — auth disabled');
+      this._hideAuthLoading();
+      this.initialized = true;
+      return;
+    }
+
+    var cfg = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
+      ? SiteConfig.integrations.supabase : null;
+    if (!cfg || !cfg.url || !cfg.anonKey) {
+      console.warn('[Auth] Supabase config not set — auth disabled');
+      this._hideAuthLoading();
+      this.initialized = true;
+      return;
+    }
+
+    var sb;
+    try {
+      sb = window.supabase.createClient(cfg.url, cfg.anonKey, {
+        auth: {
+          flowType: 'pkce',
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      });
+      this._sb = sb;
+    } catch (error) {
+      console.error('[Auth] Supabase initialization failed:', error);
+      this._hideAuthLoading();
+      this.initialized = true;
+      return;
+    }
+
+    // ── Adapter: this._auth (Firebase-auth()-shaped over Supabase) ──
+    this._auth = Auth._makeSupabaseAuthAdapter(sb);
+    // ── Adapter: this._db (Firestore-shaped over Supabase tables) ──
+    this._db = Auth._makeSupabaseDbAdapter(sb);
+    this._flushReadyCallbacks();
+
+    // Provider markers so loginWithProvider(name) passes the right provider to
+    // the adapter's signInWithPopup (which reads provider._gbeProvider). GOOGLE
+    // is enabled at cutover; apple/microsoft scaffolding present but DORMANT.
+    this._providers.google = { _gbeProvider: 'google' };
+    this._providers.apple = { _gbeProvider: 'apple' };
+    this._providers.microsoft = { _gbeProvider: 'microsoft' };
+
+    if (typeof Perf !== 'undefined') Perf.mark('firebase.ready');
+
+    // PKCE return: ?code=&state= arrives on the QUERY STRING (the SPA routes on
+    // the HASH). detectSessionInUrl:true makes supabase-js read+exchange the code
+    // on load; we ALSO call exchangeCodeForSession defensively BEFORE any router
+    // navigation, so the code is consumed even if something is about to touch the
+    // URL. The SIGNED_IN event then drives _handleAuthStateChange. (router.js is
+    // NOT modified — it must not clobber location.search before this runs; that is
+    // verified separately as a pre-flip sub-AC.)
+    try {
+      var href = (typeof window !== 'undefined' && window.location) ? window.location.href : '';
+      if (href && href.indexOf('code=') !== -1 && typeof sb.auth.exchangeCodeForSession === 'function') {
+        sb.auth.exchangeCodeForSession(href).then(function() {
+          try { console.log('[authdbg] supabase exchangeCodeForSession done'); } catch (e) {}
+        }).catch(function(e) {
+          try { console.log('[authdbg] supabase exchangeCodeForSession error=' + (e && e.message)); } catch (e2) {}
+        });
       }
-      console.warn('[Auth] Redirect sign-in error:', error.code, error.message);
-      if (error.code === 'auth/account-exists-with-different-credential') {
-        Auth._showLoginError('An account already exists with this email using a different sign-in method.');
-      }
+    } catch (e) {}
+
+    // onAuthStateChange → the SAME handler body as Firebase. Supabase emits
+    // INITIAL_SESSION + SIGNED_IN (different ticks than Firebase) — both map to
+    // the if(user) branch; SIGNED_OUT maps to the else branch. The adapter
+    // normalizes session.user → a Firebase-user-shaped object.
+    sb.auth.onAuthStateChange(function(event, session) {
+      var u = (session && session.user) ? Auth._adaptSupabaseUser(session.user) : null;
+      Auth._handleAuthStateChange(u);
     });
 
     this.initialized = true;
-    console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft, Email/Password + Firestore)');
+    console.log('[Auth] Supabase Auth initialized (Google + Email/Password; Apple/Azure dormant)');
+  },
+
+  /**
+   * Normalize a Supabase user into the Firebase-user shape the shared handler +
+   * _checkRegistration expect: uid, email, displayName, photoURL, emailVerified,
+   * providerData[0].providerId.
+   * @private
+   */
+  _adaptSupabaseUser: function(su) {
+    if (!su) return null;
+    var meta = su.user_metadata || {};
+    var appMeta = su.app_metadata || {};
+    // Supabase app_metadata.provider: 'google' | 'email' | 'apple' | 'azure'.
+    // Map to the Firebase providerId vocabulary the existing code branches on
+    // ('password' for email/password; 'google.com'/'apple.com'/'microsoft.com').
+    var p = appMeta.provider || 'email';
+    var providerId = (p === 'email') ? 'password'
+      : (p === 'google') ? 'google.com'
+      : (p === 'apple') ? 'apple.com'
+      : (p === 'azure') ? 'microsoft.com'
+      : p;
+    return {
+      uid: su.id,
+      email: su.email || meta.email || '',
+      displayName: meta.display_name || meta.full_name || meta.name || '',
+      photoURL: meta.avatar_url || meta.picture || '',
+      // Firebase emailVerified → Supabase email_confirmed_at (truthy when verified)
+      emailVerified: !!su.email_confirmed_at,
+      providerData: [{ providerId: providerId }],
+      _supabase: su
+    };
+  },
+
+  /**
+   * Build a Firebase-auth()-shaped adapter over the Supabase client so the
+   * existing call sites (loginWithProvider/loginWithEmail/registerWithEmail/
+   * sendPasswordReset/logout, the 24h-expiry signOut, the duplicate signOut)
+   * stay UNCHANGED. Only the implementations underneath are Supabase.
+   * @private
+   */
+  _makeSupabaseAuthAdapter: function(sb) {
+    var redirectTo = (typeof window !== 'undefined' && window.location)
+      ? (window.location.origin + window.location.pathname) : undefined;
+    var providerMap = { google: 'google', apple: 'apple', microsoft: 'azure' };
+    return {
+      _sb: sb,
+      get currentUser() {
+        // Synchronous best-effort: supabase exposes session async; the shared
+        // handler reads Auth._user (set in _handleAuthStateChange), so currentUser
+        // is only a convenience here. Return null if unknown.
+        return null;
+      },
+      // Federated sign-in: ONE signInWithOAuth (PKCE redirect) replaces
+      // popup+redirect. Only 'google' is enabled at cutover; apple/azure dormant.
+      signInWithPopup: function(provider) {
+        var prov = (provider && provider._gbeProvider) || 'google';
+        var sbProv = providerMap[prov] || 'google';
+        return sb.auth.signInWithOAuth({
+          provider: sbProv,
+          options: { redirectTo: redirectTo, queryParams: { prompt: 'select_account' } }
+        }).then(function(res) {
+          if (res && res.error) throw res.error;
+          return res;
+        });
+      },
+      // Redirect is the same OAuth call in the PKCE model (full top-level nav).
+      signInWithRedirect: function(provider) {
+        return this.signInWithPopup(provider);
+      },
+      getRedirectResult: function() {
+        // Supabase handles the ?code= return via detectSessionInUrl +
+        // exchangeCodeForSession (in _initSupabase). Nothing to resolve here.
+        return Promise.resolve({ user: null });
+      },
+      signInWithEmailAndPassword: function(email, password) {
+        return sb.auth.signInWithPassword({ email: email, password: password })
+          .then(function(res) {
+            if (res && res.error) throw res.error;
+            return { user: res.data ? Auth._adaptSupabaseUser(res.data.user) : null };
+          });
+      },
+      createUserWithEmailAndPassword: function(email, password) {
+        return sb.auth.signUp({
+          email: email, password: password,
+          options: { emailRedirectTo: redirectTo }
+        }).then(function(res) {
+          if (res && res.error) throw res.error;
+          var u = res.data ? Auth._adaptSupabaseUser(res.data.user) : null;
+          // Firebase returns credential.user with updateProfile/sendEmailVerification;
+          // Supabase signUp already sends confirmation + takes display_name in
+          // options.data. Provide no-op shims so registerWithEmail stays unchanged.
+          return {
+            user: u ? Object.assign({}, u, {
+              updateProfile: function(p) {
+                return sb.auth.updateUser({ data: { display_name: p && p.displayName } })
+                  .then(function() {});
+              },
+              sendEmailVerification: function() { return Promise.resolve(); }
+            }) : null
+          };
+        });
+      },
+      sendPasswordResetEmail: function(email) {
+        return sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo })
+          .then(function(res) { if (res && res.error) throw res.error; });
+      },
+      signOut: function() {
+        return sb.auth.signOut().then(function(res) {
+          if (res && res.error) throw res.error;
+        });
+      },
+      // Firebase parity no-ops (the Supabase client persists by config).
+      setPersistence: function() { return Promise.resolve(); },
+      onAuthStateChanged: function() { /* wired directly in _initSupabase */ }
+    };
+  },
+
+  /**
+   * Build a Firestore-shaped adapter over Supabase tables so _checkRegistration,
+   * _checkDuplicateEmail, _checkFirestoreInvitation, _showAccessRequestForm and
+   * the pending-poll reader stay STRUCTURALLY UNCHANGED. Supports the exact
+   * surface those use: .collection(name).doc(id).get()/.set()/.update()/.ref and
+   * .collection(name).where(f,op,v)[.where(...)][.limit(n)].get() → snapshot.
+   * Timestamps: serverTimestamp() → ISO string (see _supabaseFieldValue).
+   * @private
+   */
+  _makeSupabaseDbAdapter: function(sb) {
+    // Firestore collection name → Supabase table name (Week-2 schema).
+    function tableFor(name) { return name; } // 'users','invitations' map 1:1
+    // Firestore PK column per table (doc id).
+    function pkFor(name) { return 'id'; }
+
+    function makeDocSnap(table, id, row) {
+      return {
+        id: id,
+        exists: !!row,
+        ref: makeDocRef(table, id),
+        data: function() { return row ? Auth._coerceTimestamps(row) : undefined; }
+      };
+    }
+    function makeDocRef(table, id) {
+      var pk = pkFor(table);
+      return {
+        id: id,
+        get: function() {
+          return sb.from(tableFor(table)).select('*').eq(pk, id).maybeSingle()
+            .then(function(res) {
+              if (res && res.error && res.error.code !== 'PGRST116') throw res.error;
+              return makeDocSnap(table, id, res ? res.data : null);
+            });
+        },
+        set: function(obj) {
+          var row = Object.assign({}, obj); row[pk] = id;
+          return sb.from(tableFor(table)).upsert(row, { onConflict: pk })
+            .then(function(res) { if (res && res.error) throw res.error; });
+        },
+        update: function(obj) {
+          return sb.from(tableFor(table)).update(obj).eq(pk, id)
+            .then(function(res) { if (res && res.error) throw res.error; });
+        }
+      };
+    }
+    function makeQuery(table, filters, lim) {
+      return {
+        where: function(field, op, value) {
+          var f = filters.slice(); f.push({ field: field, op: op, value: value });
+          return makeQuery(table, f, lim);
+        },
+        limit: function(n) { return makeQuery(table, filters, n); },
+        get: function() {
+          var q = sb.from(tableFor(table)).select('*');
+          filters.forEach(function(fl) {
+            if (fl.op === '==') q = q.eq(fl.field, fl.value);
+            else if (fl.op === 'in') q = q.in(fl.field, fl.value);
+            else if (fl.op === '>=') q = q.gte(fl.field, fl.value);
+            else if (fl.op === '<=') q = q.lte(fl.field, fl.value);
+            else if (fl.op === '>') q = q.gt(fl.field, fl.value);
+            else if (fl.op === '<') q = q.lt(fl.field, fl.value);
+          });
+          if (lim) q = q.limit(lim);
+          return q.then(function(res) {
+            if (res && res.error) throw res.error;
+            var rows = (res && res.data) || [];
+            var docs = rows.map(function(r) {
+              var pk = pkFor(table);
+              return makeDocSnap(table, r[pk], r);
+            });
+            return {
+              empty: docs.length === 0,
+              size: docs.length,
+              docs: docs,
+              forEach: function(fn) { docs.forEach(fn); }
+            };
+          });
+        }
+      };
+    }
+    return {
+      _sb: sb,
+      collection: function(name) {
+        return {
+          doc: function(id) { return makeDocRef(name, id); },
+          where: function(field, op, value) {
+            return makeQuery(name, [{ field: field, op: op, value: value }], null);
+          },
+          limit: function(n) { return makeQuery(name, [], n); }
+        };
+      },
+      // No-op parity with Firestore's enablePersistence (Supabase has none).
+      enablePersistence: function() { return Promise.resolve(); }
+    };
+  },
+
+  /**
+   * Coerce ISO-string timestamp fields back into objects exposing toMillis()/
+   * toDate(), so existing code (_checkDuplicateEmail registeredAt.toMillis(),
+   * invitation expiresAt.toDate()) works unchanged against Supabase rows.
+   * @private
+   */
+  _coerceTimestamps: function(row) {
+    if (!row || typeof row !== 'object') return row;
+    var out = {};
+    Object.keys(row).forEach(function(k) {
+      var v = row[k];
+      if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) {
+        var ms = Date.parse(v);
+        if (!isNaN(ms)) {
+          out[k] = { toMillis: function() { return ms; }, toDate: function() { return new Date(ms); }, _iso: v };
+          return;
+        }
+      }
+      out[k] = v;
+    });
+    return out;
+  },
+
+  /**
+   * Provider-agnostic "now" sentinel for write payloads. On the Firebase backend
+   * returns the real Firestore serverTimestamp() sentinel (unchanged behavior).
+   * On the Supabase backend returns an ISO-8601 string (Postgres timestamptz
+   * accepts it). Used everywhere the code previously inlined
+   * firebase.firestore.FieldValue.serverTimestamp().
+   * @private
+   */
+  _serverTimestamp: function() {
+    var src = (typeof window !== 'undefined' && window.GBE_AUTH_SOURCE) || 'firebase';
+    if (src !== 'supabase' && typeof firebase !== 'undefined' &&
+        firebase.firestore && firebase.firestore.FieldValue) {
+      return firebase.firestore.FieldValue.serverTimestamp();
+    }
+    return new Date().toISOString();
   },
 
   /**
@@ -958,7 +1358,7 @@ const Auth = {
             (user.email ? user.email.split('@')[0] : 'User');
 
           userRef.update({
-            lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastLoginAt: Auth._serverTimestamp(),
             displayName: displayName,
             photoURL: user.photoURL || data.photoURL || '',
             linkedProviders: linked
@@ -1040,9 +1440,9 @@ const Auth = {
                   invitationId: invitation.id,
                   instrument: invitation.instrument || null,
                   needsWelcomeEmail: true,
-                  invitationAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                  registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-                  lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                  invitationAcceptedAt: Auth._serverTimestamp(),
+                  registeredAt: Auth._serverTimestamp(),
+                  lastLoginAt: Auth._serverTimestamp()
                 }).then(function() {
                   // Mark invitation as accepted in Firestore (server picks up via user doc)
                   Auth._markInvitationAccepted(invitation.id);
@@ -1808,7 +2208,18 @@ const Auth = {
         if (window.history.replaceState) {
           window.history.replaceState(null, '', window.location.pathname + window.location.hash);
         }
-        // Trigger Google sign-in directly
+        // DARK FLAG: on the Supabase backend, route auto-login through the same
+        // adapter as a normal Google sign-in (one signInWithOAuth/PKCE redirect).
+        // Default 'firebase' keeps the verbatim Firebase popup→redirect mirror.
+        var _autoSrc = (typeof window !== 'undefined' && window.GBE_AUTH_SOURCE) || 'firebase';
+        if (_autoSrc === 'supabase') {
+          Auth.loginWithProvider('google').catch(function(err) {
+            console.error('[Auth] Auto-login (supabase) failed:', err && err.message);
+            Auth.showLoginModal();
+          });
+          return;
+        }
+        // Trigger Google sign-in directly (Firebase path)
         if (typeof firebase !== 'undefined' && firebase.auth) {
           var provider = new firebase.auth.GoogleAuthProvider();
           // Try popup for auto-login; fall back to redirect if blocked
@@ -2387,8 +2798,8 @@ const Auth = {
           role: 'member',
           requestedRole: 'member',
           requestNote: '',
-          registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-          lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+          registeredAt: Auth._serverTimestamp(),
+          lastLoginAt: Auth._serverTimestamp()
         }).then(function() { resolve('pending'); });
         return;
       }
@@ -2465,8 +2876,8 @@ const Auth = {
               role: 'member',
               requestedRole: requestedRole,
               requestNote: requestNote,
-              registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-              lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+              registeredAt: Auth._serverTimestamp(),
+              lastLoginAt: Auth._serverTimestamp()
             }).then(function() {
               console.log('[Auth] New registration created for:', displayName,
                 '(' + currentProvider + ') — requested role:', requestedRole);
