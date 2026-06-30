@@ -229,18 +229,29 @@
       }
 
       var storagePath = song.stems[stemName];
-      var storage = c.getStorage();
-      if (!storage) {
+
+      // RC-1 FIX (stem-player Supabase repair, Issue A): single-stem preview now
+      // loads from Supabase Storage (private 'band-media' bucket) via a short-lived
+      // signed URL — same source as the main player and the synced mixer path —
+      // NOT Firebase Storage (billing-down). A full URL is used directly.
+      var supabase = c.getSupabase ? c.getSupabase() : null;
+      if (!supabase || !c.supaBucket || !c.supaKey) {
         if (typeof Toast !== 'undefined') Toast.error('Storage not available');
         return;
       }
 
-      var ref = (storagePath.startsWith('gs://') || storagePath.startsWith('https://'))
-        ? storage.refFromURL(storagePath) : storage.ref(storagePath);
-
       if (typeof Toast !== 'undefined') Toast.info('Loading ' + stemName + '...');
 
-      ref.getDownloadURL().then(function(url) {
+      var urlPromise = (storagePath.startsWith('https://') || storagePath.startsWith('http://'))
+        ? Promise.resolve(storagePath)
+        : supabase.storage.from(c.supaBucket())
+            .createSignedUrl(c.supaKey(storagePath), 3600)
+            .then(function(res) {
+              if (res && res.data && res.data.signedUrl) return res.data.signedUrl;
+              throw new Error('No signed URL' + (res && res.error ? ': ' + res.error.message : ''));
+            });
+
+      urlPromise.then(function(url) {
         _stemAudio = new Audio(url);
         c.set('playingStemId', stemId);
         _stemAudio.play().then(function() {

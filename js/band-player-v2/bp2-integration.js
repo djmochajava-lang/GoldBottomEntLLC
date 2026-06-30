@@ -116,22 +116,31 @@
             var ctx = global.BP2Transport.getAudioContext();
             if (ctx && ctx.state === 'suspended') try { ctx.resume(); } catch (ex) {}
 
-            // Resolve Firebase Storage paths to download URLs before loading
+            // Resolve stem storage paths to signed URLs before loading.
+            // RC-1 FIX (stem-player Supabase repair, Issue A): stems now live in
+            // Supabase Storage (private 'band-media' bucket), same as the main
+            // player — NOT Firebase Storage (billing-down). Mint short-lived
+            // Supabase signed URLs via the same bp2-core helpers the main player
+            // uses (getSupabase()/supaBucket()/supaKey()). A path that is already
+            // a full URL is used directly (offline/cached or pre-signed).
             var stemNames = Object.keys(opts.stems);
-            var storage = (global.BP2Core && global.BP2Core.getStorage) ? global.BP2Core.getStorage() : null;
+            var supabase = (global.BP2Core && global.BP2Core.getSupabase) ? global.BP2Core.getSupabase() : null;
 
             var resolveUrls;
-            if (storage) {
+            if (supabase && global.BP2Core.supaBucket && global.BP2Core.supaKey) {
+              var bucket = global.BP2Core.supaBucket();
               var urlPromises = stemNames.map(function(name) {
                 var path = opts.stems[name];
-                // If already a full URL, use directly
+                // Already a full URL (cached/pre-signed) — use directly.
                 if (path && (path.startsWith('https://') || path.startsWith('http://'))) {
                   return Promise.resolve({ name: name, url: path });
                 }
-                var ref = (path && path.startsWith('gs://')) ? storage.refFromURL(path) : storage.ref(path);
-                return ref.getDownloadURL().then(function(url) {
-                  return { name: name, url: url };
-                });
+                return supabase.storage.from(bucket)
+                  .createSignedUrl(global.BP2Core.supaKey(path), 3600)
+                  .then(function(res) {
+                    if (res && res.data && res.data.signedUrl) return { name: name, url: res.data.signedUrl };
+                    throw new Error('No signed URL for stem ' + name + (res && res.error ? ': ' + res.error.message : ''));
+                  });
               });
               resolveUrls = Promise.all(urlPromises).then(function(results) {
                 var resolved = {};
@@ -139,7 +148,7 @@
                 return resolved;
               });
             } else {
-              // No storage available — use paths as-is (fallback)
+              // No Supabase client available — use paths as-is (fallback).
               resolveUrls = Promise.resolve(opts.stems);
             }
 
