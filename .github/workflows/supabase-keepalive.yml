@@ -1,0 +1,50 @@
+name: Supabase keep-alive (safety net)
+
+# Cloud-independent keep-alive: hits Supabase on a schedule so the FREE project
+# never auto-pauses even when the home machine is OFF (the 7am CEO briefing's
+# keep-alive is home-server-bound and won't run during a full shutdown).
+# Uses the ANON (publishable) key only — least privilege; that key is already
+# public in the client (js/band-player-v2/bp2-core.js), so this leaks nothing new.
+# Values are read from REPO SECRETS (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL       = https://<ref>.supabase.co
+#   SUPABASE_ANON_KEY  = sb_publishable_...  (anon/publishable key, NOT service_role)
+
+on:
+  schedule:
+    - cron: '17 9 */3 * *'   # every 3 days at 09:17 UTC (odd minute avoids cron congestion)
+  workflow_dispatch: {}       # allow a manual run from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST (anon, read-only) to keep the project awake
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Missing SUPABASE_URL or SUPABASE_ANON_KEY repo secret. Add them in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          # HEAD-count a public-readable table (songs has anon SELECT). Read-only.
+          # --fail makes a non-2xx an error; we never print the key.
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Prefer: count=exact" \
+            -H "Range: 0-0" \
+            "${SUPABASE_URL}/rest/v1/songs?select=id")
+          echo "Supabase REST responded HTTP ${code}"
+          # 200 or 206 (partial content for the Range request) both mean the project is awake.
+          case "$code" in
+            200|206) echo "Keep-alive OK — project is awake."; exit 0 ;;
+            *) echo "::error::Supabase keep-alive got HTTP ${code}"; exit 1 ;;
+          esac
