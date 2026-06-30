@@ -29,7 +29,7 @@ var ASSET_HASHES = {
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
   './js/toast.js': '74bfec8e52dbd0cc437b09851756f642d268ba21c2b28cd3563c3ca703f146f4',
   './js/modal.js': 'fd60926db530a6855a03a486b48500a4463808bfae140a592cc86cffcc8b006b',
-  './js/auth.js': '6346ee975a7147f1d041df2563dcda3c161a71fbb5afcb2bbee0363081d42b1f',
+  './js/auth.js': '59b03482af9e63f00b7388b0a8f14998ae7cbe13da514207519a619621ce8762',
   './js/page-loader.js': '4dbe80f06bed8021ffd1da9d21f5d51925fce5d4557c721e658ff6f9e7795bac',
   './js/scroll-animations.js': '8432cbd23b9bd38d07f0a081a1cafc8cdc30ef55f9f6b2c7a4cca4db6cc9cef1',
   './js/router.js': 'd828e09f9c1abcad49587a3f4335610af3d0cda88e8f3cf380b35f563115dc02',

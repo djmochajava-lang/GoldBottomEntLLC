@@ -1041,16 +1041,32 @@ const Auth = {
           var shaped = shapeWrite(table, obj);
           var leftover = Object.keys(shaped.raw);
           if (table === 'users' && leftover.length) {
-            // Merge leftover keys into existing raw_doc (read-modify-write) so a
-            // partial update doesn't clobber the rest of the jsonb. Fire the
-            // top-level column update regardless.
-            return sb.from(tableFor(table)).select('raw_doc').eq(pk, id).maybeSingle()
-              .then(function(r) {
-                var merged = Object.assign({}, (r && r.data && r.data.raw_doc) || {}, shaped.raw);
-                var patch = Object.assign({}, shaped.top, { raw_doc: merged });
-                return sb.from(tableFor(table)).update(patch).eq(pk, id);
-              })
-              .then(function(res) { if (res && res.error) throw res.error; });
+            // #1c FIX (Week-3 auth cutover): a users UPDATE must NEVER touch
+            // raw_doc. raw_doc is intentionally UNGRANTED for UPDATE to the
+            // 'authenticated' role (column-level GRANT, #1b own-row policy) —
+            // granting it would re-open role/status escalation. The previous
+            // read-modify-write folded leftover keys into a raw_doc UPDATE,
+            // which is rejected 42501 *and collars the granted-column writes in
+            // the same statement* (live-verified: an UPDATE that sets raw_doc
+            // fails 42501 even when the other columns are all granted) — so
+            // last_login / acks / profile writes were silently lost whenever a
+            // call site also passed an un-columned field.
+            //
+            // Correct behavior: drop the leftover (un-granted) keys from the
+            // UPDATE and fire ONLY the granted top-level columns, so the
+            // legitimate write succeeds and escalation stays fail-shut. Any
+            // dropped key is surfaced by name. PII fields (legalName, phone,
+            // mailingAddress, payment_method, signatures) MUST be persisted via
+            // the server-mediated PII endpoint (key server-side; D-34) — that
+            // path is gated on remote HomeOffice reachability (D-11) and is NOT
+            // written to the cache here. Non-PII writable fields all already
+            // have granted columns, so nothing legitimate is lost by this drop.
+            console.warn('[Auth] users UPDATE: dropping un-granted key(s) from cache write (raw_doc is ungranted for UPDATE; route PII via the server PII endpoint per D-34):', leftover.join(', '));
+          }
+          if (Object.keys(shaped.top).length === 0) {
+            // Nothing granted to write (e.g. a PII-only payload) — no-op rather
+            // than firing an empty/failing UPDATE.
+            return Promise.resolve();
           }
           return sb.from(tableFor(table)).update(shaped.top).eq(pk, id)
             .then(function(res) { if (res && res.error) throw res.error; });
