@@ -865,27 +865,154 @@ const Auth = {
   _makeSupabaseDbAdapter: function(sb) {
     // Firestore collection name → Supabase table name. Firestore collection ids
     // use hyphens; Postgres tables use underscores. Map every hyphenated GBE
-    // collection the adapter can receive (band-player + forms call sites);
-    // already-underscored names ('users','invitations','contact_submissions',
-    // 'playlists','songs','gigs','payments','config') map 1:1 via the fallback.
+    // collection the adapter can receive across ALL dashboard + musician + band
+    // -player call sites; already-underscored names ('users','invitations',
+    // 'contact_submissions','playlists','songs','payments','config','roster',
+    // 'sessions','bookings','agreements','notifications', the *_pipeline names,
+    // 'ticket_events') map 1:1 via the fallback.
     var TABLE_MAP = {
       'playback-events': 'playback_events',
       'contact-submissions': 'contact_submissions',
       'chart-reviews': 'chart_reviews',
       'playlist-permissions': 'playlist_permissions',
       'stem-requests': 'stem_requests',
-      'track-notes': 'track_notes'
+      'track-notes': 'track_notes',
+      'session-assignments': 'session_assignments',
+      'musicians-log': 'musicians_log',
+      'rehearsal-checkpoints': 'rehearsal_checkpoints',
+      'pending-invitations': 'pending_invitations',
+      'email-logs': 'email_logs',
+      'email-queue': 'email_queue',
+      'booking-inbox': 'booking_inbox',
+      'booking-quotes': 'booking_quotes',
+      'deal-pipeline': 'deal_pipeline',
+      'ticket-events': 'ticket_events',
+      'inbox-pipeline': 'inbox_pipeline',
+      'quote-pipeline': 'quote_pipeline'
     };
     function tableFor(name) { return TABLE_MAP[name] || name; }
     // Firestore PK column per table (doc id).
     function pkFor(name) { return 'id'; }
+    return Auth._buildSupabaseDbAdapter(sb, TABLE_MAP, tableFor, pkFor);
+  },
 
+  /**
+   * The body of _makeSupabaseDbAdapter, factored out so the field-name /
+   * key-shape translation helpers can be unit-reasoned about. Implements the
+   * FULL Firestore method surface the GBE app uses through Auth._db (and through
+   * band-player db handles that resolve to Auth._db):
+   *   .collection(name)
+   *     .doc(id).get()/.set()/.update()/.delete()/.ref
+   *     .where(f,op,v) | .orderBy(f,dir) | .limit(n)   (chainable IN ANY ORDER)
+   *     .add(obj)
+   *     .onSnapshot(cb)                                 (one-shot; no realtime)
+   *   .batch().update(ref,obj)/.set(ref,obj)/.delete(ref)/.commit()
+   * Operators: == in >= <= > < array-contains.
+   *
+   * KEY-SHAPE TRANSLATION (Defect #1 client half — Backend flagged
+   * week3_users_ownrow_update_policy_2026_06_29.FLAG_two_layer_defect):
+   * the Firestore client uses camelCase keys/fields but the live Postgres
+   * columns are snake_case. This adapter therefore:
+   *   - WRITE  (set/update/add): camelCase → snake_case for keys that map to a
+   *     real top-level column; keys with NO column are routed into the row's
+   *     `raw_doc` jsonb (never dropped, never invented as a column). role/status/
+   *     id are NEVER written through a writable top-level path here — they are
+   *     left for the call site to set explicitly and are blocked at the column-
+   *     GRANT layer regardless (Backend's escalation guard is load-bearing).
+   *   - READ   (.where()/.orderBy() field args + returned rows): field names are
+   *     snake_cased before hitting PostgREST; returned rows are flattened
+   *     (raw_doc merged up) and re-aliased to camelCase so existing reads like
+   *     data.displayName / a.sentAt / d.musicianId keep working unchanged.
+   * @private
+   */
+  _buildSupabaseDbAdapter: function(sb, TABLE_MAP, tableFor, pkFor) {
+    // ---- key/field shape helpers -------------------------------------------
+    // Generic camelCase → snake_case (covers any key not in the explicit map).
+    function toSnake(k) {
+      if (typeof k !== 'string') return k;
+      if (k.indexOf('_') !== -1) return k;            // already snake / mixed — leave as-is
+      return k.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2').toLowerCase();
+    }
+    function toCamel(k) {
+      if (typeof k !== 'string' || k.indexOf('_') === -1) return k;
+      return k.replace(/_([a-z0-9])/g, function(_, c) { return c.toUpperCase(); });
+    }
+    // The full set of REAL top-level Postgres columns on public.users (Week-2
+    // typed schema, 18 cols). A users write key whose snake form is in this set
+    // targets the real column; every other key is routed into raw_doc (never
+    // dropped, never invented as a column).
+    //
+    // NOTE on escalation safety: role/status/id ARE real columns and so are
+    // sent to their columns when a call site supplies them — they are NOT
+    // routed into raw_doc and NOT silently rewritten. The escalation guard is
+    // Backend's column-level UPDATE GRANT (week3_users_ownrow_update_policy):
+    // 'authenticated' has UPDATE only on the 8 safe cols, so any UPDATE touching
+    // role/status/id is rejected 42501 at the privilege layer. This adapter must
+    // neither bypass that (it can't) nor route role/status into a writable path
+    // that dodges it — sending them to their real column is correct: the GRANT
+    // blocks the malicious UPDATE; a legitimate new-user INSERT (invitation
+    // auto-approve) needs role/status on the row and is governed separately
+    // (no authenticated INSERT grant today — flagged as a provisioning gap).
+    var USERS_TOP_COLUMNS = {
+      id: 1, display_name: 1, email_hash: 1, photo_url: 1, provider: 1,
+      primary_provider: 1, status: 1, role: 1, instrument: 1,
+      registered_at: 1, last_login_at: 1, nda_accepted_at: 1,
+      confidentiality_accepted_at: 1, updated_at: 1, linked_providers: 1,
+      imported_at: 1, source_collection: 1
+    };
+    // Map a field NAME (for .where()/.orderBy()) to its Postgres column.
+    function fieldColumn(field) { return toSnake(field); }
+
+    // Flatten a Supabase row for the client: merge raw_doc jsonb up (so fields
+    // that live only in raw_doc are visible), then add camelCase aliases for any
+    // snake_case top-level keys. Top-level typed columns win over raw_doc.
+    function flattenRow(row) {
+      if (!row || typeof row !== 'object') return row;
+      var out = {};
+      var rawDoc = row.raw_doc;
+      if (rawDoc && typeof rawDoc === 'object') {
+        Object.keys(rawDoc).forEach(function(k) { out[k] = rawDoc[k]; });
+      }
+      Object.keys(row).forEach(function(k) {
+        if (k === 'raw_doc') return;
+        if (row[k] !== null && row[k] !== undefined) out[k] = row[k]; // typed col wins
+        else if (!(k in out)) out[k] = row[k];
+      });
+      // Add camelCase aliases (don't clobber an existing camelCase value from raw_doc).
+      Object.keys(out).slice().forEach(function(k) {
+        var camel = toCamel(k);
+        if (camel !== k && !(camel in out)) out[camel] = out[k];
+      });
+      return out;
+    }
+
+    // Split a WRITE payload into { top: {snake cols}, raw: {leftover keys} }.
+    // `table`-aware: for 'users' only the GRANT-eligible columns may go top-level.
+    function shapeWrite(table, obj) {
+      var top = {}, raw = {};
+      Object.keys(obj || {}).forEach(function(k) {
+        var v = obj[k];
+        var col = toSnake(k);
+        if (table === 'users') {
+          if (USERS_TOP_COLUMNS[col]) top[col] = v;
+          else raw[k] = v;            // keep original key inside raw_doc
+        } else {
+          // Other tables: assume snake_cased key is a real column (Week-2 typed
+          // schema). If a call site sends a field with no column, Postgres 42703
+          // surfaces to the call-site .catch() — same as before; we don't guess.
+          top[col] = v;
+        }
+      });
+      return { top: top, raw: raw };
+    }
+
+    // ---- doc snapshot / ref -------------------------------------------------
     function makeDocSnap(table, id, row) {
       return {
         id: id,
         exists: !!row,
         ref: makeDocRef(table, id),
-        data: function() { return row ? Auth._coerceTimestamps(row) : undefined; }
+        data: function() { return row ? Auth._coerceTimestamps(flattenRow(row)) : undefined; }
       };
     }
     function makeDocRef(table, id) {
@@ -900,41 +1027,120 @@ const Auth = {
             });
         },
         set: function(obj) {
-          var row = Object.assign({}, obj); row[pk] = id;
+          var shaped = shapeWrite(table, obj);
+          var row = Object.assign({}, shaped.top); row[pk] = id;
+          if (table === 'users' && Object.keys(shaped.raw).length) {
+            // raw_doc is NOT NULL on users — fold leftover keys into it so they
+            // are persisted (not lost) even though they have no typed column.
+            row.raw_doc = shaped.raw;
+          }
           return sb.from(tableFor(table)).upsert(row, { onConflict: pk })
             .then(function(res) { if (res && res.error) throw res.error; });
         },
         update: function(obj) {
-          return sb.from(tableFor(table)).update(obj).eq(pk, id)
+          var shaped = shapeWrite(table, obj);
+          var leftover = Object.keys(shaped.raw);
+          if (table === 'users' && leftover.length) {
+            // Merge leftover keys into existing raw_doc (read-modify-write) so a
+            // partial update doesn't clobber the rest of the jsonb. Fire the
+            // top-level column update regardless.
+            return sb.from(tableFor(table)).select('raw_doc').eq(pk, id).maybeSingle()
+              .then(function(r) {
+                var merged = Object.assign({}, (r && r.data && r.data.raw_doc) || {}, shaped.raw);
+                var patch = Object.assign({}, shaped.top, { raw_doc: merged });
+                return sb.from(tableFor(table)).update(patch).eq(pk, id);
+              })
+              .then(function(res) { if (res && res.error) throw res.error; });
+          }
+          return sb.from(tableFor(table)).update(shaped.top).eq(pk, id)
             .then(function(res) { if (res && res.error) throw res.error; });
+        },
+        delete: function() {
+          return sb.from(tableFor(table)).delete().eq(pk, id)
+            .then(function(res) { if (res && res.error) throw res.error; });
+        },
+        // Firestore subcollection: .doc(id).collection(sub). Used only by the
+        // notifications fan-out (notifications/{uid}/items) on the musician /
+        // portal pages — NOT by the three manager "Loading…" panels. Flattened
+        // to a single Postgres table named '<table>_<sub>' (e.g.
+        // notifications_items) with a 'parent_id' column carrying the parent doc
+        // id. Returns the full collection surface so .doc()/.where()/.get()/.add
+        // all work; reads auto-scope to parent_id, writes auto-stamp parent_id.
+        // If the flattened table doesn't exist yet, a normal PostgREST error
+        // surfaces to the call site's .catch() (same class as a missing column)
+        // — NOT a TypeError, so no panel sticks on a hard throw. Must be present
+        // or 'doc(...).collection is not a function' breaks the notif loaders.
+        collection: function(sub) {
+          var subTable = table + '_' + String(sub).replace(/-/g, '_');
+          return {
+            doc: function(subId) {
+              return makeDocRef(subTable, subId || ('id_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)));
+            },
+            where: function(field, op, value) {
+              return makeQuery(subTable, [
+                { field: 'parent_id', op: '==', value: id },
+                { field: field, op: op, value: value }
+              ], [], null);
+            },
+            orderBy: function(field, dir) {
+              return makeQuery(subTable, [{ field: 'parent_id', op: '==', value: id }], [{ field: field, dir: dir }], null);
+            },
+            limit: function(n) {
+              return makeQuery(subTable, [{ field: 'parent_id', op: '==', value: id }], [], n);
+            },
+            get: function() {
+              return makeQuery(subTable, [{ field: 'parent_id', op: '==', value: id }], [], null).get();
+            },
+            add: function(obj) {
+              var withParent = Object.assign({ parent_id: id }, obj || {});
+              var shaped = shapeWrite(subTable, withParent);
+              return sb.from(tableFor(subTable)).insert(shaped.top).select('id').single()
+                .then(function(res) {
+                  if (res && res.error) throw res.error;
+                  return { id: (res && res.data && res.data.id) || null };
+                });
+            }
+          };
         }
       };
     }
-    function makeQuery(table, filters, lim) {
+
+    // ---- query (chainable where / orderBy / limit, any order) --------------
+    function makeQuery(table, filters, orders, lim) {
+      filters = filters || []; orders = orders || [];
       return {
         where: function(field, op, value) {
           var f = filters.slice(); f.push({ field: field, op: op, value: value });
-          return makeQuery(table, f, lim);
+          return makeQuery(table, f, orders, lim);
         },
-        limit: function(n) { return makeQuery(table, filters, n); },
+        orderBy: function(field, dir) {
+          var o = orders.slice(); o.push({ field: field, dir: dir });
+          return makeQuery(table, filters, o, lim);
+        },
+        limit: function(n) { return makeQuery(table, filters, orders, n); },
         get: function() {
           var q = sb.from(tableFor(table)).select('*');
           filters.forEach(function(fl) {
-            if (fl.op === '==') q = q.eq(fl.field, fl.value);
-            else if (fl.op === 'in') q = q.in(fl.field, fl.value);
-            else if (fl.op === '>=') q = q.gte(fl.field, fl.value);
-            else if (fl.op === '<=') q = q.lte(fl.field, fl.value);
-            else if (fl.op === '>') q = q.gt(fl.field, fl.value);
-            else if (fl.op === '<') q = q.lt(fl.field, fl.value);
+            var col = fieldColumn(fl.field);
+            if (fl.op === '==') q = q.eq(col, fl.value);
+            else if (fl.op === 'in') q = q.in(col, fl.value);
+            else if (fl.op === '>=') q = q.gte(col, fl.value);
+            else if (fl.op === '<=') q = q.lte(col, fl.value);
+            else if (fl.op === '>') q = q.gt(col, fl.value);
+            else if (fl.op === '<') q = q.lt(col, fl.value);
+            else if (fl.op === '!=') q = q.neq(col, fl.value);
+            else if (fl.op === 'array-contains') q = q.contains(col, [fl.value]);
+            else if (fl.op === 'array-contains-any') q = q.overlaps(col, fl.value);
+          });
+          orders.forEach(function(o) {
+            q = q.order(fieldColumn(o.field), { ascending: (o.dir !== 'desc') });
           });
           if (lim) q = q.limit(lim);
           return q.then(function(res) {
             if (res && res.error) throw res.error;
             var rows = (res && res.data) || [];
-            var docs = rows.map(function(r) {
-              var pk = pkFor(table);
-              return makeDocSnap(table, r[pk], r);
-            });
+            var pk = pkFor(table);
+            var docs = rows.map(function(r) { return makeDocSnap(table, r[pk], r); });
             return {
               empty: docs.length === 0,
               size: docs.length,
@@ -942,35 +1148,77 @@ const Auth = {
               forEach: function(fn) { docs.forEach(fn); }
             };
           });
+        },
+        // Firestore .onSnapshot(cb[, errCb]) — Supabase has no compat realtime
+        // here, so degrade to a single immediate read (no live updates). Returns
+        // an unsubscribe no-op so call sites that store it don't throw.
+        onSnapshot: function(cb, errCb) {
+          this.get().then(function(snap) { if (typeof cb === 'function') cb(snap); })
+            .catch(function(e) { if (typeof errCb === 'function') errCb(e); });
+          return function() {};
         }
       };
     }
+
+    // ---- write batch --------------------------------------------------------
+    function makeBatch() {
+      var ops = [];
+      return {
+        set: function(ref, obj) { ops.push(ref.set(obj)); return this; },
+        update: function(ref, obj) { ops.push(ref.update(obj)); return this; },
+        delete: function(ref) { ops.push(ref.delete()); return this; },
+        commit: function() { return Promise.all(ops); }
+      };
+    }
+
     return {
       _sb: sb,
       collection: function(name) {
         return {
           doc: function(id) { return makeDocRef(name, id); },
           where: function(field, op, value) {
-            return makeQuery(name, [{ field: field, op: op, value: value }], null);
+            return makeQuery(name, [{ field: field, op: op, value: value }], [], null);
           },
-          limit: function(n) { return makeQuery(name, [], n); },
+          // .collection(name).orderBy(...) — several call sites (sessions,
+          // musicians-log, playlists, songs, *_pipeline) order directly on the
+          // collection with no preceding .where(). Must be present or it throws
+          // 'orderBy is not a function'.
+          orderBy: function(field, dir) {
+            return makeQuery(name, [], [{ field: field, dir: dir }], null);
+          },
+          limit: function(n) { return makeQuery(name, [], [], n); },
+          // .collection(name).get() — fetch the WHOLE collection with no
+          // preceding .where()/.orderBy()/.limit(). Several loaders read a
+          // collection wholesale (Band Readiness rehearsal-checkpoints at
+          // manager.html, roster.html, team users, inbox_pipeline, sessions
+          // musicians-log, band-readiness.html invitations/roster/checkpoints).
+          // Without this the bare .get() throws 'collection(...).get is not a
+          // function' and the panel sticks on "Loading…". Delegates to an
+          // unfiltered query so flatten/camel-alias/timestamp coercion all apply.
+          get: function() { return makeQuery(name, [], [], null).get(); },
           // Firestore .collection(name).add(obj) → INSERT a new row with an
-          // auto-generated id. Without this, playback_events (bp2-player.js) and
-          // contact_submissions (forms.js) writes throw + get swallowed by the
-          // call-site .catch() under a Supabase cutover = silent data loss.
-          // Returns a Firestore-DocumentReference-shaped { id } so callers like
-          // bp2-playlist.js (uses ref.id after .add()) keep working.
+          // auto-generated id. Returns a Firestore-DocumentReference-shaped
+          // { id } so callers like bp2-playlist.js (uses ref.id after .add())
+          // keep working. Snake-cases keys for non-users tables; users adds go
+          // through shapeWrite (top columns + raw_doc) too.
           add: function(obj) {
             var pk = pkFor(name);
-            return sb.from(tableFor(name)).insert(obj).select(pk).single()
+            var shaped = shapeWrite(name, obj);
+            var row = Object.assign({}, shaped.top);
+            if (name === 'users' && Object.keys(shaped.raw).length) row.raw_doc = shaped.raw;
+            return sb.from(tableFor(name)).insert(row).select(pk).single()
               .then(function(res) {
                 if (res && res.error) throw res.error;
                 var newId = (res && res.data && res.data[pk]) || null;
                 return { id: newId };
               });
+          },
+          onSnapshot: function(cb, errCb) {
+            return makeQuery(name, [], [], null).onSnapshot(cb, errCb);
           }
         };
       },
+      batch: function() { return makeBatch(); },
       // No-op parity with Firestore's enablePersistence (Supabase has none).
       enablePersistence: function() { return Promise.resolve(); }
     };
