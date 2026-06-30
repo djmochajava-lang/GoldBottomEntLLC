@@ -863,8 +863,20 @@ const Auth = {
    * @private
    */
   _makeSupabaseDbAdapter: function(sb) {
-    // Firestore collection name → Supabase table name (Week-2 schema).
-    function tableFor(name) { return name; } // 'users','invitations' map 1:1
+    // Firestore collection name → Supabase table name. Firestore collection ids
+    // use hyphens; Postgres tables use underscores. Map every hyphenated GBE
+    // collection the adapter can receive (band-player + forms call sites);
+    // already-underscored names ('users','invitations','contact_submissions',
+    // 'playlists','songs','gigs','payments','config') map 1:1 via the fallback.
+    var TABLE_MAP = {
+      'playback-events': 'playback_events',
+      'contact-submissions': 'contact_submissions',
+      'chart-reviews': 'chart_reviews',
+      'playlist-permissions': 'playlist_permissions',
+      'stem-requests': 'stem_requests',
+      'track-notes': 'track_notes'
+    };
+    function tableFor(name) { return TABLE_MAP[name] || name; }
     // Firestore PK column per table (doc id).
     function pkFor(name) { return 'id'; }
 
@@ -941,7 +953,22 @@ const Auth = {
           where: function(field, op, value) {
             return makeQuery(name, [{ field: field, op: op, value: value }], null);
           },
-          limit: function(n) { return makeQuery(name, [], n); }
+          limit: function(n) { return makeQuery(name, [], n); },
+          // Firestore .collection(name).add(obj) → INSERT a new row with an
+          // auto-generated id. Without this, playback_events (bp2-player.js) and
+          // contact_submissions (forms.js) writes throw + get swallowed by the
+          // call-site .catch() under a Supabase cutover = silent data loss.
+          // Returns a Firestore-DocumentReference-shaped { id } so callers like
+          // bp2-playlist.js (uses ref.id after .add()) keep working.
+          add: function(obj) {
+            var pk = pkFor(name);
+            return sb.from(tableFor(name)).insert(obj).select(pk).single()
+              .then(function(res) {
+                if (res && res.error) throw res.error;
+                var newId = (res && res.data && res.data[pk]) || null;
+                return { id: newId };
+              });
+          }
         };
       },
       // No-op parity with Firestore's enablePersistence (Supabase has none).
