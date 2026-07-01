@@ -255,10 +255,14 @@
       if (isActive) {
         var hasCharts = !!(song.charts && Object.keys(song.charts).length > 0);
         var hasLyrics = !!song.lyrics;
+        var curSpeed = (global.BP2Player && global.BP2Player.getSpeed) ? global.BP2Player.getSpeed() : 1.0;
+        var speedLit = curSpeed !== 1.0 ? ' is-lit' : '';
+        var speedLabel = (curSpeed === 1.0 ? '1.0' : curSpeed) + 'x';
         html +=
           '<div class="bp2-tool-drawer">' +
             '<button class="bp2-tool-btn' + (hasLyrics ? ' is-lit' : '') + '" data-action="lyrics" data-song="' + song.id + '"><i class="fa-solid fa-align-left"></i><span>LYR</span></button>' +
             '<button class="bp2-tool-btn' + (hasCharts ? ' is-lit' : '') + '" data-action="charts" data-song="' + song.id + '"><i class="fa-solid fa-music"></i><span>CHT</span></button>' +
+            '<button class="bp2-tool-btn' + speedLit + '" data-action="speed" data-song="' + song.id + '" title="Playback speed (pitch preserved)"><i class="fa-solid fa-gauge-high"></i><span>' + speedLabel + '</span></button>' +
             '<button class="bp2-tool-btn" data-action="notes" data-song="' + song.id + '"><i class="fa-solid fa-comment-dots"></i><span>NOTE</span></button>' +
             '<button class="bp2-tool-btn" data-action="download" data-song="' + song.id + '"><i class="fa-solid fa-download"></i><span>DL</span></button>' +
             '<button class="bp2-tool-btn" data-action="offline" data-song="' + song.id + '"><i class="fa-' + (cached ? 'solid' : 'regular') + ' fa-cloud-arrow-down"></i><span>SAVE</span></button>' +

@@ -21,16 +21,34 @@
 
   var _audio = null;
   var _core = null;
+  // E1 — full-song pitch-preserving speed. SPEED_OPTIONS mirrors BP2Practice.
+  var _speed = 1.0;
+  var SPEED_OPTIONS = [0.5, 0.75, 0.85, 1.0, 1.15, 1.25];
 
   function _getCore() {
     if (!_core && global.BP2Core) _core = global.BP2Core;
     return _core;
   }
 
+  // Turn ON pitch preservation so slow/fast playback keeps the original key
+  // (no chipmunk / no muddy detune). Native HTMLAudioElement feature; set all
+  // vendor spellings (webkit for iOS Safari, moz for older Firefox). Idempotent —
+  // re-assert after each load() because some engines reset it when src changes.
+  function _applyPreservesPitch() {
+    if (!_audio) return;
+    try {
+      _audio.preservesPitch = true;
+      _audio.webkitPreservesPitch = true;   // iOS/Safari
+      _audio.mozPreservesPitch = true;       // older Firefox
+    } catch (e) { /* property may be read-only on some engines — non-fatal */ }
+  }
+
   function _setupAudio() {
     if (_audio) return;
     _audio = document.createElement('audio');
     _audio.preload = 'metadata';
+    _applyPreservesPitch();
+    _audio.playbackRate = _speed;
 
     _audio.addEventListener('timeupdate', function() {
       var c = _getCore();
@@ -151,6 +169,17 @@
       c.on('player:init', function() { _setupAudio(); });
       c.on('playlist:selected', function(data) {
         if (data && data.playlistId) _loadCompletedTracks(data.playlistId);
+      });
+
+      // E1 — SPEED tool button: cycle through SPEED_OPTIONS (pitch preserved),
+      // then re-render the tracklist so the button label reflects the new rate.
+      c.on('tool:speed', function() {
+        var cur = _speed;
+        var idx = SPEED_OPTIONS.indexOf(cur);
+        var next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
+        BP2Player.setSpeed(next);
+        if (typeof Toast !== 'undefined') Toast.info('Speed: ' + (next === 1.0 ? '1.0' : next) + 'x (pitch preserved)');
+        c.emit('render:tracklist');
       });
 
       // Auto-pause on page hide
@@ -312,6 +341,31 @@
       c.emit('player:repeat', { mode: next });
     },
 
+    // E1 — pitch-preserving speed for the full song. Snaps to the nearest
+    // SPEED_OPTION, keeps pitch (preservesPitch), and keeps BP2Practice in sync
+    // so the shared speed UI shows the same value across player + mixer.
+    SPEED_OPTIONS: SPEED_OPTIONS,
+    setSpeed: function(rate) {
+      var v = parseFloat(rate);
+      if (isNaN(v)) return _speed;
+      var closest = SPEED_OPTIONS[0], bestD = Math.abs(v - closest);
+      for (var i = 1; i < SPEED_OPTIONS.length; i++) {
+        var d = Math.abs(SPEED_OPTIONS[i] - v);
+        if (d < bestD) { closest = SPEED_OPTIONS[i]; bestD = d; }
+      }
+      _speed = closest;
+      _setupAudio();
+      _applyPreservesPitch();       // re-assert before changing rate
+      _audio.playbackRate = _speed;
+      if (global.BP2Practice && global.BP2Practice.setSpeed) {
+        try { global.BP2Practice.setSpeed(_speed); } catch (e) {}
+      }
+      var c = _getCore();
+      if (c) c.emit('player:speed', { speed: _speed });
+      return _speed;
+    },
+    getSpeed: function() { return _speed; },
+
     getAudio: function() { return _audio; },
     getCurrentTime: function() { return _audio ? _audio.currentTime : 0; },
     getDuration: function() { return _audio ? _audio.duration : 0; }
@@ -321,6 +375,9 @@
     var c = _getCore();
     _audio.src = url;
     _audio.load();
+    // Re-assert pitch preservation + speed after src/load (some engines reset them).
+    _applyPreservesPitch();
+    _audio.playbackRate = _speed;
 
     _audio.play().then(function() {
       c.set('isPlaying', true);
