@@ -429,7 +429,31 @@ const Router = {
           'dashboard-deals':      ['admin', 'band_manager'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
-        var _currentRole = Auth.getRole ? Auth.getRole() : 'member';
+        var _currentRole = Auth.getRole ? Auth.getRole() : null;
+
+        // ── ROLE-UNRESOLVED RACE GUARD (fixes the band-player first-click bounce) ──
+        // On the FIRST navigation of a fresh session the AuthCache fast-path can
+        // report authorized before the ROLE has resolved. In that window
+        // Auth.getRole() is still null/undefined/empty (Auth._role defaults to
+        // null and is set only when the server role lookup completes + emits
+        // 'gbe:auth-ready'). If we ran the ACL check now, the unresolved role
+        // would fail the allowlist and bounce the user to dashboard-home — the
+        // exact reported band-player bug (2nd click works because role is
+        // resolved by then). Instead: when authenticated but role is NOT yet
+        // known, QUEUE the route and re-run it on 'gbe:auth-ready' (same as the
+        // initializing-auth branch). This covers ANY explicit-allowlist route,
+        // not just band-player. We only fall through to the ACL check once the
+        // role is DEFINITELY resolved (a non-empty string) — so genuinely
+        // unauthorized roles still fail-shut after resolution.
+        var _roleKnown = (typeof _currentRole === 'string' && _currentRole.length > 0);
+        if (!_roleKnown) {
+          this._pendingDashboardRoute = pageName;
+          var _wantLayout = this.getLayoutForPage(pageName);
+          if (_wantLayout !== this.currentLayout) this.switchLayout(_wantLayout);
+          if (typeof PageLoader !== 'undefined') PageLoader.showLoading();
+          try { console.log('[Router] role unresolved — queued route, awaiting gbe:auth-ready:', pageName); } catch (e) {}
+          return;
+        }
 
         // For dashboard pages: deny by default if not explicitly listed in ACL
         if (pageName.indexOf('dashboard-') === 0) {

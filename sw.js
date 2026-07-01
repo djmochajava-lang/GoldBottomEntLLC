@@ -32,7 +32,7 @@ var ASSET_HASHES = {
   './js/auth.js': '59b03482af9e63f00b7388b0a8f14998ae7cbe13da514207519a619621ce8762',
   './js/page-loader.js': '4dbe80f06bed8021ffd1da9d21f5d51925fce5d4557c721e658ff6f9e7795bac',
   './js/scroll-animations.js': '8432cbd23b9bd38d07f0a081a1cafc8cdc30ef55f9f6b2c7a4cca4db6cc9cef1',
-  './js/router.js': 'd828e09f9c1abcad49587a3f4335610af3d0cda88e8f3cf380b35f563115dc02',
+  './js/router.js': 'd84566233801e2c9d30c640377bf1713826d23c3d97f8a3d30780514e8ae71a3',
   './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
   './js/auth-cache.js': '6042f6a875e3d6846be70e3b733b6398e680ec1a1448a6e64efd983bb87de5f6',
