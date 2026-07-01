@@ -1699,27 +1699,16 @@ const Auth = {
               return 'duplicate:' + (primaryData.primaryProvider || primaryData.provider || 'unknown');
             }
 
-            // No duplicate — check for onboarding invite token (FRD-4)
-            // Check both keys: gbe-invite-token (legacy) and gbe-invite-id (from onboard page)
-            var inviteToken = localStorage.getItem('gbe-invite-token') || localStorage.getItem('gbe-invite-id');
-            if (inviteToken) {
-              return Auth._acceptInvitation(user, inviteToken).then(function(result) {
-                if (result && result.success) {
-                  Auth._role = result.role || 'band_member';
-                  Auth._instrument = result.instrument || null;
-                  Auth._linkedRoles = [Auth._role];
-                  Auth._activeRole = Auth._role;
-                  localStorage.removeItem('gbe-invite-token');
-                  localStorage.removeItem('gbe-invite-id');
-                  console.log('[Auth] Onboarding invite accepted — auto-approved as ' + Auth._role);
-                  return 'approved';
-                }
-                // Invite failed — fall through to normal registration
-                localStorage.removeItem('gbe-invite-token');
-                localStorage.removeItem('gbe-invite-id');
-                return Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider,
-                  user.displayName || (user.email ? user.email.split('@')[0] : 'User'));
-              });
+            // No duplicate — onboarding invite present? (STORY-ONB-01)
+            // Check both keys: gbe-invite-token (legacy) and gbe-invite-id (onboard page).
+            // Post-cutover the public client CANNOT self-grant role/status (Supabase
+            // RLS blocks it — the security invariant). Approval is done server-side by
+            // the onboarding-reconcile job (service_role), which matches the signed-in
+            // auth user to a valid manager-created invitation. So here we simply wait
+            // for that grant to land on our own row, then route in as band_member.
+            var inviteId = localStorage.getItem('gbe-invite-token') || localStorage.getItem('gbe-invite-id');
+            if (inviteId) {
+              return Auth._finalizeOnboarding(user, inviteId, userRef, emailHash, currentProvider);
             }
 
             // No invite token — check Firestore invitations for matching email (auto-approve)
@@ -3009,28 +2998,57 @@ const Auth = {
   },
 
   /**
-   * Accept an onboarding invitation via the server (FRD-4).
-   * Calls the accept endpoint which writes the Firestore doc via Admin SDK.
-   * @param {Object} user - Firebase Auth user
-   * @param {string} token - Invitation token from localStorage
-   * @returns {Promise<{success: boolean, role: string, instrument: string}|null>}
+   * Finalize onboarding after a signed-in invited musician returns from the
+   * onboard page (STORY-ONB-01). The client CANNOT grant its own role/status
+   * (Supabase RLS). Instead the server onboarding-reconcile job matches this
+   * auth user to a valid manager invitation and grants band_member/approved on
+   * our own `users` row. Here we poll our own row until that grant lands, then
+   * route in. On timeout we fall back to the standard access/pending screen
+   * (the grant will still land on a later load).
+   * @returns {Promise<string>} auth status: 'approved' or the pending UI result
    * @private
    */
-  _acceptInvitation: function(user, token) {
-    var apiBase = window.location.origin;
-    return fetch(apiBase + '/api/v1/onboarding/invite/' + encodeURIComponent(token) + '/accept', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid: user.uid,
-        email: user.email || '',
-        displayName: user.displayName || ''
-      })
-    })
-    .then(function(res) { return res.ok ? res.json() : null; })
-    .catch(function(err) {
-      console.warn('[Auth] Invite accept failed:', err);
-      return null;
+  _finalizeOnboarding: function(user, inviteId, userRef, emailHash, currentProvider) {
+    var MAX_ATTEMPTS = 24;   // ~2 minutes total
+    var DELAY_MS = 5000;
+    var displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
+
+    function clearInvite() {
+      try { localStorage.removeItem('gbe-invite-token'); localStorage.removeItem('gbe-invite-id'); } catch (e) {}
+    }
+
+    return new Promise(function(resolve) {
+      var attempts = 0;
+      function check() {
+        userRef.get().then(function(snap) {
+          var data = (snap && snap.exists) ? snap.data() : null;
+          if (data && data.status === 'approved' && data.role) {
+            Auth._role = data.role || 'band_member';
+            Auth._instrument = data.instrument || null;
+            Auth._linkedRoles = [Auth._role];
+            Auth._activeRole = Auth._role;
+            clearInvite();
+            console.log('[Auth] Onboarding approved by server reconcile — role ' + Auth._role);
+            resolve('approved');
+            return;
+          }
+          if (++attempts >= MAX_ATTEMPTS) {
+            clearInvite();
+            console.log('[Auth] Onboarding grant not yet landed after wait — showing access screen.');
+            resolve(Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider, displayName));
+            return;
+          }
+          setTimeout(check, DELAY_MS);
+        }).catch(function(err) {
+          if (++attempts >= MAX_ATTEMPTS) {
+            clearInvite();
+            resolve(Auth._showAccessRequestForm(user, emailHash, userRef, currentProvider, displayName));
+          } else {
+            setTimeout(check, DELAY_MS);
+          }
+        });
+      }
+      check();
     });
   },
 

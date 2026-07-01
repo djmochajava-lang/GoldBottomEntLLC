@@ -1,11 +1,9 @@
-<!-- pages/onboard.html — Musician Onboarding Welcome Page -->
+<!-- pages/onboard.html — Musician Onboarding Welcome Page (STORY-ONB-01)
+     Supabase-era: renders from non-PII URL params (#onboard?id=..&n=..&i=..).
+     NO Firestore dependency (Firebase is retired). The signed-in accept +
+     server-side reconcile complete the grant; this page is the warm entry point. -->
 <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:24px;">
-  <div id="onboard-container" style="max-width:440px;width:100%;text-align:center;">
-    <div id="onboard-loading" style="color:var(--color-text-muted,#6e7681);padding:80px 0;">
-      <i class="fa-solid fa-spinner fa-spin" style="font-size:32px;display:block;margin-bottom:16px;"></i>
-      Loading invitation...
-    </div>
-  </div>
+  <div id="onboard-container" style="max-width:440px;width:100%;text-align:center;"></div>
 </div>
 
 <script>
@@ -13,79 +11,38 @@
   var container = document.getElementById('onboard-container');
   if (!container) return;
 
-  // Extract invitation ID from hash: #onboard?id=inv_xxx
+  // Params live on the hash: #onboard?id=inv_xxx&n=Name&i=instrument
   var hash = window.location.hash || '';
-  var idMatch = hash.match(/[?&]id=([^&]+)/);
-  var inviteId = idMatch ? decodeURIComponent(idMatch[1]) : null;
+  function param(k) {
+    var m = hash.match(new RegExp('[?&]' + k + '=([^&]+)'));
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : null;
+  }
+  var inviteId = param('id');
+  var name = param('n') || 'Musician';
+  var instrument = param('i') || '';
 
   if (!inviteId) {
-    container.innerHTML = _renderError('Invalid Link', 'No invitation found in this link. Check the email from Gold Bottom Ent. and try again.');
+    container.innerHTML = _renderError('Invalid Link',
+      'No invitation found in this link. Check the email from Gold Bottom Ent. and try again.');
     return;
   }
 
-  // Wait for Firebase to be ready, then look up invitation in Firestore
-  function tryLoad(attempts) {
-    if (typeof firebase === 'undefined' || !firebase.firestore) {
-      if (attempts < 30) { setTimeout(function() { tryLoad(attempts + 1); }, 300); }
-      else { container.innerHTML = _renderError('Loading Failed', 'Could not connect. Please refresh and try again.'); }
-      return;
-    }
+  _renderWelcome(name, instrument);
 
-    var db = firebase.firestore();
-    db.collection('invitations').doc(inviteId).get().then(function(doc) {
-      if (!doc.exists) {
-        container.innerHTML = _renderError('Invitation Not Found', 'This invitation link may have expired or already been used. Contact the Band Manager for a new one.');
-        return;
-      }
-      var data = doc.data();
-
-      // Check status
-      if (data.status === 'accepted') {
-        container.innerHTML = _renderError('Already Accepted', 'This invitation has already been used. If you need access, sign in directly.');
-        return;
-      }
-      if (data.status === 'expired' || data.status === 'cancelled') {
-        container.innerHTML = _renderError('Invitation Expired', 'This invitation is no longer active. Contact the Band Manager for a new one.');
-        return;
-      }
-
-      // Check expiry
-      if (data.expiresAt && data.expiresAt.toDate && data.expiresAt.toDate() < new Date()) {
-        container.innerHTML = _renderError('Link Expired', 'This invitation link has expired. Contact the Band Manager for a new one.');
-        return;
-      }
-
-      _renderWelcome(data);
-    }).catch(function(err) {
-      console.error('[Onboard] Firestore lookup failed:', err);
-      container.innerHTML = _renderError('Connection Error', 'Could not verify invitation. Please refresh and try again.');
-    });
-  }
-  tryLoad(0);
-
-  function _renderWelcome(inv) {
-    var name = inv.musicianName || 'Musician';
-    var instrument = inv.instrument
-      ? inv.instrument.charAt(0).toUpperCase() + inv.instrument.slice(1)
+  function _renderWelcome(name, instrument) {
+    var instrumentLabel = instrument
+      ? instrument.charAt(0).toUpperCase() + instrument.slice(1)
       : '';
 
     container.innerHTML =
       '<div style="background:var(--color-bg-secondary,#161b22);border:1px solid var(--color-border,#282c36);border-radius:16px;padding:32px 24px;text-align:center;overflow:hidden;position:relative;">' +
-
-        // Gold accent glow
         '<div style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:200px;height:200px;background:radial-gradient(circle,rgba(212,160,23,0.15) 0%,transparent 70%);pointer-events:none;"></div>' +
-
-        // Logo / icon
         '<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,rgba(212,160,23,0.2),rgba(212,160,23,0.05));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid rgba(212,160,23,0.3);position:relative;">' +
           '<i class="fa-solid fa-guitar" style="font-size:32px;color:#d4a017;"></i>' +
         '</div>' +
-
-        // Welcome text
         '<p style="color:#d4a017;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;font-weight:600;">You\'re Invited</p>' +
         '<h1 style="color:var(--color-text,#e8e8e8);font-size:24px;margin-bottom:6px;font-weight:700;">Welcome to the<br>L.A. Young Soul Society Band Page</h1>' +
-        '<p style="color:var(--color-text-secondary,#8b949e);font-size:16px;margin-bottom:24px;">' + _esc(name) + (instrument ? ' &mdash; ' + _esc(instrument) : '') + '</p>' +
-
-        // What you'll get
+        '<p style="color:var(--color-text-secondary,#8b949e);font-size:16px;margin-bottom:24px;">' + _esc(name) + (instrumentLabel ? ' &mdash; ' + _esc(instrumentLabel) : '') + '</p>' +
         '<div style="text-align:left;background:var(--color-bg,#0d1117);border:1px solid var(--color-border,#282c36);border-radius:12px;padding:16px 20px;margin-bottom:24px;">' +
           '<p style="color:var(--color-text-muted,#6e7681);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:600;">What\'s waiting for you</p>' +
           '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
@@ -101,29 +58,23 @@
             '<span style="color:var(--color-text,#e8e8e8);font-size:14px;">Payment setup &amp; agreements</span>' +
           '</div>' +
         '</div>' +
-
-        // CTA button
         '<button id="onboard-enter-btn" style="width:100%;padding:16px 32px;border-radius:12px;background:linear-gradient(135deg,#d4a017,#b8860b);color:#000;border:none;font-weight:700;font-size:16px;cursor:pointer;min-height:52px;letter-spacing:0.5px;transition:transform 100ms ease,box-shadow 100ms ease;">' +
           'Enter the Band Player <i class="fa-solid fa-arrow-right" style="margin-left:8px;"></i>' +
         '</button>' +
-
         '<p style="color:var(--color-text-muted,#6e7681);font-size:11px;margin-top:16px;line-height:1.5;">You\'ll sign in and accept a short confidentiality agreement.<br>Takes about 30 seconds.</p>' +
-
-        // LLC footer
         '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--color-border,#282c36);">' +
           '<p style="color:var(--color-text-muted,#6e7681);font-size:10px;margin:0;">Gold Bottom Ent. LLC<br>5000 Thayer Ctr, Oakland, MD 21550</p>' +
         '</div>' +
       '</div>';
 
-    // Button hover
     var btn = document.getElementById('onboard-enter-btn');
     if (btn) {
       btn.addEventListener('mouseenter', function() { btn.style.transform = 'scale(1.02)'; btn.style.boxShadow = '0 4px 20px rgba(212,160,23,0.3)'; });
       btn.addEventListener('mouseleave', function() { btn.style.transform = ''; btn.style.boxShadow = ''; });
       btn.addEventListener('click', function() {
-        // Store invite ID for potential future use
-        try { localStorage.setItem('gbe-invite-id', inviteId); } catch(e) {}
-        // Navigate to band player — auth gate + Screen 1 handles the rest
+        // Store invite id so auth.js can flag onboarding + poll for server approval.
+        try { localStorage.setItem('gbe-invite-id', inviteId); } catch (e) {}
+        // Auth gate on the band player handles sign-in + the reconcile wait (Screen 1).
         window.location.hash = '#dashboard-band-player';
       });
     }
