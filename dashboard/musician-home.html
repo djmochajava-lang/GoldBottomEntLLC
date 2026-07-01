@@ -234,7 +234,10 @@
       var items = (data && Array.isArray(data.pending_actions)) ? data.pending_actions : [];
       if (!items.length) { host.innerHTML = ''; host.style.display = 'none'; return; }
       var cards = items.map(function(it) {
-        var route = it.route || '#dashboard-payment-settings';
+        // Allowlist the route SCHEME (defense-in-depth, InfoSec Note A): only
+        // in-app hash/absolute paths — never javascript:/data:/http(s) — even if a
+        // future trigger ever put free text in action_route.
+        var route = (it.route && /^[#\/]/.test(it.route)) ? it.route : '#dashboard-payment-settings';
         var sub = it.detail || '';
         return '' +
           '<div style="display:flex;align-items:flex-start;gap:12px;background:var(--color-bg,#0d1117);border:1px solid rgba(212,160,23,0.35);border-radius:10px;padding:14px 16px;margin-bottom:10px;">' +
