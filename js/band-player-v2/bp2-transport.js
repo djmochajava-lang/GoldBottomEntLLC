@@ -30,6 +30,34 @@
   var _listeners = {};
   var _lastSongId = null;
 
+  // E2 — pitch-preserving time-stretch worklet. Loaded lazily; if it fails to
+  // load (older engine / fetch error) we fall back to the legacy playbackRate
+  // path (which pitch-shifts) so playback NEVER breaks — worst case is the old
+  // chipmunk behavior, never silence.
+  var _workletState = 'unloaded'; // 'unloaded' | 'loading' | 'ready' | 'failed'
+  var _workletPromise = null;
+  var WORKLET_URL = 'js/band-player-v2/bp2-timestretch-worklet.js?v=1';
+
+  function _loadWorklet() {
+    if (_workletPromise) return _workletPromise;
+    var ctx = _getCtx();
+    if (!ctx.audioWorklet || typeof ctx.audioWorklet.addModule !== 'function') {
+      _workletState = 'failed';
+      _workletPromise = Promise.resolve(false);
+      return _workletPromise;
+    }
+    _workletState = 'loading';
+    _workletPromise = ctx.audioWorklet.addModule(WORKLET_URL).then(function() {
+      _workletState = 'ready';
+      return true;
+    }).catch(function(e) {
+      console.warn('[BP2Transport] time-stretch worklet load failed — falling back to playbackRate:', e && e.message);
+      _workletState = 'failed';
+      return false;
+    });
+    return _workletPromise;
+  }
+
   function _emit(event, payload) {
     var arr = _listeners[event];
     if (!arr) return;
@@ -63,11 +91,35 @@
     }
     var src = ctx.createBufferSource();
     src.buffer = rec.buffer;
-    src.playbackRate.value = _rate;
-    src.connect(rec.gainNode);
     src.onended = function() {
       if (_playing && !rec._seeking) _emit('ended', { stem: name });
     };
+
+    // E2: pitch-preserving path. If the worklet is READY and we're off 1.0x,
+    // route source(rate 1.0) -> timeStretch(tempo=_rate) -> gainNode so the
+    // TEMPO changes but the PITCH is preserved. Otherwise use the legacy
+    // playbackRate path (pitch-shifts) — the safe fallback.
+    if (rec.stretch) { try { rec.stretch.disconnect(); } catch (e) {} rec.stretch = null; }
+    if (_workletState === 'ready' && Math.abs(_rate - 1.0) > 1e-3 &&
+        typeof global.AudioWorkletNode === 'function') {
+      try {
+        var node = new global.AudioWorkletNode(ctx, 'bp2-timestretch', {
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2]
+        });
+        node.parameters.get('tempo').value = _rate;
+        src.playbackRate.value = 1.0;         // source at natural pitch; worklet does tempo
+        src.connect(node);
+        node.connect(rec.gainNode);
+        rec.stretch = node;
+        rec.source = src;
+        return src;
+      } catch (e) {
+        console.warn('[BP2Transport] worklet node create failed — playbackRate fallback:', e && e.message);
+      }
+    }
+    // Legacy / fallback path (pitch-shifts).
+    src.playbackRate.value = _rate;
+    src.connect(rec.gainNode);
     rec.source = src;
     return src;
   }
@@ -81,8 +133,28 @@
       try { rec.source.stop(); } catch (e) {}
       rec.source.disconnect();
       rec.source = null;
+      if (rec.stretch) { try { rec.stretch.disconnect(); } catch (e) {} rec.stretch = null; }
       rec._seeking = false;
     }
+  }
+
+  // Rebuild all playing sources from the current offset — used when the graph
+  // topology must change (engaging/disengaging the time-stretch worklet) since
+  // a node can't be inserted into a running source chain.
+  function _rebuildPlaying() {
+    if (!_playing) return;
+    var offset = BP2Transport.currentTime();
+    _stopAll(true);
+    _startOffset = Math.max(0, offset);
+    var ctx = _getCtx();
+    var when = ctx.currentTime + 0.05;
+    var names = Object.keys(_stems);
+    for (var i = 0; i < names.length; i++) {
+      var src = _createSource(names[i], _startOffset);
+      if (src) src.start(when, _startOffset);
+    }
+    _startTimeCtx = when;
+    if (global.BP2Mixer) BP2Transport.applyMixer(_lastSongId);
   }
 
   var BP2Transport = {
@@ -91,6 +163,7 @@
       _lastSongId = songId;
       this.destroy();
       _buildMaster();
+      _loadWorklet();  // E2: warm the pitch-preserving worklet so speed changes are ready
       var ctx = _getCtx();
       var names = Object.keys(stems);
       var loaders = names.map(function(name) {
@@ -160,11 +233,54 @@
     },
 
     setPlaybackRate: function(rate) {
+      var prev = _rate;
       _rate = Math.max(0.25, Math.min(4.0, rate));
+      var atOne = Math.abs(_rate - 1.0) < 1e-3;
+
+      // If we have (or want) the pitch-preserving worklet, ensure it's loaded,
+      // then rebuild the graph so the source chain includes/excludes the
+      // time-stretch node correctly. A node can't be spliced into a running
+      // chain, so crossing between the 1.0x (no worklet) and off-1.0x (worklet)
+      // states — or changing tempo while the worklet is active — rebuilds.
       var names = Object.keys(_stems);
-      for (var i = 0; i < names.length; i++) {
-        var rec = _stems[names[i]];
-        if (rec.source) rec.source.playbackRate.value = _rate;
+
+      function applyToLive() {
+        for (var i = 0; i < names.length; i++) {
+          var rec = _stems[names[i]];
+          if (!rec) continue;
+          if (rec.stretch && rec.stretch.parameters) {
+            // worklet active — just retune tempo (no rebuild, seamless)
+            try { rec.stretch.parameters.get('tempo').value = _rate; } catch (e) {}
+          } else if (rec.source && _workletState !== 'ready') {
+            // legacy path — playbackRate (pitch-shifts)
+            rec.source.playbackRate.value = _rate;
+          }
+        }
+      }
+
+      if (atOne) {
+        // Going back to 1.0x: if a worklet is spliced in, rebuild to drop it
+        // (passthrough anyway, but keeps the graph clean); else just set rate.
+        var hasStretch = names.some(function(n){ return _stems[n] && _stems[n].stretch; });
+        if (hasStretch && _playing) { _rebuildPlaying(); }
+        else { applyToLive(); }
+        return;
+      }
+
+      // Off 1.0x — prefer the worklet.
+      if (_workletState === 'ready') {
+        var haveStretch = names.every(function(n){ return !_stems[n] || _stems[n].stretch; });
+        if (haveStretch) { applyToLive(); }          // already on worklet — retune
+        else if (_playing) { _rebuildPlaying(); }     // splice worklet in
+        else { applyToLive(); }
+      } else if (_workletState === 'unloaded' || _workletState === 'loading') {
+        _loadWorklet().then(function(ok){
+          if (ok && Math.abs(_rate - 1.0) > 1e-3 && _playing) _rebuildPlaying();
+          else applyToLive();
+        });
+      } else {
+        // worklet failed — legacy pitch-shift fallback
+        applyToLive();
       }
     },
 
