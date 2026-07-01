@@ -57,6 +57,18 @@
     return String(path || '').replace(/^band-media\//, '');
   }
 
+  // Stem cache lives on Cloudflare R2 (private bucket) fronted by a private
+  // Worker (Issue B). The catalog stores object keys like
+  // "stems/<songId>/<stem>.aac"; build the Worker URL from the key. The bucket
+  // stays private — the Worker authorizes + streams; no R2 key in the browser.
+  var STEM_WORKER_BASE = 'https://gbe-stem-media.goldbottom.workers.dev';
+  function _stemUrl(keyOrPath) {
+    var k = String(keyOrPath || '');
+    if (k.indexOf('http://') === 0 || k.indexOf('https://') === 0) return k; // already a full URL
+    k = k.replace(/^band-media\//, '').replace(/^\/+/, '');                   // strip legacy prefix / leading slash
+    return STEM_WORKER_BASE + '/' + k;
+  }
+
   // ── Event Bus ────────────────────────────────
   var _listeners = {};
 
@@ -224,6 +236,9 @@
     getSupabase: function() { return _supabase || _initSupabase(); },
     supaBucket: function() { return SUPABASE_BUCKET; },
     supaKey: _supaKey,
+    // Stem read-path (Cloudflare R2 via private Worker) — build a fetchable URL
+    // from a "stems/<songId>/<stem>.aac" catalog key. See _stemUrl above.
+    getStemUrl: _stemUrl,
     getUser: function() { return _state.user; },
     getRole: function() { return _state.role; },
     isManager: function() { return _state.role === 'admin' || _state.role === 'band_manager'; },

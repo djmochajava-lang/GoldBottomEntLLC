@@ -230,26 +230,19 @@
 
       var storagePath = song.stems[stemName];
 
-      // RC-1 FIX (stem-player Supabase repair, Issue A): single-stem preview now
-      // loads from Supabase Storage (private 'band-media' bucket) via a short-lived
-      // signed URL — same source as the main player and the synced mixer path —
-      // NOT Firebase Storage (billing-down). A full URL is used directly.
-      var supabase = c.getSupabase ? c.getSupabase() : null;
-      if (!supabase || !c.supaBucket || !c.supaKey) {
+      // Issue B (R2 read-path): single-stem preview loads from the PRIVATE R2
+      // bucket via the private Worker — same source as the synced mixer path.
+      // The catalog stores object keys ("stems/<id>/<stem>.aac"); build the
+      // Worker URL via BP2Core.getStemUrl(). Bucket stays private; no R2 key in
+      // the browser. A full URL is used directly.
+      if (!c.getStemUrl) {
         if (typeof Toast !== 'undefined') Toast.error('Storage not available');
         return;
       }
 
       if (typeof Toast !== 'undefined') Toast.info('Loading ' + stemName + '...');
 
-      var urlPromise = (storagePath.startsWith('https://') || storagePath.startsWith('http://'))
-        ? Promise.resolve(storagePath)
-        : supabase.storage.from(c.supaBucket())
-            .createSignedUrl(c.supaKey(storagePath), 3600)
-            .then(function(res) {
-              if (res && res.data && res.data.signedUrl) return res.data.signedUrl;
-              throw new Error('No signed URL' + (res && res.error ? ': ' + res.error.message : ''));
-            });
+      var urlPromise = Promise.resolve(c.getStemUrl(storagePath));
 
       urlPromise.then(function(url) {
         _stemAudio = new Audio(url);
