@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.01-0347.326730a';
+var GBE_BUILD = '2026.07.01-0545.a05c8e1';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': 'dc5750e6565a0994602e1ecff3c03735165ab8bb246d41545e0e80db19a8e6de',
+  './js/build.js': 'a9d1a22fc19ae6a3fb64e5d13befe259495f954853d748110bc816d1cccdb32b',
   './js/config.js': '721dafdf151a0f0826339d1f7ea3d6d2e0d29b5bb83f6172fa28d7328357c0a0',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -70,7 +70,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-edit.js': '5e2eca10851e407fedc559a817d9cb7a7882cf520451d6a7c1fba51263f3fb7e',
   './js/band-player-v2/bp2-integration.js': 'b716e69c02c94a86d12221e4ce70523463f849b899cf2d0946f6d83f6bef97a1',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
-  './js/band-player-v2/bp2-auth.js': '853d982e53d375c82efa325e085be52f93a29345e3f082a7e7be417ce2586f58'
+  './js/band-player-v2/bp2-auth.js': 'e2c4ee61a86efa4baefecf00cd5c28e77b1f33167dbd11b0f20ba2f2444f8683'
 };
 
 // Firebase backend API hostnames — never intercept these; let Firebase SDK handle them

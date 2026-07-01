@@ -21,35 +21,50 @@
     return _core;
   }
   function _esc(s) { return global.BP2Utils ? global.BP2Utils.esc(s) : String(s || ''); }
-
-  // ── Encryption ─────────────────────────────
-  var _encKey = null;
-
-  function _fetchEncKey(db) {
-    if (_encKey) return Promise.resolve(_encKey);
-    if (!db) return Promise.resolve(null);
-    return db.collection('config').doc('encryption').get().then(function(doc) {
-      if (doc.exists && doc.data().key) {
-        var raw = new Uint8Array(doc.data().key.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
-        return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']).then(function(k) {
-          _encKey = k;
-          return k;
-        });
-      }
-      return null;
-    }).catch(function() { return null; });
+  // Ciphertext (enc:v*:...) must never be rendered as a plaintext value. The
+  // cache only holds *_enc ciphertext for PII now (decryptable server-side only);
+  // the browser shows a masked placeholder. Prefer a plaintext value if present.
+  function _plainOr(plain, encVal, fallback) {
+    if (plain != null && String(plain).trim() !== '') return String(plain);
+    if (encVal != null && String(encVal).indexOf('enc:v') === 0) return '•••• (saved)';
+    if (encVal != null && String(encVal).trim() !== '') return String(encVal);
+    return fallback;
   }
 
-  function _encrypt(plaintext, key) {
-    if (!plaintext || !key) return Promise.resolve('');
-    var iv = crypto.getRandomValues(new Uint8Array(12));
-    var encoded = new TextEncoder().encode(plaintext);
-    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, tagLength: 128 }, key, encoded).then(function(encrypted) {
-      var enc = new Uint8Array(encrypted);
-      var ct = enc.slice(0, enc.length - 16);
-      var tag = enc.slice(enc.length - 16);
-      function hex(arr) { return Array.from(arr).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); }
-      return 'enc:v1:' + hex(iv) + ':' + hex(tag) + ':' + hex(ct);
+  // ── Server-side PII encryption (D-11/D-34: ENCRYPT-IN-SUPABASE) ─────────────
+  // The encryption key is NEVER in the browser. Sensitive PII is POSTed as
+  // plaintext over TLS + the user's Supabase session JWT to the Supabase Edge
+  // Function `encrypt-pii`, which holds the key (Edge secret), encrypts
+  // AES-256-GCM, and writes the *_enc ciphertext to public.users via
+  // service_role. The prior client-side WebCrypto path (_fetchEncKey/_encrypt,
+  // key from Firestore config/encryption) is RETIRED — Firestore is retired and
+  // a client-held key violates D-31.
+  var PII_FN_URL = 'https://rklvvuzedmadydmohouu.functions.supabase.co/encrypt-pii';
+
+  // Resolve the current Supabase session JWT (from the app's Supabase client).
+  function _supaAccessToken() {
+    try {
+      var sb = (global.Auth && global.Auth.getSupabase && global.Auth.getSupabase())
+        || global.GBE_SUPABASE
+        || (global.BP2Core && global.BP2Core.getSupabase && global.BP2Core.getSupabase());
+      if (!sb || !sb.auth || !sb.auth.getSession) return Promise.resolve(null);
+      return sb.auth.getSession().then(function(res) {
+        return (res && res.data && res.data.session && res.data.session.access_token) || null;
+      }).catch(function() { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+
+  // Send PLAINTEXT PII fields to the Edge Function for server-side encryption +
+  // write to the cache. Returns Promise<boolean> (true = persisted). Never sends
+  // tax/SSN/bank routing/account (SoR-only). No key, no ciphertext, client-side.
+  function _encryptPiiServerSide(uid, fields) {
+    return _supaAccessToken().then(function(token) {
+      if (!token) return false;
+      return fetch(PII_FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ uid: uid, fields: fields })
+      }).then(function(r) { return r.ok; }).catch(function() { return false; });
     });
   }
 
@@ -258,11 +273,11 @@
             '</div>' +
             '<div style="' + rowStyle + '">' +
               '<div style="' + labelStyle + '">Phone</div>' +
-              '<div style="' + valueStyle + '">' + _esc(data.phone || data.phone_enc || 'Not set') + '</div>' +
+              '<div style="' + valueStyle + '">' + _esc(_plainOr(data.phone, data.phone_enc, 'Not set')) + '</div>' +
             '</div>' +
             '<div style="' + lastRowStyle + '">' +
               '<div style="' + labelStyle + '">Mailing Address</div>' +
-              '<div style="' + valueStyle + '">' + _esc(data.mailingAddress || data.mailingAddress_enc || 'Not set') + '</div>' +
+              '<div style="' + valueStyle + '">' + _esc(_plainOr(data.mailingAddress, data.mailingAddress_enc, 'Not set')) + '</div>' +
             '</div>' +
 
             // Payment
@@ -454,8 +469,15 @@
         var addrEl = document.getElementById('bp2-s2-address');
         if (nameEl && data.legalName) nameEl.value = data.legalName;
         else if (nameEl && data.displayName) nameEl.value = data.displayName;
-        if (phoneEl) phoneEl.value = data.phone || data.phone_enc || '';
-        if (addrEl) addrEl.value = data.mailingAddress || data.mailingAddress_enc || '';
+        // Never prefill ciphertext into an editable input — only a plaintext value
+        // (legacy) prefills; if the value is server-encrypted, leave blank (re-enter).
+        function _plainInput(plain, encVal) {
+          if (plain != null && String(plain).trim() !== '') return String(plain);
+          if (encVal != null && String(encVal).indexOf('enc:v') === 0) return '';
+          return (encVal != null ? String(encVal) : '');
+        }
+        if (phoneEl) phoneEl.value = _plainInput(data.phone, data.phone_enc);
+        if (addrEl) addrEl.value = _plainInput(data.mailingAddress, data.mailingAddress_enc);
 
         // Prefill payment method + detail
         if (methodSel && data.paymentMethod) {
@@ -588,44 +610,48 @@
           var paymentInfo = methodVal;
           if (detailVal) paymentInfo += ':' + detailVal;
 
-          // Try to encrypt sensitive fields, fall back to plaintext if key unavailable
-          _fetchEncKey(db).then(function(key) {
-            if (key) {
-              return Promise.all([
-                _encrypt(phoneVal, key),
-                _encrypt(addrVal, key),
-                _encrypt(paymentInfo, key)
-              ]);
-            }
-            // No encryption key available (band_member can't read config) — store plaintext
-            return [phoneVal, addrVal, paymentInfo];
-          }).then(function(values) {
-            var update = {
-              legalName: nameVal,
-              phone_enc: values[0] || phoneVal,
-              mailingAddress_enc: values[1] || addrVal,
-              payment_method_enc: values[2] || paymentInfo,
-              paymentMethod: methodVal,
-              paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
+          // Split the write: NON-PII fields go through the normal cache write;
+          // PII (legalName/phone/mailingAddress/paymentDetail/signature) is sent
+          // to the Edge Function for SERVER-SIDE encryption (key never client-side).
+          // No plaintext PII is ever put in the .update() payload.
+          var nonPiiUpdate = {
+            paymentMethod: methodVal, // method LABEL only (e.g. "cashapp") — not sensitive
+            paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
 
-            // Only set agreement timestamp + signature if not already set
-            var agreeCb = document.getElementById('bp2-s2-agree-cb');
-            if (agreeCb && agreeCb.checked) {
-              var _sigUser = (typeof firebase !== 'undefined' && firebase.auth().currentUser) || {};
-              update.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
-              update.houseBandAgreedVersion = AGREEMENT_VERSION;
-              update.freelanceAgreementAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
-              update.freelanceSignature = {
-                name: nameVal,
-                email: _sigUser.email || '',
-                userAgent: navigator.userAgent,
-                signedFromUrl: window.location.href
-              };
-            }
+          var piiFields = {
+            legalName: nameVal,
+            phone: phoneVal,
+            mailingAddress: addrVal,
+            paymentDetail: paymentInfo // "method:detail" — the detail (handle) is sensitive
+          };
 
-            return db.collection('users').doc(uid).update(update);
-          }).then(function() {
+          // Only set agreement timestamp + signature if not already set
+          var agreeCb = document.getElementById('bp2-s2-agree-cb');
+          if (agreeCb && agreeCb.checked) {
+            var _sigUser = (global.Auth && global.Auth.currentUser && global.Auth.currentUser())
+              || (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) || {};
+            nonPiiUpdate.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
+            nonPiiUpdate.houseBandAgreedVersion = AGREEMENT_VERSION;
+            nonPiiUpdate.freelanceAgreementAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
+            // Signature carries name + email (PII) — encrypt it server-side, not plaintext in the cache.
+            piiFields.signature = JSON.stringify({
+              name: nameVal,
+              email: _sigUser.email || '',
+              userAgent: navigator.userAgent,
+              signedFromUrl: window.location.href
+            });
+          }
+
+          // 1) write non-PII fields to the cache; 2) send PII to the encrypt-pii
+          // Edge Function. Both must resolve; PII failure surfaces as a save error.
+          Promise.all([
+            db.collection('users').doc(uid).update(nonPiiUpdate),
+            _encryptPiiServerSide(uid, piiFields).then(function(ok) {
+              if (!ok) throw new Error('PII encryption service unavailable');
+              return true;
+            })
+          ]).then(function() {
             saveBtn.disabled = false;
             saveBtn.textContent = isEdit ? 'Save Changes' : 'Complete Setup';
             if (typeof Toast !== 'undefined') Toast.success(isEdit ? 'Payment settings saved!' : 'Setup complete \u2014 welcome to the band!');

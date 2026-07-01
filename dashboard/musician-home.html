@@ -162,6 +162,35 @@
   var uid = null;
   var userName = '';
 
+  // ── Server-side PII encryption (D-11/D-34) ──
+  // Key never client-side. PII is POSTed as plaintext + the user's Supabase JWT
+  // to the Edge Function `encrypt-pii`, which encrypts and writes *_enc ciphertext.
+  var PII_FN_URL = 'https://rklvvuzedmadydmohouu.functions.supabase.co/encrypt-pii';
+  function _supaAccessToken() {
+    try {
+      var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase()) || window.GBE_SUPABASE;
+      if (!sb || !sb.auth || !sb.auth.getSession) return Promise.resolve(null);
+      return sb.auth.getSession().then(function(res) {
+        return (res && res.data && res.data.session && res.data.session.access_token) || null;
+      }).catch(function() { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+  function _encryptPiiServerSide(u, fields) {
+    return _supaAccessToken().then(function(token) {
+      if (!token) return false;
+      return fetch(PII_FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ uid: u, fields: fields })
+      }).then(function(r) { return r.ok; }).catch(function() { return false; });
+    });
+  }
+  // Never prefill ciphertext into an editable input.
+  function _plainInputVal(v) {
+    if (v == null) return '';
+    return (String(v).indexOf('enc:v') === 0) ? '' : String(v);
+  }
+
   function init() {
     // Wait for Auth to be ready
     if (typeof Auth === 'undefined' || !Auth.isAuthenticated()) {
@@ -649,9 +678,9 @@
         + '<div><label style="font-size:13px;display:block;margin-bottom:4px;">Instrument</label>'
         + '<input type="text" id="prof-instrument" class="sign-input" value="' + escapeHtml(data.instrument || '') + '" /></div>'
         + '<div><label style="font-size:13px;display:block;margin-bottom:4px;">Phone</label>'
-        + '<input type="tel" id="prof-phone" class="sign-input" value="' + escapeHtml(data.phone || '') + '" /></div>'
+        + '<input type="tel" id="prof-phone" class="sign-input" value="' + escapeHtml(_plainInputVal(data.phone)) + '" /></div>'
         + '<div><label style="font-size:13px;display:block;margin-bottom:4px;">Emergency Contact</label>'
-        + '<input type="text" id="prof-emergency" class="sign-input" value="' + escapeHtml(data.emergencyContact || '') + '" /></div>'
+        + '<input type="text" id="prof-emergency" class="sign-input" value="' + escapeHtml(_plainInputVal(data.emergencyContact)) + '" /></div>'
         + '</div>';
 
       if (typeof Modal !== 'undefined') {
@@ -662,18 +691,28 @@
           buttons: [
             { label: 'Cancel', class: 'btn-secondary', close: true },
             { label: 'Save', class: 'btn-primary', callback: function() {
-              var updates = {
+              // NON-PII fields → normal cache write. PII (phone, emergencyContact)
+              // → Edge Function `encrypt-pii` for server-side encryption (key never
+              // client-side, D-11/D-34). No plaintext PII in the .update() payload.
+              var nonPii = {
                 displayName: document.getElementById('prof-name').value.trim(),
-                instrument: document.getElementById('prof-instrument').value.trim(),
+                instrument: document.getElementById('prof-instrument').value.trim()
+              };
+              var piiFields = {
                 phone: document.getElementById('prof-phone').value.trim(),
                 emergencyContact: document.getElementById('prof-emergency').value.trim()
               };
-              db.collection('users').doc(uid).update(updates).then(function() {
+              Promise.all([
+                db.collection('users').doc(uid).update(nonPii),
+                _encryptPiiServerSide(uid, piiFields).then(function(ok) {
+                  if (!ok) throw new Error('PII encryption service unavailable');
+                })
+              ]).then(function() {
                 if (typeof Modal !== 'undefined') Modal.close();
                 if (typeof Toast !== 'undefined') Toast.success('Profile updated!');
                 loadProfile();
               }).catch(function(err) {
-                if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + err.message);
+                if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + (err && err.message ? err.message : err));
               });
             }}
           ]
