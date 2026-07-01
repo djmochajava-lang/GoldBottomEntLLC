@@ -12,6 +12,10 @@
   <!-- Pending Agreement Alert (rendered by JS when agreements need action) -->
   <div id="mp-agreement-alert"></div>
 
+  <!-- Event-driven action items (STORY-ONB02). EMPTY by default — only shows when
+       a real event (a gig assignment) makes an action genuinely necessary. -->
+  <div id="mp-action-items"></div>
+
   <!-- Quick Stats Row -->
   <div class="musician-stats-row" id="mp-stats-row">
     <div class="musician-stat-card">
@@ -216,7 +220,44 @@
     loadPayments();
     loadProfile();
     loadPlaylist();
+    loadActionItems();
   }
+
+  // Event-driven action items (STORY-ONB02). Reads the musician's OWN user doc —
+  // the server projects pending items into users.raw_doc.pending_actions, which
+  // the auth adapter flattens up. Empty/absent ⇒ the surface stays hidden (quiet).
+  function loadActionItems() {
+    var host = document.getElementById('mp-action-items');
+    if (!host || !db || !uid) return;
+    db.collection('users').doc(uid).get().then(function(doc) {
+      var data = (doc && doc.exists) ? doc.data() : null;
+      var items = (data && Array.isArray(data.pending_actions)) ? data.pending_actions : [];
+      if (!items.length) { host.innerHTML = ''; host.style.display = 'none'; return; }
+      var cards = items.map(function(it) {
+        var route = it.route || '#dashboard-payment-settings';
+        var sub = it.detail || '';
+        return '' +
+          '<div style="display:flex;align-items:flex-start;gap:12px;background:var(--color-bg,#0d1117);border:1px solid rgba(212,160,23,0.35);border-radius:10px;padding:14px 16px;margin-bottom:10px;">' +
+            '<i class="fa-solid fa-circle-dollar-to-slot" style="color:#d4a017;font-size:18px;margin-top:2px;flex:0 0 auto;"></i>' +
+            '<div style="flex:1;min-width:0;">' +
+              '<div style="color:var(--color-text,#e8e8e8);font-size:14px;font-weight:600;margin-bottom:2px;">' + _esc(it.title || 'Action needed') + '</div>' +
+              (sub ? '<div style="color:var(--color-text-secondary,#8b949e);font-size:12.5px;line-height:1.5;">' + _esc(sub) + '</div>' : '') +
+            '</div>' +
+            '<a href="' + _escAttr(route) + '" style="flex:0 0 auto;align-self:center;padding:8px 14px;border-radius:8px;background:#d4a017;color:#000;font-weight:600;font-size:12.5px;text-decoration:none;white-space:nowrap;">Set up</a>' +
+          '</div>';
+      }).join('');
+      host.innerHTML =
+        '<div class="musician-section" style="margin-bottom:16px;">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+            '<span style="color:#d4a017;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Action needed</span>' +
+          '</div>' + cards +
+        '</div>';
+      host.style.display = 'block';
+    }).catch(function() { host.innerHTML = ''; host.style.display = 'none'; });
+  }
+
+  function _esc(s) { if (s == null) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  function _escAttr(s) { return _esc(s).replace(/"/g, '&quot;'); }
 
   // ── Load Upcoming Gigs ──────────────────────
   function loadGigs() {
