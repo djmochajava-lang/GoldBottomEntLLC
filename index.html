@@ -604,6 +604,7 @@
   <!-- ── CRITICAL PATH (synchronous, small, fast) ── -->
   <!-- These auto-init immediately — page is interactive after this block -->
   <!-- perf.js MUST load first so boot.start is captured before any other JS -->
+  <script src="js/build.js"></script>
   <script src="js/perf.js?v=2"></script>
   <script src="js/config.js?v=2"></script>
   <!-- ── DARK AUTH SOURCE FLAG (Week-3 Supabase Auth cutover) ──
@@ -771,6 +772,7 @@
 
   <!-- ── DEFERRED: App Controller (must be last) ── -->
   <script defer src="js/main.js?v=1"></script>
+  <script defer src="js/build-tag.js?v=1"></script>
 
   <!-- Service Worker — offline shell for Music Player airplane mode support -->
   <script>
