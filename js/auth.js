@@ -532,12 +532,30 @@ const Auth = {
                 Router.navigateTo(route, true);
               }
             } else if (typeof Router !== 'undefined' &&
+                       Router._pendingDashboardRoute) {
+              // FIRST-CLICK FIX: the user requested a specific dashboard route
+              // (e.g. dashboard-band-player) while auth was resolving; the router
+              // queued it in _pendingDashboardRoute and its own 'gbe:auth-ready'
+              // handler (router.js:208) navigates there. Do NOT navigate here —
+              // this branch previously force-jumped to the ROLE-LANDING page and
+              // CLOBBERED the user's chosen route (the reported band-player
+              // first-click bounce: queued band-player -> auth-ready nav -> this
+              // override to dashboard-manager). Let the router's queue own it.
+            } else if (typeof Router !== 'undefined' &&
                        Router.currentPage &&
                        Router.isDashboardRoute(Router.currentPage)) {
               // Already on a dashboard route (e.g. bookmark or refresh) — reload it
-              // so role-based guards and data refresh properly
+              // so role-based guards and data refresh properly. PRESERVE the user's
+              // destination: reload the CURRENT specific route, and only fall back
+              // to the role-landing page for a GENERIC entry (dashboard-home or an
+              // unresolved role-landing alias). Previously this always jumped to the
+              // role-landing, overriding a specific page the user was on.
               var _restoreRole = Auth._activeRole || Auth._role || '';
-              Router.navigateTo(Auth._roleLandingPage(_restoreRole), true);
+              var _cur = Router.currentPage;
+              var _isGeneric = (_cur === 'dashboard-home' || _cur === 'dashboard-manager' ||
+                                _cur === 'dashboard-musician' || _cur === 'dashboard-artist' ||
+                                _cur === 'dashboard-admin');
+              Router.navigateTo(_isGeneric ? Auth._roleLandingPage(_restoreRole) : _cur, true);
             } else if (typeof Router !== 'undefined' && Auth._authViaRedirect) {
               Auth._authViaRedirect = false;
               localStorage.removeItem('gbe-signin-initiated');

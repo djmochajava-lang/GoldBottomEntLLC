@@ -305,6 +305,16 @@ const Router = {
       pageName = this.legacyRedirects[pageName];
     }
 
+    // Nav-trail (diagnostic): record each navigation so a single owner repro
+    // captures the exact post-auth sequence (queued route -> auth-ready nav ->
+    // any override) — readable from localStorage['gbe-diag-session'].navTrail
+    // without a console. Tiny, capped, no PII (route names + timestamps only).
+    try {
+      if (typeof window !== 'undefined' && window.GBE_recordNav) {
+        window.GBE_recordNav(pageName, forceLoad ? 'force' : 'nav', this.currentPage);
+      }
+    } catch (e) {}
+
     // Role-based dashboard home redirect (reads from AuthCache first, then Auth)
     // All roles land on their role-specific dashboard, not generic dashboard-home
     if (pageName === 'dashboard-home') {

@@ -32,6 +32,26 @@
     global.GBE_DIAG = diag; // expose for the console / auth session context
   } catch (e) { /* localStorage may be unavailable (private mode edge) — non-fatal */ }
 
+  // ── Nav-trail recorder (diagnostic) ──────────────────────────────────────
+  // Router calls window.GBE_recordNav(page, source, from) on every navigateTo.
+  // We keep a small capped ring in the session diag so ONE owner repro captures
+  // the exact sequence (queued band-player -> auth-ready nav -> any override).
+  // Route names + timestamps only — no PII.
+  global.GBE_recordNav = function (page, source, from) {
+    try {
+      var K = 'gbe-diag-session';
+      var rec = null;
+      try { rec = JSON.parse(localStorage.getItem(K) || 'null'); } catch (e) {}
+      if (!rec) rec = {};
+      if (!Array.isArray(rec.navTrail)) rec.navTrail = [];
+      rec.navTrail.push({ t: new Date().toISOString(), to: String(page || ''), src: String(source || ''), from: String(from || '') });
+      if (rec.navTrail.length > 25) rec.navTrail = rec.navTrail.slice(-25); // cap
+      rec.build = rec.build || BUILD;
+      localStorage.setItem(K, JSON.stringify(rec));
+      global.GBE_DIAG = rec;
+    } catch (e) { /* non-fatal */ }
+  };
+
   // ── Visible tag ──────────────────────────────────────────────────────────
   function isDashboardView() {
     // Show only on the authenticated dashboard / band player, not public pages.
