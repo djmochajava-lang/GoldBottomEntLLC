@@ -153,6 +153,9 @@
   var form = document.getElementById('biz-contact-form');
   if (!form) return;
 
+  // P8c anti-spam: honeypot + fill-time instrumentation (shared helper)
+  if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
+
   var FALLBACK_MSG = 'Unable to send \u2014 please try again later.';
 
   function showFeedback(msg, isError) {
@@ -210,10 +213,10 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending\u2026';
 
-    // Submit via multi-strategy (server → Firestore → localStorage)
+    // Submit via multi-strategy (server → Supabase staging → legacy Firestore)
     // Forms.submitContact handles server POST internally (only on LAN)
     Promise.all([
-      Forms.submitContact(data)
+      Forms.submitContact(data, form)
     ])
       .then(function(results) {
         var result = results[0];

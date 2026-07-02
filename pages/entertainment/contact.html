@@ -105,6 +105,9 @@
   var form = document.getElementById('ent-contact-form');
   if (!form) return;
 
+  // P8c anti-spam: honeypot + fill-time instrumentation (shared helper)
+  if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
+
   var BOOKING_EMAIL = 'booking@layoungbandpage.com';
 
   function isBookingInquiry() {
@@ -172,8 +175,8 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending\u2026';
 
-    // Submit via multi-strategy (server → Firestore → localStorage)
-    Forms.submitContact(data)
+    // Submit via multi-strategy (server → Supabase staging → legacy Firestore)
+    Forms.submitContact(data, form)
       .then(function(result) {
         // Replace form with confirmation panel to prevent double-submit
         var card = form.closest('.glass-card');

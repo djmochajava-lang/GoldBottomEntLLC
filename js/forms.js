@@ -330,16 +330,134 @@ const Forms = {
     });
   },
 
+  /* ------------------------------------------
+     Anti-spam (P8c) — honeypot + fill-time
+     ------------------------------------------ */
+
+  /**
+   * Arm a form with anti-spam instrumentation:
+   * - a visually-hidden honeypot input named `website` (humans never see or
+   *   fill it; naive bots do). Hidden via off-screen position/clip — NOT
+   *   display:none, which many bots skip.
+   * - a render timestamp (data-antispam-ts) used to compute `fillMs`
+   *   (ms from form render to submit; the server scores <3000ms against).
+   * Idempotent — safe to call more than once on the same form.
+   * @param {HTMLFormElement} formElement
+   */
+  armAntiSpam: function (formElement) {
+    if (!formElement) return;
+    if (!formElement.getAttribute('data-antispam-ts')) {
+      formElement.setAttribute('data-antispam-ts', String(Date.now()));
+    }
+    if (formElement.querySelector('input[name="website"]')) return;
+    var hp = document.createElement('input');
+    hp.type = 'text';
+    hp.name = 'website';
+    hp.value = '';
+    hp.autocomplete = 'off';
+    hp.tabIndex = -1;
+    hp.setAttribute('aria-hidden', 'true');
+    hp.style.cssText = 'position:absolute !important;left:-9999px;top:auto;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none;';
+    formElement.appendChild(hp);
+  },
+
+  /**
+   * Read the anti-spam signals from an armed form.
+   * @param {HTMLFormElement} formElement
+   * @returns {{website: string, fillMs: (number|null)}}
+   */
+  collectAntiSpam: function (formElement) {
+    var out = { website: '', fillMs: null };
+    if (!formElement) return out;
+    var hp = formElement.querySelector('input[name="website"]');
+    if (hp) out.website = String(hp.value || '');
+    var ts = parseInt(formElement.getAttribute('data-antispam-ts'), 10);
+    if (!isNaN(ts) && ts > 0) out.fillMs = Math.max(0, Date.now() - ts);
+    return out;
+  },
+
+  /** @type {Object|null} Cached anonymous Supabase client (fallback when Auth._sb is absent) */
+  _sbClient: null,
+
+  /**
+   * Anonymous-safe Supabase client for the staging write. Prefers the client
+   * Auth already created (Auth._sb — created at init for ALL visitors,
+   * signed-in or not, when GBE_AUTH_SOURCE==='supabase'). Falls back to a
+   * one-off anon-key client (no session persisted, no tokens minted) so the
+   * staging write also works if the auth flag is rolled back to 'firebase'.
+   * @private
+   * @returns {Object|null}
+   */
+  _getSupabaseClient: function () {
+    if (typeof Auth !== 'undefined' && Auth._sb) return Auth._sb;
+    if (this._sbClient) return this._sbClient;
+    try {
+      var cfg = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
+        ? SiteConfig.integrations.supabase : null;
+      if (!cfg || !cfg.url || !cfg.anonKey) return null;
+      if (typeof window === 'undefined' || !window.supabase ||
+          typeof window.supabase.createClient !== 'function') return null;
+      this._sbClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      });
+      return this._sbClient;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Payload key → Supabase contact_submissions column. camelCase names on the
+   * right are REAL (quoted) Postgres columns — deliberate: the SoR pull
+   * (supabase-pull.js) copies cache column names verbatim into staging and
+   * the intake normalizer reads these exact camelCase wire keys (fillMs,
+   * additionalNotes, budgetRange, ...). Keys NOT in this map never become
+   * columns (no 42703 risk) — they are preserved in the raw_doc jsonb.
+   * @private
+   */
+  _CS_COLUMNS: {
+    formType: 'form_type', inquiryType: 'inquiry_type', eventDate: 'event_date',
+    routeTo: 'route_to',
+    source: 'source', name: 'name', email: 'email', phone: 'phone',
+    subject: 'subject', message: 'message', venue: 'venue', city: 'city',
+    organization: 'organization', company: 'company', budget: 'budget',
+    timeline: 'timeline', notes: 'notes', website: 'website',
+    fillMs: 'fillMs', showCount: 'showCount', projectType: 'projectType',
+    eventTime: 'eventTime', eventType: 'eventType', guestCount: 'guestCount',
+    performanceFormat: 'performanceFormat', indoorOutdoor: 'indoorOutdoor',
+    soundSystem: 'soundSystem', budgetRange: 'budgetRange',
+    referralSource: 'referralSource', additionalNotes: 'additionalNotes',
+    productionNeeds: 'productionNeeds', loadInDetails: 'loadInDetails'
+  },
+
   /**
    * Submit a contact form payload with fallback strategy:
-   * 1. Server API (if on LAN) — writes to SQLite queue_records
-   * 2. Firestore (if Auth._db available) — writes to contact_submissions
-   * 3. localStorage queue (last resort) — preserves data for manual recovery
+   * 1. Server API (LAN Express, ports 3000/4000 only) — SQLite queue_records
+   *    + inline booking_inbox landing via the intake normalizer
+   * 2. Supabase staging write — INSERT into the contact_submissions cache
+   *    table (write-only for anonymous visitors: INSERT policy only, no
+   *    read-back, no tokens minted). The HomeOffice SoR pull
+   *    (supabase-pull → intake-normalizer) lands it in booking_inbox.
+   * 3. Legacy Firestore — rollback net ONLY while GBE_AUTH_SOURCE==='firebase'
+   *    (D-27 window); never used when the Supabase backend is live.
+   * No localStorage fallback — business workflow data must reach the server
+   * or a staging store. Silent local saves are invisible to the BM.
    * @param {Object} payload - Form data with at least { formType, email }
+   * @param {HTMLFormElement} [formElement] - when provided, anti-spam signals
+   *   (honeypot `website`, timing `fillMs`) are collected from the armed form
+   *   and merged into the payload (see armAntiSpam).
    * @returns {Promise<{ok: boolean, method: string}>}
    */
-  submitContact: function (payload) {
+  submitContact: function (payload, formElement) {
+    var self = this;
     var serverUrl = null;
+
+    // Merge anti-spam signals from the armed form (see armAntiSpam)
+    if (formElement) {
+      var spam = this.collectAntiSpam(formElement);
+      payload.website = spam.website;
+      if (spam.fillMs !== null) payload.fillMs = spam.fillMs;
+    }
 
     // Detect LAN server — only use Express API when on port 3000 (or 4000 dev).
     // Port 8111 is http-server (static only, no POST support).
@@ -348,16 +466,32 @@ const Forms = {
       serverUrl = window.location.protocol + '//' + window.location.host + '/api/v1/contact';
     }
 
+    // DEF-049: never let DOM elements leak into a store — extract .value.
+    function cleanValue(val) {
+      if (val && typeof val === 'object' && val.nodeType) return val.value || '';
+      return val;
+    }
+
+    // JSON-safe clone of the full payload (raw_doc archive / server body).
+    function cleanPayload() {
+      var out = {};
+      for (var k in payload) {
+        if (!payload.hasOwnProperty(k)) continue;
+        var val = cleanValue(payload[k]);
+        if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+          out[k] = val;
+        } else if (val && typeof val === 'object') {
+          // arrays / plain objects (e.g. multi-show `shows`) — keep if JSON-safe
+          try { out[k] = JSON.parse(JSON.stringify(val)); } catch (e) { /* drop */ }
+        }
+      }
+      return out;
+    }
+
     // Strategy 1: Server API (Express on port 3000/4000 only)
     function tryServer() {
       if (!serverUrl) return Promise.reject('not on Express server');
-      // Strip Firestore-specific fields
-      var serverPayload = {};
-      for (var k in payload) {
-        if (payload.hasOwnProperty(k) && k !== 'submittedAt') {
-          serverPayload[k] = payload[k];
-        }
-      }
+      var serverPayload = cleanPayload();
       serverPayload.submittedAt = new Date().toISOString();
       return fetch(serverUrl, {
         method: 'POST',
@@ -369,36 +503,72 @@ const Forms = {
       });
     }
 
-    // Strategy 2: Firestore
-    function tryFirestore() {
-      if (typeof Auth === 'undefined' || !Auth._db || typeof firebase === 'undefined') {
-        return Promise.reject('Firestore not available');
+    // Strategy 2: Supabase staging write (anonymous-safe, INSERT-only).
+    // Known payload keys map to real columns; the FULL payload is archived in
+    // raw_doc jsonb. No firebase global required (doc-rot fix: this strategy
+    // was previously documented as "Firestore" and gated on window.firebase).
+    function trySupabaseStaging() {
+      var sb = self._getSupabaseClient();
+      if (!sb) return Promise.reject('Supabase staging not available');
+      var clean = cleanPayload();
+      var row = {
+        id: 'cs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
+        submitted_at: new Date().toISOString(),
+        raw_doc: clean
+      };
+      for (var k in clean) {
+        if (!clean.hasOwnProperty(k)) continue;
+        var col = self._CS_COLUMNS[k];
+        if (!col) continue; // un-columned keys live in raw_doc only
+        var val = clean[k];
+        if (k === 'shows') continue; // handled below (jsonb column)
+        if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+          row[col] = val;
+        }
+      }
+      if (Array.isArray(clean.shows)) {
+        row.shows = clean.shows;
+        row.showCount = typeof clean.showCount === 'number' ? clean.showCount : clean.shows.length;
+      }
+      return sb.from('contact_submissions').insert(row).then(function (res) {
+        if (res && res.error) throw res.error;
+        return { ok: true, method: 'supabase' };
+      });
+    }
+
+    // Strategy 3: Legacy Firestore — ONLY when the auth backend is Firebase
+    // (rollback net through the D-27 window). Uses an ISO timestamp, never
+    // the serverTimestamp() sentinel.
+    function tryLegacyFirestore() {
+      var src = (typeof window !== 'undefined' && window.GBE_AUTH_SOURCE) || 'firebase';
+      if (src === 'supabase' || typeof firebase === 'undefined' ||
+          typeof Auth === 'undefined' || !Auth._db) {
+        return Promise.reject('legacy Firestore not available');
       }
       var fsPayload = {};
-      for (var k in payload) {
-        if (payload.hasOwnProperty(k)) {
-          var val = payload[k];
-          // DEF-049: Ensure no DOM elements leak into Firestore — extract .value from form elements
-          if (val && typeof val === 'object' && val.nodeType) {
-            val = val.value || '';
-          }
-          // Only include serializable primitives
+      var clean = cleanPayload();
+      for (var k in clean) {
+        if (clean.hasOwnProperty(k)) {
+          var val = clean[k];
           if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
             fsPayload[k] = val;
           }
         }
       }
-      fsPayload.submittedAt = firebase.firestore.FieldValue.serverTimestamp();
+      fsPayload.submittedAt = new Date().toISOString();
       return Auth._db.collection('contact_submissions').add(fsPayload).then(function () {
         return { ok: true, method: 'firestore' };
       });
     }
 
-    // Try in order: server → firestore → fail with clear message
-    // No localStorage fallback — business workflow data must reach
-    // Firestore or the server. Silent local saves are invisible to the BM.
+    // Try in order: server → Supabase staging → legacy Firestore → fail with
+    // a clear message. No localStorage fallback.
     return tryServer()
-      .catch(function () { return tryFirestore(); });
+      .catch(function () { return trySupabaseStaging(); })
+      .catch(function (err) {
+        if (err && err.message) console.warn('[Forms] Supabase staging write failed:', err.message);
+        return tryLegacyFirestore();
+      });
   },
 
   /**

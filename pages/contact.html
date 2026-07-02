@@ -104,6 +104,9 @@
   var form = document.getElementById('general-contact-form');
   if (!form) return;
 
+  // P8c anti-spam: honeypot + fill-time instrumentation (shared helper)
+  if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
+
   var submitBtn = document.getElementById('gen-submit-btn');
   var statusEl = document.getElementById('gen-form-status');
 
@@ -187,8 +190,8 @@
       message: message
     };
 
-    // Submit via multi-strategy (server → Firestore → localStorage)
-    Forms.submitContact(payload)
+    // Submit via multi-strategy (server → Supabase staging → legacy Firestore)
+    Forms.submitContact(payload, form)
       .then(function(result) {
         if (result.method === 'local') {
           showFeedback("Message saved! We'll process it when our server is back online.", false);

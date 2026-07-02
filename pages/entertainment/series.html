@@ -71,6 +71,10 @@
             <label class="form-label" for="sr-notes">Notes / Special Requirements</label>
             <textarea class="form-textarea" id="sr-notes" name="notes" rows="4" placeholder="Tell us about your series concept, recurring schedule, or any special requirements..." maxlength="3000"></textarea>
           </div>
+          <div class="form-group">
+            <label class="form-label" for="sr-city">Primary City / Region</label>
+            <input type="text" class="form-input" id="sr-city" name="city" placeholder="City, State (optional)" maxlength="100" />
+          </div>
           <div class="grid grid-2">
             <div class="form-group">
               <label class="form-label" for="sr-budget">Total Budget Range</label>
@@ -117,6 +121,9 @@
   'use strict';
   var form = document.getElementById('series-request-form');
   if (!form) return;
+
+  // P8c anti-spam: honeypot + fill-time instrumentation (shared helper)
+  if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
 
   var submitBtn = document.getElementById('sr-submit-btn');
   var statusEl = document.getElementById('sr-form-status');
@@ -263,6 +270,7 @@
       email: email,
       phone: phone,
       organization: organization,
+      city: (form.querySelector('[name="city"]') ? form.querySelector('[name="city"]').value.trim() : ''),
       showCount: shows.length,
       shows: shows,
       budgetRange: budgetRange,
@@ -270,7 +278,7 @@
       notes: notes
     };
 
-    Forms.submitContact(payload)
+    Forms.submitContact(payload, form)
       .then(function(result) {
         if (result.method === 'local') {
           showFeedback('Quote request saved! We will process it when our server is back online.', false);
