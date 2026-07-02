@@ -440,37 +440,8 @@ if (document.readyState === 'loading') {
 }
 
 /**
- * Remote API base for the guarded HomeOffice front door (Cloudflare Tunnel).
- *
- * ANTI-REGRESSION GATE (P1d): this is the SINGLE client config key for reaching
- * the guarded write path from a non-LAN network. It is intentionally BLANK in the
- * committed source — NO server address / tunnel hostname ever ships in the public
- * repo (SECURITY_POLICY). The owner/Orchestrator fills the live tunnel origin in
- * deploy config only (e.g. set `window.GBE_REMOTE_API_BASE = 'https://<tunnel-host>'`
- * before utils.js loads, OR edit this constant in the deployed artifact).
- *
- * Behavior contract:
- *   - blank/unset  → BYTE-FOR-BYTE today's production behavior: non-local apiFetch
- *                    rejects with Error('remote'); reads stay cache-first (Firestore/
- *                    Supabase); nothing changes. This is the default that ships.
- *   - configured   → non-local apiFetch is rewritten to target the remote base over
- *                    the tunnel so the guarded server write path is reachable.
- * Must be an absolute https origin with NO trailing slash (e.g. 'https://host').
- */
-Utils.REMOTE_API_BASE = (typeof window !== 'undefined' && window.GBE_REMOTE_API_BASE) || '';
-
-/**
- * Global API fetch wrapper.
- *
- * Local (LAN dashboard): calls the same-origin server directly, with a timeout.
- * Remote (iPhone/public site):
- *   - if no remote base is configured → reject with Error('remote') (today's
- *     behavior; reads keep going cache-first, writes stay LAN-only);
- *   - if a remote base IS configured → rewrite relative '/api/...' URLs onto that
- *     base (the guarded tunnel path) so authenticated field WRITES can reach the
- *     server. Reads are NOT routed here — they remain cache-first elsewhere.
- *
- * Contract preserved: always returns a Promise<Response> (never auto-parsed JSON).
+ * Global API fetch wrapper — rejects immediately on remote (iPhone/public site)
+ * and enforces a timeout on LAN to prevent UI hangs.
  *
  * @param {string} url - API URL (absolute or relative like '/api/v1/...')
  * @param {object} [opts] - fetch options (method, headers, body, etc.)
@@ -479,16 +450,7 @@ Utils.REMOTE_API_BASE = (typeof window !== 'undefined' && window.GBE_REMOTE_API_
  */
 Utils.apiFetch = function(url, opts, timeoutMs) {
   var isLocal = (typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard());
-  var remoteBase = Utils.REMOTE_API_BASE || '';
-  if (!isLocal) {
-    // Anti-regression gate: no configured remote base === today's production behavior.
-    if (!remoteBase) return Promise.reject(new Error('remote'));
-    // Configured: route relative API paths onto the guarded tunnel base.
-    // Absolute URLs (already fully-qualified) are passed through untouched.
-    if (url && url.charAt(0) === '/') {
-      url = remoteBase.replace(/\/+$/, '') + url;
-    }
-  }
+  if (!isLocal) return Promise.reject(new Error('remote'));
   opts = opts || {};
   var token = localStorage.getItem('gbe-session-token') || '';
   if (token && !opts.headers) {
