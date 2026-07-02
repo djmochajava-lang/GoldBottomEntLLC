@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- pages/accept.html — Buyer offer page (public, token-gated, STANDALONE).
+       story-booking-tracka-close-the-deal / task-tka-f-pages.
+       Opened directly from the quote email link:
+         /pages/accept.html?token=<raw offer token>
+       NOT an SPA route: no router, no auth.js, no login. Possession of the
+       raw capability token IS the access (CTO ruling 1). Data flow:
+         READ : anon Supabase RPC get_booking_offer(p_token)  (C1/C2)
+         WRITE: anon INSERT into booking_public_actions        (C3)
+       Async posture per C12: actions land via the ~1m server reconcile;
+       the page discloses "about a minute" and polls the RPC (<=10s early,
+       backoff + hard cap, no websockets). Payments are Square-HOSTED only
+       (C6/SAQ-A): the deposit renders as an OUTBOUND link — never any card
+       field on this page. -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Token page: never index, never leak the token via Referer -->
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Your Booking Offer — Gold Bottom Ent. LLC</title>
+  <link rel="icon" href="../images/logo/gbe-logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/base.css">
+  <style>
+    body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); margin: 0; }
+    .offer-shell { max-width: 720px; margin: 0 auto; padding: var(--space-lg) var(--space-md) var(--space-3xl); }
+    .offer-brand { text-align: center; padding: var(--space-lg) 0 var(--space-md); }
+    .offer-brand a { color: var(--color-gold); text-decoration: none; font-family: var(--font-heading); font-weight: var(--fw-bold); font-size: var(--text-lg); letter-spacing: 0.02em; }
+    .offer-brand .offer-brand-sub { color: var(--color-text-muted); font-size: var(--text-xs); margin-top: 2px; }
+
+    /* Stepper */
+    .offer-stepper { display: flex; gap: 4px; margin: var(--space-md) 0 var(--space-xl); }
+    .offer-step { flex: 1; text-align: center; font-size: var(--text-xs); color: var(--color-text-muted); padding-top: var(--space-xs); position: relative; min-width: 0; }
+    .offer-step::before { content: ''; display: block; height: 4px; border-radius: var(--radius-full); background: var(--color-bg-tertiary); margin-bottom: var(--space-xs); }
+    .offer-step.done::before { background: var(--color-success); }
+    .offer-step.active::before { background: var(--color-gold); }
+    .offer-step.done { color: var(--color-success); }
+    .offer-step.active { color: var(--color-gold); font-weight: var(--fw-semibold); }
+    .offer-step span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .offer-center { text-align: center; padding: var(--space-3xl) var(--space-lg); }
+    .offer-center h2 { margin: var(--space-md) 0 var(--space-sm); font-family: var(--font-heading); }
+    .offer-center p { color: var(--color-text-secondary); line-height: 1.6; }
+    .offer-glyph { font-size: 2.2rem; line-height: 1; }
+
+    .offer-card { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-lg); margin-bottom: var(--space-lg); }
+    .offer-card h2, .offer-card h3 { margin: 0 0 var(--space-md); font-family: var(--font-heading); }
+    .offer-kv { display: flex; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-border); font-size: var(--text-base); }
+    .offer-kv:last-child { border-bottom: none; }
+    .offer-kv .k { color: var(--color-text-muted); }
+    .offer-kv .v { font-weight: var(--fw-semibold); text-align: right; overflow-wrap: anywhere; }
+    .offer-kv.total .v { color: var(--color-gold); font-size: var(--text-md); }
+
+    .offer-table-wrap { overflow-x: auto; }
+    .offer-lines { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+    .offer-lines th { text-align: left; color: var(--color-text-muted); font-weight: var(--fw-medium); padding: var(--space-xs) var(--space-sm); border-bottom: 1px solid var(--color-border); }
+    .offer-lines td { padding: var(--space-sm); border-bottom: 1px solid var(--color-border); }
+    .offer-lines th.num, .offer-lines td.num { text-align: right; white-space: nowrap; }
+
+    .offer-actions { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-top: var(--space-lg); }
+    .offer-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm); padding: var(--space-md) var(--space-xl); border-radius: var(--radius-sm); border: none; cursor: pointer; font-size: var(--text-base); font-weight: var(--fw-semibold); text-decoration: none; font-family: var(--font-body); transition: filter 0.2s; }
+    .offer-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .offer-btn-primary { background: var(--color-gold); color: #000; }
+    .offer-btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+    .offer-btn-secondary { background: var(--color-bg-tertiary); color: var(--color-text); border: 1px solid var(--color-border); }
+    .offer-btn-danger { background: transparent; color: var(--color-danger); border: 1px solid var(--color-danger); }
+    .offer-btn-block { width: 100%; }
+
+    .offer-banner { border-radius: var(--radius-md); padding: var(--space-md) var(--space-lg); margin-bottom: var(--space-lg); font-size: var(--text-sm); line-height: 1.5; }
+    .offer-banner-processing { background: var(--color-info-muted); border: 1px solid var(--color-info); color: var(--color-text); }
+    .offer-banner-watermark { background: var(--color-warning-muted); border: 1px dashed var(--color-warning); color: var(--color-warning); font-weight: var(--fw-semibold); text-align: center; text-transform: uppercase; letter-spacing: 0.04em; }
+    .offer-banner-testmode { background: var(--color-info-muted); border: 1px solid var(--color-info); color: var(--color-info); text-align: center; font-weight: var(--fw-semibold); }
+    .offer-banner-error { background: var(--color-danger-muted); border: 1px solid var(--color-danger); color: var(--color-text); }
+
+    .offer-clauses { max-height: 420px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-md) var(--space-lg); background: var(--color-bg); }
+    .offer-clause { margin-bottom: var(--space-lg); }
+    .offer-clause h4 { margin: 0 0 var(--space-xs); font-size: var(--text-sm); color: var(--color-gold); font-family: var(--font-heading); }
+    .offer-clause pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.6; color: var(--color-text-secondary); }
+
+    .offer-disclosures { margin: 0 0 var(--space-md); padding-left: 1.2em; color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.6; }
+    .offer-consent-label { display: flex; align-items: flex-start; gap: var(--space-sm); font-size: var(--text-base); line-height: 1.5; cursor: pointer; margin: var(--space-md) 0; }
+    .offer-consent-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-gold); margin-top: 2px; flex-shrink: 0; }
+
+    .offer-input { width: 100%; box-sizing: border-box; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); font-size: var(--text-lg); font-family: inherit; }
+    .offer-input:disabled { opacity: 0.45; cursor: not-allowed; }
+    .offer-textarea { width: 100%; box-sizing: border-box; min-height: 72px; padding: var(--space-sm); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); font-size: var(--text-sm); font-family: inherit; resize: vertical; }
+    .offer-sig-preview { margin-top: var(--space-sm); min-height: 44px; font-size: 26px; font-style: italic; color: var(--color-gold); padding: var(--space-xs) 0; overflow-wrap: anywhere; }
+    .offer-field-note { color: var(--color-text-muted); font-size: var(--text-xs); margin: var(--space-xs) 0 0; }
+
+    .offer-status-note { text-align: center; color: var(--color-text-muted); font-size: var(--text-sm); margin: var(--space-md) 0; min-height: 1.2em; }
+    .offer-refresh-row { text-align: center; margin-top: var(--space-md); }
+    .offer-support { text-align: center; color: var(--color-text-muted); font-size: var(--text-sm); padding: var(--space-xl) 0 0; }
+    .offer-support a { color: var(--color-gold); }
+
+    /* Honeypot (P8 parity) — off-screen, not display:none */
+    .offer-hp { position: absolute !important; left: -9999px; top: auto; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+
+    @media (max-width: 480px) {
+      .offer-shell { padding-left: var(--space-sm); padding-right: var(--space-sm); }
+      .offer-actions .offer-btn { flex: 1 1 100%; }
+      .offer-step span { font-size: 0.65rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="offer-shell">
+    <div class="offer-brand">
+      <a href="/">Gold Bottom Ent. LLC</a>
+      <div class="offer-brand-sub">Live Performance Booking</div>
+    </div>
+
+    <!-- Phase stepper -->
+    <div class="offer-stepper" id="offer-stepper" data-testid="stepper" style="display:none;">
+      <div class="offer-step" data-testid="step-accept" id="step-accept"><span>Accept</span></div>
+      <div class="offer-step" data-testid="step-sign" id="step-sign"><span>Sign</span></div>
+      <div class="offer-step" data-testid="step-deposit" id="step-deposit"><span>Deposit</span></div>
+      <div class="offer-step" data-testid="step-complete" id="step-complete"><span>Confirmed</span></div>
+    </div>
+
+    <!-- Loading -->
+    <div id="state-loading" class="offer-center" data-testid="state-loading">
+      <div class="offer-glyph">&#9203;</div>
+      <p>Loading your offer&hellip;</p>
+    </div>
+
+    <!-- Invalid / expired link -->
+    <div id="state-error" class="offer-center" data-testid="state-error" style="display:none;">
+      <div class="offer-glyph">&#9888;&#65039;</div>
+      <h2>Link Invalid or Expired</h2>
+      <p>This link is invalid or has expired &mdash; contact us to request a new quote link.</p>
+      <p>If you recently completed your deposit, your booking is confirmed &mdash; see your confirmation email.</p>
+    </div>
+
+    <!-- Processing banner (shared) -->
+    <div id="banner-processing" class="offer-banner offer-banner-processing" data-testid="banner-processing" style="display:none;">
+      <strong>Processing&hellip;</strong> <span id="banner-processing-text">This takes about a minute. This page will update automatically.</span>
+    </div>
+
+    <!-- Inline error banner (write failures) -->
+    <div id="banner-error" class="offer-banner offer-banner-error" data-testid="banner-error" style="display:none;"></div>
+
+    <!-- Phase: offered -->
+    <div id="state-offered" data-testid="state-offered" style="display:none;">
+      <div class="offer-card">
+        <h2>Your Performance Quote</h2>
+        <div id="offered-event"></div>
+      </div>
+      <div class="offer-card">
+        <h3>Quote Summary</h3>
+        <div class="offer-table-wrap" id="offered-lines"></div>
+        <div id="offered-figures"></div>
+        <p class="offer-field-note" id="offered-expiry"></p>
+      </div>
+      <div class="offer-actions">
+        <button type="button" class="offer-btn offer-btn-primary" id="btn-accept" data-testid="btn-accept">Accept Quote</button>
+        <button type="button" class="offer-btn offer-btn-danger" id="btn-decline" data-testid="btn-decline">Decline</button>
+      </div>
+      <div class="offer-card" id="decline-confirm" data-testid="decline-confirm" style="display:none; margin-top: var(--space-lg);">
+        <h3>Decline this quote?</h3>
+        <p style="color:var(--color-text-secondary); font-size:var(--text-sm);">Optional: tell us why, or what would work better.</p>
+        <textarea class="offer-textarea" id="input-decline-note" data-testid="input-decline-note" maxlength="2000" placeholder="Your message (optional)"></textarea>
+        <div class="offer-actions">
+          <button type="button" class="offer-btn offer-btn-danger" id="btn-decline-confirm" data-testid="btn-decline-confirm">Confirm Decline</button>
+          <button type="button" class="offer-btn offer-btn-secondary" id="btn-decline-cancel" data-testid="btn-decline-cancel">Keep Reviewing</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase: accepted (sign) -->
+    <div id="state-sign" data-testid="state-sign" style="display:none;">
+      <div id="banner-watermark" class="offer-banner offer-banner-watermark" data-testid="banner-watermark" style="display:none;"></div>
+      <div class="offer-card">
+        <h2>Performance Agreement</h2>
+        <p style="color:var(--color-text-secondary); font-size:var(--text-sm);">Quote accepted &mdash; please review and sign the agreement below. A copy was also emailed to you.</p>
+        <div class="offer-clauses" id="agreement-clauses" data-testid="agreement-clauses"></div>
+      </div>
+      <div class="offer-card" id="sign-form-card">
+        <h3>Electronic Signature Consent</h3>
+        <ul class="offer-disclosures" id="sign-disclosures" data-testid="sign-disclosures"></ul>
+        <label class="offer-consent-label">
+          <input type="checkbox" id="consent-checkbox" data-testid="consent-checkbox">
+          <span>I consent to use electronic records and signatures for this agreement, and I have read the disclosures above.</span>
+        </label>
+        <h3>Your Signature</h3>
+        <input type="text" class="offer-input" id="input-typed-name" data-testid="input-typed-name" placeholder="Type your full legal name" autocomplete="off" maxlength="200" disabled>
+        <p class="offer-field-note">Check the consent box above to enable signing.</p>
+        <div class="offer-sig-preview" id="sig-preview"></div>
+        <input type="text" name="website" class="offer-hp" id="hp-field" tabindex="-1" aria-hidden="true" autocomplete="off" value="">
+        <button type="button" class="offer-btn offer-btn-primary offer-btn-block" id="btn-sign" data-testid="btn-sign" disabled>Sign Agreement</button>
+        <p class="offer-field-note" id="sign-token-expiry"></p>
+      </div>
+    </div>
+
+    <!-- Phase: accepted but sign block not yet available -->
+    <div id="state-sign-pending" class="offer-center" data-testid="state-sign-pending" style="display:none;">
+      <div class="offer-glyph">&#128231;</div>
+      <h2>Quote Accepted</h2>
+      <p>Your agreement is being prepared &mdash; it will appear here shortly and a signing copy has been emailed to you.</p>
+    </div>
+
+    <!-- Phase: signed (deposit link being prepared) -->
+    <div id="state-signed-wait" class="offer-center" data-testid="state-signed-wait" style="display:none;">
+      <div class="offer-glyph">&#9989;</div>
+      <h2>Agreement Signed</h2>
+      <p>Preparing your secure deposit link &mdash; this takes about a minute. This page will update automatically.</p>
+    </div>
+
+    <!-- Phase: deposit -->
+    <div id="state-deposit" data-testid="state-deposit" style="display:none;">
+      <div id="banner-testmode" class="offer-banner offer-banner-testmode" data-testid="banner-testmode" style="display:none;">TEST MODE &mdash; this is a test checkout link. No real payment will be collected.</div>
+      <div class="offer-card">
+        <h2>Deposit Payment</h2>
+        <div id="deposit-figures"></div>
+        <p style="color:var(--color-text-secondary); font-size:var(--text-sm); line-height:1.6;">
+          Payment is handled securely by <strong>Square</strong> on their hosted checkout page &mdash;
+          we never see or store your card details. The button below opens Square in a new tab.
+        </p>
+        <a class="offer-btn offer-btn-primary offer-btn-block" id="link-deposit" data-testid="link-deposit" href="#" target="_blank" rel="noopener noreferrer">Pay Deposit Securely</a>
+        <p class="offer-field-note" style="text-align:center; margin-top:var(--space-md);">
+          After you pay, payment confirmation may take a couple of minutes to appear here.
+        </p>
+      </div>
+    </div>
+
+    <!-- Complete -->
+    <div id="state-complete" class="offer-center" data-testid="state-complete" style="display:none;">
+      <div class="offer-glyph">&#127881;</div>
+      <h2>Booking Confirmed</h2>
+      <p>Your deposit has been received and your booking is confirmed. A confirmation email with your executed agreement and receipt details is on its way.</p>
+      <p>We&rsquo;ll be in touch ahead of your event with logistics and next steps. Thank you for booking with Gold Bottom Entertainment!</p>
+    </div>
+
+    <!-- Declined -->
+    <div id="state-declined" class="offer-center" data-testid="state-declined" style="display:none;">
+      <div class="offer-glyph">&#128075;</div>
+      <h2>Quote Declined</h2>
+      <p>No problem &mdash; this quote has been closed. If your plans change or you&rsquo;d like a revised quote, we&rsquo;d love to hear from you.</p>
+    </div>
+
+    <!-- Expired -->
+    <div id="state-expired" class="offer-center" data-testid="state-expired" style="display:none;">
+      <div class="offer-glyph">&#8987;</div>
+      <h2>Quote Expired</h2>
+      <p>This quote has expired. Contact us for an updated quote &mdash; we&rsquo;d still love to play your event.</p>
+    </div>
+
+    <div class="offer-status-note" id="status-note" data-testid="status-note"></div>
+    <div class="offer-refresh-row" id="refresh-row" style="display:none;">
+      <button type="button" class="offer-btn offer-btn-secondary" id="btn-refresh" data-testid="btn-refresh">Refresh Status</button>
+    </div>
+
+    <div class="offer-support">
+      <p>Questions? Email <a href="mailto:info@goldbottoment-llc.com">info@goldbottoment-llc.com</a></p>
+    </div>
+  </div>
+
+  <!-- Same client stack the SPA already loads: SiteConfig (Supabase url + anon
+       publishable key — client-safe by design) + supabase-js v2 UMD from the
+       same jsdelivr URL index.html uses. No auth.js / router.js / utils.js. -->
+  <script src="../js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    /* ── Constants (mirror the server contracts) ─────────────────────────
+       READ : rpc get_booking_offer(p_token) -> [{ payload, phase, expires_at }]
+       WRITE: insert booking_public_actions { action_type, token, payload,
+              honeypot } — anon INSERT-only staging (Joi + digest validation
+              happens server-side at the ~1m reconcile). */
+    var STAGING_TABLE = 'booking_public_actions';
+    var RPC_NAME = 'get_booking_offer';
+    var POLL_EARLY_MS = 9000;   // C12: <=10s while a transition is expected
+    var POLL_MID_MS = 15000;    // backoff tier 2 (after ~10 polls)
+    var POLL_LATE_MS = 30000;   // backoff tier 3 (after ~20 polls)
+    var POLL_MAX = 40;          // hard stop cap (~15 min) — manual refresh after
+
+    var token = null;
+    var sbClient = null;
+    var knownPhase = null;      // last phase seen from the RPC
+    var knownPayload = null;
+    var pendingAction = null;   // 'accept' | 'decline' | 'sign' — staged, awaiting landing
+    var pollTimer = null;
+    var pollCount = 0;
+    var pollStopped = false;
+
+    /* ── Helpers ────────────────────────────────────────────────────────── */
+    function $(id) { return document.getElementById(id); }
+    function show(id) { var el = $(id); if (el) el.style.display = ''; }
+    function hide(id) { var el = $(id); if (el) el.style.display = 'none'; }
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function fmtMoney(n) {
+      if (n === null || n === undefined || isNaN(Number(n))) return '—';
+      try {
+        return Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+      } catch (e) { return '$' + Number(n).toFixed(2); }
+    }
+    function fmtDate(iso) {
+      if (!iso) return '';
+      var d;
+      // Date-only strings (YYYY-MM-DD) parse as UTC midnight and would shift a
+      // day in western timezones — parse them as LOCAL calendar dates instead.
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso).trim());
+      if (m) d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      else d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso);
+      try {
+        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      } catch (e) { return d.toDateString(); }
+    }
+    /* Prettify wire enums for display: 'full_band' -> 'Full Band' */
+    function fmtEnum(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/[_-]+/g, ' ').replace(/\b[a-z]/g, function (ch) { return ch.toUpperCase(); });
+    }
+    function setStatusNote(msg) { var el = $('status-note'); if (el) el.textContent = msg || ''; }
+    function showWriteError(msg) {
+      var el = $('banner-error');
+      if (el) { el.textContent = msg; el.style.display = ''; }
+    }
+    function clearWriteError() { hide('banner-error'); }
+
+    var ALL_STATES = ['state-loading', 'state-error', 'state-offered', 'state-sign',
+      'state-sign-pending', 'state-signed-wait', 'state-deposit', 'state-complete',
+      'state-declined', 'state-expired'];
+    function showState(id) {
+      for (var i = 0; i < ALL_STATES.length; i++) hide(ALL_STATES[i]);
+      show(id);
+    }
+
+    /* Same anonymous client pattern as Forms._getSupabaseClient (P8):
+       anon/publishable key from SiteConfig, no session persisted, no tokens. */
+    function getClient() {
+      if (sbClient) return sbClient;
+      try {
+        var cfg = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
+          ? SiteConfig.integrations.supabase : null;
+        if (!cfg || !cfg.url || !cfg.anonKey) return null;
+        if (typeof window.supabase === 'undefined' ||
+            typeof window.supabase.createClient !== 'function') return null;
+        sbClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+        });
+        return sbClient;
+      } catch (e) { return null; }
+    }
+
+    /* ── Stepper ───────────────────────────────────────────────────────── */
+    // steps: accept(0) sign(1) deposit(2) complete(3)
+    function updateStepper(phase) {
+      var ids = ['step-accept', 'step-sign', 'step-deposit', 'step-complete'];
+      var activeIdx;
+      if (phase === 'offered') activeIdx = 0;
+      else if (phase === 'accepted') activeIdx = 1;
+      else if (phase === 'signed' || phase === 'deposit') activeIdx = 2;
+      else if (phase === 'complete') activeIdx = 3;
+      else { hide('offer-stepper'); return; }
+      show('offer-stepper');
+      for (var i = 0; i < ids.length; i++) {
+        var el = $(ids[i]);
+        el.className = 'offer-step' + (i < activeIdx ? ' done' : (i === activeIdx ? ' active' : ''));
+      }
+      if (phase === 'complete') $(ids[3]).className = 'offer-step done';
+    }
+
+    /* ── Polling (C12: only while awaiting a transition; backoff + cap) ── */
+    function shouldPoll() {
+      if (pendingAction) return true;
+      if (knownPhase === 'signed' || knownPhase === 'deposit') return true;
+      if (knownPhase === 'accepted' && !(knownPayload && knownPayload.sign)) return true;
+      return false;
+    }
+    function stopPolling() {
+      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    }
+    function schedulePoll() {
+      stopPolling();
+      if (!shouldPoll()) { $('refresh-row').style.display = 'none'; return; }
+      $('refresh-row').style.display = '';
+      if (pollCount >= POLL_MAX) {
+        pollStopped = true;
+        setStatusNote('Still processing — tap Refresh Status, or check your email for the latest update.');
+        return;
+      }
+      var delay = pollCount < 10 ? POLL_EARLY_MS : (pollCount < 20 ? POLL_MID_MS : POLL_LATE_MS);
+      pollTimer = setTimeout(function () { pollCount++; refresh(false); }, delay);
+    }
+
+    /* ── Data fetch + render ───────────────────────────────────────────── */
+    function refresh(isManual) {
+      var sb = getClient();
+      if (!sb) {
+        showState('state-error');
+        setStatusNote('');
+        return;
+      }
+      if (isManual) { pollCount = 0; pollStopped = false; setStatusNote('Checking status…'); }
+      sb.rpc(RPC_NAME, { p_token: token }).then(function (res) {
+        if (res && res.error) throw res.error;
+        setStatusNote('');
+        onRows(res ? res.data : null);
+      }).catch(function (err) {
+        // Network / transient RPC failure: keep the current view, note it, retry
+        console.warn('[offer] status check failed:', err && err.message ? err.message : err);
+        if (knownPhase === null && !pendingAction) {
+          setStatusNote('Connection problem — retrying shortly. Tap Refresh Status to try now.');
+          $('refresh-row').style.display = '';
+          pollTimer = setTimeout(function () { refresh(false); }, POLL_MID_MS);
+        } else {
+          setStatusNote('Connection problem — will retry automatically.');
+          schedulePoll();
+        }
+      });
+    }
+
+    function onRows(rows) {
+      if (!rows || !rows.length) { handleEmpty(); return; }
+      var row = rows[0];
+      var prevPhase = knownPhase;
+      knownPhase = row.phase;
+      knownPayload = row.payload || {};
+
+      // A landed action advances the phase — clear the pending flag
+      if (pendingAction === 'accept' && knownPhase !== 'offered') pendingAction = null;
+      if (pendingAction === 'sign' && knownPhase !== 'accepted') pendingAction = null;
+      if (pendingAction && prevPhase !== knownPhase) pendingAction = null;
+
+      renderPhase(row);
+      schedulePoll();
+    }
+
+    /* Empty RPC result: non-leaking oracle — invalid, expired, or evicted
+       (terminal). Disambiguate from in-session context only (no local store). */
+    function handleEmpty() {
+      stopPolling();
+      hide('banner-processing');
+      $('refresh-row').style.display = 'none';
+      if (pendingAction === 'decline' || knownPhase === 'declined') {
+        updateStepper('declined');
+        showState('state-declined');
+      } else if (knownPhase === 'signed' || knownPhase === 'deposit' || knownPhase === 'complete') {
+        // task-tka-e contract: the row is EVICTED at completion — an emptying
+        // RPC after the deposit phase means the deal closed successfully.
+        updateStepper('complete');
+        showState('state-complete');
+      } else if (knownPhase === 'offered' && knownPayload && knownPayload.expiresAt &&
+                 new Date(knownPayload.expiresAt).getTime() < Date.now()) {
+        updateStepper('expired');
+        showState('state-expired');
+      } else {
+        updateStepper(null);
+        showState('state-error');
+      }
+      setStatusNote('');
+    }
+
+    function renderPhase(row) {
+      var phase = row.phase;
+      var p = row.payload || {};
+      clearWriteError();
+      updateStepper(phase);
+
+      if (pendingAction) {
+        show('banner-processing');
+      } else {
+        hide('banner-processing');
+      }
+
+      if (phase === 'offered') {
+        renderOffered(p, row);
+        showState('state-offered');
+        var busy = !!pendingAction;
+        $('btn-accept').disabled = busy;
+        $('btn-decline').disabled = busy;
+      } else if (phase === 'accepted') {
+        if (pendingAction === 'sign') {
+          // sign staged, awaiting landing — keep a quiet waiting view
+          showState('state-sign-pending');
+        } else if (p.sign) {
+          renderSign(p);
+          showState('state-sign');
+        } else {
+          showState('state-sign-pending');
+        }
+      } else if (phase === 'signed') {
+        showState('state-signed-wait');
+      } else if (phase === 'deposit') {
+        renderDeposit(p);
+        showState('state-deposit');
+      } else if (phase === 'complete') {
+        showState('state-complete');
+      } else if (phase === 'declined') {
+        showState('state-declined');
+      } else if (phase === 'expired') {
+        showState('state-expired');
+      } else {
+        // Unknown phase — conservative: show the generic error, keep polling off
+        showState('state-error');
+      }
+    }
+
+    /* ── Phase renderers ───────────────────────────────────────────────── */
+    function renderOffered(p, row) {
+      var ev = p.event || {};
+      var evHtml = '';
+      var evRows = [
+        ['Event Type', ev.eventType ? fmtEnum(ev.eventType) : null],
+        ['Event Date', ev.eventDate ? fmtDate(ev.eventDate) : null],
+        ['Venue', ev.venueName],
+        ['Performance', ev.performanceFormat ? fmtEnum(ev.performanceFormat) : null],
+        ['Quote Version', p.quoteVersion]
+      ];
+      for (var i = 0; i < evRows.length; i++) {
+        if (!evRows[i][1]) continue;
+        evHtml += '<div class="offer-kv"><span class="k">' + escapeHtml(evRows[i][0]) +
+          '</span><span class="v">' + escapeHtml(evRows[i][1]) + '</span></div>';
+      }
+      $('offered-event').innerHTML = evHtml || '<p style="color:var(--color-text-muted);">Event details are in your quote email.</p>';
+
+      var items = Array.isArray(p.lineItems) ? p.lineItems : [];
+      var linesHtml = '';
+      if (items.length) {
+        linesHtml = '<table class="offer-lines"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead><tbody>';
+        for (var j = 0; j < items.length; j++) {
+          var it = items[j] || {};
+          linesHtml += '<tr><td>' + escapeHtml(it.label || 'Item') + '</td>' +
+            '<td class="num">' + escapeHtml(it.quantity != null ? it.quantity : 1) + '</td>' +
+            '<td class="num">' + escapeHtml(fmtMoney(it.amount)) + '</td></tr>';
+        }
+        linesHtml += '</tbody></table>';
+      }
+      $('offered-lines').innerHTML = linesHtml;
+
+      var figHtml = '';
+      if (p.subtotal != null) figHtml += kv('Subtotal', fmtMoney(p.subtotal));
+      figHtml += '<div class="offer-kv total"><span class="k">Total</span><span class="v">' + escapeHtml(fmtMoney(p.total)) + '</span></div>';
+      if (p.depositAmount != null) {
+        var depLabel = 'Deposit due' + (p.depositPercent != null ? ' (' + escapeHtml(p.depositPercent) + '%)' : '');
+        figHtml += '<div class="offer-kv"><span class="k">' + depLabel + '</span><span class="v">' + escapeHtml(fmtMoney(p.depositAmount)) + '</span></div>';
+      }
+      $('offered-figures').innerHTML = figHtml;
+
+      var exp = p.expiresAt || row.expires_at;
+      $('offered-expiry').textContent = exp ? ('This quote is valid until ' + fmtDate(exp) + '.') : '';
+    }
+    function kv(k, v) {
+      return '<div class="offer-kv"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>';
+    }
+
+    function renderSign(p) {
+      var sign = p.sign || {};
+      // C5: the DRAFT watermark banner renders prominently
+      var wm = $('banner-watermark');
+      if (sign.watermark) { wm.textContent = sign.watermark; wm.style.display = ''; }
+      else { wm.style.display = 'none'; }
+
+      var clauses = Array.isArray(sign.clauses) ? sign.clauses : [];
+      var html = '';
+      for (var i = 0; i < clauses.length; i++) {
+        var c = clauses[i] || {};
+        html += '<div class="offer-clause"><h4>' +
+          escapeHtml((c.number != null ? c.number + '. ' : '') + (c.title || '')) +
+          '</h4><pre>' + escapeHtml(c.body || '') + '</pre></div>';
+      }
+      $('agreement-clauses').innerHTML = html || '<p>Agreement text is in your signing email.</p>';
+
+      var disc = (sign.esign && Array.isArray(sign.esign.disclosures)) ? sign.esign.disclosures : [];
+      var dHtml = '';
+      for (var d = 0; d < disc.length; d++) dHtml += '<li>' + escapeHtml(disc[d]) + '</li>';
+      $('sign-disclosures').innerHTML = dHtml;
+
+      var expEl = $('sign-token-expiry');
+      if (sign.signTokenExpiresAt) {
+        var expMs = new Date(sign.signTokenExpiresAt).getTime();
+        if (!isNaN(expMs) && expMs < Date.now()) {
+          expEl.textContent = 'This signing link has expired — contact us for a fresh one.';
+          $('btn-sign').disabled = true;
+          $('consent-checkbox').disabled = true;
+        } else {
+          expEl.textContent = 'Signing link valid until ' + fmtDate(sign.signTokenExpiresAt) + '.';
+        }
+      } else {
+        expEl.textContent = '';
+      }
+      updateSignControls();
+    }
+
+    /* Consent-first (CTO ruling 2 / C5): the signature input stays DISABLED
+       until the consent checkbox is checked; submit needs consent + name. */
+    function updateSignControls() {
+      var consent = $('consent-checkbox');
+      var nameInput = $('input-typed-name');
+      var btn = $('btn-sign');
+      if (!consent || !nameInput || !btn) return;
+      var consented = consent.checked;
+      nameInput.disabled = !consented;
+      var nameOk = nameInput.value.trim().length >= 2;
+      btn.disabled = !(consented && nameOk);
+    }
+
+    function renderDeposit(p) {
+      var dep = p.deposit || {};
+      var figHtml = '';
+      figHtml += kv('Deposit amount', fmtMoney(dep.amount));
+      if (dep.currency) figHtml += kv('Currency', dep.currency);
+      if (p.total != null) figHtml += kv('Booking total', fmtMoney(p.total));
+      $('deposit-figures').innerHTML = figHtml;
+
+      var link = $('link-deposit');
+      // Defense-in-depth: only ever link an https: URL (the readmodel is
+      // server-built, but never render a non-https scheme as a payment CTA)
+      if (dep.checkoutUrl && /^https:\/\//i.test(String(dep.checkoutUrl))) {
+        link.href = dep.checkoutUrl;
+        link.style.display = '';
+      } else {
+        // deposit phase but link not yet built (rare) — hide until it lands
+        link.style.display = 'none';
+      }
+      // Mock driver deliberately uses the non-routable .example TLD — surface
+      // the TEST-MODE reality instead of treating link-open failure as an error
+      var isTest = false;
+      try { isTest = /\.example(\/|$)/.test(new URL(dep.checkoutUrl || '', location.href).hostname + '/'); }
+      catch (e) { isTest = /squareup\.example/.test(String(dep.checkoutUrl || '')); }
+      if (isTest) show('banner-testmode'); else hide('banner-testmode');
+    }
+
+    /* ── Buyer writes (anon INSERT into the staging mailbox, C3) ───────── */
+    function stageAction(actionType, payloadObj, btnEls) {
+      var sb = getClient();
+      if (!sb) { showWriteError('Connection unavailable — please try again, or reply to your quote email.'); return; }
+      clearWriteError();
+      for (var i = 0; i < btnEls.length; i++) btnEls[i].disabled = true;
+      var hp = $('hp-field');
+      var row = {
+        action_type: actionType,
+        token: token,
+        payload: payloadObj || {},
+        honeypot: hp ? String(hp.value || '') : ''
+      };
+      // insert() without .select() -> Prefer: return=minimal (no read-back;
+      // the staging table has no SELECT grant for clients by design)
+      sb.from(STAGING_TABLE).insert(row).then(function (res) {
+        if (res && res.error) throw res.error;
+        pendingAction = actionType === 'accept_quote' ? 'accept'
+          : actionType === 'decline_quote' ? 'decline' : 'sign';
+        pollCount = 0; pollStopped = false;
+        show('banner-processing');
+        if (pendingAction === 'decline') {
+          hide('decline-confirm');
+          $('banner-processing-text').textContent = 'Recording your response — this takes about a minute.';
+        } else if (pendingAction === 'sign') {
+          showState('state-sign-pending');
+          $('banner-processing-text').textContent = 'Recording your signature — this takes about a minute. This page will update automatically.';
+        } else {
+          $('banner-processing-text').textContent = 'Recording your acceptance — this takes about a minute. This page will update automatically.';
+        }
+        schedulePoll();
+      }).catch(function (err) {
+        console.warn('[offer] action submit failed:', err && err.message ? err.message : err);
+        for (var i = 0; i < btnEls.length; i++) btnEls[i].disabled = false;
+        showWriteError('We couldn’t submit that just now — please try again in a moment, or reply to your quote email and we’ll take care of it.');
+      });
+    }
+
+    /* ── Wire up controls ──────────────────────────────────────────────── */
+    function bindControls() {
+      $('btn-accept').addEventListener('click', function () {
+        stageAction('accept_quote', {}, [$('btn-accept'), $('btn-decline')]);
+      });
+      $('btn-decline').addEventListener('click', function () {
+        show('decline-confirm');
+      });
+      $('btn-decline-cancel').addEventListener('click', function () {
+        hide('decline-confirm');
+      });
+      $('btn-decline-confirm').addEventListener('click', function () {
+        var note = $('input-decline-note').value.trim().slice(0, 2000);
+        var payload = note ? { note: note } : {};
+        stageAction('decline_quote', payload, [$('btn-decline-confirm'), $('btn-accept'), $('btn-decline')]);
+      });
+      $('consent-checkbox').addEventListener('change', updateSignControls);
+      $('input-typed-name').addEventListener('input', function () {
+        $('sig-preview').textContent = $('input-typed-name').value;
+        updateSignControls();
+      });
+      $('btn-sign').addEventListener('click', function () {
+        var sign = (knownPayload && knownPayload.sign) || {};
+        var typedName = $('input-typed-name').value.trim();
+        if (!$('consent-checkbox').checked || typedName.length < 2) return;
+        if (!sign.signToken || !(sign.esign && sign.esign.disclosureVersionHash)) {
+          showWriteError('Signing details are missing — refresh this page or use the link in your signing email.');
+          return;
+        }
+        // Contract: booking-public-reconcile sign_agreement Joi schema
+        stageAction('sign_agreement', {
+          typed_name: typedName.slice(0, 200),
+          esign_consent: true,
+          consent_timestamp: new Date().toISOString(),
+          disclosure_version_hash: sign.esign.disclosureVersionHash,
+          sign_token: sign.signToken
+        }, [$('btn-sign')]);
+      });
+      $('btn-refresh').addEventListener('click', function () { refresh(true); });
+    }
+
+    /* ── Init ──────────────────────────────────────────────────────────── */
+    function init() {
+      bindControls();
+      var params = new URLSearchParams(window.location.search);
+      token = (params.get('token') || '').trim();
+      if (!token) {
+        showState('state-error');
+        return;
+      }
+      refresh(false);
+    }
+
+    // Test seam (repo global-singleton convention, e.g. window._teamApprove):
+    // exposes render entrypoints so DOM-level phase rendering can be verified
+    // against simulated payloads without network. Client-side only — carries
+    // no privilege (all real validation is server-side at the reconciler).
+    window.GBEOfferPage = { _renderRows: onRows, _refresh: refresh };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
+</body>
+</html>
