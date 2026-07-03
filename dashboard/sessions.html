@@ -404,10 +404,16 @@
         console.warn('[Sessions] Musicians-log query failed:', mlErr.message);
       }
 
-      // Load existing assignments for this session
-      var assignSnap = await fdb.collection('session-assignments').where('session_id', '==', sessionId).get();
+      // F3: the assignment WRITE leg now lands in the SoR (via the server route),
+      // NOT the legacy Firestore 'session-assignments' collection — so this
+      // already-assigned indicator no longer has a live Firestore source on the
+      // BM's side. The SoR→Supabase session_assignment_readmodel is OWN-ROW RLS
+      // (musician_uid = auth.uid), so a BM cannot read the full assignment set
+      // from the cache; a BM all-assignments read-model is deferred (InfoSec's
+      // call per F3-C4, out of F3 MVP scope). The Firestore read is retired here
+      // to avoid a dead/misleading call; the route's INSERT OR IGNORE idempotency
+      // makes re-selecting an already-assigned musician a safe server-side no-op.
       var assigned = {};
-      assignSnap.forEach(function(doc) { assigned[doc.data().musician_uid] = doc.data().status; });
 
       var html = '';
       _rosterUsers.forEach(function(u) {
@@ -439,10 +445,39 @@
     });
   };
 
+  /* F3 (story-f3-assemble-to-show, task-f3-frontend): WRITE leg repointed off
+     Firestore onto the SoR server route POST /api/v1/sessions/:bookingId/assignments.
+     The old Firestore batch (session-assignments doc keyed by a SQLite id +
+     notifications + user activity flip + welcome-email queue + session status flip)
+     wrote an ORPHAN doc that never joined the P5 booking-origin show shell. Now the
+     BM's staff-the-gig action writes to the SoR (SQLite) via gbe-server, which sets
+     BOTH booking_id and the resolved band_sessions.id, fires member-action-items
+     (payment_setup nudge, gig-only) server-side, and flows SoR→Supabase
+     show/assignment read-models (already live). NO live Firestore write remains on
+     this path (F3-C9). Side-effects re-homed: the musician-facing nudge is the
+     server-side member-action-items projection (fires on the new assignment). The
+     legacy notification/welcome-email/activity-flip/status-flip Firestore side-effects
+     are DEFERRED (noted follow-up) — not silently kept alive on Firestore.
+
+     Auth: Utils.apiFetch attaches the BM's X-GBE-Session token (band_manager/admin
+     session; the route rejects band_member with 403) and is LAN-only — on the remote
+     public site it rejects with Error('remote'), so staffing happens from the BM's
+     HomeOffice dashboard (manager works the field on the LAN dashboard). The route
+     resolves :bookingId → the confirmed P5 show shell (404 no_shell otherwise). */
   async function sendBookingRequests() {
     if (!_assignSessionId) return;
     var session = _sessions.find(function(s) { return s.id === _assignSessionId; });
     if (!session) return;
+
+    // The assignment write is keyed by the booking's natural key (booking_id),
+    // resolving to the P5 gig shell server-side. Only booking-origin confirmed
+    // gigs carry a booking_id (published from show_readmodel). A legacy/manual
+    // session without a booking_id cannot be staffed onto a show via this path.
+    var bookingId = session.booking_id || (session.type_specific_data && session.type_specific_data.bookingId) || null;
+    if (!bookingId) {
+      if (typeof Toast !== 'undefined') Toast.error('This session is not linked to a confirmed booking, so musicians cannot be assigned to a show yet.');
+      return;
+    }
 
     var selected = [];
     _rosterUsers.forEach(function(u) {
@@ -456,73 +491,54 @@
     }
 
     var tsd = session.type_specific_data || {};
-    var payAmount = tsd.pay_per_musician || null;
+    var payAmount = (tsd.pay_per_musician === undefined ? null : tsd.pay_per_musician);
+
+    // Body per the route contract (F3-C2): { musicians:[{musician_uid, pay_amount?}], status? }.
+    // pay_amount rides the SoR assignment (RULE-S07: SoR-only, never published/disbursed).
+    var musicians = selected.map(function(u) {
+      return { musician_uid: u.uid, pay_amount: payAmount };
+    });
 
     try {
-      var batch = fdb.batch();
-      var now = firebase.firestore.FieldValue.serverTimestamp();
-
-      for (var i = 0; i < selected.length; i++) {
-        var u = selected[i];
-
-        // Create session-assignment
-        var assignRef = fdb.collection('session-assignments').doc();
-        batch.set(assignRef, {
-          session_id: _assignSessionId,
-          musician_uid: u.uid,
-          status: 'invited',
-          invited_at: now,
-          responded_at: null,
-          pay_amount: payAmount,
-          attendance: null,
-          notes: ''
-        });
-
-        // Create notification
-        var notifRef = fdb.collection('notifications').doc(u.uid).collection('items').doc();
-        batch.set(notifRef, {
-          type: 'session_invite',
-          session_id: _assignSessionId,
-          title: 'Session Invite',
-          message: 'You have been invited to play: ' + (session.title || 'Untitled'),
-          status: 'unread',
-          created_at: now
-        });
-
-        // Auto-flip on_call+inactive → active (Story 4)
-        if (u.roster_tier === 'on_call' && u.activity === 'inactive') {
-          var userRef = fdb.collection('users').doc(u.uid);
-          batch.update(userRef, { activity: 'active' });
+      // Utils.apiFetch returns Promise<Response> (never auto-parsed JSON) and
+      // rejects with Error('remote') when not on the LAN dashboard.
+      var resp = await Utils.apiFetch(
+        '/api/v1/sessions/' + encodeURIComponent(bookingId) + '/assignments',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ musicians: musicians, status: 'invited' })
         }
+      );
 
-        // Welcome email trigger: first session assignment ever
-        if (!u.welcomeEmailSentAt) {
-          var welcomeUserRef = fdb.collection('users').doc(u.uid);
-          batch.update(welcomeUserRef, { welcomeEmailSentAt: now });
-          // Queue welcome email in email-logs for HomeOffice to send
-          var welcomeLogRef = fdb.collection('email-logs').doc();
-          batch.set(welcomeLogRef, {
-            to_uid: u.uid,
-            template_name: 'welcome',
-            status: 'queued',
-            sent_via: 'queued',
-            sent_by: 'system',
-            created_at: now
-          });
-        }
+      if (!resp.ok) {
+        var msg = 'Failed to send requests (' + resp.status + ')';
+        try {
+          var errBody = await resp.json();
+          if (errBody && errBody.message) msg = errBody.message;
+        } catch (parseErr) { /* non-JSON error body — keep the status message */ }
+        if (typeof Toast !== 'undefined') Toast.error(msg);
+        return;
       }
 
-      // Update session status to invites_sent
-      var sessRef = fdb.collection('sessions').doc(_assignSessionId);
-      batch.update(sessRef, { status: 'invites_sent', updated_at: now });
-
-      await batch.commit();
+      var result = null;
+      try { result = await resp.json(); } catch (parseErr) { result = null; }
+      var createdCount = (result && Array.isArray(result.created)) ? result.created.length : selected.length;
 
       document.getElementById('sess-assign-modal').style.display = 'none';
-      if (typeof Toast !== 'undefined') Toast.success('Booking requests sent to ' + selected.length + ' artist' + (selected.length > 1 ? 's' : '') + '.');
+      if (typeof Toast !== 'undefined') {
+        if (createdCount > 0) {
+          Toast.success('Booking requests sent to ' + createdCount + ' artist' + (createdCount > 1 ? 's' : '') + '.');
+        } else {
+          Toast.info('Those artists were already assigned to this show.');
+        }
+      }
       await loadSessions();
     } catch (e) {
-      if (typeof Toast !== 'undefined') Toast.error('Failed to send requests: ' + e.message);
+      var reason = (e && e.message === 'remote')
+        ? 'Assigning musicians requires the HomeOffice dashboard (LAN). Open the dashboard on the home network to staff this gig.'
+        : ('Failed to send requests: ' + (e && e.message ? e.message : 'unknown error'));
+      if (typeof Toast !== 'undefined') Toast.error(reason);
     }
   }
 
