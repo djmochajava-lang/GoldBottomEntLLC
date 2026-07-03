@@ -3018,9 +3018,21 @@ const Auth = {
    * @private
    */
   _finalizeOnboarding: function(user, inviteId, userRef, emailHash, currentProvider) {
-    var MAX_ATTEMPTS = 24;   // ~2 minutes total
-    var DELAY_MS = 5000;
+    var MAX_ATTEMPTS = 45;   // ~90 seconds total (45 x 2s)
+    var DELAY_MS = 2000;
     var displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
+
+    // [F5-C3] Regression fence: the onboarding grant-poll MUST resolve its own-row
+    // read through the Supabase-backed Firestore-shaped adapter (this._db built by
+    // _makeSupabaseDbAdapter under window.GBE_AUTH_SOURCE==='supabase'), NOT a raw
+    // Firestore _db. This is read-only (no self-grant) — it only asserts the source
+    // so a future change can't silently reintroduce a live-Firebase read into the poll.
+    var _pollSrc = (typeof window !== 'undefined' && window.GBE_AUTH_SOURCE) || 'unknown';
+    console.log('[perf] _finalizeOnboarding poll source=' + _pollSrc + ' (DELAY_MS=' + DELAY_MS + ' MAX_ATTEMPTS=' + MAX_ATTEMPTS + ')');
+    if (_pollSrc !== 'supabase') {
+      console.warn('[F5-C3] _finalizeOnboarding expected Supabase adapter, got source=' + _pollSrc);
+    }
+    var _startTs = Date.now();
 
     function clearInvite() {
       try { localStorage.removeItem('gbe-invite-token'); localStorage.removeItem('gbe-invite-id'); } catch (e) {}
@@ -3038,6 +3050,7 @@ const Auth = {
             Auth._activeRole = Auth._role;
             clearInvite();
             console.log('[Auth] Onboarding approved by server reconcile — role ' + Auth._role);
+            console.log('[perf] _finalizeOnboarding grant observed after ' + (attempts + 1) + ' attempt(s), ' + (Date.now() - _startTs) + 'ms');
             resolve('approved');
             return;
           }
