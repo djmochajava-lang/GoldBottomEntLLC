@@ -74,6 +74,10 @@
       btn.addEventListener('click', function() {
         // Store invite id so auth.js can flag onboarding + poll for server approval.
         try { localStorage.setItem('gbe-invite-id', inviteId); } catch (e) {}
+        // F5 (task-f5-deeplink): remember the invited musician's instrument so the
+        // band player can land them on an instrument-relevant playlist (read-only
+        // resolution in bp2-playlist.js). Dumb param carry only — NO playlist logic here.
+        try { if (instrument) localStorage.setItem('gbe-onboard-instrument', instrument); } catch (e) {}
         // Auth gate on the band player handles sign-in + the reconcile wait (Screen 1).
         window.location.hash = '#dashboard-band-player';
       });

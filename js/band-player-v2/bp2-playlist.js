@@ -86,6 +86,47 @@
       return null;
     },
 
+    // F5 (task-f5-deeplink): READ-ONLY landing-playlist picker over an ALREADY-SCOPED
+    // playlist array. Returns the id of the playlist to open first. Three-tier degrade:
+    //   (1) instrument match — first scoped playlist whose name (or an optional
+    //       instrument/tag field, read defensively only if it exists) case-insensitively
+    //       matches the onboarded musician's instrument (gbe-onboard-instrument).
+    //   (2) returning-user last playlist (bp2-last-playlist) if still in the scoped set.
+    //   (3) F4 default — playlists[0] (first is_public rehearsal playlist).
+    // songOrder/sort_order are SACRED (A&R gate): this ONLY reads pl metadata and
+    // returns an id to SELECT — it never writes, reorders, or mutates any playlist.
+    _pickLandingPlaylist: function(playlists) {
+      if (!playlists || playlists.length === 0) return null;
+
+      // Tier 1 — instrument match (first-time onboard landing takes precedence).
+      var onbInstr = null;
+      try { onbInstr = localStorage.getItem('gbe-onboard-instrument'); } catch (e) {}
+      if (onbInstr) {
+        var needle = String(onbInstr).toLowerCase();
+        var _hay = function(v) { return (v == null) ? '' : String(v).toLowerCase(); };
+        for (var i = 0; i < playlists.length; i++) {
+          var pl = playlists[i];
+          // Defensive: only read fields that exist. name is the reliable one;
+          // instrument/tags are read opportunistically (schema not assumed).
+          var hay = _hay(pl.name) + ' ' + _hay(pl.instrument) + ' ' + _hay(pl.tags);
+          if (hay.indexOf(needle) !== -1) {
+            // Land them on their instrument playlist once, then forget it so a
+            // later reload restores their last-selected playlist normally.
+            try { localStorage.removeItem('gbe-onboard-instrument'); } catch (e2) {}
+            return pl.id;
+          }
+        }
+      }
+
+      // Tier 2 — returning-user last playlist, if still in the scoped set.
+      var lastId = null;
+      try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e3) {}
+      if (lastId && playlists.some(function(p) { return p.id === lastId; })) return lastId;
+
+      // Tier 3 — F4 default: first (is_public) playlist in the scoped set.
+      return playlists[0].id;
+    },
+
     init: function() {
       var c = _getCore();
       if (!c) return;
@@ -126,10 +167,9 @@
               c.set('playlists', playlists);
               c.emit('playlists:loaded', { playlists: playlists });
               if (playlists.length > 0) {
-                var lastId = null;
-                try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
-                var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
-                BP2Playlist.selectPlaylist(target);
+                // F5: read-only landing pick over the ALREADY-SCOPED set
+                // (instrument-match -> last-playlist -> F4 default [playlists[0]]).
+                BP2Playlist.selectPlaylist(BP2Playlist._pickLandingPlaylist(playlists));
               }
               else c.emit('playlists:empty');
             };
@@ -155,11 +195,8 @@
           c.set('playlists', playlists);
           c.emit('playlists:loaded', { playlists: playlists });
           if (playlists.length > 0) {
-            // Restore last selected playlist if available
-            var lastId = null;
-            try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
-            var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
-            BP2Playlist.selectPlaylist(target);
+            // F5: read-only landing pick (instrument-match -> last-playlist -> default).
+            BP2Playlist.selectPlaylist(BP2Playlist._pickLandingPlaylist(playlists));
           }
           else c.emit('playlists:empty');
         })
