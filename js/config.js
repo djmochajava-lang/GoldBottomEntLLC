@@ -13,7 +13,7 @@ const SiteConfig = {
     description: 'Talent Management, Creative Services & Enterprise Solutions',
     year: 2026,
     email: 'booking@layoungbandpage.com',
-    phone: '[YOUR BUSINESS PHONE]',
+    phone: '(202) 557-8664',
     address: '5000 Thayer Ctr, Oakland, MD 21550',
     state: 'Maryland',
     ein: '41-3701824',
