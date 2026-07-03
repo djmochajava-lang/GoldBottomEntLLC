@@ -168,6 +168,39 @@
     });
   }
 
+  // ── Bench-scope read (F4 — replaces the direct Firestore gigs query) ──
+  // Reads the authenticated client's OWN rows of the Supabase
+  // session_assignment_readmodel (own-row RLS enforces the scope server-side:
+  // USING(musician_uid=(auth.uid())::text) — no service-role key, anon/
+  // authenticated client only). Returns the set of session_ids the musician is
+  // assigned to (status invited|accepted|tentative; declined excluded).
+  //
+  // NOTE (F4-C2 documented no-op): the intended assignment->playlist link is
+  // session_id -> band_sessions.playlist_id, but that column is NULL on all
+  // live rows and is NOT in any client-readable whitelist today, so there is
+  // NO client-readable path to a playlist id right now. This shim therefore
+  // returns the assigned session_ids; the CONSUMER resolves them to
+  // scopedPlaylistIds, which is EMPTY in practice today (safe no-op) — the
+  // scope degrades to the public-default rehearsal set. If a future story
+  // publishes a playlist link it can flow through this same path. No new
+  // publish leg / DDL is invented here (explicitly deferred / out of scope).
+  function _sbGetBenchScope() {
+    var c = _getCore();
+    var sb = c && c.getSupabase ? c.getSupabase() : null;
+    if (!sb) return Promise.resolve([]);
+    return sb.from('session_assignment_readmodel')
+      .select('session_id, status')
+      .in('status', ['invited', 'accepted', 'tentative'])
+      .then(function(res) {
+        if (res.error) return Promise.reject(res.error);
+        var ids = {};
+        (res.data || []).forEach(function(row) {
+          if (row && row.session_id) ids[row.session_id] = true;
+        });
+        return Object.keys(ids);
+      });
+  }
+
   // ── Public API ───────────────────────────────
   var BP2Data = {
     getPlaylists: function() {
@@ -181,6 +214,13 @@
     },
     getDefaultPlaylists: function() {
       return _src('playlists') === 'supabase' ? _sbGetDefaultPlaylists() : _fsGetDefaultPlaylists();
+    },
+    // F4: own-row bench-scope read from the F3-published Supabase readmodel.
+    // Always Supabase (no Firestore rollback path — this REPLACES the direct
+    // Firestore gigs scoping query that F4 retires). Returns an array of the
+    // session_ids the authenticated musician is assigned to.
+    getBenchScope: function() {
+      return _sbGetBenchScope();
     }
   };
 

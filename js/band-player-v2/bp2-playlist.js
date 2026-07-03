@@ -74,6 +74,18 @@
     allSongIdsFromSets: _allSongIdsFromSets,
     setsToSongOrder: _setsToSongOrder,
 
+    // F4 (F4-C2 documented no-op): resolve a bench session_id to its scoped
+    // playlist id. The intended SoR link is session_id -> band_sessions.playlist_id,
+    // but that field is NULL on all live rows and is NOT in any client-readable
+    // whitelist today, so there is NO client-readable path from a bench
+    // assignment to a playlist id. This returns null for MVP (empty scope ->
+    // public-default). When a future story publishes the link into a client-
+    // readable readmodel, this is where the lookup wires in (no other change
+    // needed to the always-apply filter). Do NOT invent a publish leg here.
+    _sessionPlaylistId: function(_sessionId) {
+      return null;
+    },
+
     init: function() {
       var c = _getCore();
       if (!c) return;
@@ -85,7 +97,8 @@
     loadPlaylists: function() {
       var c = _getCore();
       if (!c || !c.getDb()) return;
-      var db = c.getDb();
+      // (F4) no direct db handle needed here anymore — the band-member scope
+      // read goes through BP2Data.getBenchScope() (Supabase own-row readmodel).
       var user = c.getUser();
       var isManager = c.isManager();
 
@@ -93,43 +106,48 @@
         .then(function(playlists) {
           // playlists is already the plain array of {id, ...} objects.
 
-          // Band members: filter to gig-linked playlists
+          // Band members: scope to their bench assignments + public rehearsal
+          // material. F4 — reads the OWN-ROW Supabase session_assignment_readmodel
+          // via BP2Data.getBenchScope() (own-row RLS enforces the scope
+          // server-side), REPLACING the retired direct Firestore gigs query.
+          //
+          // The filter ALWAYS applies (no show-all fallback): each assigned
+          // session_id is resolved to its playlist id in scopedPlaylistIds.
+          // Today that resolution is a documented no-op (band_sessions.playlist_id
+          // is NULL + not client-readable — F4-C2), so scopedPlaylistIds is
+          // EMPTY and the result degrades to the is_public rehearsal set ONLY —
+          // NEVER all playlists. If a future story publishes a playlist link it
+          // flows through the map below unchanged.
           if (!isManager && user) {
-            db.collection('gigs')
-              .where('assignedMusicians', 'array-contains', user.uid)
-              .where('status', '==', 'upcoming')
-              .get()
-              .then(function(gigsSnap) {
-                var gigPlaylistIds = {};
-                gigsSnap.forEach(function(doc) {
-                  var gig = doc.data();
-                  if (gig.playlistId) gigPlaylistIds[gig.playlistId] = true;
+            var _applyScope = function(scopedPlaylistIds) {
+              playlists = playlists.filter(function(pl) {
+                return scopedPlaylistIds[pl.id] || pl.isPublic;
+              });
+              c.set('playlists', playlists);
+              c.emit('playlists:loaded', { playlists: playlists });
+              if (playlists.length > 0) {
+                var lastId = null;
+                try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
+                var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
+                BP2Playlist.selectPlaylist(target);
+              }
+              else c.emit('playlists:empty');
+            };
+            BP2Data.getBenchScope()
+              .then(function(sessionIds) {
+                var scopedPlaylistIds = {};
+                // session_id -> playlist id resolution (F4-C2: no client-readable
+                // link today, so this yields an empty map — safe no-op).
+                (sessionIds || []).forEach(function(sid) {
+                  var plId = BP2Playlist._sessionPlaylistId(sid);
+                  if (plId) scopedPlaylistIds[plId] = true;
                 });
-                if (Object.keys(gigPlaylistIds).length > 0) {
-                  playlists = playlists.filter(function(pl) {
-                    return gigPlaylistIds[pl.id] || pl.isPublic;
-                  });
-                }
-                c.set('playlists', playlists);
-                c.emit('playlists:loaded', { playlists: playlists });
-                if (playlists.length > 0) {
-                  var lastId = null;
-                  try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
-                  var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
-                  BP2Playlist.selectPlaylist(target);
-                }
-                else c.emit('playlists:empty');
+                _applyScope(scopedPlaylistIds);
               })
               .catch(function() {
-                c.set('playlists', playlists);
-                c.emit('playlists:loaded', { playlists: playlists });
-                if (playlists.length > 0) {
-                  var lastId = null;
-                  try { lastId = localStorage.getItem('bp2-last-playlist'); } catch (e) {}
-                  var target = lastId && playlists.some(function(p) { return p.id === lastId; }) ? lastId : playlists[0].id;
-                  BP2Playlist.selectPlaylist(target);
-                }
-                else c.emit('playlists:empty');
+                // On bench-read failure, still scope safely to public-only
+                // (never show-all): empty scope degrades to the is_public set.
+                _applyScope({});
               });
             return;
           }

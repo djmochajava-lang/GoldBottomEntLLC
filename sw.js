@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.03-1042.005f4f2';
+var GBE_BUILD = '2026.07.03-1124.9c08dc9';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '98228fae4d20ff11c1c27b87fef0f54f55052924d50bee3fb4b770ba6ce0ce3b',
+  './js/build.js': 'c8c8498f44b1342cb4bd2317e96447245da3c59630722d1a517fd46fc991e288',
   './js/config.js': '721dafdf151a0f0826339d1f7ea3d6d2e0d29b5bb83f6172fa28d7328357c0a0',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -51,9 +51,9 @@ var ASSET_HASHES = {
   './dashboard/band-player-v2.html': 'b870a370beb3c2eeeb768f149339157729a184722d08869822df155b2e591b96',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
   './js/band-player-v2/bp2-core.js': '0ce5888de38b8472dd81962b1507c99ba4dc8182ffa37c5872459f2887577000',
-  './js/band-player-v2/bp2-data.js': 'ecf9f523bc58c5d2f1aa636125f3213180c06968c4b4912882932c0317e14ffa',
+  './js/band-player-v2/bp2-data.js': 'b645dbdbd602eac2c0fd46d24b765513793c5dd0f02c941b18173d9c619503c2',
   './js/band-player-v2/bp2-player.js': '26857eeeb006426370e1c91df05f209a31436567a0df6d1bfcfb6065f949e047',
-  './js/band-player-v2/bp2-playlist.js': 'f0ac87570ddd2f5bb977db54f18e18b488e1324d6f90f081d367424221115a34',
+  './js/band-player-v2/bp2-playlist.js': 'b46020bdc5f8efbce9b6afc640f6556283b7858bdb1fff6a1b1dba510996956d',
   './js/band-player-v2/bp2-render.js': '79b7bc8fdd6aa5dd8b28919cafc65970dcad54408439ed9dac8a11096b3526df',
   './js/band-player-v2/bp2-render-edit.js': 'e4b942ee7fd429ce5afae06e195285e3f08967808677eb36d8425290a6036302',
   './js/band-player-v2/bp2-render-stems.js': '42a4c2efcf8e3142585af89ee6702d6112a8cfaee4bc9ba54afd69ff7daf9b22',
