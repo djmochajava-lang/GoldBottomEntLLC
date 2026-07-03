@@ -119,6 +119,12 @@
         <button class="sess-btn-secondary" onclick="window._sessInviteGroup('active')">Invite Active</button>
         <button class="sess-btn-secondary" onclick="window._sessInviteGroup('all')">Invite All</button>
       </div>
+      <!-- N1: eligible-only filter for the assemble pick-view (default ON — only
+           gig-cleared musicians shown). Uncheck to see the full roster + clear someone. -->
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-md);color:var(--color-text-secondary);font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="sess-eligible-only" checked onchange="window._sessToggleEligibleOnly(this.checked)" style="width:16px;height:16px;" />
+        Eligible only (cleared for gigs)
+      </label>
       <div id="sess-assign-list" style="display:grid;gap:var(--space-sm);max-height:300px;overflow-y:auto;"></div>
       <div style="display:flex;gap:var(--space-sm);justify-content:flex-end;margin-top:var(--space-lg);">
         <button onclick="document.getElementById('sess-assign-modal').style.display='none'" class="sess-btn-secondary">Cancel</button>
@@ -179,6 +185,12 @@
   var _editId = null;
   var _assignSessionId = null;
   var _rosterUsers = [];
+  // N1 (story-n1-gig-eligibility, task-n1-frontend): gig-eligibility state for the
+  // assemble pick-view. _eligibleSet = auth_uids the BM has cleared for gigs
+  // (GET /roster/eligible, gig_eligible=1). _eligibleOnly = the "Eligible only"
+  // filter toggle (default ON — cleared musicians are the ones you staff to a show).
+  var _eligibleSet = {};
+  var _eligibleOnly = true;
 
   var TYPE_LABELS = { gig:'Gig', rehearsal:'Rehearsal', studio:'Studio', sectional:'Sectional' };
   var STATUS_LABELS = { draft:'Draft', scheduled:'Scheduled', invites_sent:'Invites Sent', confirmed:'Confirmed', completed:'Completed', cancelled:'Cancelled' };
@@ -413,25 +425,126 @@
       // call per F3-C4, out of F3 MVP scope). The Firestore read is retired here
       // to avoid a dead/misleading call; the route's INSERT OR IGNORE idempotency
       // makes re-selecting an already-assigned musician a safe server-side no-op.
-      var assigned = {};
+      // N1: pull the BM's gig-eligible feed (GET /roster/eligible; gig_eligible=1,
+      // non-PII). LAN-only via Utils.apiFetch (BM staffs from the HomeOffice
+      // dashboard). On remote/failure the set is left empty and the pick-view
+      // still renders (graceful degradation, never a hard error).
+      await _loadEligible();
 
-      var html = '';
-      _rosterUsers.forEach(function(u) {
-        var name = u.displayName || u.email || 'Unknown';
-        var isAssigned = !!assigned[u.uid];
-        var statusLabel = assigned[u.uid] ? ' (' + assigned[u.uid] + ')' : '';
-        var instLabel = u.instrument ? u.instrument.charAt(0).toUpperCase() + u.instrument.slice(1) : '';
-        var sourceLabel = u._fromLog ? 'Log' : (u.roster_tier === 'core' ? 'Core' : 'Member');
-        html += '<div class="sess-assign-row">';
-        html += '<input type="checkbox" id="assign-' + esc(u.uid) + '" value="' + esc(u.uid) + '" ' + (isAssigned ? 'checked disabled' : '') + ' style="width:20px;height:20px;" />';
-        html += '<label for="assign-' + esc(u.uid) + '">' + esc(name) + (instLabel ? ' <span style="color:var(--color-text-muted);font-size:11px;">· ' + esc(instLabel) + '</span>' : '') + ' <span style="color:var(--color-text-muted);font-size:11px;">(' + sourceLabel + ')' + statusLabel + '</span></label>';
-        html += '</div>';
-      });
-      if (!_rosterUsers.length) html = '<div style="padding:var(--space-md);color:var(--color-text-muted);">No freelance artists on the roster yet.</div>';
-      listEl.innerHTML = html;
+      renderAssignList();
     } catch (e) {
       listEl.innerHTML = '<div style="color:#f85149;">Failed to load roster: ' + esc(e.message) + '</div>';
     }
+  };
+
+  /* N1 (task-n1-frontend): load the BM's gig-eligible feed. GET /roster/eligible
+     returns { ok, count, eligible:[{auth_uid, gig_eligible, ...}] } (BM/admin only,
+     server-enforced 403 for band_member; non-PII). Utils.apiFetch is LAN-only, so
+     off the HomeOffice dashboard it rejects with Error('remote') — we swallow that
+     and leave _eligibleSet empty (graceful; the control still shows, actions just
+     no-op with a helpful toast). */
+  async function _loadEligible() {
+    _eligibleSet = {};
+    try {
+      var resp = await Utils.apiFetch('/api/v1/roster/eligible');
+      if (!resp || !resp.ok) return;
+      var body = await resp.json();
+      var list = (body && Array.isArray(body.eligible)) ? body.eligible : [];
+      list.forEach(function(r) { if (r && r.auth_uid) _eligibleSet[r.auth_uid] = true; });
+    } catch (e) {
+      // remote / offline / non-JSON — leave the set empty, render anyway.
+    }
+  }
+
+  /* N1: render the pick-view rows with (a) the assign checkbox, (b) a per-musician
+     "cleared for gigs" indicator, and (c) a BM-only Clear/Un-clear set-eligible
+     control that calls PATCH /roster/:authUid/eligibility. Respects the
+     "Eligible only" filter. Only BM/admin see the set-eligible control (the server
+     enforces 403 regardless — this is display-only gating, not the security gate). */
+  function renderAssignList() {
+    var listEl = document.getElementById('sess-assign-list');
+    if (!listEl) return;
+    var isBM = (typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin());
+    var rows = _rosterUsers.filter(function(u) {
+      return _eligibleOnly ? !!_eligibleSet[u.uid] : true;
+    });
+    var html = '';
+    rows.forEach(function(u) {
+      var name = u.displayName || u.email || 'Unknown';
+      var instLabel = u.instrument ? u.instrument.charAt(0).toUpperCase() + u.instrument.slice(1) : '';
+      var sourceLabel = u._fromLog ? 'Log' : (u.roster_tier === 'core' ? 'Core' : 'Member');
+      var cleared = !!_eligibleSet[u.uid];
+      var clearedBadge = cleared
+        ? ' <span title="Cleared for gigs" style="color:#3fb950;font-size:11px;font-weight:600;"><i class="fa-solid fa-circle-check"></i> Cleared</span>'
+        : '';
+      var control = '';
+      if (isBM) {
+        control = '<button type="button" class="sess-elig-btn" data-uid="' + esc(u.uid) + '" data-next="' + (cleared ? '0' : '1') + '" '
+          + 'style="margin-left:auto;flex:0 0 auto;background:' + (cleared ? 'transparent' : 'rgba(63,185,80,0.12)') + ';border:1px solid ' + (cleared ? 'var(--color-border)' : 'rgba(63,185,80,0.5)') + ';color:' + (cleared ? 'var(--color-text-muted)' : '#3fb950') + ';border-radius:var(--radius-md);padding:6px 10px;font-size:11px;cursor:pointer;min-height:32px;">'
+          + (cleared ? 'Un-clear' : 'Clear for gigs') + '</button>';
+      }
+      html += '<div class="sess-assign-row" style="display:flex;align-items:center;gap:8px;">';
+      html += '<input type="checkbox" id="assign-' + esc(u.uid) + '" value="' + esc(u.uid) + '" style="width:20px;height:20px;flex:0 0 auto;" />';
+      html += '<label for="assign-' + esc(u.uid) + '" style="flex:1;min-width:0;">' + esc(name) + (instLabel ? ' <span style="color:var(--color-text-muted);font-size:11px;">· ' + esc(instLabel) + '</span>' : '') + ' <span style="color:var(--color-text-muted);font-size:11px;">(' + sourceLabel + ')</span>' + clearedBadge + '</label>';
+      html += control;
+      html += '</div>';
+    });
+    if (!rows.length) {
+      html = '<div style="padding:var(--space-md);color:var(--color-text-muted);">'
+        + (_eligibleOnly
+            ? 'No musicians are cleared for gigs yet. Toggle "Eligible only" off to see the full roster and clear someone.'
+            : 'No freelance artists on the roster yet.')
+        + '</div>';
+    }
+    listEl.innerHTML = html;
+    Array.prototype.forEach.call(listEl.querySelectorAll('.sess-elig-btn'), function(btn) {
+      btn.addEventListener('click', function() {
+        _setEligible(btn.getAttribute('data-uid'), btn.getAttribute('data-next') === '1');
+      });
+    });
+  }
+
+  /* N1: BM set-eligible control → PATCH /roster/:authUid/eligibility { gig_eligible }.
+     BM/admin only (server 403 otherwise). On 0→1 the server fires the musician's
+     "you're cleared for gigs" notice once. Reflects the returned state + re-renders. */
+  async function _setEligible(authUid, next) {
+    if (!authUid) return;
+    try {
+      var resp = await Utils.apiFetch(
+        '/api/v1/roster/' + encodeURIComponent(authUid) + '/eligibility',
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gig_eligible: !!next })
+        }
+      );
+      if (!resp.ok) {
+        var msg = 'Failed to update eligibility (' + resp.status + ')';
+        try { var eb = await resp.json(); if (eb && eb.message) msg = eb.message; } catch (pe) {}
+        if (typeof Toast !== 'undefined') Toast.error(msg);
+        return;
+      }
+      var result = null;
+      try { result = await resp.json(); } catch (pe) { result = null; }
+      var nowEligible = result ? !!result.gig_eligible : !!next;
+      if (nowEligible) _eligibleSet[authUid] = true; else delete _eligibleSet[authUid];
+      if (typeof Toast !== 'undefined') {
+        if (nowEligible) Toast.success((result && result.notified) ? 'Cleared for gigs — the musician was notified.' : 'Cleared for gigs.');
+        else Toast.info('Eligibility removed.');
+      }
+      renderAssignList();
+    } catch (e) {
+      var reason = (e && e.message === 'remote')
+        ? 'Clearing musicians for gigs requires the HomeOffice dashboard (LAN).'
+        : ('Failed to update eligibility: ' + (e && e.message ? e.message : 'unknown error'));
+      if (typeof Toast !== 'undefined') Toast.error(reason);
+    }
+  }
+
+  /* N1: the "Eligible only" filter toggle (wired to the checkbox in the modal). */
+  window._sessToggleEligibleOnly = function(on) {
+    _eligibleOnly = !!on;
+    renderAssignList();
   };
 
   window._sessInviteGroup = function(group) {

@@ -16,6 +16,12 @@
        a real event (a gig assignment) makes an action genuinely necessary. -->
   <div id="mp-action-items"></div>
 
+  <!-- N1 (story-n1-gig-eligibility, task-n1-frontend): musician bench-status view
+       (rehearsing → cleared → booked). Supabase-native — reads the HomeOffice
+       server route GET /api/v1/roster/me/bench-status via Utils.apiFetch (NO
+       Firebase). Non-PII (booleans/timestamp only). Hidden until the read resolves. -->
+  <div id="mp-bench-status" style="display:none;"></div>
+
   <!-- Quick Stats Row -->
   <div class="musician-stats-row" id="mp-stats-row">
     <div class="musician-stat-card">
@@ -221,6 +227,7 @@
     loadProfile();
     loadPlaylist();
     loadActionItems();
+    loadBenchStatus();
   }
 
   // Event-driven action items (STORY-ONB02). Reads the musician's OWN user doc —
@@ -261,6 +268,95 @@
 
   function _esc(s) { if (s == null) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
   function _escAttr(s) { return _esc(s).replace(/"/g, '&quot;'); }
+
+  // N1 (story-n1-gig-eligibility, task-n1-frontend): bench-status view —
+  // rehearsing → cleared → booked. AUTHORITATIVE source is the HomeOffice server
+  // route GET /api/v1/roster/me/bench-status (own-row, uid server-resolved, N1-C6,
+  // no PII). Utils.apiFetch is LAN-only, so on the remote public site (where most
+  // musicians actually are) it rejects with Error('remote'); we then DERIVE the
+  // same three-state signal from data the page already reads over the remote-safe
+  // Supabase channel (Auth._db): "cleared" = a gig_eligible pending_action is
+  // present in the musician's own user doc (the SAME projection N1-C6 names), and
+  // "booked" is left to the authoritative endpoint (LAN). Baseline = rehearsing.
+  // Empty/failed ⇒ the strip stays hidden (quiet), never a hard error.
+  function loadBenchStatus() {
+    var host = document.getElementById('mp-bench-status');
+    if (!host) return;
+
+    // Preferred path: the authoritative server endpoint (LAN / QA).
+    if (typeof Utils !== 'undefined' && Utils.apiFetch) {
+      Utils.apiFetch('/api/v1/roster/me/bench-status')
+        .then(function(resp) {
+          if (!resp || !resp.ok) throw new Error('bench-status ' + (resp ? resp.status : 'no-resp'));
+          return resp.json();
+        })
+        .then(function(data) {
+          if (data && data.status) { _renderBenchStatus(data.status, !!data.wants_gigs); }
+          else { host.innerHTML = ''; host.style.display = 'none'; }
+        })
+        .catch(function() {
+          // remote / offline / 4xx — fall back to the own-doc derivation.
+          _deriveBenchStatusFromDoc(host);
+        });
+      return;
+    }
+    _deriveBenchStatusFromDoc(host);
+  }
+
+  // Remote-safe derivation: read the musician's OWN user doc (existing own-row
+  // access, same as loadActionItems) and infer cleared vs rehearsing from the
+  // presence of a gig_eligible pending_action. No new RLS, no PII.
+  function _deriveBenchStatusFromDoc(host) {
+    if (!db || !uid) { host.innerHTML = ''; host.style.display = 'none'; return; }
+    db.collection('users').doc(uid).get().then(function(doc) {
+      var d = (doc && doc.exists) ? doc.data() : null;
+      var actions = (d && Array.isArray(d.pending_actions)) ? d.pending_actions : [];
+      var cleared = actions.some(function(a) { return a && a.type === 'gig_eligible'; });
+      // wants_gigs may ride the flattened user doc if the projection carries it;
+      // default false (informational only).
+      var wants = !!(d && (d.wants_gigs === true || d.wants_gigs === 1));
+      _renderBenchStatus(cleared ? 'cleared' : 'rehearsing', wants);
+    }).catch(function() { host.innerHTML = ''; host.style.display = 'none'; });
+  }
+
+  function _renderBenchStatus(status, wants) {
+    var host = document.getElementById('mp-bench-status');
+    if (!host) return;
+    var steps = [
+      { key: 'rehearsing', label: 'Rehearsing', icon: 'fa-drum' },
+      { key: 'cleared',    label: 'Cleared for gigs', icon: 'fa-circle-check' },
+      { key: 'booked',     label: 'Booked', icon: 'fa-calendar-check' }
+    ];
+    var order = { rehearsing: 0, cleared: 1, booked: 2 };
+    var reached = (order[status] != null) ? order[status] : 0;
+    var pills = steps.map(function(s, i) {
+      var on = i <= reached;
+      var isCurrent = (i === reached);
+      var color = on ? '#3fb950' : 'var(--color-text-muted,#8b949e)';
+      var bg = isCurrent ? 'rgba(63,185,80,0.14)' : 'transparent';
+      var border = on ? 'rgba(63,185,80,0.45)' : 'var(--color-border,#30363d)';
+      return '<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;'
+        + 'background:' + bg + ';border:1px solid ' + border + ';color:' + color + ';font-size:12px;'
+        + (isCurrent ? 'font-weight:700;' : 'font-weight:500;') + '">'
+        + '<i class="fa-solid ' + s.icon + '"></i>' + _esc(s.label) + '</span>';
+    }).join('<i class="fa-solid fa-angle-right" style="color:var(--color-text-muted,#8b949e);font-size:11px;align-self:center;"></i>');
+
+    var caption = (status === 'booked')
+      ? "You're booked on an upcoming gig."
+      : (status === 'cleared'
+          ? "You're cleared to be booked for gigs."
+          : "Keep rehearsing — you'll be cleared for gigs when you're ready.");
+
+    host.innerHTML =
+      '<div class="musician-section" style="margin-bottom:16px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+          '<span style="color:#d4a017;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Your standing</span>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">' + pills + '</div>' +
+        '<div style="color:var(--color-text-secondary,#8b949e);font-size:12.5px;margin-top:8px;">' + _esc(caption) + '</div>' +
+      '</div>';
+    host.style.display = 'block';
+  }
 
   // ── Load Upcoming Gigs ──────────────────────
   function loadGigs() {
