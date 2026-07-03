@@ -544,6 +544,35 @@
         html += '</div>';
       }
 
+      // Contact actions (BI-C5) — Email always; Call/Text only when phone present. Renders on BOTH local + remote.
+      // Email is the reliable channel; phone is best-effort (BI-C7). Large tap targets (mobile-first, BM taps on iPhone).
+      var contactEmail = r.from_addr || r.email || '';
+      var rawPhone = String(r.phone || '').replace(/[^0-9]/g, '');
+      var telPhone = '';
+      if (rawPhone.length === 10) telPhone = '1' + rawPhone;        // US 10-digit -> prefix country code
+      else if (rawPhone.length === 11 && rawPhone.charAt(0) === '1') telPhone = rawPhone; // already has +1
+      else if (rawPhone.length > 11) telPhone = rawPhone;           // international / already country-coded
+      // (length < 10 or otherwise malformed -> telPhone stays '' -> Call/Text hidden, no broken tel:)
+      if (contactEmail || telPhone) {
+        var mailSubject = encodeURIComponent('Re: ' + (r.subject || 'Your booking inquiry'));
+        var mailBody = encodeURIComponent('Hi ' + (r.from_name || 'there') + ', thanks for reaching out to Gold Bottom Entertainment about your event. ');
+        html += '<div style="padding-top:var(--space-md);border-top:1px solid var(--color-border);display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-md);">';
+        if (contactEmail) {
+          html += '<a href="mailto:' + encodeURIComponent(contactEmail) + '?subject=' + mailSubject + '&body=' + mailBody + '" ' +
+            'class="btn btn-primary" style="min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 var(--space-md);font-size:var(--text-sm);text-decoration:none;">' +
+            '<i class="fa-solid fa-envelope"></i> Email</a>';
+        }
+        if (telPhone) {
+          html += '<a href="tel:+' + telPhone + '" ' +
+            'class="btn" style="min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 var(--space-md);font-size:var(--text-sm);text-decoration:none;">' +
+            '<i class="fa-solid fa-phone"></i> Call</a>';
+          html += '<a href="sms:+' + telPhone + '" ' +
+            'class="btn" style="min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 var(--space-md);font-size:var(--text-sm);text-decoration:none;">' +
+            '<i class="fa-solid fa-comment-sms"></i> Text</a>';
+        }
+        html += '</div>';
+      }
+
       // Action buttons — read/unread, star, reclassify (LAN only — mutations require HomeOffice API)
       if (isLocal) {
         html += '<div style="padding-top:var(--space-md);border-top:1px solid var(--color-border);display:flex;gap:var(--space-sm);flex-wrap:wrap;align-items:center;">';
