@@ -391,15 +391,24 @@
         var data = await Utils.apiFetch('/booking-inbox?limit=200');
         rawRows = data.data || [];
       } else {
-        // Remote path — read from Firestore (public site never calls HomeOffice directly)
-        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db :
-                 (typeof firebase !== 'undefined' ? firebase.firestore() : null);
-        if (!db) throw new Error('Firestore not available');
-        var snap = await db.collection('booking_inbox')
-          .orderBy('created_at', 'desc')
-          .limit(200)
-          .get();
-        rawRows = snap.docs.map(function(doc) { return doc.data(); });
+        // Remote path — authenticated Supabase read of the manager-only inquiry read-model
+        // (BM session carries the RLS; band_manager/admin only). Firestore is retired.
+        var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+        if (!sb) {
+          console.warn('[Booking] Supabase client unavailable — inquiries tab empty');
+          rawRows = [];
+        } else {
+          var res = await sb.from('booking_inquiry_readmodel')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(200);
+          if (res.error) {
+            console.warn('[Booking] inquiry read-model fetch failed:', res.error.message);
+            rawRows = [];
+          } else {
+            rawRows = res.data || [];
+          }
+        }
       }
       inquiriesData = rawRows;
       // Build byStage map from flat row array using classification + is_read fields
@@ -461,8 +470,8 @@
       items.forEach(function(r) {
         var pp = priorityPill[r.priority] || priorityPill.P3;
         var senderDisplay = r.from_name || r.from_addr || r.name || r.email || 'Unknown';
-        var bodyPreview = (r.body_text || r.message || '').substring(0, 80);
-        if ((r.body_text || r.message || '').length > 80) bodyPreview += '...';
+        var bodyPreview = (r.body_text || r.body_preview || r.message || '').substring(0, 80);
+        if ((r.body_text || r.body_preview || r.message || '').length > 80) bodyPreview += '...';
         var isUnread = !r.is_read;
         var isStarred = !!r.is_starred;
 
@@ -527,10 +536,11 @@
       html += '<div style="color:var(--color-text-muted);font-weight:600;">Received</div><div>' + new Date(r.received_at || r.created_at).toLocaleString() + '</div>';
       html += '</div>';
 
-      // Body
-      if (r.body_text) {
+      // Body (remote read-model carries body_preview; LAN carries full body_text)
+      var bodyFull = r.body_text || r.body_preview;
+      if (bodyFull) {
         html += '<div style="margin-bottom:var(--space-md);padding:var(--space-md);background:var(--color-bg);border-radius:var(--radius-sm);border:1px solid var(--color-border);">';
-        html += '<div style="font-size:0.82rem;color:var(--color-text-muted);white-space:pre-wrap;line-height:1.6;max-height:300px;overflow-y:auto;">' + esc(r.body_text) + '</div>';
+        html += '<div style="font-size:0.82rem;color:var(--color-text-muted);white-space:pre-wrap;line-height:1.6;max-height:300px;overflow-y:auto;">' + esc(bodyFull) + '</div>';
         html += '</div>';
       }
 
