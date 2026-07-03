@@ -104,7 +104,7 @@
     var sessionsMap = {};
     for (var i = 0; i < sessionIds.length; i++) {
       try {
-        var sessDoc = await fdb.collection('sessions').doc(sessionIds[i]).get();
+        var sessDoc = await fdb.collection('band-sessions').doc(sessionIds[i]).get();
         if (sessDoc.exists) sessionsMap[sessionIds[i]] = sessDoc.data();
       } catch (e) { /* skip */ }
     }

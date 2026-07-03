@@ -547,9 +547,9 @@
             '</div>';
         });
 
-      /* ---- TASK-002: Next Show (Firestore sessions) ---- */
+      /* ---- TASK-002 / P5-d: Next Show (show_readmodel via collection('band-sessions')) ---- */
       var today = new Date().toISOString().split('T')[0];
-      db.collection('sessions')
+      db.collection('band-sessions')
         .where('date', '>=', today)
         .orderBy('date', 'asc')
         .limit(5)

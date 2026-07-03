@@ -889,6 +889,15 @@ const Auth = {
     // 'sessions','bookings','agreements','notifications', the *_pipeline names,
     // 'ticket_events') map 1:1 via the fallback.
     var TABLE_MAP = {
+      // P5-d (task-p5-d-readers): the band-wide SHOW calendar. The dashboard
+      // field readers historically called collection('sessions'), but the SoR
+      // `sessions` table is the AUTH-TOKEN store — a different entity from
+      // band_sessions (which was never cut over to Supabase). The 8 read
+      // surfaces now call collection('band-sessions') which maps to the redacted
+      // read-model `show_readmodel` (published from band_sessions; RLS role-gated
+      // band_member/band_manager/admin). Read-only cache: the sessions.html WRITE
+      // path stays on collection('sessions') (its existing SoR path), NOT here.
+      'band-sessions': 'show_readmodel',
       'playback-events': 'playback_events',
       'contact-submissions': 'contact_submissions',
       'chart-reviews': 'chart_reviews',

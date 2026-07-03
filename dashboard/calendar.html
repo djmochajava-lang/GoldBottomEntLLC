@@ -128,9 +128,13 @@
 
   function _loadFirestoreSessions() {
     if (_sessionsLoaded) { renderCalendar(); renderUpcoming(); return; }
-    var db = (typeof firebase !== 'undefined' && firebase.firestore) ? firebase.firestore() : null;
+    /* P5-d: read the band-wide show calendar from the show_readmodel cache via the
+       Supabase adapter (collection('band-sessions')), NOT raw firebase.firestore().
+       band_sessions was never cut over to Supabase; the old collection('sessions')
+       resolved to the auth-token store (collision). */
+    var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
     if (!db) { renderCalendar(); renderUpcoming(); return; }
-    db.collection('sessions')
+    db.collection('band-sessions')
       .orderBy('date', 'asc')
       .limit(200)
       .get()
@@ -141,12 +145,12 @@
           if (ev) _sessionEvents.push(ev);
         });
         _sessionsLoaded = true;
-        console.log('[calendar] Loaded ' + _sessionEvents.length + ' sessions from Firestore');
+        console.log('[calendar] Loaded ' + _sessionEvents.length + ' shows from show_readmodel');
         renderCalendar();
         renderUpcoming();
       })
       .catch(function(err) {
-        console.warn('[calendar] Firestore sessions fetch failed:', err);
+        console.warn('[calendar] show_readmodel sessions fetch failed:', err);
         _sessionsLoaded = true;
         renderCalendar();
         renderUpcoming();
