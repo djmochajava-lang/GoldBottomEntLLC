@@ -578,8 +578,8 @@
       .then(function(snap){ return snap.docs.map(function(d){ return d.data(); }); })
       .catch(function(err){ console.error('[Manager] live bookings load failed:', err); return null; });
 
-    /* sessions → Upcoming Shows metric + Upcoming Shows card */
-    var _pSessions = _db.collection('sessions').orderBy('date', 'asc').limit(200).get()
+    /* sessions → Upcoming Shows metric + Upcoming Shows card (P5-d: show_readmodel via collection('band-sessions')) */
+    var _pSessions = _db.collection('band-sessions').orderBy('date', 'asc').limit(200).get()
       .then(function(snap){ return snap.docs.map(function(d){ var x=d.data()||{}; x._id=d.id; return x; }); })
       .catch(function(err){ console.error('[Manager] live sessions load failed:', err); return null; });
 

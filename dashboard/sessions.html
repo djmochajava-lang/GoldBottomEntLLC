@@ -200,7 +200,10 @@
     if (!fdb) { container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--color-text-muted);">Firestore not available.</div>'; return; }
 
     try {
-      var snap = await fdb.collection('sessions').orderBy('date', 'desc').get();
+      /* P5-d: READ leg -> show_readmodel (collection('band-sessions')). The WRITE
+         path below (add/update/doc, lines ~306/311/513) stays on collection('sessions')
+         — its existing SoR path — NOT repointed to this read-only cache. */
+      var snap = await fdb.collection('band-sessions').orderBy('date', 'desc').get();
       _sessions = [];
       snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; _sessions.push(d); });
       updateCount();

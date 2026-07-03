@@ -969,8 +969,8 @@
 
   /* ── Session Invite: pick a session, preview, confirm ── */
   function _mlShowSessionPicker(id, m, displayName, emailLower, instrumentLabel) {
-    // Load upcoming sessions from Firestore
-    fdb.collection('sessions')
+    // Load upcoming sessions (P5-d: show_readmodel via collection('band-sessions'))
+    fdb.collection('band-sessions')
       .where('status', 'in', ['draft', 'scheduled', 'invites_sent'])
       .orderBy('date', 'asc')
       .limit(20)
