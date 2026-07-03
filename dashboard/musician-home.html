@@ -241,6 +241,16 @@
       var items = (data && Array.isArray(data.pending_actions)) ? data.pending_actions : [];
       if (!items.length) { host.innerHTML = ''; host.style.display = 'none'; return; }
       var cards = items.map(function(it) {
+        // N2 (story-n2-payout-completion, task-n2-status-visibility): the payout
+        // engine projects a READ-ONLY gig_payout status item into this SAME own-row
+        // pending_actions list — "You'll be paid $X for <gig>" that resolves to
+        // "Paid ✓". A payout status is INFORMATIONAL, not an action the musician
+        // takes, so it must NOT carry the "Set up" CTA the payment-setup nudge uses.
+        // Own-row by construction (this reads users.doc(uid)); S07 whitelist held —
+        // ONLY the musician's own single figure + gig label + status render, never
+        // commission/margin/quote_total/other-musician/aggregate (the projection
+        // scopes that; we render only what it emits).
+        if (it.type === 'gig_payout') { return _renderPayoutCard(it); }
         // Allowlist the route SCHEME (defense-in-depth, InfoSec Note A): only
         // in-app hash/absolute paths — never javascript:/data:/http(s) — even if a
         // future trigger ever put free text in action_route.
@@ -268,6 +278,63 @@
 
   function _esc(s) { if (s == null) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
   function _escAttr(s) { return _esc(s).replace(/"/g, '&quot;'); }
+
+  // N2 task-n2-status-visibility: render a gig_payout item as a READ-ONLY status
+  // card (no "Set up" CTA — a payout status is informational, not an action).
+  //   pending → "You'll be paid $X for <gig>"    (gold, "Pending" pill)
+  //   paid    → "Paid ✓ — $X for <gig>"          (green, "Paid ✓" pill)
+  // S07 (Finance C-N2-5 / CTO N2-C6): render ONLY the musician's OWN single figure
+  // + gig label + status. NEVER commission, margin, quote_total, another musician's
+  // amount, or any aggregate. We render only what the own-row projection emits — no
+  // extra fetch/compute. The projection carries the human string in it.detail
+  // ("You'll be paid $X for <gig>." / needs-setup variant); structured it.amount /
+  // it.status / it.gig are preferred WHEN present (forward-compatible if the
+  // projection is later widened) and it.detail is the fallback.
+  //
+  // AMOUNT_VISIBLE is the SINGLE guarded switch (CTO N2-C6): default = own-row
+  // amount-visible (the ratified default). If Finance/InfoSec elect the STATUS-ONLY
+  // fallback at review, set this to false — one-line flip — and the $X is dropped
+  // (status-word + gig only); the ledger/amount stays SoR-only.
+  var _PAYOUT_AMOUNT_VISIBLE = true;
+  function _fmtMoney(n) {
+    if (typeof Utils !== 'undefined' && Utils && typeof Utils.formatCurrency === 'function') {
+      try { return Utils.formatCurrency(n); } catch (e) {}
+    }
+    var v = Number(n); if (!isFinite(v)) return null;
+    return '$' + v.toFixed(2);
+  }
+  function _renderPayoutCard(it) {
+    // Own-row, single-figure only. status: 'paid'|'completed' ⇒ resolved; else pending.
+    var st = String(it.status || '').toLowerCase();
+    var isPaid = (st === 'paid' || st === 'completed');
+    var gig = it.gig || null;                 // gig label (own assignment)
+    var amtStr = _PAYOUT_AMOUNT_VISIBLE ? _fmtMoney(it.amount) : null; // SINGLE guarded amount spot
+    // Build the line. Prefer structured fields; fall back to the projected detail
+    // string (which already reads "You'll be paid $X for <gig>." from the engine).
+    var line;
+    if (amtStr && gig) {
+      line = isPaid ? ('Paid ✓ — ' + amtStr + ' for ' + gig)
+                    : ("You'll be paid " + amtStr + ' for ' + gig);
+    } else if (amtStr) {
+      line = isPaid ? ('Paid ✓ — ' + amtStr) : ("You'll be paid " + amtStr);
+    } else if (gig) {
+      line = isPaid ? ('Paid ✓ — for ' + gig) : ("You'll be paid for " + gig);
+    } else {
+      line = it.detail || (isPaid ? 'Paid ✓' : 'Payout pending');
+    }
+    var accent = isPaid ? '#3fb950' : '#d4a017';        // green when paid, gold when pending
+    var icon = isPaid ? 'fa-circle-check' : 'fa-circle-dollar-to-slot';
+    var pillTxt = isPaid ? 'Paid ✓' : 'Pending';
+    return '' +
+      '<div style="display:flex;align-items:flex-start;gap:12px;background:var(--color-bg,#0d1117);border:1px solid ' + (isPaid ? 'rgba(63,185,80,0.35)' : 'rgba(212,160,23,0.35)') + ';border-radius:10px;padding:14px 16px;margin-bottom:10px;">' +
+        '<i class="fa-solid ' + icon + '" style="color:' + accent + ';font-size:18px;margin-top:2px;flex:0 0 auto;"></i>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="color:var(--color-text,#e8e8e8);font-size:14px;font-weight:600;margin-bottom:2px;">' + _esc(it.title || 'Gig payout') + '</div>' +
+          '<div style="color:var(--color-text-secondary,#8b949e);font-size:12.5px;line-height:1.5;">' + _esc(line) + '</div>' +
+        '</div>' +
+        '<span style="flex:0 0 auto;align-self:center;padding:6px 12px;border-radius:999px;font-weight:700;font-size:11.5px;white-space:nowrap;background:' + (isPaid ? 'rgba(63,185,80,0.15)' : 'rgba(212,160,23,0.15)') + ';color:' + accent + ';">' + _esc(pillTxt) + '</span>' +
+      '</div>';
+  }
 
   // N1 (story-n1-gig-eligibility, task-n1-frontend): bench-status view —
   // rehearsing → cleared → booked. AUTHORITATIVE source is the HomeOffice server
