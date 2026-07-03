@@ -108,6 +108,16 @@
     });
   }
 
+  function _fsGetSongById(songId) {
+    var c = _getCore();
+    var db = c && c.getDb();
+    if (!db || !songId) return Promise.resolve(null);
+    return db.collection('songs').doc(songId).get()
+      .then(function(doc) {
+        return doc.exists ? Object.assign({ id: doc.id }, doc.data()) : null;
+      });
+  }
+
   function _fsGetDefaultPlaylists() {
     var c = _getCore();
     var db = c && c.getDb();
@@ -154,6 +164,18 @@
     return sb.from('songs').select('*').in('id', ids).then(function(res) {
       if (res.error) return Promise.reject(res.error);
       return (res.data || []).map(_normalize);
+    });
+  }
+
+  function _sbGetSongById(songId) {
+    var c = _getCore();
+    var sb = c && c.getSupabase ? c.getSupabase() : null;
+    if (!sb || !songId) return Promise.resolve(null);
+    // Single-id case of _sbGetSongsByIds — same songs catalog + _normalize path.
+    // maybeSingle(): 0 rows -> null (not an error); charts live intact in raw_doc.
+    return sb.from('songs').select('*').eq('id', songId).maybeSingle().then(function(res) {
+      if (res.error) return Promise.reject(res.error);
+      return res.data ? _normalize(res.data) : null;
     });
   }
 
@@ -211,6 +233,12 @@
     },
     getSongsByIds: function(ids) {
       return _src('songs') === 'supabase' ? _sbGetSongsByIds(ids) : _fsGetSongsByIds(ids);
+    },
+    // F4: single-song read (charts picker). Honors the same per-collection
+    // 'songs' flag as getSongs/getSongsByIds. Resolves to a single normalized
+    // {id, ...raw_doc} object (charts intact) or null if not found.
+    getSongById: function(songId) {
+      return _src('songs') === 'supabase' ? _sbGetSongById(songId) : _fsGetSongById(songId);
     },
     getDefaultPlaylists: function() {
       return _src('playlists') === 'supabase' ? _sbGetDefaultPlaylists() : _fsGetDefaultPlaylists();

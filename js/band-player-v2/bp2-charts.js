@@ -37,9 +37,14 @@
       var song = songsMap[songId];
       if (!song) return;
 
-      // Re-fetch from Firestore for latest charts
-      c.getDb().collection('songs').doc(songId).get().then(function(doc) {
-        var latestSong = doc.exists ? Object.assign({ id: songId }, doc.data()) : song;
+      // Re-read the latest song (for latest charts) via the BP2Data shim —
+      // routes through the Supabase catalog when BP2_READ_SOURCE.songs='supabase'
+      // (F4-C4/C7). No direct Firestore songs.doc() call here anymore.
+      var songReadPromise = (global.BP2Data && global.BP2Data.getSongById)
+        ? global.BP2Data.getSongById(songId)
+        : Promise.resolve(song);
+      songReadPromise.then(function(fetched) {
+        var latestSong = fetched || song;
         songsMap[songId] = latestSong;
 
         var charts = (latestSong.charts && Object.keys(latestSong.charts).length > 0) ? latestSong.charts : null;
