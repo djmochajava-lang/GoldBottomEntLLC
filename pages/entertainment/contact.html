@@ -190,7 +190,7 @@
           ? 'Your message has been saved locally and will be delivered when our server is back online.'
           : 'Thank you, <strong>' + Utils.escapeHtml(name) + '</strong>! We\'ve received your '
             + (isBookingInquiry() ? 'booking' : '') + ' inquiry and will respond within 24 hours.';
-        var emailNote = 'A confirmation has been sent to <strong>' + Utils.escapeHtml(email) + '</strong>.';
+        var emailNote = "We've received your inquiry — we'll get back to you within 24 hours.";
 
         card.innerHTML =
           '<div style="text-align:center;padding:40px 20px;">' +

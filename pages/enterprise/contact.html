@@ -231,7 +231,7 @@
         var detail = result.method === 'local'
           ? 'Your project inquiry has been saved locally and will be delivered when our server is back online.'
           : 'Thank you, <strong>' + (typeof Utils !== 'undefined' ? Utils.escapeHtml(name) : name) + '</strong>! We\'ve received your project inquiry and will respond within 24 hours.';
-        var emailNote = 'A confirmation has been sent to <strong>' + (typeof Utils !== 'undefined' ? Utils.escapeHtml(email) : email) + '</strong>.';
+        var emailNote = "We've received your project inquiry — we'll get back to you within 24 hours.";
 
         card.innerHTML =
           '<div style="text-align:center;padding:40px 20px;">' +
