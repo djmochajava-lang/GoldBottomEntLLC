@@ -394,7 +394,9 @@
    * within ~1 minute. Never talks to HomeOffice directly — preserves the
    * Chinese wall.
    * @param {string} inboxId
-   * @param {string} actionType one of the 7 mark_inbox_*/reclassify_inbox/soft_delete_inbox types
+   * @param {string} actionType one of: mark_inbox_read, mark_inbox_unread,
+   * toggle_inbox_star, reclassify_inbox, soft_delete_inbox,
+   * mark_inbox_responded, mark_inbox_not_responded
    * @param {Object} [extra] action-specific payload (e.g. {classification} for reclassify)
    * @returns {Promise<Object>}
    */
