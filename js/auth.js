@@ -1847,6 +1847,17 @@ const Auth = {
      ------------------------------------------ */
 
   /**
+   * Return the authenticated Supabase client instance (set in _initSupabase()),
+   * or null if Supabase auth never initialized (SDK/config missing). Callers
+   * that need a Supabase session (e.g. dashboard/booking.html's remote reads
+   * and writes) use this instead of reaching into Auth._sb directly.
+   * @returns {Object|null}
+   */
+  getSupabase: function() {
+    return this._sb || null;
+  },
+
+  /**
    * Check if a user is currently authenticated AND approved.
    * Works for both Firebase auth and PIN auth.
    * @returns {boolean}

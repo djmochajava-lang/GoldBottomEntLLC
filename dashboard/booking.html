@@ -383,6 +383,57 @@
 
   var inquiriesData = [];
 
+  /**
+   * Perform a booking_inbox mutation (story-booking-inquiry-incident).
+   * Local (LAN): direct REST call to the existing HomeOffice API — unchanged
+   * behavior, immediate.
+   * Remote (public site — the path the BM actually uses on his iPhone):
+   * inserts into the existing Supabase `booking_actions` BM field-actions
+   * relay (same table/RLS already used for classify_inquiry/set_stage/etc.),
+   * applied to the private SQLite system of record by booking-reconcile.js
+   * within ~1 minute. Never talks to HomeOffice directly — preserves the
+   * Chinese wall.
+   * @param {string} inboxId
+   * @param {string} actionType one of the 7 mark_inbox_*/reclassify_inbox/soft_delete_inbox types
+   * @param {Object} [extra] action-specific payload (e.g. {classification} for reclassify)
+   * @returns {Promise<Object>}
+   */
+  async function performInboxAction(inboxId, actionType, extra) {
+    extra = extra || {};
+    if (isLocal) {
+      var endpointMap = {
+        mark_inbox_read: { path: '/read', method: 'PUT' },
+        mark_inbox_unread: { path: '/unread', method: 'PUT' },
+        toggle_inbox_star: { path: '/star', method: 'PUT' },
+        reclassify_inbox: { path: '/classify', method: 'PUT', body: { classification: extra.classification } },
+        soft_delete_inbox: { path: '', method: 'DELETE' },
+        mark_inbox_responded: { path: '/responded', method: 'PUT' },
+        mark_inbox_not_responded: { path: '/unresponded', method: 'PUT' }
+      };
+      var ep = endpointMap[actionType];
+      var opts = { method: ep.method };
+      if (ep.body) opts.body = JSON.stringify(ep.body);
+      return await Utils.apiFetch('/booking-inbox/' + inboxId + ep.path, opts);
+    }
+
+    // Remote — write-only insert into booking_actions; no read-back, no direct
+    // HomeOffice contact. actor_id must equal the caller's own auth.uid() (RLS
+    // WITH CHECK) — server-resolved role checking happens in booking-reconcile.js,
+    // never trusted from this client.
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) throw new Error('Not signed in');
+    var sessionRes = await sb.auth.getSession();
+    var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
+    if (!uid) throw new Error('Not signed in');
+
+    var row = { actor_id: uid, target_id: inboxId, action_type: actionType };
+    if (actionType === 'reclassify_inbox') row.payload = { classification: extra.classification };
+
+    var res = await sb.from('booking_actions').insert(row);
+    if (res.error) throw new Error(res.error.message);
+    return { queued: true };
+  }
+
   async function loadInquiries() {
     if (!document.getElementById('tab-inquiries')) return; // not on the booking page — exit silently
     try {
@@ -411,25 +462,7 @@
         }
       }
       inquiriesData = rawRows;
-      // Build byStage map from flat row array using classification + is_read fields
-      var byStage = { new: [], reviewing: [], info_requested: [], qualified: [], declined: [] };
-      inquiriesData.forEach(function(r) {
-        if (r.classification === 'booking_inquiry') {
-          if (!r.is_read) {
-            byStage.new.push(r);
-          } else {
-            byStage.reviewing.push(r);
-          }
-        } else if (r.classification === 'booking_followup') {
-          byStage.info_requested.push(r);
-        } else if (r.classification === 'spam' || r.classification === 'notification' || r.classification === 'internal') {
-          byStage.declined.push(r);
-        }
-        // qualified column intentionally left empty (none qualify automatically)
-      });
-      renderInquiriesStats(byStage);
-      renderInquiriesKanban(byStage);
-      document.getElementById('tab-count-inquiries').textContent = isLocal ? (data && data.total ? data.total : inquiriesData.length) : inquiriesData.length;
+      refreshInquiriesView(isLocal && data && data.total ? data.total : null);
     } catch (e) {
       console.error('[Booking] Inquiries load error:', e);
       document.getElementById('inquiries-pipeline').innerHTML =
@@ -437,11 +470,50 @@
     }
   }
 
+  /** Build the byStage kanban map from the flat inquiriesData array. */
+  function buildInquiryStages() {
+    var byStage = { new: [], reviewing: [], info_requested: [], qualified: [], declined: [] };
+    inquiriesData.forEach(function(r) {
+      if (r.classification === 'booking_inquiry') {
+        if (!r.is_read) {
+          byStage.new.push(r);
+        } else {
+          byStage.reviewing.push(r);
+        }
+      } else if (r.classification === 'booking_followup') {
+        byStage.info_requested.push(r);
+      } else if (r.classification === 'spam' || r.classification === 'notification' || r.classification === 'internal') {
+        byStage.declined.push(r);
+      }
+      // qualified column intentionally left empty (none qualify automatically)
+    });
+    return byStage;
+  }
+
+  /**
+   * Re-derive stages from the current inquiriesData and re-render stats + kanban.
+   * Used both after a fresh load and after an optimistic local patch (so the BM's
+   * own UI updates immediately on remote, without waiting for the reconcile tick).
+   * @param {number|null} [totalOverride] local-only total count from the API response
+   */
+  function refreshInquiriesView(totalOverride) {
+    var byStage = buildInquiryStages();
+    renderInquiriesStats(byStage);
+    renderInquiriesKanban(byStage);
+    var countEl = document.getElementById('tab-count-inquiries');
+    if (countEl) countEl.textContent = (totalOverride != null) ? totalOverride : inquiriesData.length;
+  }
+
   function renderInquiriesStats(byStage) {
     var bar = document.getElementById('inquiries-stats-bar');
     if (!bar) return; // not on the booking page — exit silently
     byStage = byStage || { new: [], reviewing: [], info_requested: [], qualified: [], declined: [] };
     var counts = { new: (byStage.new||[]).length, reviewing: (byStage.reviewing||[]).length, info_requested: (byStage.info_requested||[]).length, qualified: (byStage.qualified||[]).length, declined: (byStage.declined||[]).length };
+    // "Awaiting Response" — inquiries/followups (only these two classes are ever
+    // "responded to") with no responded_at yet. This is the noise filter the BM asked for.
+    var awaitingCount = inquiriesData.filter(function(r) {
+      return (r.classification === 'booking_inquiry' || r.classification === 'booking_followup') && !r.responded_at;
+    }).length;
 
     var html = '';
     inquiryStages.forEach(function(s) {
@@ -449,6 +521,9 @@
         '<div style="font-size:1.3rem;font-weight:700;color:' + s.color + ';">' + (counts[s.key] || 0) + '</div>' +
         '<div style="font-size:0.75rem;color:var(--color-text-muted);margin-top:2px;">' + s.label + '</div></div>';
     });
+    html += '<div style="background:var(--color-bg-secondary);border:1px solid rgba(240,136,0,0.3);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);text-align:center;">' +
+      '<div style="font-size:1.3rem;font-weight:700;color:#f08800;">' + awaitingCount + '</div>' +
+      '<div style="font-size:0.75rem;color:var(--color-text-muted);margin-top:2px;">Awaiting Response</div></div>';
     bar.innerHTML = html;
   }
 
@@ -488,9 +563,16 @@
         }
         html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">';
         html += '<span style="font-size:0.7rem;color:var(--color-text-muted);">' + timeAgo(r.received_at || r.submitted_at || r.created_at) + '</span>';
+        html += '<span style="display:flex;gap:6px;align-items:center;">';
         if (isUnread) {
           html += '<span style="font-size:0.68rem;color:#58a6ff;"><i class="fa-solid fa-circle" style="font-size:0.5rem;"></i> Unread</span>';
         }
+        if (r.classification === 'booking_inquiry' || r.classification === 'booking_followup') {
+          html += r.responded_at
+            ? '<span style="font-size:0.68rem;color:#3fb950;"><i class="fa-solid fa-check"></i> Responded</span>'
+            : '<span style="font-size:0.68rem;color:#f08800;"><i class="fa-solid fa-clock"></i> Awaiting</span>';
+        }
+        html += '</span>';
         html += '</div>';
         html += '</div>';
       });
@@ -528,6 +610,11 @@
       if (r.is_read) html += pill('rgba(139,148,158,0.15)', '#8b949e', 'Read');
       else html += pill('rgba(88,166,255,0.15)', '#58a6ff', 'Unread');
       if (r.is_starred) html += pill('rgba(212,160,23,0.15)', '#d4a017', '★ Starred');
+      if (r.classification === 'booking_inquiry' || r.classification === 'booking_followup') {
+        html += r.responded_at
+          ? pill('rgba(63,185,80,0.15)', '#3fb950', '✓ Responded')
+          : pill('rgba(240,136,0,0.15)', '#f08800', 'Awaiting Response');
+      }
       html += '</div>';
 
       // Contact info
@@ -573,27 +660,32 @@
         html += '</div>';
       }
 
-      // Action buttons — read/unread, star, reclassify (LAN only — mutations require HomeOffice API)
-      if (isLocal) {
-        html += '<div style="padding-top:var(--space-md);border-top:1px solid var(--color-border);display:flex;gap:var(--space-sm);flex-wrap:wrap;align-items:center;">';
-        html += '<button id="inq-read-btn" data-id="' + r.id + '" data-is-read="' + (r.is_read ? '1' : '0') + '" class="btn" style="font-size:var(--text-sm);">' +
-          '<i class="fa-solid ' + (r.is_read ? 'fa-envelope' : 'fa-envelope-open') + '"></i> ' + (r.is_read ? 'Mark Unread' : 'Mark Read') + '</button>';
-        html += '<button id="inq-star-btn" data-id="' + r.id + '" class="btn" style="font-size:var(--text-sm);' + (r.is_starred ? 'color:#d4a017;' : '') + '">' +
-          '<i class="fa-' + (r.is_starred ? 'solid' : 'regular') + ' fa-star"></i> ' + (r.is_starred ? 'Unstar' : 'Star') + '</button>';
-
-        // Reclassify (classify action)
-        html += '<select id="inq-classify-select" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">';
-        ['booking_inquiry', 'booking_followup', 'spam', 'notification', 'internal'].forEach(function(c) {
-          html += '<option value="' + c + '"' + (r.classification === c ? ' selected' : '') + '>' + (classLabel[c] || c) + '</option>';
-        });
-        html += '</select>';
-        html += '<button id="inq-classify-btn" data-id="' + r.id + '" class="btn btn-primary" style="font-size:var(--text-sm);">Reclassify</button>';
-
-        // Delete (soft)
-        html += '<button id="inq-delete-btn" data-id="' + r.id + '" class="btn" style="margin-left:auto;font-size:var(--text-sm);background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);">' +
-          '<i class="fa-solid fa-trash"></i> Delete</button>';
-        html += '</div>';
+      // Action buttons — read/unread, star, reclassify, responded, delete. Renders on
+      // BOTH local + remote now (story-booking-inquiry-incident): local mutates the
+      // LAN API directly; remote queues via performInboxAction's booking_actions insert.
+      var isInquiryOrFollowup = (r.classification === 'booking_inquiry' || r.classification === 'booking_followup');
+      html += '<div style="padding-top:var(--space-md);border-top:1px solid var(--color-border);display:flex;gap:var(--space-sm);flex-wrap:wrap;align-items:center;">';
+      html += '<button id="inq-read-btn" data-id="' + r.id + '" data-is-read="' + (r.is_read ? '1' : '0') + '" class="btn" style="font-size:var(--text-sm);">' +
+        '<i class="fa-solid ' + (r.is_read ? 'fa-envelope' : 'fa-envelope-open') + '"></i> ' + (r.is_read ? 'Mark Unread' : 'Mark Read') + '</button>';
+      html += '<button id="inq-star-btn" data-id="' + r.id + '" class="btn" style="font-size:var(--text-sm);' + (r.is_starred ? 'color:#d4a017;' : '') + '">' +
+        '<i class="fa-' + (r.is_starred ? 'solid' : 'regular') + ' fa-star"></i> ' + (r.is_starred ? 'Unstar' : 'Star') + '</button>';
+      if (isInquiryOrFollowup) {
+        html += '<button id="inq-responded-btn" data-id="' + r.id + '" class="btn" style="font-size:var(--text-sm);' + (r.responded_at ? 'color:#3fb950;' : 'color:#f08800;') + '">' +
+          '<i class="fa-solid ' + (r.responded_at ? 'fa-check' : 'fa-clock') + '"></i> ' + (r.responded_at ? 'Mark Not Responded' : 'Mark Responded') + '</button>';
       }
+
+      // Reclassify (classify action)
+      html += '<select id="inq-classify-select" style="padding:var(--space-xs) var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">';
+      ['booking_inquiry', 'booking_followup', 'spam', 'notification', 'internal'].forEach(function(c) {
+        html += '<option value="' + c + '"' + (r.classification === c ? ' selected' : '') + '>' + (classLabel[c] || c) + '</option>';
+      });
+      html += '</select>';
+      html += '<button id="inq-classify-btn" data-id="' + r.id + '" class="btn btn-primary" style="font-size:var(--text-sm);">Reclassify</button>';
+
+      // Delete (soft)
+      html += '<button id="inq-delete-btn" data-id="' + r.id + '" class="btn" style="margin-left:auto;font-size:var(--text-sm);background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);">' +
+        '<i class="fa-solid fa-trash"></i> Delete</button>';
+      html += '</div>';
 
       // LAN-only: email reply notice
       if (isLocal) {
@@ -602,19 +694,27 @@
 
       openModal(html);
 
-      if (!isLocal) return; // remote: modal is read-only, no mutation listeners needed
+      // Shared post-action handling: optimistic local patch + re-render + toast.
+      // Remote writes are queued (applied by booking-reconcile.js within ~1 min);
+      // local writes already landed synchronously — the toast wording reflects that.
+      function afterInboxAction(id, patch, successMsg) {
+        var row = inquiriesData.find(function(x) { return String(x.id) === String(id); });
+        if (row) Object.assign(row, patch);
+        closeModal();
+        if (typeof Toast !== 'undefined') {
+          Toast.success(isLocal ? successMsg : (successMsg + ' — syncing shortly'));
+        }
+        refreshInquiriesView();
+      }
 
       // Read/Unread toggle
       document.getElementById('inq-read-btn').addEventListener('click', async function() {
         var btn = this;
         var isRead = btn.dataset.isRead === '1';
-        var endpoint = '/booking-inbox/' + btn.dataset.id + (isRead ? '/unread' : '/read');
         btn.disabled = true;
         try {
-          await Utils.apiFetch(endpoint, { method: 'PUT' });
-          closeModal();
-          if (typeof Toast !== 'undefined') Toast.success(isRead ? 'Marked unread' : 'Marked read');
-          loadInquiries();
+          await performInboxAction(btn.dataset.id, isRead ? 'mark_inbox_unread' : 'mark_inbox_read');
+          afterInboxAction(btn.dataset.id, { is_read: isRead ? 0 : 1 }, isRead ? 'Marked unread' : 'Marked read');
         } catch (e) {
           alert('Failed: ' + e.message);
           btn.disabled = false;
@@ -626,15 +726,32 @@
         var btn = this;
         btn.disabled = true;
         try {
-          var result = await Utils.apiFetch('/booking-inbox/' + btn.dataset.id + '/star', { method: 'PUT' });
-          closeModal();
-          if (typeof Toast !== 'undefined') Toast.success(result.is_starred ? 'Starred' : 'Unstarred');
-          loadInquiries();
+          var nowStarred = !r.is_starred;
+          await performInboxAction(btn.dataset.id, 'toggle_inbox_star');
+          afterInboxAction(btn.dataset.id, { is_starred: nowStarred ? 1 : 0 }, nowStarred ? 'Starred' : 'Unstarred');
         } catch (e) {
           alert('Failed: ' + e.message);
           btn.disabled = false;
         }
       });
+
+      // Mark Responded / Mark Not Responded toggle
+      if (isInquiryOrFollowup) {
+        document.getElementById('inq-responded-btn').addEventListener('click', async function() {
+          var btn = this;
+          var wasResponded = !!r.responded_at;
+          btn.disabled = true;
+          try {
+            await performInboxAction(btn.dataset.id, wasResponded ? 'mark_inbox_not_responded' : 'mark_inbox_responded');
+            afterInboxAction(btn.dataset.id,
+              { responded_at: wasResponded ? null : new Date().toISOString() },
+              wasResponded ? 'Marked not responded' : 'Marked responded');
+          } catch (e) {
+            alert('Failed: ' + e.message);
+            btn.disabled = false;
+          }
+        });
+      }
 
       // Reclassify
       document.getElementById('inq-classify-btn').addEventListener('click', async function() {
@@ -643,13 +760,8 @@
         btn.disabled = true;
         btn.textContent = 'Saving...';
         try {
-          await Utils.apiFetch('/booking-inbox/' + btn.dataset.id + '/classify', {
-            method: 'PUT',
-            body: JSON.stringify({ classification: classification })
-          });
-          closeModal();
-          if (typeof Toast !== 'undefined') Toast.success('Reclassified as ' + (classLabel[classification] || classification));
-          loadInquiries();
+          await performInboxAction(btn.dataset.id, 'reclassify_inbox', { classification: classification });
+          afterInboxAction(btn.dataset.id, { classification: classification }, 'Reclassified as ' + (classLabel[classification] || classification));
         } catch (e) {
           alert('Failed: ' + e.message);
           btn.disabled = false;
@@ -663,10 +775,11 @@
         var btn = this;
         btn.disabled = true;
         try {
-          await Utils.apiFetch('/booking-inbox/' + btn.dataset.id, { method: 'DELETE' });
+          await performInboxAction(btn.dataset.id, 'soft_delete_inbox');
+          inquiriesData = inquiriesData.filter(function(x) { return String(x.id) !== String(btn.dataset.id); });
           closeModal();
-          if (typeof Toast !== 'undefined') Toast.success('Inquiry deleted');
-          loadInquiries();
+          if (typeof Toast !== 'undefined') Toast.success(isLocal ? 'Inquiry deleted' : 'Inquiry deleted — syncing shortly');
+          refreshInquiriesView();
         } catch (e) {
           alert('Failed: ' + e.message);
           btn.disabled = false;

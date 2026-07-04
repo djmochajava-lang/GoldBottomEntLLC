@@ -51,7 +51,6 @@ const Router = {
     'dashboard-finances': 'dashboard/finances.html',
     'dashboard-booking': 'dashboard/booking.html',
     'dashboard-band-readiness': 'dashboard/band-readiness.html',
-    'dashboard-inbox': 'dashboard/inbox.html',
     'dashboard-leads': 'dashboard/leads.html',
     'dashboard-merch': 'dashboard/merch.html',
     'dashboard-travel': 'dashboard/travel.html',
@@ -134,6 +133,11 @@ const Router = {
     'home': 'ent-home',
     'dashboard-band-player-v2': 'dashboard-band-player',
     'ent-events': 'ent-home',
+    // dashboard-inbox retired 2026-07-04 (story-booking-inquiry-incident) — remote mode read a
+    // dead Firestore inbox_pipeline collection nothing has written to since the Supabase cutover.
+    // dashboard-booking's "Inquiries" tab is the working replacement (live booking_inquiry_readmodel,
+    // default active tab), so this now redirects there instead of maintaining two read paths.
+    'dashboard-inbox': 'dashboard-booking',
   },
 
   /**
@@ -161,7 +165,7 @@ const Router = {
     'dashboard-metrics',
     'dashboard-export',
     // dashboard-quotes removed from local-only — now uses Firestore quote_pipeline for remote read access
-    // dashboard-inbox removed from local-only — now uses Firestore inbox_pipeline for remote read access
+    // dashboard-inbox retired 2026-07-04 — redirects to dashboard-booking (see legacyRedirects)
     // dashboard-contacts removed from local-only — crm-contacts.html has graceful empty state when HomeOffice is offline
     // dashboard-crm-contacts removed from local-only — same reason
     'dashboard-claude-agent',
@@ -405,7 +409,6 @@ const Router = {
           'dashboard-booking':      ['admin', 'band_manager'],
           'dashboard-band-readiness': ['admin', 'band_manager'],
           'dashboard-quotes':       ['admin', 'band_manager'],
-          'dashboard-inbox':        ['admin', 'band_manager'],
           'dashboard-contacts':     ['admin', 'band_manager'],
           'dashboard-crm-contacts': ['admin', 'band_manager'],
           'dashboard-leads':        ['admin', 'band_manager'],
@@ -777,7 +780,6 @@ const Router = {
       'dashboard-finances': 'Finances & Accounting',
       'dashboard-booking': 'Booking Pipeline',
       'dashboard-band-readiness': 'Band Readiness',
-      'dashboard-inbox': 'Contact Queue',
       'dashboard-leads': 'Venue Leads',
       'dashboard-merch': 'Merch & Ecommerce',
       'dashboard-travel': 'Travel & Logistics',
