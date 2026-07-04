@@ -807,15 +807,36 @@
         var items = await apiFetch('/bookings');
         pipelineData = items || [];
       } else {
-        // Remote path — read from Firestore (public site never calls HomeOffice directly)
-        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db :
-                 (typeof firebase !== 'undefined' ? firebase.firestore() : null);
-        if (!db) throw new Error('Firestore not available');
-        var snap = await db.collection('bookings')
-          .orderBy('updated_at', 'desc')
-          .limit(200)
-          .get();
-        pipelineData = snap.docs.map(function(d) { return d.data(); });
+        // Remote path — authenticated Supabase read of the redacted deal-pipeline
+        // read-model (booking_readmodel: id/stage/event_date/event_type/venue_name/
+        // guest_count_band/origin/updated_at — no PII, no financial fields per
+        // RULE-S07). Firestore is retired. Normalized to the same shape the local
+        // /bookings API returns so renderPipelineStats/Kanban need no changes.
+        var sb2 = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+        if (!sb2) {
+          console.warn('[Booking] Supabase client unavailable — pipeline tab empty');
+          pipelineData = [];
+        } else {
+          var pres = await sb2.from('booking_readmodel')
+            .select('*')
+            .order('updated_at', { ascending: false })
+            .limit(200);
+          if (pres.error) {
+            console.warn('[Booking] pipeline read-model fetch failed:', pres.error.message);
+            pipelineData = [];
+          } else {
+            pipelineData = (pres.data || []).map(function(r) {
+              return {
+                id: r.id,
+                stage: r.stage,
+                venue: r.venue_name || 'TBD',
+                eventDate: r.event_date || '',
+                eventType: r.event_type,
+                updated_at: r.updated_at
+              };
+            });
+          }
+        }
       }
       renderPipelineStats();
       renderPipelineKanban();
