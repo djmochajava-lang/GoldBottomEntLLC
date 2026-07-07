@@ -9,6 +9,16 @@
    WHO CALLS IT:
      - bp2-render.js triggers via events
      - bp2-core.js calls init()
+
+   READ-SOURCE FLIP (PLANB-3-A, dark this story):
+     checkPendingRequests() and _pollStatus() read stem-request status. Both
+     now check window.BP2_READ_SOURCE.stem_requests (mirrors bp2-data.js's
+     _src() idiom exactly) — default/anything-but-'supabase' => the EXISTING
+     Firestore c.getDb().collection('stem-requests').doc(songId).get() path,
+     byte-unchanged. When 'supabase', reads the PLANB-2 dual-drive-mirrored
+     Supabase stem_requests table by song_id instead (stem-listener.js keeps
+     it fresh regardless of which side the client still WRITES through — the
+     write call below stays on Firestore, untouched, this story).
    ============================================ */
 (function(global) {
   'use strict';
@@ -19,6 +29,41 @@
   function _c() {
     if (!_core && global.BP2Core) _core = global.BP2Core;
     return _core;
+  }
+
+  // Mirrors bp2-data.js's _src() idiom exactly: undefined/any non-'supabase'
+  // value => 'firestore' (safe default, dark this story).
+  function _src(table) {
+    var cfg = global.BP2_READ_SOURCE;
+    return (cfg && cfg[table]) === 'supabase' ? 'supabase' : 'firestore';
+  }
+
+  // Supabase read of the mirrored stem_requests row, normalized back to the
+  // Firestore doc shape this module already expects: { status, progress,
+  // humanStage, error, traceId, projectId, stems, title }. Columns per
+  // PLANB-1/2 DDL: song_id, status, progress, human_stage, error_message,
+  // trace_id, updated_at (+ project_id/stems if present on the row).
+  // maybeSingle(): 0 rows => null (not an error), matching !doc.exists.
+  function _sbGetStemRequest(songId) {
+    var c = _c();
+    var sb = c && c.getSupabase ? c.getSupabase() : null;
+    if (!sb || !songId) return Promise.resolve(null);
+    return sb.from('stem_requests').select('*').eq('song_id', songId).maybeSingle()
+      .then(function(res) {
+        if (res.error) return Promise.reject(res.error);
+        var row = res.data;
+        if (!row) return null;
+        return {
+          status: row.status,
+          progress: row.progress,
+          humanStage: row.human_stage,
+          error: row.error_message,
+          traceId: row.trace_id,
+          projectId: row.project_id,
+          stems: row.stems,
+          title: row.title
+        };
+      });
   }
 
   var _initialized = false;
@@ -62,9 +107,14 @@
         // Skip songs we're already tracking
         if (statuses[song.id]) return;
 
-        c.getDb().collection('stem-requests').doc(song.id).get().then(function(doc) {
-          if (!doc.exists) return;
-          var data = doc.data();
+        var _read = _src('stem_requests') === 'supabase'
+          ? _sbGetStemRequest(song.id)
+          : c.getDb().collection('stem-requests').doc(song.id).get().then(function(doc) {
+              return doc.exists ? Object.assign({}, doc.data()) : null;
+            });
+
+        _read.then(function(data) {
+          if (!data) return;
           if (data.status === 'complete' || data.status === 'error') return;
           statuses[song.id] = { status: data.status || 'queued' };
           c.emit('render:tracklist');
@@ -131,9 +181,14 @@
         attempts++;
         if (attempts > maxAttempts) { clearInterval(timer); return; }
 
-        c.getDb().collection('stem-requests').doc(songId).get().then(function(doc) {
-          if (!doc.exists) { clearInterval(timer); return; }
-          var data = doc.data();
+        var _poll = _src('stem_requests') === 'supabase'
+          ? _sbGetStemRequest(songId)
+          : c.getDb().collection('stem-requests').doc(songId).get().then(function(doc) {
+              return doc.exists ? Object.assign({}, doc.data()) : null;
+            });
+
+        _poll.then(function(data) {
+          if (!data) { clearInterval(timer); return; }
           var statuses = c.ref('stemStatuses');
           statuses[songId] = {
             status: data.status,

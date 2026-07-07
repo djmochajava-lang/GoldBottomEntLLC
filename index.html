@@ -667,7 +667,13 @@
     // path for songs/playlists. LIVE: songs+playlists flipped to 'supabase' under
     // direct CEO authorization (D-20 Condition 1 = GO) for the owner's real-device test.
     // Instant rollback = set both back to 'firestore'. Firebase read code intact underneath.
-    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'supabase', playlists: 'supabase' };
+    // stem_requests (PLANB-3-A): NEW key, DARK this story — default 'firestore' means
+    // ZERO behavior change on merge. bp2-stems.js's status-poll reads check this flag;
+    // when 'supabase' they read the PLANB-2 dual-drive-mirrored Supabase stem_requests
+    // table instead. Flip to 'supabase' is a separate, explicit, reviewed step (not
+    // bundled with this merge). Rollback = set back to 'firestore' (Firestore never
+    // stops being written — stem-listener.js's dual-drive keeps both sides live).
+    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'supabase', playlists: 'supabase', stem_requests: 'firestore' };
     // ── Write-source flag for the band-player write shim (PLANB-2) ──
     // bp2-write.js reads this to choose the Firestore (default) or Supabase
     // write path for its ~6 methods. DARK THIS STORY: bp2-write.js is built
@@ -681,7 +687,7 @@
       'js/band-player-v2/bp2-player.js?v=2', 'js/band-player-v2/bp2-playlist.js?v=8',
       'js/band-player-v2/bp2-render.js?v=12', 'js/band-player-v2/bp2-render-edit.js',
       'js/band-player-v2/bp2-render-stems.js?v=2', 'js/band-player-v2/bp2-offline.js?v=3',
-      'js/band-player-v2/bp2-stems.js?v=6', 'js/band-player-v2/bp2-mixer.js?v=3',
+      'js/band-player-v2/bp2-stems.js?v=7', 'js/band-player-v2/bp2-mixer.js?v=3',
       'js/band-player-v2/bp2-transport.js?v=3', 'js/band-player-v2/bp2-practice.js',
       'js/band-player-v2/bp2-charts.js?v=4', 'js/band-player-v2/bp2-lyrics.js',
       'js/band-player-v2/bp2-notes.js', 'js/band-player-v2/bp2-upload.js?v=6',
