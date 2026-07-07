@@ -673,7 +673,7 @@
     // table instead. Flip to 'supabase' is a separate, explicit, reviewed step (not
     // bundled with this merge). Rollback = set back to 'firestore' (Firestore never
     // stops being written — stem-listener.js's dual-drive keeps both sides live).
-    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'supabase', playlists: 'supabase', stem_requests: 'supabase' };
+    window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'supabase', playlists: 'supabase', stem_requests: 'firestore' };
     // ── Write-source flag for the band-player write shim (PLANB-2) ──
     // bp2-write.js reads this to choose the Firestore (default) or Supabase
     // write path for its ~6 methods. DARK THIS STORY: bp2-write.js is built
