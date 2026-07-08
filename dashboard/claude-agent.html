@@ -65,6 +65,7 @@
         <option value="P2">P2 - High</option>
         <option value="P3">P3 - Normal</option>
         <option value="P4">P4 - Low</option>
+        <option value="P5">P5 - Minimal</option>
       </select>
     </div>
     <div class="card" id="agent-task-container" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);overflow-x:auto;"></div>
@@ -80,6 +81,7 @@
         <option value="email_received">Email Received</option>
         <option value="task_created">Task Created</option>
         <option value="approval_received">Approval Received</option>
+        <option value="task_edited">Task Edited</option>
         <option value="task_rejected">Task Rejected</option>
         <option value="task_executed">Task Executed</option>
       </select>
@@ -126,6 +128,46 @@
   </div>
 </div>
 
+<!-- Edit Task Modal -->
+<div id="agent-edit-overlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1001;justify-content:center;align-items:flex-start;padding-top:6vh;overflow-y:auto;">
+  <div style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);max-width:520px;width:95%;padding:var(--space-xl);margin-bottom:5vh;">
+    <h3 style="margin-top:0;color:var(--color-text);"><i class="fa-solid fa-pen"></i> Edit Task Before Approval</h3>
+    <p style="font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-md);">Adjust the extracted task, then approve it from the table. Editing does not approve or execute anything.</p>
+    <label style="display:block;font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:4px;">Title</label>
+    <input type="text" id="agent-edit-title" maxlength="500" style="width:100%;padding:var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);margin-bottom:var(--space-md);">
+    <label style="display:block;font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:4px;">Summary / Extracted Action</label>
+    <textarea id="agent-edit-summary" rows="3" style="width:100%;padding:var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);resize:vertical;margin-bottom:var(--space-md);"></textarea>
+    <div style="display:flex;gap:var(--space-md);margin-bottom:var(--space-md);flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;">
+        <label style="display:block;font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:4px;">Priority</label>
+        <select id="agent-edit-priority" style="width:100%;padding:var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">
+          <option value="P1">P1 - Urgent</option>
+          <option value="P2">P2 - High</option>
+          <option value="P3">P3 - Normal</option>
+          <option value="P4">P4 - Low</option>
+          <option value="P5">P5 - Minimal</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label style="display:block;font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:4px;">Type</label>
+        <select id="agent-edit-type" style="width:100%;padding:var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);">
+          <option value="bug_fix">Bug Fix</option>
+          <option value="feature">Feature</option>
+          <option value="content">Content</option>
+          <option value="config">Config</option>
+          <option value="deploy">Deploy</option>
+          <option value="investigation">Investigation</option>
+          <option value="general">General</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:var(--space-sm);justify-content:flex-end;">
+      <button id="agent-edit-cancel" class="btn btn-outline">Cancel</button>
+      <button id="agent-edit-confirm" class="btn" style="background:#58a6ff;color:#fff;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   // ── Local-only guard ──
@@ -142,7 +184,8 @@
     P1: { label: 'P1', bg: 'rgba(248,81,73,0.15)', color: '#f85149' },
     P2: { label: 'P2', bg: 'rgba(210,153,34,0.15)', color: '#d29922' },
     P3: { label: 'P3', bg: 'rgba(88,166,255,0.15)', color: '#58a6ff' },
-    P4: { label: 'P4', bg: 'rgba(139,148,158,0.15)', color: '#8b949e' }
+    P4: { label: 'P4', bg: 'rgba(139,148,158,0.15)', color: '#8b949e' },
+    P5: { label: 'P5', bg: 'rgba(139,148,158,0.1)', color: '#6e7681' }
   };
 
   var statusPill = {
@@ -168,6 +211,8 @@
   var pageSize = 25;
   var currentTab = 'inbox';
   var rejectTaskId = null;
+  var editTaskId = null;
+  var taskById = {};
 
   /* ---- API Helper ---- */
   function apiUrl() {
@@ -379,34 +424,52 @@
     var html = '<div class="table-wrapper"><table style="width:100%;border-collapse:collapse;font-size:var(--text-sm);">';
     html += '<thead><tr style="border-bottom:1px solid var(--color-border);text-align:left;">';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Task ID</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Source Email</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Type</th>';
-    html += '<th style="padding:var(--space-xs) var(--space-sm);">Description</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Extracted Action</th>';
+    html += '<th style="padding:var(--space-xs) var(--space-sm);">Suggested Backlog</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Priority</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Status</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Created</th>';
     html += '<th style="padding:var(--space-xs) var(--space-sm);">Actions</th>';
     html += '</tr></thead><tbody>';
 
+    taskById = {};
     for (var i = 0; i < records.length; i++) {
       var r = records[i];
+      taskById[String(r.id)] = r;
+      // A task is editable and approvable only while awaiting approval — this
+      // keeps the human gate intact (an already-approved/rejected task is frozen).
+      var canEdit = r.status === 'awaiting_approval';
       var canApprove = r.status === 'awaiting_approval';
       var canReject = r.status === 'awaiting_approval' || r.status === 'approved';
 
+      var senderLine = r.source_from_name || r.source_from_addr || '';
+      var backlogText = r.backlog_entry ? (typeof r.backlog_entry === 'string' ? r.backlog_entry : JSON.stringify(r.backlog_entry)) : '';
+
       html += '<tr style="border-bottom:1px solid var(--color-border);">';
       html += '<td style="padding:var(--space-xs) var(--space-sm);font-family:monospace;font-size:0.75rem;color:var(--color-gold);">' + escHtml(r.task_id || String(r.id)) + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:210px;">' +
+        '<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.source_subject || '—') + '</div>' +
+        (senderLine ? '<div style="color:var(--color-text-muted);font-size:0.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><i class="fa-solid fa-envelope" style="opacity:0.6;"></i> ' + escHtml(senderLine) + '</div>' : '') +
+        '</td>';
       html += '<td style="padding:var(--space-xs) var(--space-sm);">' + escHtml(r.task_type || r.type || '-') + '</td>';
-      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.description || r.summary || '-') + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(r.title || r.description || r.summary || '-') + '</td>';
+      html += '<td style="padding:var(--space-xs) var(--space-sm);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--color-text-muted);">' + escHtml(backlogText || '—') + '</td>';
       html += '<td style="padding:var(--space-xs) var(--space-sm);">' + pill(priorityPill, r.priority) + '</td>';
       html += '<td style="padding:var(--space-xs) var(--space-sm);">' + pill(statusPill, r.status) + '</td>';
       html += '<td style="padding:var(--space-xs) var(--space-sm);color:var(--color-text-muted);white-space:nowrap;">' + formatTime(r.created_at) + '</td>';
       html += '<td style="padding:var(--space-xs) var(--space-sm);white-space:nowrap;">';
+      if (canEdit) {
+        html += '<button class="agent-edit-btn" data-id="' + escHtml(String(r.id)) + '" style="background:rgba(88,166,255,0.15);color:#58a6ff;border:1px solid rgba(88,166,255,0.3);border-radius:var(--radius-sm);padding:2px 8px;cursor:pointer;font-size:var(--text-sm);margin-right:4px;"><i class="fa-solid fa-pen"></i> Edit</button>';
+      }
       if (canApprove) {
-        html += '<button class="agent-approve-btn" data-id="' + r.id + '" style="background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-sm);padding:2px 8px;cursor:pointer;font-size:var(--text-sm);margin-right:4px;"><i class="fa-solid fa-check"></i> Approve</button>';
+        html += '<button class="agent-approve-btn" data-id="' + escHtml(String(r.id)) + '" style="background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-sm);padding:2px 8px;cursor:pointer;font-size:var(--text-sm);margin-right:4px;"><i class="fa-solid fa-check"></i> Approve</button>';
       }
       if (canReject) {
-        html += '<button class="agent-reject-btn" data-id="' + r.id + '" style="background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-sm);padding:2px 8px;cursor:pointer;font-size:var(--text-sm);"><i class="fa-solid fa-xmark"></i> Reject</button>';
+        html += '<button class="agent-reject-btn" data-id="' + escHtml(String(r.id)) + '" style="background:rgba(248,81,73,0.15);color:#f85149;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-sm);padding:2px 8px;cursor:pointer;font-size:var(--text-sm);"><i class="fa-solid fa-xmark"></i> Reject</button>';
       }
-      if (!canApprove && !canReject) {
+      if (!canEdit && !canApprove && !canReject) {
         html += '<span style="color:var(--color-text-muted);font-size:var(--text-sm);">-</span>';
       }
       html += '</td>';
@@ -423,12 +486,53 @@
     });
 
     // Action handlers
+    document.querySelectorAll('.agent-edit-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { showEditModal(btn.dataset.id); });
+    });
     document.querySelectorAll('.agent-approve-btn').forEach(function(btn) {
       btn.addEventListener('click', function() { approveTask(btn.dataset.id); });
     });
     document.querySelectorAll('.agent-reject-btn').forEach(function(btn) {
       btn.addEventListener('click', function() { showRejectModal(btn.dataset.id); });
     });
+  }
+
+  function showEditModal(id) {
+    var r = taskById[String(id)];
+    if (!r) return;
+    editTaskId = id;
+    document.getElementById('agent-edit-title').value = r.title || '';
+    document.getElementById('agent-edit-summary').value = r.summary || '';
+    document.getElementById('agent-edit-priority').value = r.priority || 'P3';
+    document.getElementById('agent-edit-type').value = r.task_type || 'general';
+    document.getElementById('agent-edit-overlay').style.display = 'flex';
+  }
+
+  async function confirmEdit() {
+    if (!editTaskId) return;
+    var body = {
+      title: document.getElementById('agent-edit-title').value.trim(),
+      summary: document.getElementById('agent-edit-summary').value.trim(),
+      priority: document.getElementById('agent-edit-priority').value,
+      task_type: document.getElementById('agent-edit-type').value
+    };
+    if (!body.title) {
+      if (typeof Toast !== 'undefined') Toast.error('Title is required');
+      return;
+    }
+    try {
+      await apiFetch('/claude-agent/tasks/' + editTaskId + '/edit', {
+        method: 'PATCH',
+        body: JSON.stringify(body)
+      });
+      if (typeof Toast !== 'undefined') Toast.success('Task updated');
+      document.getElementById('agent-edit-overlay').style.display = 'none';
+      editTaskId = null;
+      loadTasks();
+    } catch (e) {
+      console.error('[Agent] Edit error:', e);
+      if (typeof Toast !== 'undefined') Toast.error('Failed to update: ' + e.message);
+    }
   }
 
   async function approveTask(id) {
@@ -640,6 +744,16 @@
   document.getElementById('agent-reject-confirm').addEventListener('click', confirmReject);
   document.getElementById('agent-reject-overlay').addEventListener('click', function(e) {
     if (e.target === this) { this.style.display = 'none'; rejectTaskId = null; }
+  });
+
+  /* ---- Edit Modal ---- */
+  document.getElementById('agent-edit-cancel').addEventListener('click', function() {
+    document.getElementById('agent-edit-overlay').style.display = 'none';
+    editTaskId = null;
+  });
+  document.getElementById('agent-edit-confirm').addEventListener('click', confirmEdit);
+  document.getElementById('agent-edit-overlay').addEventListener('click', function(e) {
+    if (e.target === this) { this.style.display = 'none'; editTaskId = null; }
   });
 
   /* ---- Initial Load ---- */
