@@ -19,10 +19,13 @@
    change is a hard acceptance criterion.
 
    Source-of-truth flag: window.BP2_WRITE_SOURCE (index.html, mirrors
-   BP2_READ_SOURCE's exact placement/convention). Default 'firebase' —
-   every method below resolves to the EXISTING Firestore call, byte-
-   equivalent to what the live call sites already do today. The Supabase
-   leg is present but UNREACHED while the flag stays 'firebase'.
+   BP2_READ_SOURCE's per-table OBJECT shape) — a per-table map keyed by
+   users / stem_requests / playlists, each defaulting to 'firebase'.
+   _writeSrc(tableKey) resolves the leg per table (and still tolerates a
+   legacy bare-string value). With every key 'firebase', every method below
+   resolves to the EXISTING Firestore call, byte-equivalent to what the live
+   call sites do today; the Supabase leg is present but UNREACHED. Per-table
+   shape lets a future slice flip ONE table's writes without affecting others.
 
    BINDING CONDITIONS (carried from CTO verdict_planb2_writeshim_dualdrive_2026_07_04):
      - CONDITION PLANB-C4 / bp2_auth_hybrid_pii_split: the existing PII leg
@@ -73,11 +76,19 @@
     return _core;
   }
 
-  // ── Source selection ─────────────────────────
-  // undefined and any non-'supabase' value => 'firebase' (safe default,
-  // mirrors bp2-data.js's _src() convention exactly).
-  function _writeSrc() {
-    return global.BP2_WRITE_SOURCE === 'supabase' ? 'supabase' : 'firebase';
+  // ── Source selection (per-table) ─────────────
+  // BP2_WRITE_SOURCE is a per-table object ({ users, stem_requests,
+  // playlists }). Resolve the leg for tableKey; undefined/unknown key and
+  // any non-'supabase' value => 'firebase' (safe default, mirrors
+  // bp2-data.js's _src() convention). A legacy bare-string value is still
+  // honored globally so an old flag can't silently mis-route.
+  function _writeSrc(tableKey) {
+    var src = global.BP2_WRITE_SOURCE;
+    // Legacy scalar tolerance: if a bare string was set, honor it globally.
+    if (typeof src === 'string') return src === 'supabase' ? 'supabase' : 'firebase';
+    // Per-table object (current shape). Unknown/undefined key => safe 'firebase'.
+    var v = src && tableKey ? src[tableKey] : undefined;
+    return v === 'supabase' ? 'supabase' : 'firebase';
   }
 
   function _supabase() {
@@ -137,7 +148,7 @@
   // leg stays a byte-equivalent drop-in; the Supabase leg passes extra to
   // the RPC unmodified (a future wiring story decides its exact shape).
   function acceptConfidentiality(uid, extra) {
-    return _writeSrc() === 'supabase'
+    return _writeSrc('users') === 'supabase'
       ? _sbAcceptOnce(uid, 'confidentiality_accepted_at', extra)
       : _fsAcceptOnce(uid, 'confidentialityAcceptedAt', extra);
   }
@@ -153,7 +164,7 @@
   // distinctly. This method covers the house-band field; see
   // acceptFreelanceAgreement() for the sibling field.
   function acceptHouseBandAgreement(uid, extra) {
-    return _writeSrc() === 'supabase'
+    return _writeSrc('users') === 'supabase'
       ? _sbAcceptOnce(uid, 'house_band_agreed_at', extra)
       : _fsAcceptOnce(uid, 'houseBandAgreedAt', Object.assign({
           houseBandAgreedVersion: extra && extra.house_band_agreed_version
@@ -161,7 +172,7 @@
   }
 
   function acceptFreelanceAgreement(uid, extra) {
-    return _writeSrc() === 'supabase'
+    return _writeSrc('users') === 'supabase'
       ? _sbAcceptOnce(uid, 'freelance_agreement_accepted_at', extra)
       : _fsAcceptOnce(uid, 'freelanceAgreementAcceptedAt', extra);
   }
@@ -169,7 +180,7 @@
   // Public: payment-setup mark (Screen 2, non-PII leg). field fixed to
   // 'payment_setup_at' / 'paymentSetupAt'.
   function markPaymentSetup(uid, extra) {
-    return _writeSrc() === 'supabase'
+    return _writeSrc('users') === 'supabase'
       ? _sbAcceptOnce(uid, 'payment_setup_at', extra)
       : _fsAcceptOnce(uid, 'paymentSetupAt', extra);
   }
@@ -201,7 +212,7 @@
   // Public: plain non-PII field write (e.g. { paymentMethod: 'cashapp' } /
   // { payment_method: 'cashapp' }). NOT accept-once — always overwrites.
   function upsertNonPiiFields(uid, fields) {
-    return _writeSrc() === 'supabase' ? _sbUpsertMerge(uid, fields) : _fsUpsertMerge(uid, fields);
+    return _writeSrc('users') === 'supabase' ? _sbUpsertMerge(uid, fields) : _fsUpsertMerge(uid, fields);
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -250,7 +261,7 @@
 
   // Public: request (or re-queue) stem separation for a song.
   function requestStems(songId, song, uid, role) {
-    return _writeSrc() === 'supabase'
+    return _writeSrc('stem_requests') === 'supabase'
       ? _sbRequestStems(songId, song, uid, role)
       : _fsRequestStems(songId, song, uid, role);
   }
@@ -294,7 +305,7 @@
   // the exact field-set — this method never expands, reorders, or
   // replaces it wholesale.
   function updatePlaylistFields(playlistId, fields) {
-    return _writeSrc() === 'supabase'
+    return _writeSrc('playlists') === 'supabase'
       ? _sbUpdatePlaylistFields(playlistId, fields)
       : _fsUpdatePlaylistFields(playlistId, fields);
   }

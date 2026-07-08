@@ -674,13 +674,18 @@
     // bundled with this merge). Rollback = set back to 'firestore' (Firestore never
     // stops being written — stem-listener.js's dual-drive keeps both sides live).
     window.BP2_READ_SOURCE = window.BP2_READ_SOURCE || { songs: 'supabase', playlists: 'supabase', stem_requests: 'supabase' };
-    // ── Write-source flag for the band-player write shim (PLANB-2) ──
-    // bp2-write.js reads this to choose the Firestore (default) or Supabase
-    // write path for its ~6 methods. DARK THIS STORY: bp2-write.js is built
-    // but UNWIRED — no existing call site invokes it yet (that is a future
-    // wiring story). Default 'firebase' — NOT flipped. Mirrors
-    // BP2_READ_SOURCE's convention exactly (single global, safe default).
-    window.BP2_WRITE_SOURCE = window.BP2_WRITE_SOURCE || 'firebase';
+    // ── Per-table write-source flag for the band-player write shim (PLANB-2/3) ──
+    // bp2-write.js's _writeSrc(tableKey) reads this to choose the Firestore
+    // (default) or Supabase write path PER TABLE — users / stem_requests /
+    // playlists — so a future slice can flip ONE table's writes without
+    // touching the others (mirrors BP2_READ_SOURCE's per-key object shape).
+    // ALL keys default 'firebase' this story => every method still resolves to
+    // the EXISTING Firestore leg, byte-identical behavior. NOT flipped here.
+    // PLANB-3-C wired bp2-auth.js's accept sites to bp2-write.js; this slice
+    // (PLANB-3-D-1) only changes the flag SHAPE + resolver. The write-side
+    // dual-drive (PLANB-3-D-2) and live flip (PLANB-3-D-3) are separate,
+    // reviewed steps. Rollback = keep/return any key to 'firebase'.
+    window.BP2_WRITE_SOURCE = window.BP2_WRITE_SOURCE || { users: 'firebase', stem_requests: 'firebase', playlists: 'firebase' };
     var BP2 = [
       'js/band-player-v2/bp2-utils.js', 'js/band-player-v2/bp2-core.js?v=2',
       'js/band-player-v2/bp2-data.js?v=3', 'js/band-player-v2/bp2-write.js',
