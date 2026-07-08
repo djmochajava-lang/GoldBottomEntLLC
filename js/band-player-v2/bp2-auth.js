@@ -7,7 +7,11 @@
    Screen 2: Payment Setup + Agreement + W-9
    Admin/band_manager skip to player.
 
-   CRITICAL: Agreement text BYTE-IDENTICAL to v1.
+   NOTE: Agreement text is now VERSIONED (v2.0) — Legal LC-2 Maryland
+   governing-law added (PLANB-3-D-4). The prior "byte-identical to v1"
+   invariant is intentionally retired by Legal for this change; existing
+   v1.0 acceptance records remain valid and untouched. Do NOT edit the
+   separate agreements.html in any repo.
 
    WHO CALLS IT:
      - bp2-core.js init() emits 'auth:show-gate'
@@ -75,9 +79,26 @@
     '\u2022 Rehearsal materials, charts, and recordings are for band use only \u2014 please don\u2019t share them publicly.\n\n' +
     '\u2022 No extra pay for rehearsals, local travel, or prep unless we note it for a specific gig.\n\n' +
     '\u2022 You\u2019re responsible for your own gear. We\u2019re not liable for loss or damage unless caused by our direct negligence.\n\n' +
-    '\u2022 All obligations are with Gold Bottom Ent LLC only \u2014 no personal liability for Jeffery Ponder or LA Young.';
+    '\u2022 All obligations are with Gold Bottom Ent LLC only \u2014 no personal liability for Jeffery Ponder or LA Young.\n\n' +
+    '\u2022 This agreement is governed by the laws of the State of Maryland, and any dispute will be handled exclusively in the state or federal courts located in Maryland.';
 
-  var AGREEMENT_VERSION = '1.0';
+  // LC-3: Screen-2 agreement text materially changed (LC-2 MD governing-law
+  // bullet), so bump to v2.0. Existing '1.0' records remain valid/untouched.
+  var AGREEMENT_VERSION = '2.0';
+  // LC-3: Screen-1 confidentiality/IP agreement version (independent of the
+  // Screen-2 house-band agreement version).
+  var CONFIDENTIALITY_VERSION = '1.0';
+  // LC-3 canonical operative text of the Screen-1 confidentiality/IP agreement,
+  // INCLUDING the LC-2 Maryland governing-law sentence. Hashed at accept time to
+  // bind the acceptance record to the exact terms shown. Kept in lockstep with
+  // the rendered confidentiality box in showScreen1().
+  var CONFIDENTIALITY_TEXT =
+    '\u2022 All original compositions, lyrics, demos, and arrangements by LA Young are the sole property of Gold Bottom Ent LLC.\n\n' +
+    '\u2022 Any contributions, harmonies, adaptations, or ideas I add to LA Young\u2019s pre-existing original material become derivative works owned solely by Gold Bottom Ent LLC / LA Young. I will not claim any ownership, co-writing credit, or royalties unless we specifically agree in writing.\n\n' +
+    '\u2022 Rehearsal recordings, charts, setlists, and private band materials are for internal use only. I will not share, distribute, copy, or post them publicly without written permission.\n\n' +
+    '\u2022 This applies during our working relationship and for 3 years after (or until the material is publicly released).\n\n' +
+    'I understand I am working as a freelance independent contractor for Gold Bottom Ent LLC only.\n\n' +
+    'This agreement is governed by the laws of the State of Maryland, without regard to its conflict-of-laws rules. Any dispute arising out of or relating to it will be brought exclusively in the state or federal courts located in Maryland, and I consent to the jurisdiction of those courts.';
   var W9_THRESHOLD = 600;
 
   // ── Container helper ───────────────────────
@@ -88,6 +109,51 @@
       document.querySelector('.band-player-container') ||
       document.querySelector('#dash-band-player-v2 .bp2-rack') ||
       document.getElementById('bp2-tracklist');
+  }
+
+  // LC-3: SHA-256 hex of a UTF-8 string via SubtleCrypto. PLAIN non-PII
+  // provability metadata — the returned hash is NEVER routed through the
+  // encrypt-pii Edge Function / piiFields. Async; resolves '' if unavailable
+  // (never rejects — a hashing hiccup must not block an acceptance).
+  function _sha256Hex(text) {
+    try {
+      var subtle = global.crypto && global.crypto.subtle;
+      if (!subtle || typeof TextEncoder === 'undefined') return Promise.resolve('');
+      var buf = new TextEncoder().encode(String(text));
+      return subtle.digest('SHA-256', buf).then(function(digest) {
+        var bytes = new Uint8Array(digest);
+        var hex = '';
+        for (var i = 0; i < bytes.length; i++) hex += ('0' + bytes[i].toString(16)).slice(-2);
+        return hex;
+      }).catch(function() { return ''; });
+    } catch (e) { return Promise.resolve(''); }
+  }
+
+  // LC-1: ESIGN Act / Maryland UETA consent recital + 4 required disclosures.
+  // Static verbatim literals (Legal-drafted) — rendered in DOM order IMMEDIATELY
+  // ABOVE the accept checkbox on BOTH Screen 1 and Screen 2.
+  function _esignSectionHtml() {
+    var wrap = 'background:var(--color-bg,#0d1117);border:1px solid var(--color-border,#282c36);border-radius:10px;padding:14px;margin-bottom:16px;text-align:left;';
+    var head = 'font-size:13px;color:var(--color-text,#e8e8e8);font-weight:600;margin-bottom:8px;';
+    var body = 'font-size:12px;color:var(--color-text-secondary,#8b949e);line-height:1.6;margin-bottom:10px;';
+    var item = 'font-size:12px;color:var(--color-text-secondary,#8b949e);line-height:1.6;margin:0 0 8px 18px;text-indent:-18px;';
+    return '<div style="' + wrap + '">' +
+      '<div style="' + head + '">Signing this agreement electronically</div>' +
+      '<div style="' + body + '">By checking the box below, you agree to sign this agreement electronically and to conduct this onboarding by electronic means. Your electronic signature has the same legal effect as a handwritten (ink) signature under the federal ESIGN Act (15 U.S.C. ch. 96) and the Maryland Uniform Electronic Transactions Act.</div>' +
+      '<div style="' + item + '">• You have the right to receive a paper copy of this agreement at no charge. To request one, email jeffery.ponder@goldbottoment-llc.com or write to Gold Bottom Ent LLC, 5000 Thayer Center, Oakland, MD 21550.</div>' +
+      '<div style="' + item + '">• You may withdraw your consent to sign and do business electronically at any time before you check the box below. If you withdraw consent, you will not be able to complete onboarding electronically and we will arrange a paper signing process instead; withdrawal does not affect the validity of anything you have already signed electronically.</div>' +
+      '<div style="' + item + '">• To withdraw consent, or to update the email or mailing address we use to reach you, email jeffery.ponder@goldbottoment-llc.com.</div>' +
+      '<div style="' + item + '">• To sign and keep a copy of this agreement you need a device with a current web browser, internet access, and the ability to view and save web-page or PDF documents.</div>' +
+    '</div>';
+  }
+
+  // LC-6: PII / data-handling disclosure (Screen 2). Static verbatim literal.
+  function _piiDisclosureHtml() {
+    var wrap = 'background:var(--color-bg,#0d1117);border:1px solid var(--color-border,#282c36);border-radius:10px;padding:14px;margin-bottom:16px;text-align:left;';
+    var body = 'font-size:12px;color:var(--color-text-secondary,#8b949e);line-height:1.6;';
+    return '<div style="' + wrap + '">' +
+      '<div style="' + body + '"><strong style="color:var(--color-text,#e8e8e8);">How we handle your information:</strong> The personal details you enter here — your legal name, phone, mailing address, and payment information — are encrypted and accessible only to Gold Bottom Ent LLC management. We use them solely to pay you and to meet tax and legal obligations, including collecting a W-9 and issuing an IRS Form 1099 once your payments reach $600 in a calendar year. We never sell this information or share it for marketing.</div>' +
+    '</div>';
   }
 
   var BP2Auth = {
@@ -122,6 +188,7 @@
               '&bull; Rehearsal recordings, charts, setlists, and private band materials are for internal use only. I will not share, distribute, copy, or post them publicly without written permission.<br><br>' +
               '&bull; This applies during our working relationship and for 3 years after (or until the material is publicly released).<br><br>' +
               '<em>I understand I am working as a freelance independent contractor for Gold Bottom Ent LLC only.</em>' +
+              '<div style="margin-top:12px;">This agreement is governed by the laws of the State of Maryland, without regard to its conflict-of-laws rules. Any dispute arising out of or relating to it will be brought exclusively in the state or federal courts located in Maryland, and I consent to the jurisdiction of those courts.</div>' +
               '<div style="border-top:1px solid var(--color-border,#282c36);margin-top:16px;padding-top:16px;">' +
                 '<div style="margin-bottom:12px;">' +
                   '<div style="font-size:11px;color:var(--color-text-muted,#6e7681);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Offered By</div>' +
@@ -137,6 +204,15 @@
                 '</div>' +
               '</div>' +
             '</div>' +
+            // LC-6 (optional Screen-1 one-liner) — privacy/PII note.
+            '<p style="color:var(--color-text-secondary,#8b949e);font-size:12px;text-align:left;line-height:1.6;margin-bottom:16px;">Any personal information you provide during onboarding is encrypted and kept confidential to Gold Bottom Ent LLC management, and is used only to manage your work with the band and meet legal and tax obligations.</p>' +
+            // LC-4: legal-name signatory input (required; mirrors Screen 2).
+            '<div style="text-align:left;margin-bottom:16px;">' +
+              '<label style="display:block;font-size:13px;color:var(--color-text-secondary,#8b949e);margin-bottom:4px;font-weight:500;">Legal Full Name</label>' +
+              '<input type="text" id="bp2-s1-legalname" name="name" autocomplete="name" placeholder="As it appears on your tax documents" style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--color-border,#282c36);background:var(--color-bg,#0d1117);color:var(--color-text,#e8e8e8);font-size:14px;min-height:44px;box-sizing:border-box;" />' +
+            '</div>' +
+            // LC-1: ESIGN/UETA consent recital + disclosures, immediately above the checkbox.
+            _esignSectionHtml() +
             '<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-text,#e8e8e8);cursor:pointer;justify-content:center;margin-bottom:16px;padding:12px;border-radius:8px;min-height:44px;">' +
               '<input type="checkbox" id="bp2-screen1-cb" style="width:22px;height:22px;accent-color:#d4a017;flex:0 0 22px;">' +
               ' I have read, understand, and agree to the above.' +
@@ -158,36 +234,65 @@
           if (ceoDateEl && offerDate && offerDate.toDate) {
             ceoDateEl.textContent = 'Date: ' + offerDate.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
           } else if (ceoDateEl) {
-            ceoDateEl.textContent = 'Date: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            // LC-5: never fabricate an offer date — render blank when none exists.
+            ceoDateEl.textContent = '';
           }
+          // LC-4: prefill the legal-name signatory from the user doc if present.
+          var lnEl = document.getElementById('bp2-s1-legalname');
+          if (lnEl && data.legalName) lnEl.value = data.legalName;
+          _validateScreen1();
         }).catch(function() {});
       }
 
       var cb = document.getElementById('bp2-screen1-cb');
       var btn = document.getElementById('bp2-screen1-btn');
+      var lnInput = document.getElementById('bp2-s1-legalname');
+
+      // LC-4: gate the Accept button on BOTH the checkbox AND a non-empty legal name.
+      function _validateScreen1() {
+        if (!cb || !btn) return;
+        var ok = cb.checked && !!(lnInput && lnInput.value.trim());
+        btn.disabled = !ok;
+        btn.style.opacity = ok ? '1' : '0.4';
+      }
+
       if (cb && btn) {
-        cb.addEventListener('change', function() {
-          btn.disabled = !cb.checked;
-          btn.style.opacity = cb.checked ? '1' : '0.4';
-        });
+        cb.addEventListener('change', _validateScreen1);
+        if (lnInput) lnInput.addEventListener('input', _validateScreen1);
         btn.addEventListener('click', function() {
-          if (!cb.checked) return;
+          var legalName = (lnInput && lnInput.value.trim()) || '';
+          // LC-4: require both the checkbox and a legal name — never proceed without.
+          if (!cb.checked || !legalName) return;
           btn.disabled = true;
           btn.textContent = 'Saving...';
           var user = c.getUser();
           var db = c.getDb();
           if (user && db) {
             var sigEmail = user.email || '';
-            var sigName = user.displayName || sigEmail.split('@')[0] || '';
-            BP2Write.acceptConfidentiality(user.uid, {
-              confidentialitySignature: {
-                name: sigName,
-                email: sigEmail,
-                userAgent: navigator.userAgent,
-                signedFromUrl: window.location.href
-              },
-              roster_tier: 'on_call',
-              activity: 'active'
+            // LC-4: signatory is the musician's entered LEGAL name — never
+            // displayName/email-prefix.
+            var sigName = legalName;
+            // LC-3: compute the content hash of the exact confidentiality terms
+            // shown (incl. the LC-2 MD governing-law line) BEFORE writing.
+            _sha256Hex(CONFIDENTIALITY_TEXT).then(function(cHash) {
+              return BP2Write.acceptConfidentiality(user.uid, {
+                confidentialitySignature: {
+                  name: sigName,
+                  email: sigEmail,
+                  userAgent: navigator.userAgent,
+                  signedFromUrl: window.location.href
+                },
+                // LC-4: plain non-PII field so Screen 2 prefills the legal name.
+                // (See InfoSec note: legalName is also carried encrypted inside
+                // confidentialitySignature.name; this plain copy is for prefill.)
+                legalName: legalName,
+                // LC-3: version + content hash — plain non-PII provability
+                // metadata; NEVER routed through encrypt-pii/piiFields.
+                confidentialityVersion: CONFIDENTIALITY_VERSION,
+                confidentialityTextHash: cHash,
+                roster_tier: 'on_call',
+                activity: 'active'
+              });
             }).then(function() {
               if (global.BP2Playlist) global.BP2Playlist.grantDefaultPlaylists(user.uid);
               if (typeof Toast !== 'undefined') Toast.success('Welcome to Soul Society!');
@@ -407,6 +512,9 @@
               '</div>' +
             '</div>' +
 
+            // LC-6: PII / data-handling disclosure (just above the Save button).
+            _piiDisclosureHtml() +
+
             // Save button
             '<div style="text-align:center;margin-top:8px;">' +
               '<button id="bp2-s2-save" disabled style="padding:14px 32px;border-radius:12px;background:#d4a017;color:#000;border:none;font-weight:600;font-size:15px;cursor:pointer;opacity:0.4;width:100%;min-height:48px;">' +
@@ -505,6 +613,8 @@
             '</div>';
         } else {
           agStatus.innerHTML =
+            // LC-1: ESIGN/UETA consent recital + disclosures, immediately above the checkbox.
+            _esignSectionHtml() +
             '<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-text,#e8e8e8);cursor:pointer;padding:12px;border-radius:8px;min-height:44px;">' +
               '<input type="checkbox" id="bp2-s2-agree-cb" style="width:22px;height:22px;accent-color:#d4a017;flex:0 0 22px;">' +
               ' I have read and agree to the Freelance Musician Agreement above.' +
@@ -524,7 +634,8 @@
         if (ceoDateEl && offerDate && offerDate.toDate) {
           ceoDateEl.textContent = 'Date: ' + offerDate.toDate().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
         } else if (ceoDateEl) {
-          ceoDateEl.textContent = 'Date: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          // LC-5: never fabricate an offer date — render blank when none exists.
+          ceoDateEl.textContent = '';
         }
 
         // Show musician signature if already accepted
@@ -642,15 +753,21 @@
             });
           }
 
-          // 1) write non-PII fields to the cache; 2) send PII to the encrypt-pii
-          // Edge Function. Both must resolve; PII failure surfaces as a save error.
-          Promise.all([
-            BP2Write.upsertNonPiiFields(uid, nonPiiUpdate),
-            _encryptPiiServerSide(uid, piiFields).then(function(ok) {
-              if (!ok) throw new Error('PII encryption service unavailable');
-              return true;
-            })
-          ]).then(function() {
+          // LC-3: bind the acceptance to the exact agreement text via a SHA-256
+          // content hash (plain non-PII field), computed BEFORE the write and
+          // only when actually accepting. Non-PII — never sent to encrypt-pii.
+          (agreeCb && agreeCb.checked ? _sha256Hex(AGREEMENT_TEXT) : Promise.resolve('')).then(function(agHash) {
+            if (agHash) nonPiiUpdate.agreementTextHash = agHash;
+            // 1) write non-PII fields to the cache; 2) send PII to the encrypt-pii
+            // Edge Function. Both must resolve; PII failure surfaces as a save error.
+            return Promise.all([
+              BP2Write.upsertNonPiiFields(uid, nonPiiUpdate),
+              _encryptPiiServerSide(uid, piiFields).then(function(ok) {
+                if (!ok) throw new Error('PII encryption service unavailable');
+                return true;
+              })
+            ]);
+          }).then(function() {
             saveBtn.disabled = false;
             saveBtn.textContent = isEdit ? 'Save Changes' : 'Complete Setup';
             if (typeof Toast !== 'undefined') Toast.success(isEdit ? 'Payment settings saved!' : 'Setup complete \u2014 welcome to the band!');
