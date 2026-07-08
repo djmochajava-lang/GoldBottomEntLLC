@@ -158,28 +158,27 @@
   // persisted), never throws — a signature-encrypt hiccup must not abort the
   // rest of the best-effort mirror.
   //
-  // NOTE (field-name → column mapping — InfoSec/CTO to verify before the D-3
-  // live flip): the CTO brief specifies the input field name `signature`
-  // (matching what Screen-2 already sends). Confirmed against the live Edge
-  // Function source (GBE-HomeOffice/supabase/functions/encrypt-pii/index.ts
-  // FIELD_MAP): `signature` maps to the `signature_enc` column — there is
-  // currently NO input field that maps to `confidentiality_signature_enc`.
-  // So today this produces CIPHERTEXT (no plaintext at rest — the security
-  // invariant holds) but targets `signature_enc`, not the CTO's intended
-  // `confidentiality_signature_enc`. This is DARK (mirror only runs when the
-  // users flag is flipped to 'supabase' in a future D-3 story); before that
-  // flip goes live, the Edge Function FIELD_MAP must gain a
-  // confidentiality-signature → confidentiality_signature_enc entry (or this
-  // call be revisited) so Screen-1's signature lands in its own column and is
-  // not conflated with Screen-2's signature_enc. Flagged, not silently
-  // resolved here.
+  // FIELD-NAME → COLUMN MAPPING (RESOLVED, PLANB-3-D-3 prereq — the D-2
+  // carryover-1 fix). Screen-1's confidentiality/IP-agreement signature has its
+  // OWN cache column, `confidentiality_signature_enc`, distinct from Screen-2's
+  // general-agreement `signature_enc`. This mirror therefore POSTs the input
+  // field `confidentialitySignature`, which the encrypt-pii Edge Function
+  // FIELD_MAP (GBE-HomeOffice/supabase/functions/encrypt-pii/index.ts) maps to
+  // `confidentiality_signature_enc`. The Edge Function's pre-existing
+  // `signature → signature_enc` mapping (used by Screen-2's bp2-auth.js path)
+  // is left untouched — the new key is ADDITIVE, so the two signatures never
+  // collide. Both are stored as enc:v1:… ciphertext; the plaintext goes ONLY to
+  // the key-holding Edge Function over TLS+JWT (never to a data column).
+  // OPERATOR NOTE: this mapping must be LIVE on the deployed Edge Function
+  // (`supabase functions deploy encrypt-pii`) before BP2_WRITE_SOURCE.users is
+  // flipped to 'supabase' at D-3 — until then the mirror is DARK and inert.
   function _encryptSignatureServerSide(uid, sigObj) {
     return _supaAccessToken().then(function(token) {
       if (!token) return false;
       return fetch(_PII_FN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ uid: uid, fields: { signature: JSON.stringify(sigObj) } })
+        body: JSON.stringify({ uid: uid, fields: { confidentialitySignature: JSON.stringify(sigObj) } })
       }).then(function(r) { return r.ok; }).catch(function() { return false; });
     });
   }
