@@ -22,10 +22,35 @@
    BP2_READ_SOURCE's per-table OBJECT shape) — a per-table map keyed by
    users / stem_requests / playlists, each defaulting to 'firebase'.
    _writeSrc(tableKey) resolves the leg per table (and still tolerates a
-   legacy bare-string value). With every key 'firebase', every method below
-   resolves to the EXISTING Firestore call, byte-equivalent to what the live
-   call sites do today; the Supabase leg is present but UNREACHED. Per-table
-   shape lets a future slice flip ONE table's writes without affecting others.
+   legacy bare-string value). Per-table shape lets a future slice flip ONE
+   table's writes without affecting others.
+
+   ── WRITE-MODEL (PLANB-3-D-2, CTO verdict_planb3d_writeflip_design_2026_07_08
+      sub-block PLANB_3_D_2) ──────────────────────────────────────────────
+   TWO shapes now coexist in this shim:
+
+   (1) DUAL-DRIVE (the two users-agreement-path methods — acceptConfidentiality
+       and upsertNonPiiFields). The Firestore PRIMARY leg runs UNCONDITIONALLY
+       (byte-identical to _fsAcceptOnce / _fsUpsertMerge today) — this keeps the
+       D-27 rollback net fresh, and the returned Promise's success is governed
+       by the Firestore primary leg. The Supabase MIRROR leg runs ADDITIONALLY
+       and ONLY when _writeSrc('users') === 'supabase'. For these two methods
+       the users flag's write-side meaning is therefore "IS THE SUPABASE MIRROR
+       ENABLED" — NOT "which single leg runs" (Firestore primary is always on).
+       This mirrors stem-listener.js's server-side dual-drive discipline
+       (primary governs; mirror is best-effort) but on the client write path.
+       Mirror-leg failure is NON-FATAL: it is logged via console.warn and NEVER
+       rejects the accept — a mirror hiccup must not block a musician's
+       acceptance or break the Firestore-primary flow. Default users:'firebase'
+       ⇒ mirror OFF ⇒ still DARK, zero behavior change on merge.
+
+   (2) SWITCH-STYLE (all other methods — acceptHouseBandAgreement /
+       acceptFreelanceAgreement / markPaymentSetup / requestStems /
+       updatePlaylistFields). Legacy _writeSrc()==='supabase' ? sb : fs — one
+       leg OR the other. With every key 'firebase' these resolve to the EXISTING
+       Firestore call, byte-equivalent to what the live call sites do today; the
+       Supabase leg is present but UNREACHED. Left switch-style intentionally
+       (out of PLANB-3-D-2 scope).
 
    BINDING CONDITIONS (carried from CTO verdict_planb2_writeshim_dualdrive_2026_07_04):
      - CONDITION PLANB-C4 / bp2_auth_hybrid_pii_split: the existing PII leg
@@ -101,6 +126,64 @@
     return c && c.getDb ? c.getDb() : null;
   }
 
+  // ── Server-side PII encryption for the Supabase mirror leg (D-11/D-34) ──────
+  // The encryption key is NEVER client-side. Screen-1's confidentiality
+  // signature is PII (name+email) and MUST land in Supabase as enc:v1:...
+  // ciphertext, never plaintext. bp2-auth.js's _encryptPiiServerSide is PRIVATE
+  // to its own IIFE (and bp2-auth.js must not be modified this story), so we
+  // replicate its self-contained pattern here: resolve the Supabase session
+  // access token via the SAME accessor chain as bp2-auth.js _supaAccessToken,
+  // then POST plaintext over TLS + JWT to the encrypt-pii Edge Function, which
+  // holds the key (Edge secret), encrypts AES-256-GCM, and writes the *_enc
+  // column via service_role. It returns { ok, fields } — ciphertext is NEVER
+  // returned to the client (key stays server-side, D-11).
+  var _PII_FN_URL = 'https://rklvvuzedmadydmohouu.functions.supabase.co/encrypt-pii';
+
+  function _supaAccessToken() {
+    try {
+      var sb = (global.Auth && global.Auth.getSupabase && global.Auth.getSupabase())
+        || global.GBE_SUPABASE
+        || (global.BP2Core && global.BP2Core.getSupabase && global.BP2Core.getSupabase());
+      if (!sb || !sb.auth || !sb.auth.getSession) return Promise.resolve(null);
+      return sb.auth.getSession().then(function(res) {
+        return (res && res.data && res.data.session && res.data.session.access_token) || null;
+      }).catch(function() { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+
+  // Encrypt the Screen-1 confidentiality signature server-side. Sends the
+  // PLAINTEXT signature JSON to the encrypt-pii Edge Function (this is the
+  // sanctioned D-11 path — plaintext over TLS+JWT to the key-holder, NOT a
+  // plaintext write to a data column). Returns Promise<boolean> (true =
+  // persisted), never throws — a signature-encrypt hiccup must not abort the
+  // rest of the best-effort mirror.
+  //
+  // NOTE (field-name → column mapping — InfoSec/CTO to verify before the D-3
+  // live flip): the CTO brief specifies the input field name `signature`
+  // (matching what Screen-2 already sends). Confirmed against the live Edge
+  // Function source (GBE-HomeOffice/supabase/functions/encrypt-pii/index.ts
+  // FIELD_MAP): `signature` maps to the `signature_enc` column — there is
+  // currently NO input field that maps to `confidentiality_signature_enc`.
+  // So today this produces CIPHERTEXT (no plaintext at rest — the security
+  // invariant holds) but targets `signature_enc`, not the CTO's intended
+  // `confidentiality_signature_enc`. This is DARK (mirror only runs when the
+  // users flag is flipped to 'supabase' in a future D-3 story); before that
+  // flip goes live, the Edge Function FIELD_MAP must gain a
+  // confidentiality-signature → confidentiality_signature_enc entry (or this
+  // call be revisited) so Screen-1's signature lands in its own column and is
+  // not conflated with Screen-2's signature_enc. Flagged, not silently
+  // resolved here.
+  function _encryptSignatureServerSide(uid, sigObj) {
+    return _supaAccessToken().then(function(token) {
+      if (!token) return false;
+      return fetch(_PII_FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ uid: uid, fields: { signature: JSON.stringify(sigObj) } })
+      }).then(function(r) { return r.ok; }).catch(function() { return false; });
+    });
+  }
+
   // ══════════════════════════════════════════════════════════════════
   // OPERATIONS 1–3: accept-once timestamp fields (RPC-backed on Supabase)
   //   bp2-auth.js Screen 1 (confidentiality) + Screen 2 (house-band/
@@ -141,16 +224,60 @@
     });
   }
 
-  // Public: confidentiality signature accept (Screen 1). field is fixed to
-  // 'confidentiality_accepted_at' (the only Screen-1 accept-once field).
-  // extra carries the Firestore-shape sibling fields the live call writes
-  // today (confidentialitySignature/roster_tier/activity) so the Firestore
-  // leg stays a byte-equivalent drop-in; the Supabase leg passes extra to
-  // the RPC unmodified (a future wiring story decides its exact shape).
+  // Supabase MIRROR leg for Screen-1 confidentiality accept. Runs ONLY when
+  // the users flag is 'supabase'. Three sub-writes, none of which may ever put
+  // the plaintext signature object into a data column or the RPC p_extra:
+  //   (a) SIGNATURE (PII) → encrypt-pii Edge Function → *_enc CIPHERTEXT.
+  //       Plaintext goes ONLY to the key-holding Edge Function over TLS+JWT.
+  //   (b) accept-once timestamp → bp2_accept_once RPC with p_extra = NULL.
+  //       p_extra is DELIBERATELY null: the RPC's confidentiality_accepted_at
+  //       branch does confidentiality_signature_enc = COALESCE(p_extra, ...),
+  //       so passing the plaintext signature (or any extra) here would POISON
+  //       the _enc column with plaintext. The signature is written as
+  //       ciphertext via the Edge Function in (a); null leaves it intact.
+  //   (c) non-PII scalar labels roster_tier / activity → plain own-row
+  //       .update() (they are not in the RPC allow-list, and are non-PII).
+  function _sbMirrorConfidentiality(uid, extra) {
+    var sb = _supabase();
+    if (!sb || !uid) return Promise.reject(new Error('bp2-write: missing supabase client/uid'));
+    var ops = [];
+    // (a) signature ciphertext (only if the live call captured one)
+    var sig = extra && extra.confidentialitySignature;
+    ops.push(sig ? _encryptSignatureServerSide(uid, sig) : Promise.resolve(true));
+    // (b) accept-once timestamp — p_extra MUST be null (see above)
+    ops.push(sb.rpc('bp2_accept_once', {
+      p_uid: uid,
+      p_field: 'confidentiality_accepted_at',
+      p_extra: null
+    }).then(function(res) { if (res.error) return Promise.reject(res.error); return res.data; }));
+    // (c) non-PII scalar labels (separate plain own-row update)
+    var scalars = {};
+    if (extra && extra.roster_tier != null) scalars.roster_tier = extra.roster_tier;
+    if (extra && extra.activity != null) scalars.activity = extra.activity;
+    if (Object.keys(scalars).length) {
+      ops.push(sb.from('users').update(scalars).eq('id', uid)
+        .then(function(res) { if (res.error) return Promise.reject(res.error); return res.data; }));
+    }
+    return Promise.all(ops);
+  }
+
+  // Public: confidentiality signature accept (Screen 1) — DUAL-DRIVE.
+  // Firestore PRIMARY runs UNCONDITIONALLY (byte-identical to today's
+  // _fsAcceptOnce; the plaintext signature it stores in Firestore is
+  // pre-existing behavior, out of scope). The returned Promise is the
+  // Firestore primary — the accept's success is governed by it. The Supabase
+  // mirror runs ADDITIONALLY only when the users flag is 'supabase', after the
+  // primary resolves, and its failure is NON-FATAL (logged, never rejects).
   function acceptConfidentiality(uid, extra) {
-    return _writeSrc('users') === 'supabase'
-      ? _sbAcceptOnce(uid, 'confidentiality_accepted_at', extra)
-      : _fsAcceptOnce(uid, 'confidentialityAcceptedAt', extra);
+    var primary = _fsAcceptOnce(uid, 'confidentialityAcceptedAt', extra);
+    if (_writeSrc('users') === 'supabase') {
+      primary.then(function() {
+        return _sbMirrorConfidentiality(uid, extra);
+      }).catch(function(err) {
+        console.warn('[bp2-write] supabase mirror failed', err);
+      });
+    }
+    return primary;
   }
 
   // Public: house-band/freelance agreement accept (Screen 2, non-PII leg
@@ -199,20 +326,70 @@
     return db.collection('users').doc(uid).update(fields);
   }
 
-  function _sbUpsertMerge(uid, fields) {
+  // NOTE: the former _sbUpsertMerge (a single plain sb.from('users').update()
+  // of the whole blob) was REMOVED in PLANB-3-D-2 — that full-blob update was
+  // the exact re-stamp anti-pattern the accept-once split below exists to
+  // avoid. The Supabase mirror now goes through _sbMirrorNonPii, which routes
+  // the accept-once timestamps through the idempotent bp2_accept_once RPC and
+  // only the overwritable payment_method label through a scoped .update().
+
+  // Supabase MIRROR leg for Screen-2's non-PII write. Runs ONLY when the users
+  // flag is 'supabase'. SPLITS the blob — a single plain .update() would
+  // re-stamp the accept-once timestamps on an edit re-save, destroying the
+  // RPC's no-re-stamp legal guarantee. So:
+  //   - Each accept-once field PRESENT (detected by KEY PRESENCE — the values
+  //     are Firestore serverTimestamp sentinels and must NEVER be sent to
+  //     Supabase; the RPC sets now() itself) routes through bp2_accept_once
+  //     (idempotent — a 2nd call does not re-stamp):
+  //       houseBandAgreedAt          → house_band_agreed_at
+  //         (p_extra = houseBandAgreedVersion || null — the RPC pairs the
+  //          version into house_band_agreed_version atomically)
+  //       freelanceAgreementAcceptedAt → freelance_agreement_accepted_at (no extra)
+  //       paymentSetupAt             → payment_setup_at (no extra)
+  //   - Only the plain OVERWRITABLE label paymentMethod → payment_method goes
+  //     through a plain own-row .update() (it is NOT in the RPC allow-list and
+  //     is meant to be overwritable). Firestore-cased → snake_case here.
+  //   (Screen-2's real PII — legalName/phone/mailingAddress/paymentDetail/
+  //    signature — is encrypted OUTSIDE this shim by bp2-auth.js's own
+  //    _encryptPiiServerSide, so this method has no PII concern.)
+  function _sbMirrorNonPii(uid, fields) {
     var sb = _supabase();
     if (!sb || !uid || !fields) return Promise.reject(new Error('bp2-write: missing supabase client/uid/fields'));
-    // public.users, own-row RLS (pre-existing, unaltered by this shim).
-    return sb.from('users').update(fields).eq('id', uid).then(function(res) {
-      if (res.error) return Promise.reject(res.error);
-      return res.data;
-    });
+    var has = function(k) { return Object.prototype.hasOwnProperty.call(fields, k); };
+    var ops = [];
+    if (has('houseBandAgreedAt')) {
+      ops.push(_sbAcceptOnce(uid, 'house_band_agreed_at', fields.houseBandAgreedVersion || null));
+    }
+    if (has('freelanceAgreementAcceptedAt')) {
+      ops.push(_sbAcceptOnce(uid, 'freelance_agreement_accepted_at', null));
+    }
+    if (has('paymentSetupAt')) {
+      ops.push(_sbAcceptOnce(uid, 'payment_setup_at', null));
+    }
+    if (has('paymentMethod')) {
+      ops.push(sb.from('users').update({ payment_method: fields.paymentMethod }).eq('id', uid)
+        .then(function(res) { if (res.error) return Promise.reject(res.error); return res.data; }));
+    }
+    return Promise.all(ops);
   }
 
-  // Public: plain non-PII field write (e.g. { paymentMethod: 'cashapp' } /
-  // { payment_method: 'cashapp' }). NOT accept-once — always overwrites.
+  // Public: Screen-2 non-PII write — DUAL-DRIVE. Firestore PRIMARY runs
+  // UNCONDITIONALLY (byte-identical to today's _fsUpsertMerge; it may re-stamp
+  // on an edit re-save — pre-existing Firestore behavior, out of scope). The
+  // returned Promise is the Firestore primary. The Supabase mirror runs
+  // ADDITIONALLY only when the users flag is 'supabase', after the primary
+  // resolves, split per _sbMirrorNonPii; its failure is NON-FATAL (logged,
+  // never rejects).
   function upsertNonPiiFields(uid, fields) {
-    return _writeSrc('users') === 'supabase' ? _sbUpsertMerge(uid, fields) : _fsUpsertMerge(uid, fields);
+    var primary = _fsUpsertMerge(uid, fields);
+    if (_writeSrc('users') === 'supabase') {
+      primary.then(function() {
+        return _sbMirrorNonPii(uid, fields);
+      }).catch(function(err) {
+        console.warn('[bp2-write] supabase mirror failed', err);
+      });
+    }
+    return primary;
   }
 
   // ══════════════════════════════════════════════════════════════════
