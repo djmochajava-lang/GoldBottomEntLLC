@@ -179,8 +179,7 @@
           if (user && db) {
             var sigEmail = user.email || '';
             var sigName = user.displayName || sigEmail.split('@')[0] || '';
-            db.collection('users').doc(user.uid).update({
-              confidentialityAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            BP2Write.acceptConfidentiality(user.uid, {
               confidentialitySignature: {
                 name: sigName,
                 email: sigEmail,
@@ -646,7 +645,7 @@
           // 1) write non-PII fields to the cache; 2) send PII to the encrypt-pii
           // Edge Function. Both must resolve; PII failure surfaces as a save error.
           Promise.all([
-            db.collection('users').doc(uid).update(nonPiiUpdate),
+            BP2Write.upsertNonPiiFields(uid, nonPiiUpdate),
             _encryptPiiServerSide(uid, piiFields).then(function(ok) {
               if (!ok) throw new Error('PII encryption service unavailable');
               return true;
