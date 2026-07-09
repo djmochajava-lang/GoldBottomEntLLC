@@ -207,8 +207,8 @@
     // the legacy firebase default it returns the firebase serverTimestamp()
     // sentinel — byte-identical to the prior behavior. Falls back to the raw
     // firebase sentinel if Auth is unavailable.
-    payload[field] = (global.Auth && typeof global.Auth._serverTimestamp === 'function')
-      ? global.Auth._serverTimestamp()
+    payload[field] = (typeof Auth !== 'undefined' && typeof Auth._serverTimestamp === 'function')
+      ? Auth._serverTimestamp()
       : firebase.firestore.FieldValue.serverTimestamp();
     return db.collection('users').doc(uid).update(payload);
   }

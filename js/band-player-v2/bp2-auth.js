@@ -726,7 +726,7 @@
           // No plaintext PII is ever put in the .update() payload.
           var nonPiiUpdate = {
             paymentMethod: methodVal, // method LABEL only (e.g. "cashapp") — not sensitive
-            paymentSetupAt: firebase.firestore.FieldValue.serverTimestamp()
+            paymentSetupAt: Auth._serverTimestamp()
           };
 
           var piiFields = {
@@ -741,9 +741,9 @@
           if (agreeCb && agreeCb.checked) {
             var _sigUser = (global.Auth && global.Auth.currentUser && global.Auth.currentUser())
               || (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) || {};
-            nonPiiUpdate.houseBandAgreedAt = firebase.firestore.FieldValue.serverTimestamp();
+            nonPiiUpdate.houseBandAgreedAt = Auth._serverTimestamp();
             nonPiiUpdate.houseBandAgreedVersion = AGREEMENT_VERSION;
-            nonPiiUpdate.freelanceAgreementAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
+            nonPiiUpdate.freelanceAgreementAcceptedAt = Auth._serverTimestamp();
             // Signature carries name + email (PII) — encrypt it server-side, not plaintext in the cache.
             piiFields.signature = JSON.stringify({
               name: nameVal,
