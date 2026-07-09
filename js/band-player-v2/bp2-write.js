@@ -201,7 +201,15 @@
     var db = _db();
     if (!db || !uid || !field) return Promise.reject(new Error('bp2-write: missing db/uid/field'));
     var payload = Object.assign({}, extra || {});
-    payload[field] = firebase.firestore.FieldValue.serverTimestamp();
+    // Backend-aware timestamp: under Supabase (GBE_AUTH_SOURCE==='supabase')
+    // Auth._serverTimestamp() returns an ISO string that the Supabase DB adapter
+    // can write into the confidentiality_accepted_at timestamptz column; under
+    // the legacy firebase default it returns the firebase serverTimestamp()
+    // sentinel — byte-identical to the prior behavior. Falls back to the raw
+    // firebase sentinel if Auth is unavailable.
+    payload[field] = (global.Auth && typeof global.Auth._serverTimestamp === 'function')
+      ? global.Auth._serverTimestamp()
+      : firebase.firestore.FieldValue.serverTimestamp();
     return db.collection('users').doc(uid).update(payload);
   }
 
