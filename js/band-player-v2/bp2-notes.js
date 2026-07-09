@@ -74,7 +74,7 @@
                   songTitle: song.title,
                   notes: notes,
                   flagged: flag,
-                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                  updatedAt: Auth._serverTimestamp()
                 }, { merge: true }).then(function() {
                   if (typeof Modal !== 'undefined') Modal.close();
                   if (typeof Toast !== 'undefined') Toast.success('Notes saved!');

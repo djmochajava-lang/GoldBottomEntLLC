@@ -449,7 +449,7 @@
             venueName: document.getElementById('ev-venue').value.trim(),
             maxCapacity: parseInt(document.getElementById('ev-cap').value) || null,
             description: document.getElementById('ev-desc').value.trim(),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            updatedAt: Auth._serverTimestamp()
           };
           if (!data.eventName || !data.eventDate) { Toast.error('Name and date are required'); return; }
           var promise;
@@ -458,7 +458,7 @@
           } else {
             data.status = 'draft';
             data.tiers = [];
-            data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            data.createdAt = Auth._serverTimestamp();
             data.createdBy = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'unknown';
             promise = eventsRef.doc(genId()).set(data);
           }
@@ -483,7 +483,7 @@
     var newStatus = currentStatus === 'published' ? 'draft' : 'published';
     eventsRef.doc(id).update({
       status: newStatus,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      updatedAt: Auth._serverTimestamp()
     }).then(function() {
       Toast.success(newStatus === 'published' ? 'Event published' : 'Event unpublished');
       loadEvents();
@@ -582,7 +582,7 @@
 
           eventsRef.doc(eventId).update({
             tiers: tiers,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            updatedAt: Auth._serverTimestamp()
           }).then(function() {
             Modal.close();
             Toast.success(isEdit ? 'Tier updated' : 'Tier added');
@@ -612,7 +612,7 @@
       var tiers = ev ? (ev.tiers || []).filter(function(t) { return t.id !== tierId; }) : [];
       eventsRef.doc(eventId).update({
         tiers: tiers,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: Auth._serverTimestamp()
       }).then(function() {
         Toast.success('Tier deleted');
         if (ev) ev.tiers = tiers;

@@ -691,12 +691,12 @@
           roster_tier: 'on_call',
           activity: 'inactive',
           needsWelcomeEmail: true,
-          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+          approvedAt: Auth._serverTimestamp()
         });
         if (logEntry && logEntry.status !== 'onboarded') {
           await fdb.collection('musicians-log').doc(logId).update({
             status: 'onboarded',
-            onboarded_at: firebase.firestore.FieldValue.serverTimestamp()
+            onboarded_at: Auth._serverTimestamp()
           });
         }
         if (typeof Toast !== 'undefined') Toast.success(name + ' approved — welcome email queued.');
@@ -736,7 +736,7 @@
           roster_tier: 'on_call',
           activity: 'inactive',
           needsWelcomeEmail: true,
-          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+          approvedAt: Auth._serverTimestamp()
         });
         if (typeof Toast !== 'undefined') Toast.success(name + ' approved — welcome email queued.');
       } catch (e) {
@@ -762,7 +762,7 @@
       try {
         await fdb.collection('users').doc(uid).update({
           status: 'denied',
-          deniedAt: firebase.firestore.FieldValue.serverTimestamp()
+          deniedAt: Auth._serverTimestamp()
         });
         if (typeof Toast !== 'undefined') Toast.success(name + ' denied.');
       } catch (e) {
@@ -951,12 +951,12 @@
         musiciansLogId: id,
         createdBy: (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'unknown',
         createdByName: (typeof Auth !== 'undefined' && Auth._user) ? (Auth._user.displayName || Auth._user.email) : 'Band Manager',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: Auth._serverTimestamp()
       });
 
       await fdb.collection('musicians-log').doc(id).update({
         status: 'invite_sent',
-        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        updated_at: Auth._serverTimestamp()
       });
       m.status = 'invite_sent';
       renderCards();
@@ -1143,14 +1143,14 @@
         session_id: sessionDoc.id,
         musician_log_id: id,
         queued_by: (typeof Auth !== 'undefined' && Auth._user) ? (Auth._user.displayName || Auth._user.email || 'unknown') : 'unknown',
-        created_at: firebase.firestore.FieldValue.serverTimestamp()
+        created_at: Auth._serverTimestamp()
       });
 
       // Update musicians-log status
       await fdb.collection('musicians-log').doc(id).update({
         status: 'invite_sent',
         last_session_invite: sessionDoc.id,
-        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        updated_at: Auth._serverTimestamp()
       });
       m.status = 'invite_sent';
       renderCards();
@@ -1205,7 +1205,7 @@
       full_name_enc: fullNameEnc,
       email_enc: emailEnc,
       phone_enc: phoneEnc,
-      updated_at: firebase.firestore.FieldValue.serverTimestamp()
+      updated_at: Auth._serverTimestamp()
     };
 
     try {
@@ -1213,7 +1213,7 @@
         await fdb.collection('musicians-log').doc(_editId).update(docData);
         if (typeof Toast !== 'undefined') Toast.success('Musician updated.');
       } else {
-        docData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        docData.created_at = Auth._serverTimestamp();
         docData.created_by = createdBy;
         await fdb.collection('musicians-log').add(docData);
         if (typeof Toast !== 'undefined') Toast.success('Musician added.');

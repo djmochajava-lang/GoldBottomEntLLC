@@ -199,7 +199,7 @@
   window._portalAccept = async function(assignmentId, sessionId) {
     try {
       var batch = fdb.batch();
-      var now = firebase.firestore.FieldValue.serverTimestamp();
+      var now = Auth._serverTimestamp();
 
       // Update assignment
       batch.update(fdb.collection('session-assignments').doc(assignmentId), {
@@ -226,7 +226,7 @@
     try {
       await fdb.collection('session-assignments').doc(assignmentId).update({
         status: 'declined',
-        responded_at: firebase.firestore.FieldValue.serverTimestamp()
+        responded_at: Auth._serverTimestamp()
       });
       if (typeof Toast !== 'undefined') Toast.info('Session declined.');
       await loadPortal();

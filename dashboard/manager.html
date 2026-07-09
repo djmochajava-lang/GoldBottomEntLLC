@@ -219,7 +219,7 @@
           targets.forEach(function(ref) {
             batch.update(ref, {
               needsPlaylistUpdateEmail: true,
-              playlistUpdateQueuedAt: firebase.firestore.FieldValue.serverTimestamp()
+              playlistUpdateQueuedAt: Auth._serverTimestamp()
             });
           });
           return batch.commit().then(function() {
@@ -372,7 +372,7 @@
               status: 'denied',
               role: 'guest',
               needsWelcomeEmail: false,
-              deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              deniedAt: Auth._serverTimestamp(),
               denyReason: 'guest'
             };
           } else {
@@ -386,7 +386,7 @@
               status: 'approved',
               role: picked,
               needsWelcomeEmail: true,
-              approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+              approvedAt: Auth._serverTimestamp()
             };
             if (instrumentFromNote && (picked === 'band_member' || picked === 'singer')) {
               payload.instrument = instrumentFromNote;
@@ -428,7 +428,7 @@
         Auth._db.collection('users').doc(uid).update({
           status: 'denied',
           role: 'member',
-          deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          deniedAt: Auth._serverTimestamp(),
           denyReason: 'blocked'
         }).then(function() {
           if (typeof Toast !== 'undefined') Toast.success(name + ' blocked.');
@@ -813,7 +813,7 @@
         status: 'queued',
         createdBy: Auth._user ? Auth._user.uid : 'unknown',
         createdByName: Auth._user ? (Auth._user.displayName || Auth._user.email) : 'Band Manager',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: Auth._serverTimestamp()
       }).then(function(docRef) {
         if (typeof Toast !== 'undefined') Toast.success('Band Page invitation sent to ' + emailLower);
         console.log('[Manager] Invitation queued:', docRef.id, 'for', emailLower);

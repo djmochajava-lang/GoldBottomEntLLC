@@ -98,8 +98,8 @@
               charts: null,
               duration: null,
               createdBy: c.getUser() ? c.getUser().uid : 'pin',
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              createdAt: Auth._serverTimestamp(),
+              updatedAt: Auth._serverTimestamp()
             };
             db.collection('songs').doc(songId).set(songData).then(function() {
               if (progBar) progBar.style.width = '100%';

@@ -318,7 +318,7 @@
                 venue: val('agr-venue') || ''
               },
               status: 'sent',
-              sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+              sentAt: Auth._serverTimestamp(),
               signedAt: null,
               signatureData: null
             };
@@ -342,7 +342,7 @@
                   + '<p>Thank you,<br/>Gold Bottom Ent. LLC</p>',
                 text: 'Hi ' + (musician.name || 'Musician') + ', you have a new agreement to sign: ' + (agrTitle || '') + '. Sign here: ' + signingLink,
                 status: 'pending',
-                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                created_at: Auth._serverTimestamp(),
                 source: 'agreements-dashboard',
                 agreementId: ref.id
               }).then(function() {
@@ -383,7 +383,7 @@
             return;
           }
           db.collection('agreements').doc(agrId).update({
-            countersignedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            countersignedAt: Auth._serverTimestamp(),
             countersignatureData: {
               type: 'typed',
               value: name,

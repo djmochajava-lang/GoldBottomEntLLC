@@ -275,7 +275,7 @@
           await fdb.collection('users').doc(uid).update({
             roster_tier: 'alumni',
             activity: 'inactive',
-            offboarded_at: firebase.firestore.FieldValue.serverTimestamp(),
+            offboarded_at: Auth._serverTimestamp(),
             offboard_reason: reason,
             offboard_notes: notes || ''
           });
@@ -394,7 +394,7 @@
       if (data.status === 'onboarded') return;
       await doc.ref.update({
         status: 'onboarded',
-        onboarded_at: firebase.firestore.FieldValue.serverTimestamp()
+        onboarded_at: Auth._serverTimestamp()
       });
     } catch (e) {
       console.warn('[Band Roster] Could not sync musicians-log:', e.message);
@@ -415,7 +415,7 @@
           roster_tier: 'on_call',
           activity: 'inactive',
           needsWelcomeEmail: true,
-          approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+          approvedAt: Auth._serverTimestamp()
         });
         if (rec.email) syncLogToOnboarded(rec.email);
         // Optimistic UI: /roster cache will include this member after next server sync (~5 min).
@@ -476,10 +476,10 @@
       await fdb.collection('users').doc(uid).update({
         roster_tier: 'on_call',
         activity: 'inactive',
-        reinstated_at: firebase.firestore.FieldValue.serverTimestamp(),
-        offboarded_at: firebase.firestore.FieldValue.delete(),
-        offboard_reason: firebase.firestore.FieldValue.delete(),
-        offboard_notes: firebase.firestore.FieldValue.delete()
+        reinstated_at: Auth._serverTimestamp(),
+        offboarded_at: null,
+        offboard_reason: null,
+        offboard_notes: null
       });
       // Optimistic UI: /roster cache republishes on next server sync (~5 min).
       var idx = _roster.findIndex(function(m){ return m.uid === uid; });

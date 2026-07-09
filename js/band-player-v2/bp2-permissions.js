@@ -62,7 +62,7 @@
                   accessLevel: document.getElementById('bp2-perm-level').value,
                   downloadPolicy: document.getElementById('bp2-perm-download').value,
                   chartsAccess: document.getElementById('bp2-perm-charts').value,
-                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                  updatedAt: Auth._serverTimestamp()
                 };
                 c.getDb().collection('playlist-permissions').doc(pl.id).set(data, { merge: true }).then(function() {
                   c.getDb().collection('playlists').doc(pl.id).update({ downloadPolicy: data.downloadPolicy });

@@ -427,7 +427,7 @@
 
     db.collection('agreements').doc(agreementId).update({
       status: 'signed',
-      signedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      signedAt: Auth._serverTimestamp(),
       signatureData: signatureData
     })
     .then(function() {

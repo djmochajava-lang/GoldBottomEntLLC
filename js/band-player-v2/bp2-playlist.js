@@ -380,8 +380,8 @@
         songOrder: [],
         gigId: gigId || null,
         createdBy: user ? user.uid : 'pin',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: Auth._serverTimestamp(),
+        updatedAt: Auth._serverTimestamp()
       };
 
       return db.collection('playlists').add(plData).then(function(ref) {
@@ -419,7 +419,7 @@
       c.getDb().collection('playlists').doc(pl.id).update({
         sets: sets,
         songOrder: flatOrder,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: Auth._serverTimestamp()
       }).then(function() {
         pl.songOrder = flatOrder;
         var songMap = c.ref('allSongsMap');
@@ -466,7 +466,7 @@
       c.getDb().collection('playlists').doc(pl.id).update({
         sets: sets,
         songOrder: flatOrder,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: Auth._serverTimestamp()
       }).then(function() {
         pl.songOrder = flatOrder;
         // Only update the live tracklist if adding to the currently viewed playlist
@@ -517,7 +517,7 @@
             batch.set(permRef, {
               user_uid: uid,
               playlist_id: pl.id,
-              granted_at: firebase.firestore.FieldValue.serverTimestamp(),
+              granted_at: Auth._serverTimestamp(),
               granted_by: 'system_onboarding'
             });
           });

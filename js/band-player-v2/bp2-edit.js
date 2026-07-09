@@ -69,7 +69,7 @@
         c.getDb().collection('playlists').doc(pl.id).update({
           sets: sets,
           songOrder: flatOrder,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          updatedAt: Auth._serverTimestamp()
         }).then(function() {
           pl.songOrder = flatOrder;
           if (typeof Toast !== 'undefined') Toast.success('Arrangement saved');

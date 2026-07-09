@@ -419,7 +419,7 @@
       title: (song && song.title) || '',
       requestedBy: uid,
       requestedByRole: role,
-      requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+      requestedAt: Auth._serverTimestamp()
     });
   }
 

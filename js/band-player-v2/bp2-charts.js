@@ -184,7 +184,7 @@
           reviewedBy: user.uid,
           reviewerName: user.displayName || user.email || '',
           reviewerRole: role,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          updatedAt: Auth._serverTimestamp()
         }, { merge: true });
       }).then(function() {
         if (typeof Toast !== 'undefined') Toast.success(instrument + ' chart ' + (status === 'approved' ? 'approved' : 'flagged'));
@@ -243,7 +243,7 @@
               instrument: instrument,
               status: 'pending',
               version: newVersion,
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              updatedAt: Auth._serverTimestamp()
             }, { merge: true });
           });
         }).then(function() {

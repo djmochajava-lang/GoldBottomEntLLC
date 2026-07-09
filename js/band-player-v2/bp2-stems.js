@@ -157,7 +157,7 @@
         title: song.title || '',
         requestedBy: uid,
         requestedByRole: role,
-        requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+        requestedAt: Auth._serverTimestamp()
       }).then(function() {
         statuses[songId] = { status: 'queued' };
         c.emit('render:tracklist');

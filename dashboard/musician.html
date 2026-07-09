@@ -224,7 +224,7 @@
   window._musAccept = async function(assignmentId, sessionId) {
     try {
       var batch = fdb.batch();
-      var now = firebase.firestore.FieldValue.serverTimestamp();
+      var now = Auth._serverTimestamp();
       batch.update(fdb.collection('session-assignments').doc(assignmentId), { status:'accepted', responded_at:now });
       var notifSnap = await fdb.collection('notifications').doc(_uid).collection('items')
         .where('session_id','==',sessionId).where('status','==','unread').get();
@@ -240,7 +240,7 @@
   window._musDecline = async function(assignmentId) {
     try {
       await fdb.collection('session-assignments').doc(assignmentId).update({
-        status:'declined', responded_at:firebase.firestore.FieldValue.serverTimestamp()
+        status:'declined', responded_at:Auth._serverTimestamp()
       });
       if (typeof Toast !== 'undefined') Toast.info('Session declined.');
       await loadFirestoreData();

@@ -135,7 +135,7 @@
       progress: Math.round(progress * 100) / 100,
       listenedSeconds: Math.round(_audio.currentTime || 0),
       duration: Math.round(_audio.duration || 0),
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      timestamp: Auth._serverTimestamp()
     }).catch(function(err) {
       console.warn('[BP2Player] Playback log failed:', err.message);
     });

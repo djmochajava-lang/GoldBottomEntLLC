@@ -322,7 +322,7 @@
       address: document.getElementById('sess-address').value.trim(),
       notes: document.getElementById('sess-notes').value.trim(),
       type_specific_data: getTypeSpecificData(),
-      updated_at: firebase.firestore.FieldValue.serverTimestamp()
+      updated_at: Auth._serverTimestamp()
     };
 
     try {
@@ -330,7 +330,7 @@
         await fdb.collection('sessions').doc(_editId).update(docData);
         if (typeof Toast !== 'undefined') Toast.success('Session updated.');
       } else {
-        docData.created_at = firebase.firestore.FieldValue.serverTimestamp();
+        docData.created_at = Auth._serverTimestamp();
         docData.created_by = currentUser ? (currentUser.displayName || currentUser.email || currentUser.uid) : 'unknown';
         await fdb.collection('sessions').add(docData);
         if (typeof Toast !== 'undefined') Toast.success('Session created.');

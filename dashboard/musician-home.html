@@ -717,7 +717,7 @@
       travelReady: travel ? travel.checked : false,
       selfRating: rating ? parseInt(rating.value, 10) : 3,
       notes: notes ? notes.value.trim() : '',
-      submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+      submittedAt: Auth._serverTimestamp()
     };
 
     // Use deterministic doc ID (one checkpoint per musician per gig)
