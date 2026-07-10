@@ -471,14 +471,27 @@
     return db.collection('playlists').doc(playlistId).update(fields);
   }
 
-  // Supabase impl — a scoped/partial UPDATE on the songs/playlists
-  // catalog table (PLANB-1-shipped, ALTER not CREATE, songOrder-sacred
-  // certified). Named-field payload only, mirrored 1:1 from the caller —
-  // NEVER a raw_doc/blob replace (Condition D).
+  // Supabase impl — arrangement (sets + songOrder) update via the
+  // Data-Steward RPC bp2_update_playlist_arrangement (SECURITY INVOKER,
+  // EXECUTE authenticated-only). CORRECTED (STORY C, CTO
+  // CRITICAL_FINDING_playlist_writeshim_wrong 2026-07-09): the prior impl
+  // did sb.from('playlists').update({sets,songOrder,updatedAt}) as TOP-LEVEL
+  // columns, but the READER (bp2-data.js _normalize) reads sets/songOrder
+  // FROM raw_doc — so those top-level writes were either 42703 (no such
+  // column) or INVISIBLE to the reader. The RPC does jsonb_set on ONLY
+  // raw_doc.sets + raw_doc.songOrder (+raw_doc.updatedAt) and keeps the typed
+  // sets/song_order cols in sync, writing p_song_order VERBATIM (no reorder,
+  // no dedupe — Condition D, A&R songOrder-sacred). updatedAt is handled
+  // INSIDE the RPC, so it is dropped from the client call. Named-field
+  // arrangement payload only — NEVER a raw_doc/blob replace.
   function _sbUpdatePlaylistFields(playlistId, fields) {
     var sb = _supabase();
     if (!sb || !playlistId || !fields) return Promise.reject(new Error('bp2-write: missing supabase client/playlistId/fields'));
-    return sb.from('playlists').update(fields).eq('id', playlistId).then(function(res) {
+    return sb.rpc('bp2_update_playlist_arrangement', {
+      p_id: playlistId,
+      p_sets: fields.sets,
+      p_song_order: fields.songOrder
+    }).then(function(res) {
       if (res.error) return Promise.reject(res.error);
       return res.data;
     });
