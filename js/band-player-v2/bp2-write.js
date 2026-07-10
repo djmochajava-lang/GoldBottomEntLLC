@@ -507,6 +507,114 @@
       : _fsUpdatePlaylistFields(playlistId, fields);
   }
 
+  // ── Playlist CREATE (STORY-D2) ───────────────
+  // Switch-style (Supabase-sole on the _sb leg — no _fs mirror; Firestore
+  // is 403-dead once flipped). _fs leg is byte-identical to the live call
+  // site's db.collection('playlists').add(plData) and returns the same
+  // { id } ref shape; _sb leg supplies a client-side id so the caller's
+  // ref.id keeps working identically.
+  function _fsCreatePlaylist(plData) {
+    var db = _db();
+    if (!db || !plData) return Promise.reject(new Error('bp2-write: missing db/plData'));
+    // Returns a Firestore DocumentReference whose .id the caller reads —
+    // byte-identical to the pre-shim db.collection('playlists').add(plData).
+    return db.collection('playlists').add(plData);
+  }
+
+  // Client-supplied id (playlists.id is text). crypto.randomUUID() when
+  // available; a Firestore-style 20-char alphanumeric fallback otherwise.
+  function _newPlaylistId() {
+    if (global.crypto && typeof global.crypto.randomUUID === 'function') {
+      return global.crypto.randomUUID();
+    }
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var id = '';
+    for (var i = 0; i < 20; i++) id += chars.charAt(Math.floor(Math.random() * chars.length));
+    return id;
+  }
+
+  // Supabase impl — the client supplies the id; the D1 RPC bp2_create_playlist
+  // writes the FULL doc into raw_doc (the adapter's generic .add() drops
+  // raw_doc for non-users tables, which is why the create was broken pre-shim).
+  // Resolves { id } so the caller's ref.id path is unchanged.
+  function _sbCreatePlaylist(plData) {
+    var sb = _supabase();
+    if (!sb || !plData) return Promise.reject(new Error('bp2-write: missing supabase client/plData'));
+    var id = _newPlaylistId();
+    return sb.rpc('bp2_create_playlist', {
+      p_id: id,
+      p_raw_doc: plData
+    }).then(function(res) {
+      if (res.error) return Promise.reject(res.error);
+      return { id: id };
+    });
+  }
+
+  // Public: create a new playlist. gigId is accepted for signature parity
+  // with the call site but the gig-link stays in the caller (it uses the
+  // returned ref.id). Both legs resolve { id }.
+  function createPlaylist(plData, gigId) {
+    return _writeSrc('playlists') === 'supabase'
+      ? _sbCreatePlaylist(plData)
+      : _fsCreatePlaylist(plData);
+  }
+
+  // ── Playlist download-policy update (STORY-D2) ───
+  // Switch-style. Single scoped field (downloadPolicy) — never a blob replace.
+  function _fsUpdatePlaylistDownloadPolicy(playlistId, policy) {
+    var db = _db();
+    if (!db || !playlistId) return Promise.reject(new Error('bp2-write: missing db/playlistId'));
+    return db.collection('playlists').doc(playlistId).update({ downloadPolicy: policy });
+  }
+
+  // Supabase impl — D1 RPC jsonb_sets raw_doc.downloadPolicy (+ typed col).
+  function _sbUpdatePlaylistDownloadPolicy(playlistId, policy) {
+    var sb = _supabase();
+    if (!sb || !playlistId) return Promise.reject(new Error('bp2-write: missing supabase client/playlistId'));
+    return sb.rpc('bp2_update_playlist_download', {
+      p_id: playlistId,
+      p_download_policy: policy
+    }).then(function(res) {
+      if (res.error) return Promise.reject(res.error);
+      return res.data;
+    });
+  }
+
+  function updatePlaylistDownloadPolicy(playlistId, policy) {
+    return _writeSrc('playlists') === 'supabase'
+      ? _sbUpdatePlaylistDownloadPolicy(playlistId, policy)
+      : _fsUpdatePlaylistDownloadPolicy(playlistId, policy);
+  }
+
+  // ── Playlist-permissions upsert (STORY-D2) ───────
+  // Switch-style. The permissions doc is keyed by the playlist id. The caller
+  // builds the exact field-set (Condition D: songOrder-sacred — no ordering
+  // field is touched here; permissions carries no arrangement data).
+  function _fsUpsertPlaylistPermissions(playlistId, data) {
+    var db = _db();
+    if (!db || !playlistId || !data) return Promise.reject(new Error('bp2-write: missing db/playlistId/data'));
+    return db.collection('playlist-permissions').doc(playlistId).set(data, { merge: true });
+  }
+
+  // Supabase impl — D1 RPC upserts the playlist_permissions doc into raw_doc.
+  function _sbUpsertPlaylistPermissions(playlistId, data) {
+    var sb = _supabase();
+    if (!sb || !playlistId || !data) return Promise.reject(new Error('bp2-write: missing supabase client/playlistId/data'));
+    return sb.rpc('bp2_upsert_playlist_permissions', {
+      p_id: playlistId,
+      p_raw_doc: data
+    }).then(function(res) {
+      if (res.error) return Promise.reject(res.error);
+      return res.data;
+    });
+  }
+
+  function upsertPlaylistPermissions(playlistId, data) {
+    return _writeSrc('playlists') === 'supabase'
+      ? _sbUpsertPlaylistPermissions(playlistId, data)
+      : _fsUpsertPlaylistPermissions(playlistId, data);
+  }
+
   // ── Public API ───────────────────────────────
   var BP2Write = {
     // Ops 1–3 (accept-once timestamps, RPC-backed on Supabase)
@@ -519,7 +627,11 @@
     // Op 4 (stems request-trigger — new/re-queue request only)
     requestStems: requestStems,
     // Op 5 (playlist scoped-field update — named fields only, never a blob replace)
-    updatePlaylistFields: updatePlaylistFields
+    updatePlaylistFields: updatePlaylistFields,
+    // STORY-D2 (playlist create / download-policy / permissions upsert — switch-style)
+    createPlaylist: createPlaylist,
+    updatePlaylistDownloadPolicy: updatePlaylistDownloadPolicy,
+    upsertPlaylistPermissions: upsertPlaylistPermissions
   };
 
   if (typeof module !== 'undefined' && module.exports) {

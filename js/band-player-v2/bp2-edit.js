@@ -66,7 +66,7 @@
         var sets = pl.sets || [];
         var flatOrder = global.BP2Playlist ? global.BP2Playlist.setsToSongOrder(sets) : [];
 
-        c.getDb().collection('playlists').doc(pl.id).update({
+        BP2Write.updatePlaylistFields(pl.id, {
           sets: sets,
           songOrder: flatOrder,
           updatedAt: Auth._serverTimestamp()

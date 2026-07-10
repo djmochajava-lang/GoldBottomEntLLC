@@ -384,7 +384,7 @@
         updatedAt: Auth._serverTimestamp()
       };
 
-      return db.collection('playlists').add(plData).then(function(ref) {
+      return BP2Write.createPlaylist(plData, gigId).then(function(ref) {
         if (gigId) {
           db.collection('gigs').doc(gigId).update({ playlistId: ref.id }).catch(function() {});
         }
@@ -416,7 +416,7 @@
       var flatOrder = _setsToSongOrder(sets);
 
       var plName = pl.title || pl.name || 'playlist';
-      c.getDb().collection('playlists').doc(pl.id).update({
+      BP2Write.updatePlaylistFields(pl.id, {
         sets: sets,
         songOrder: flatOrder,
         updatedAt: Auth._serverTimestamp()
@@ -463,7 +463,7 @@
       var plName = pl.title || pl.name || 'playlist';
       var isCurrent = c.ref('currentPlaylist') && c.ref('currentPlaylist').id === playlistId;
 
-      c.getDb().collection('playlists').doc(pl.id).update({
+      BP2Write.updatePlaylistFields(pl.id, {
         sets: sets,
         songOrder: flatOrder,
         updatedAt: Auth._serverTimestamp()

@@ -64,8 +64,8 @@
                   chartsAccess: document.getElementById('bp2-perm-charts').value,
                   updatedAt: Auth._serverTimestamp()
                 };
-                c.getDb().collection('playlist-permissions').doc(pl.id).set(data, { merge: true }).then(function() {
-                  c.getDb().collection('playlists').doc(pl.id).update({ downloadPolicy: data.downloadPolicy });
+                BP2Write.upsertPlaylistPermissions(pl.id, data).then(function() {
+                  BP2Write.updatePlaylistDownloadPolicy(pl.id, data.downloadPolicy);
                   pl.downloadPolicy = data.downloadPolicy;
                   if (typeof Modal !== 'undefined') Modal.close();
                   if (typeof Toast !== 'undefined') Toast.success('Permissions saved!');

@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.10-0155.0bcc363';
+var GBE_BUILD = '2026.07.10-2203.d1238ae';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '93a8c9aa688430de12b8c01d94359a91c9262f52ffe8746a4555c1fecbe84d8d',
+  './js/build.js': '4f81ad4b63add3144809df54396da0fef02a137b7df9efc07da424674f91a85e',
   './js/config.js': '43b4228ecaf53e0a4e4920809eb2affcc24aeeb5c57b937b5b9b29e1c80cc2f2',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -53,7 +53,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-core.js': '0ce5888de38b8472dd81962b1507c99ba4dc8182ffa37c5872459f2887577000',
   './js/band-player-v2/bp2-data.js': '2dd944502ee0f5cd00fa11df3a3e0bd3499daf3598a8ddfaa8ba10ead29979a3',
   './js/band-player-v2/bp2-player.js': '88fb1c39038e7a203976afdfd40f881797fbc002a35c0e95890f4400a5d2709c',
-  './js/band-player-v2/bp2-playlist.js': '1d5d3caecdab012a75340ff7940e00902f134e6baea6454612b8377dd55fc9c3',
+  './js/band-player-v2/bp2-playlist.js': 'a71b295a3c39a7c21698cf3c6a3bc23c1577c513c823feb5050b96a66ed2ff78',
   './js/band-player-v2/bp2-render.js': '79b7bc8fdd6aa5dd8b28919cafc65970dcad54408439ed9dac8a11096b3526df',
   './js/band-player-v2/bp2-render-edit.js': 'e4b942ee7fd429ce5afae06e195285e3f08967808677eb36d8425290a6036302',
   './js/band-player-v2/bp2-render-stems.js': '42a4c2efcf8e3142585af89ee6702d6112a8cfaee4bc9ba54afd69ff7daf9b22',
@@ -66,8 +66,8 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-lyrics.js': '5ae039ad37a25542b33cf807f0f2ce7505f53a1573b031e732d2b110f6552cb5',
   './js/band-player-v2/bp2-notes.js': '9cf4487646d142ecd46fbb68b6857c6e841a3a007bef3226ee8ac2412ea771dc',
   './js/band-player-v2/bp2-upload.js': '5ac6364ba2705680eda68518d1ae61d5c97a0f0fd9bd75d01fe24777163137fd',
-  './js/band-player-v2/bp2-permissions.js': 'd468748f82f2d8901f0e7a4c47cfb73273e20616027143f5f27f27083afe3bc5',
-  './js/band-player-v2/bp2-edit.js': 'cfe037a64e4dc7be6b2d0e1f9207bf645848bca11d99c76a970ea9956dd9835c',
+  './js/band-player-v2/bp2-permissions.js': 'd02380492e38ccb60b502042e2f7758010e32ab003755a949e3f7250ee64d512',
+  './js/band-player-v2/bp2-edit.js': '1cb8f78ecee8da083ae7299479d78ba305e458276d77a2322896b9a38cf69ab8',
   './js/band-player-v2/bp2-integration.js': 'b716e69c02c94a86d12221e4ce70523463f849b899cf2d0946f6d83f6bef97a1',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
   './js/band-player-v2/bp2-auth.js': '029b9c33a6dc0b65b35b983b9c75ca998172e4d25c1cfd18c94e7c1c4b983855'
