@@ -10,15 +10,26 @@
      - bp2-render.js triggers via events
      - bp2-core.js calls init()
 
-   READ-SOURCE FLIP (PLANB-3-A, dark this story):
+   READ-SOURCE FLIP (PLANB-3-A):
      checkPendingRequests() and _pollStatus() read stem-request status. Both
-     now check window.BP2_READ_SOURCE.stem_requests (mirrors bp2-data.js's
-     _src() idiom exactly) — default/anything-but-'supabase' => the EXISTING
-     Firestore c.getDb().collection('stem-requests').doc(songId).get() path,
-     byte-unchanged. When 'supabase', reads the PLANB-2 dual-drive-mirrored
-     Supabase stem_requests table by song_id instead (stem-listener.js keeps
-     it fresh regardless of which side the client still WRITES through — the
-     write call below stays on Firestore, untouched, this story).
+     check window.BP2_READ_SOURCE.stem_requests (mirrors bp2-data.js's _src()
+     idiom exactly) — default/anything-but-'supabase' => the EXISTING adapter
+     c.getDb().collection('stem-requests').doc(songId).get() path; when
+     'supabase' (LIVE), reads the Supabase stem_requests table by song_id.
+
+   WRITE-SOURCE FLIP (STORY B — stem/playlist write-migration, 2026-07-10):
+     requestStems() no longer writes the stem-request doc inline. It routes the
+     REQUEST creation through the flag-aware write shim BP2Write.requestStems()
+     (CTO verdict_storyb_writeflip_reconciliation_2026_07_10 — switch-style, NOT
+     dual-drive: the client runs Supabase-only under GBE_AUTH_SOURCE='supabase'
+     because there is no real client Firestore leg — Auth._db is the Supabase
+     adapter). Under BP2_WRITE_SOURCE.stem_requests==='supabase' the shim does
+     the clean typed Supabase insert (_sbRequestStems: {song_id,status:'pending',
+     requested_by,updated_at}) which STORY A's server poller
+     (stem-requests-supabase-listener.js) picks up -> queueStemJob(); otherwise
+     it is the prior inline write byte-for-byte (_fsRequestStems). The timestamp
+     is stamped inside the shim via Auth._serverTimestamp() — NO raw Firebase
+     sentinel (incident guard).
    ============================================ */
 (function(global) {
   'use strict';
@@ -150,15 +161,23 @@
       statuses[songId] = { status: 'processing' };
       c.emit('render:tracklist');
 
-      c.getDb().collection('stem-requests').doc(songId).set({
-        status: 'pending',
-        songId: songId,
-        audioPath: song.audioPath,
-        title: song.title || '',
-        requestedBy: uid,
-        requestedByRole: role,
-        requestedAt: Auth._serverTimestamp()
-      }).then(function() {
+      // STORY B: route the stem REQUEST creation through the flag-aware write
+      // shim (BP2Write.requestStems) instead of the inline Firestore-shaped
+      // write. Defensive fallback to the exact prior inline write if BP2Write
+      // is somehow unavailable (byte-identical payload — zero behavior change).
+      var _writeReq = (global.BP2Write && global.BP2Write.requestStems)
+        ? global.BP2Write.requestStems(songId, song, uid, role)
+        : c.getDb().collection('stem-requests').doc(songId).set({
+            status: 'pending',
+            songId: songId,
+            audioPath: song.audioPath,
+            title: song.title || '',
+            requestedBy: uid,
+            requestedByRole: role,
+            requestedAt: Auth._serverTimestamp()
+          });
+
+      _writeReq.then(function() {
         statuses[songId] = { status: 'queued' };
         c.emit('render:tracklist');
         if (typeof Toast !== 'undefined') Toast.success('Stem request sent — processing will begin shortly');
