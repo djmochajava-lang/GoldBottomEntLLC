@@ -226,24 +226,6 @@ const Router = {
   },
 
   /**
-   * Safely check if firebase.auth().currentUser is non-null.
-   * Returns false if firebase is not yet initialized, not loaded, or currentUser is null.
-   * Used by the AuthCache optimistic path to prevent stale-cache renders when
-   * Firebase has not yet resolved the persisted session.
-   * @returns {boolean}
-   */
-  _firebaseUserAvailable: function() {
-    try {
-      return typeof firebase !== 'undefined' &&
-             firebase.auth &&
-             typeof firebase.auth === 'function' &&
-             firebase.auth().currentUser !== null;
-    } catch (e) {
-      return false;
-    }
-  },
-
-  /**
    * Detect vertical context from route name
    * @returns {'ent' | 'biz' | 'neutral'}
    */
@@ -347,22 +329,15 @@ const Router = {
     // remove this call and the _updateRobotsMeta method below.
     this._updateRobotsMeta(pageName);
 
-    // Auth guard — V2 optimistic path (AuthCache) or V1 blocking path (guardRoute)
+    // Auth guard. The old V2 "optimistic AuthCache fast path" was RETIRED in
+    // fbexit S9: it gated on the removed Firebase SDK's currentUser, so it has
+    // been unreachable since the SDK left in S7 (always fell through to the
+    // branches below — behavior here is unchanged). AuthCache.read() is kept
+    // for its side effect: it prunes an expired cache entry from localStorage.
     if (this.isDashboardRoute(pageName)) {
-      var _authCache = typeof AuthCache !== 'undefined' ? AuthCache.read() : null;
+      if (typeof AuthCache !== 'undefined') AuthCache.read();
 
-      if (_authCache && _authCache.authorized && this._firebaseUserAvailable()) {
-        // AuthCache says authorized AND Firebase confirms currentUser is non-null.
-        // Auth.guardRoute() is SKIPPED for cached users. Background verify
-        // will update the cache and emit 'gbe:auth-ready' if role changes.
-        // [perf] This is the FAST path: dashboard renders now, no Firebase wait.
-        if (typeof Perf !== 'undefined' && Perf.mark) {
-          Perf.mark('auth.cache.hit');
-          Perf.measure('auth.cache.hitToRender', 'boot.start', 'auth.cache.hit');
-        }
-        try { console.log('[perf] auth.path = CACHE-HIT (optimistic, instant render — no Firebase wait)'); } catch (e) {}
-        try { console.log('[perf] auth.cache.reconciled: firebase.currentUser present = true'); } catch (e) {}
-      } else if (typeof Auth !== 'undefined' && Auth.initialized && Auth.isAuthenticated && Auth.isAuthenticated()) {
+      if (typeof Auth !== 'undefined' && Auth.initialized && Auth.isAuthenticated && Auth.isAuthenticated()) {
         // Auth is live and says authenticated — proceed (and write cache for next time)
         if (typeof AuthCache !== 'undefined') {
           AuthCache.write({
@@ -374,9 +349,9 @@ const Router = {
         }
       } else if (typeof Auth !== 'undefined' && (Auth._initializing || !Auth.initialized)) {
         // Auth still initializing — show loading skeleton, don't block silently
-        // [perf] This is the SLOW path: blocked waiting on Firebase init + Firestore.
+        // [perf] This is the SLOW path: blocked waiting on auth init + role lookup.
         if (typeof Perf !== 'undefined' && Perf.mark) Perf.mark('auth.cache.miss');
-        try { console.log('[perf] auth.path = CACHE-MISS (blocking on Firebase init + Firestore role lookup)'); } catch (e) {}
+        try { console.log('[perf] auth.path = CACHE-MISS (blocking on auth init + role lookup)'); } catch (e) {}
         this._pendingDashboardRoute = pageName;
         var _targetLayout = this.getLayoutForPage(pageName);
         if (_targetLayout !== this.currentLayout) {

@@ -56,7 +56,7 @@ const Auth = {
   /** @type {string|null} Band member's instrument role (drums, guitar, keys, bass, vocals, etc.) */
   _instrument: null,
 
-  /** @type {Object|null} Firebase Storage instance */
+  /** @type {Object|null} Storage instance (legacy slot; unset post-fbexit) */
   _storage: null,
 
   /** @type {string|null} PIN session token (stored in localStorage) */
@@ -168,7 +168,7 @@ const Auth = {
             Auth._activeRole = 'admin';
             Auth._freezeRoles(); // Lock role properties against console tampering
 
-            // Still initialize Firestore so contact forms can write submissions
+            // Legacy no-op (fbexit S9): the old Firestore-only init is retired.
             Auth._initFirestoreOnly();
 
             Auth.initialized = true;
@@ -236,173 +236,19 @@ const Auth = {
   },
 
   /**
-   * Initialize Firebase Auth + Firestore with federated providers.
-   * This is the original init() logic, extracted so PIN session can bypass it.
+   * RETIRED (fbexit S9): the Firebase auth backend is gone — the client SDK
+   * was removed in S7 and production sets window.GBE_AUTH_SOURCE='supabase'
+   * (auth initializes in _initSupabase). This shell survives only because
+   * _initAuthBackend still calls it on the non-supabase branch; it degrades to
+   * "auth disabled" exactly like the old SDK-not-loaded guard did.
    * @private
    */
   _initFirebase: function() {
     if (this.initialized) return;
     this._initializing = true;
-
-    // Mark the body so CSS can dim sidebar nav and disable taps during the
-    // cold-cache auth bootstrap. Cleared by _hideAuthLoading() on the first
-    // onAuthStateChanged tick (whether signed in or signed out).
-    if (document.body) {
-      document.body.classList.add('auth-initializing');
-    } else {
-      document.addEventListener('DOMContentLoaded', function() {
-        if (Auth._initializing && !Auth.initialized) document.body.classList.add('auth-initializing');
-      });
-    }
-
-    // Cold-cache redirect path: signInWithRedirect causes a full page reload.
-    // If we have a pending redirect route in sessionStorage, surface a banner
-    // so the user knows sign-in is completing — otherwise the page just
-    // looks frozen for the duration of the bootstrap chain.
-    try {
-      var pendingRedirect = sessionStorage.getItem('gbe-auth-redirect-route');
-      if (pendingRedirect) this._showAuthBanner('Completing sign-in…');
-    } catch (e) { /* sessionStorage may be blocked */ }
-
-    // Check if Firebase SDK is loaded
-    if (typeof firebase === 'undefined') {
-      console.warn('[Auth] Firebase SDK not loaded — auth disabled');
-      // Still mark as initialized so guardRoute works (falls through to allow)
-      this._hideAuthLoading();
-      this.initialized = true;
-      return;
-    }
-
-    // Check feature flag
-    if (typeof SiteConfig !== 'undefined' &&
-        SiteConfig.features && !SiteConfig.features.enableAuth) {
-      console.log('[Auth] Auth disabled by feature flag');
-      this._hideAuthLoading();
-      this.initialized = true;
-      return;
-    }
-
-    // Get Firebase config
-    var config = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
-      ? SiteConfig.integrations.firebase
-      : null;
-
-    if (!config || !config.apiKey || config.apiKey === '[FIREBASE_API_KEY]') {
-      console.warn('[Auth] Firebase config not set — auth disabled');
-      console.log('[Auth] Add your Firebase credentials to config.js → integrations.firebase');
-      this._hideAuthLoading();
-      this.initialized = true;
-      return;
-    }
-
-    // Initialize Firebase app (idempotent)
-    try {
-      if (!firebase.apps.length) {
-        this._app = firebase.initializeApp({
-          apiKey: config.apiKey,
-          authDomain: config.authDomain,
-          projectId: config.projectId,
-          storageBucket: config.storageBucket,
-          messagingSenderId: config.messagingSenderId,
-          appId: config.appId
-        });
-      } else {
-        this._app = firebase.app();
-      }
-
-      this._auth = firebase.auth();
-
-      // Initialize Firestore
-      if (typeof firebase.firestore === 'function') {
-        this._db = firebase.firestore();
-        // Only enable offline persistence on LAN (home server) where airplane-mode
-        // access matters. On the public site (GitHub Pages), persistence causes
-        // heavy IndexedDB writes that block the main thread on mobile Safari,
-        // making menus and navigation unresponsive for 10-15 seconds.
-        if (this._serverUrl) {
-          this._db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-            if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-              console.warn('[Auth] Firestore offline persistence error:', err.code);
-            }
-          });
-        }
-        this._flushReadyCallbacks();
-        console.log('[Auth] Firestore connected' + (this._serverUrl ? ' (with offline persistence)' : ''));
-      } else {
-        console.warn('[Auth] Firestore SDK not loaded — registration disabled');
-      }
-
-      // Initialize Firebase Storage
-      if (typeof firebase.storage === 'function') {
-        this._storage = firebase.storage();
-        console.log('[Auth] Firebase Storage connected');
-      }
-
-      // Set up federated providers
-      // Google
-      var google = new firebase.auth.GoogleAuthProvider();
-      google.setCustomParameters({ prompt: 'select_account' });
-      this._providers.google = google;
-
-      // Apple
-      var apple = new firebase.auth.OAuthProvider('apple.com');
-      apple.addScope('email');
-      apple.addScope('name');
-      this._providers.apple = apple;
-
-      // Microsoft
-      var microsoft = new firebase.auth.OAuthProvider('microsoft.com');
-      microsoft.setCustomParameters({ prompt: 'select_account' });
-      this._providers.microsoft = microsoft;
-
-    } catch (error) {
-      console.error('[Auth] Firebase initialization failed:', error);
-      this._hideAuthLoading();
-      this.initialized = true;
-      return;
-    }
-
-    // Set persistence to LOCAL (survives browser restarts — Firebase default)
-    this._auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-    // Mark Firebase init complete — auth listeners are attached, providers ready.
-    if (typeof Perf !== 'undefined') Perf.mark('firebase.ready');
-
-    // Listen for auth state changes. The handler body is extracted into
-    // _handleAuthStateChange(user) so the Supabase branch (_initSupabase) can
-    // reuse it VERBATIM — only the event source and the user shape differ
-    // (the Supabase adapter normalizes user.uid / providerData / emailVerified).
-    this._auth.onAuthStateChanged(function(user) {
-      Auth._handleAuthStateChange(user);
-    });
-
-    // Handle redirect result (for mobile sign-in which uses signInWithRedirect).
-    // After redirect, the page reloads and getRedirectResult() resolves with the
-    // credential. onAuthStateChanged above will fire too, so we only need to
-    // catch errors here — the success path is handled by onAuthStateChanged.
-    // NOTE: Firebase-branch ONLY. The Supabase branch uses detectSessionInUrl +
-    // exchangeCodeForSession instead (wired in _initSupabase).
-    this._auth.getRedirectResult().then(function(result) {
-      try { console.log('[authdbg] getRedirectResult resolved user=' + (result && result.user ? result.user.uid.slice(0,6) + '…' : 'none')); } catch (e) {}
-    }).catch(function(error) {
-      try { console.log('[authdbg] getRedirectResult error code=' + (error && error.code) + ' msg=' + ((error && error.message)||'').slice(0,80)); } catch (e) {}
-      if (!error || !error.code) return;
-      var msg = error.message || '';
-      if (error.code === 'auth/popup-closed-by-user' ||
-          error.code === 'auth/missing-or-invalid-nonce' ||
-          msg.toLowerCase().indexOf('missing initial state') !== -1) {
-        console.warn('[Auth] Ignoring recoverable redirect-state error:', error.code);
-        try { sessionStorage.removeItem('gbe-auth-redirect-route'); } catch (e) {}
-        return;
-      }
-      console.warn('[Auth] Redirect sign-in error:', error.code, error.message);
-      if (error.code === 'auth/account-exists-with-different-credential') {
-        Auth._showLoginError('An account already exists with this email using a different sign-in method.');
-      }
-    });
-
+    console.warn('[Auth] Firebase auth backend retired (fbexit) — auth disabled');
+    this._hideAuthLoading();
     this.initialized = true;
-    console.log('[Auth] Firebase Auth initialized (Google, Apple, Microsoft, Email/Password + Firestore)');
   },
 
   /**
@@ -1291,62 +1137,25 @@ const Auth = {
   },
 
   /**
-   * Provider-agnostic "now" sentinel for write payloads. On the Firebase backend
-   * returns the real Firestore serverTimestamp() sentinel (unchanged behavior).
-   * On the Supabase backend returns an ISO-8601 string (Postgres timestamptz
-   * accepts it). Used everywhere the code previously inlined
-   * firebase.firestore.FieldValue.serverTimestamp().
+   * Provider-agnostic "now" value for write payloads: an ISO-8601 string
+   * (Postgres timestamptz accepts it directly). The legacy Firebase branch
+   * (Firestore serverTimestamp() sentinel) was retired in fbexit S9 — with the
+   * SDK gone the ISO leg was already the only reachable behavior on every flag.
    * @private
    */
   _serverTimestamp: function() {
-    var src = (typeof window !== 'undefined' && window.GBE_AUTH_SOURCE) || 'firebase';
-    if (src !== 'supabase' && typeof firebase !== 'undefined' &&
-        firebase.firestore && firebase.firestore.FieldValue) {
-      return firebase.firestore.FieldValue.serverTimestamp();
-    }
     return new Date().toISOString();
   },
 
   /**
-   * Initialize Firebase App + Firestore only (no auth providers or listeners).
-   * Used by PIN auth path so contact forms can still write to Firestore.
+   * RETIRED (fbexit S9): the PIN-path Firestore-only init is gone (client SDK
+   * removed in S7; Firestore backend retired). Kept as a no-op because the PIN
+   * auth path in init() still calls it — behavior-identical to the old
+   * typeof-firebase-undefined early return.
    * @private
    */
   _initFirestoreOnly: function() {
-    if (this._db) return; // Already initialized
-    if (typeof firebase === 'undefined') return;
-
-    var config = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
-      ? SiteConfig.integrations.firebase : null;
-    if (!config || !config.apiKey || config.apiKey === '[FIREBASE_API_KEY]') return;
-
-    try {
-      if (!firebase.apps.length) {
-        this._app = firebase.initializeApp({
-          apiKey: config.apiKey,
-          authDomain: config.authDomain,
-          projectId: config.projectId,
-          storageBucket: config.storageBucket,
-          messagingSenderId: config.messagingSenderId,
-          appId: config.appId
-        });
-      } else {
-        this._app = firebase.app();
-      }
-
-      if (typeof firebase.firestore === 'function') {
-        this._db = firebase.firestore();
-        // PIN path is always on LAN — safe to enable offline persistence
-        this._db.enablePersistence({ synchronizeTabs: true }).catch(function() {});
-        this._flushReadyCallbacks();
-        console.log('[Auth] Firestore connected (PIN auth path, with offline persistence)');
-      }
-      if (typeof firebase.storage === 'function') {
-        this._storage = firebase.storage();
-      }
-    } catch (e) {
-      console.warn('[Auth] Firestore init failed in PIN path:', e);
-    }
+    // Intentional no-op (see doc above).
   },
 
   /* ------------------------------------------
@@ -1964,16 +1773,13 @@ const Auth = {
   },
 
   /**
-   * Get Firebase Storage instance.
+   * Get the storage instance (always null post-fbexit unless a backend adapter
+   * sets Auth._storage). The legacy lazy firebase.storage() init was retired in
+   * fbexit S9 — band-player media is on Supabase Storage wired through BP2Core,
+   * and every caller already tolerates null.
    * @returns {Object|null}
    */
   getStorage: function() {
-    // Storage SDK is lazy-loaded (with the bp2 bundle), so it isn't available at
-    // Auth.init(). Lazily initialize firebase.storage() the first time it's actually
-    // needed (band player / payment-settings), once the SDK has loaded.
-    if (!this._storage && typeof firebase !== 'undefined' && typeof firebase.storage === 'function') {
-      try { this._storage = firebase.storage(); } catch (e) { /* not ready yet */ }
-    }
     return this._storage || null;
   },
 
@@ -2526,31 +2332,16 @@ const Auth = {
         if (window.history.replaceState) {
           window.history.replaceState(null, '', window.location.pathname + window.location.hash);
         }
-        // DARK FLAG: on the Supabase backend, route auto-login through the same
-        // adapter as a normal Google sign-in (one signInWithOAuth/PKCE redirect).
-        // Default 'firebase' keeps the verbatim Firebase popup→redirect mirror.
+        // Auto-login routes through the Supabase adapter (signInWithOAuth/PKCE)
+        // exactly like a normal Google sign-in. The legacy Firebase
+        // popup→redirect mirror was retired in fbexit S9; on any non-supabase
+        // flag value we now fall through to the normal login modal — the same
+        // outcome as the old dead leg (SDK gone => its guard never passed).
         var _autoSrc = (typeof window !== 'undefined' && window.GBE_AUTH_SOURCE) || 'firebase';
         if (_autoSrc === 'supabase') {
           Auth.loginWithProvider('google').catch(function(err) {
             console.error('[Auth] Auto-login (supabase) failed:', err && err.message);
             Auth.showLoginModal();
-          });
-          return;
-        }
-        // Trigger Google sign-in directly (Firebase path)
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-          var provider = new firebase.auth.GoogleAuthProvider();
-          // Try popup for auto-login; fall back to redirect if blocked
-          firebase.auth().signInWithPopup(provider).catch(function(err) {
-            if (err.code === 'auth/network-request-failed' ||
-                err.code === 'auth/internal-error') {
-              try { sessionStorage.setItem('gbe-auth-redirect-route', 'dashboard-home'); } catch (e) {}
-              try { localStorage.setItem('gbe-pending-redirect', '1'); } catch(e) {}
-              firebase.auth().signInWithRedirect(provider);
-            } else if (err.code !== 'auth/popup-closed-by-user') {
-              console.error('[Auth] Auto-login failed:', err.code);
-              Auth.showLoginModal();
-            }
           });
           return;
         }

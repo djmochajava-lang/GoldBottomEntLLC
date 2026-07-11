@@ -739,8 +739,7 @@
           // Only set agreement timestamp + signature if not already set
           var agreeCb = document.getElementById('bp2-s2-agree-cb');
           if (agreeCb && agreeCb.checked) {
-            var _sigUser = (global.Auth && global.Auth.currentUser && global.Auth.currentUser())
-              || (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) || {};
+            var _sigUser = (global.Auth && global.Auth.currentUser && global.Auth.currentUser()) || {};
             nonPiiUpdate.houseBandAgreedAt = Auth._serverTimestamp();
             nonPiiUpdate.houseBandAgreedVersion = AGREEMENT_VERSION;
             nonPiiUpdate.freelanceAgreementAcceptedAt = Auth._serverTimestamp();

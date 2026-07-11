@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.11-0035.de98695';
+var GBE_BUILD = '2026.07.11-0350.0654516';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,16 +25,16 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '8e5e9bd57c203ead87677bd93f6ed11f77ecef2d809ddaa66a537bdde8e64370',
+  './js/build.js': '075e86a880d0e937d9fc89b3c9b78e65c9ad48dfde625ac23fb9aaad102ae299',
   './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
   './js/toast.js': '74bfec8e52dbd0cc437b09851756f642d268ba21c2b28cd3563c3ca703f146f4',
   './js/modal.js': 'fd60926db530a6855a03a486b48500a4463808bfae140a592cc86cffcc8b006b',
-  './js/auth.js': '3845bd49f1a12ec442a905ef935108d9464f03359e1870483dbcc0e5b081eefe',
+  './js/auth.js': 'f1c6992ca3d5cf81aea59d1d61fa92c850b5f9a2c388c0a115903a90fb2a1e5b',
   './js/page-loader.js': '4dbe80f06bed8021ffd1da9d21f5d51925fce5d4557c721e658ff6f9e7795bac',
   './js/scroll-animations.js': '8432cbd23b9bd38d07f0a081a1cafc8cdc30ef55f9f6b2c7a4cca4db6cc9cef1',
-  './js/router.js': '0b4633dd6631c2f9757eee868330c22711196c2740dda953b992864f4ab32f42',
+  './js/router.js': '134720a793669e04ce9b5e9660cc55d497c4be03cba275922b65e1387f513933',
   './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
   './js/auth-cache.js': '6042f6a875e3d6846be70e3b733b6398e680ec1a1448a6e64efd983bb87de5f6',
@@ -70,7 +70,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-edit.js': '1cb8f78ecee8da083ae7299479d78ba305e458276d77a2322896b9a38cf69ab8',
   './js/band-player-v2/bp2-integration.js': 'b716e69c02c94a86d12221e4ce70523463f849b899cf2d0946f6d83f6bef97a1',
   './js/band-player-v2/bp2-progress.js': 'b8366d73b421e9215d183b273ee1865f509e691fb27a88749a3ad16139873467',
-  './js/band-player-v2/bp2-auth.js': '029b9c33a6dc0b65b35b983b9c75ca998172e4d25c1cfd18c94e7c1c4b983855'
+  './js/band-player-v2/bp2-auth.js': '6039c5a29ba821922e120c792b82c7bc6e88bcf195254305c919a33581d71cc2'
 };
 
 // Supabase backend hostname(s) — never intercept; the supabase-js SDK manages
