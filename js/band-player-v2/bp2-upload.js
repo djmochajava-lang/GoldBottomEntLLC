@@ -88,21 +88,28 @@
       }).then(function(up) {
         if (up && up.error) throw up.error;
         if (progBar) progBar.style.width = '80%';
-        var songData = {
-          title: title,
-          artist: artist,
-          audioPath: audioPath,
-          lyrics: lyrics || null,
-          charts: null,
-          duration: null,
-          createdBy: c.getUser() ? c.getUser().uid : 'pin',
-          createdAt: Auth._serverTimestamp(),
-          updatedAt: Auth._serverTimestamp()
+        // The songs cache row stores the record inside a NOT-NULL raw_doc JSONB
+        // (reader does Object.assign({}, raw_doc, {id})); also mirror the
+        // denormalized typed columns to match existing rows + the SoR sync.
+        var u = (c.getUser && c.getUser()) ? c.getUser() : null;
+        var uid = u ? (u.uid || u.id || null) : null;
+        var nowIso = new Date().toISOString();
+        var rawDoc = {
+          _id: songId, title: title, artist: artist, charts: null,
+          lyrics: lyrics || null, duration: null, audioPath: audioPath,
+          createdAt: nowIso, createdBy: uid, updatedAt: nowIso
         };
-        return db.collection('songs').doc(songId).set(songData).then(function() {
+        var record = {
+          id: songId, title: title, artist: artist, audio_path: audioPath,
+          lyrics: lyrics || null, duration: null, charts: null,
+          created_by: uid, created_at: nowIso, updated_at: nowIso,
+          source_collection: 'songs', raw_doc: rawDoc
+        };
+        return supabase.from('songs').upsert(record, { onConflict: 'id' }).then(function(ins) {
+          if (ins && ins.error) throw ins.error;
           if (progBar) progBar.style.width = '100%';
           if (typeof Modal !== 'undefined') Modal.close();
-          var saved = Object.assign({ id: songId }, songData);
+          var saved = Object.assign({ id: songId }, rawDoc);
           var songsMap = c.ref('allSongsMap');
           if (songsMap) songsMap[songId] = saved;
           var inventory = c.ref('inventory');
