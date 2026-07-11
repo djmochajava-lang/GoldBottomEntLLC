@@ -3,7 +3,7 @@
    Band Player v2.0
 
    Upload modal: title, artist, audio file, lyrics, charts.
-   Firebase Storage upload with progress. Song deletion.
+   Supabase Storage upload (band-media bucket) + songs record. Song deletion.
 
    WHO CALLS IT:
      - bp2-render.js "Upload" manager button
@@ -69,55 +69,49 @@
       var progBar = document.getElementById('bp2-u-progress-bar');
       if (progDiv) progDiv.style.display = '';
 
-      var storage = c.getStorage();
+      // Supabase Storage upload (Firebase Storage retired in fbexit S7).
+      var supabase = c.getSupabase ? c.getSupabase() : null;
       var db = c.getDb();
-      if (!storage || !db) {
+      if (!supabase || !supabase.storage || !db) {
         if (typeof Toast !== 'undefined') Toast.error('Storage not available');
+        if (progDiv) progDiv.style.display = 'none';
         return Promise.resolve();
       }
 
-      return new Promise(function(resolve) {
-        var uploadTask = storage.ref(audioPath).put(audioFile);
-        uploadTask.on('state_changed',
-          function(snap) {
-            var pct = (snap.bytesTransferred / snap.totalBytes * 90);
-            if (progBar) progBar.style.width = pct + '%';
-          },
-          function(error) {
-            if (typeof Toast !== 'undefined') Toast.error('Upload failed: ' + error.message);
-            if (progDiv) progDiv.style.display = 'none';
-            resolve();
-          },
-          function() {
-            if (progBar) progBar.style.width = '90%';
-            var songData = {
-              title: title,
-              artist: artist,
-              audioPath: audioPath,
-              lyrics: lyrics || null,
-              charts: null,
-              duration: null,
-              createdBy: c.getUser() ? c.getUser().uid : 'pin',
-              createdAt: Auth._serverTimestamp(),
-              updatedAt: Auth._serverTimestamp()
-            };
-            db.collection('songs').doc(songId).set(songData).then(function() {
-              if (progBar) progBar.style.width = '100%';
-              if (typeof Modal !== 'undefined') Modal.close();
-              var saved = Object.assign({ id: songId }, songData);
-              var songsMap = c.ref('allSongsMap');
-              songsMap[songId] = saved;
-              var inventory = c.ref('inventory');
-              inventory.push(saved);
-              if (typeof Toast !== 'undefined') Toast.success('Song uploaded: ' + title);
-              resolve();
-            }).catch(function(e) {
-              if (typeof Toast !== 'undefined') Toast.error('Save failed: ' + e.message);
-              if (progDiv) progDiv.style.display = 'none';
-              resolve();
-            });
-          }
-        );
+      // Object key strips the leading "band-media/" (the bucket name) — matches the read path (c.supaKey).
+      var objectKey = c.supaKey(audioPath);
+      if (progBar) progBar.style.width = '25%';
+
+      return supabase.storage.from(c.supaBucket()).upload(objectKey, audioFile, {
+        contentType: audioFile.type || 'audio/mpeg',
+        upsert: true
+      }).then(function(up) {
+        if (up && up.error) throw up.error;
+        if (progBar) progBar.style.width = '80%';
+        var songData = {
+          title: title,
+          artist: artist,
+          audioPath: audioPath,
+          lyrics: lyrics || null,
+          charts: null,
+          duration: null,
+          createdBy: c.getUser() ? c.getUser().uid : 'pin',
+          createdAt: Auth._serverTimestamp(),
+          updatedAt: Auth._serverTimestamp()
+        };
+        return db.collection('songs').doc(songId).set(songData).then(function() {
+          if (progBar) progBar.style.width = '100%';
+          if (typeof Modal !== 'undefined') Modal.close();
+          var saved = Object.assign({ id: songId }, songData);
+          var songsMap = c.ref('allSongsMap');
+          if (songsMap) songsMap[songId] = saved;
+          var inventory = c.ref('inventory');
+          if (inventory) inventory.push(saved);
+          if (typeof Toast !== 'undefined') Toast.success('Song uploaded: ' + title);
+        });
+      }).catch(function(e) {
+        if (typeof Toast !== 'undefined') Toast.error('Upload failed: ' + (e && e.message ? e.message : e));
+        if (progDiv) progDiv.style.display = 'none';
       });
     },
 

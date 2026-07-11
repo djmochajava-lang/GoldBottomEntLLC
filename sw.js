@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.11-0357.736d434';
+var GBE_BUILD = '2026.07.11-0744.cf7a1bc';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '2939b9575eaac753542ff6d8750efd8e8b221ce247869ba4e44eedb5c6dcbb4b',
+  './js/build.js': '2961ebf7036de363687cfe5855a4e2f99828254c8e421da8e7228de5193ba5b5',
   './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -65,7 +65,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-charts.js': 'b276b26674ff401c4432a96bfb9467e593286c9df55ddeaea98b77e737221cd9',
   './js/band-player-v2/bp2-lyrics.js': '5ae039ad37a25542b33cf807f0f2ce7505f53a1573b031e732d2b110f6552cb5',
   './js/band-player-v2/bp2-notes.js': '9cf4487646d142ecd46fbb68b6857c6e841a3a007bef3226ee8ac2412ea771dc',
-  './js/band-player-v2/bp2-upload.js': '5ac6364ba2705680eda68518d1ae61d5c97a0f0fd9bd75d01fe24777163137fd',
+  './js/band-player-v2/bp2-upload.js': '1774808bb653451e5a824ca3f9bf98de615248f79017125213087d171635b5a2',
   './js/band-player-v2/bp2-permissions.js': 'd02380492e38ccb60b502042e2f7758010e32ab003755a949e3f7250ee64d512',
   './js/band-player-v2/bp2-edit.js': '1cb8f78ecee8da083ae7299479d78ba305e458276d77a2322896b9a38cf69ab8',
   './js/band-player-v2/bp2-integration.js': 'b716e69c02c94a86d12221e4ce70523463f849b899cf2d0946f6d83f6bef97a1',
