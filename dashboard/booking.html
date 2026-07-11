@@ -1362,9 +1362,9 @@
         var data = await apiFetch('/quotes/intake-stats');
         quotesData = (data && data.quotes) ? data.quotes : (Array.isArray(data) ? data : []);
       } else {
-        // Remote — read from Firestore
-        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db :
-                 (typeof firebase !== 'undefined' ? firebase.firestore() : null);
+        // Remote — read via Auth._db (the Supabase-backed Firestore-shaped
+        // adapter); legacy firebase.firestore() fallback retired in fbexit S9.
+        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
         if (!db) throw new Error('Firestore not available');
         var snap = await db.collection('booking_quotes')
           .orderBy('created_at', 'desc')

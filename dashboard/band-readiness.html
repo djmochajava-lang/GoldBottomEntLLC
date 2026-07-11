@@ -116,8 +116,9 @@
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   async function init() {
-    // Prefer Auth._db; fall back to firebase.firestore() if not yet set
-    fdb = (typeof Auth !== 'undefined' && Auth._db) || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && firebase.firestore());
+    // Auth._db is the Supabase-backed Firestore-shaped adapter; the legacy
+    // firebase.firestore() fallback was retired in fbexit S9 (SDK removed in S7).
+    fdb = (typeof Auth !== 'undefined' && Auth._db) || null;
     if (!fdb) {
       document.getElementById('br-gigs-container').innerHTML = '<p class="text-muted">Firestore not available.</p>';
       return;

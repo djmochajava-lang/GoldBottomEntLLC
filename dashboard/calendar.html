@@ -489,17 +489,14 @@
   });
 
   // --- Initial render ---
-  // Always render immediately with DataStore events so the grid appears instantly,
-  // then load Firestore sessions and re-render to merge in band session data.
+  // Always render immediately with DataStore events so the grid appears instantly.
   renderCalendar();
   renderUpcoming();
 
-  // Load band sessions from Firestore (authenticated users only)
-  // Works on both LAN and remote public site — Firestore rules allow isBandTeam() read
-  if(typeof firebase !== 'undefined' && firebase.auth) {
-    firebase.auth().onAuthStateChanged(function(user) {
-      if(user) _loadFirestoreSessions();
-    });
-  }
+  // fbexit S9: the legacy firebase.auth().onAuthStateChanged trigger that
+  // called _loadFirestoreSessions() was typeof-guarded DEAD once the SDK left
+  // in S7 (the band-session merge already never fired on live) — stripped.
+  // _loadFirestoreSessions itself reads through the Supabase adapter and stays,
+  // pending a re-wire to a live auth-ready signal (registered carryover).
 })();
 </script>

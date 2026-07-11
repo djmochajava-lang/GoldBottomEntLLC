@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.11-0350.0654516';
+var GBE_BUILD = '2026.07.11-0357.736d434';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '075e86a880d0e937d9fc89b3c9b78e65c9ad48dfde625ac23fb9aaad102ae299',
+  './js/build.js': '2939b9575eaac753542ff6d8750efd8e8b221ce247869ba4e44eedb5c6dcbb4b',
   './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -39,7 +39,7 @@ var ASSET_HASHES = {
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
   './js/auth-cache.js': '6042f6a875e3d6846be70e3b733b6398e680ec1a1448a6e64efd983bb87de5f6',
   './js/sidebar-v2.js': '822146e4ef9d261bc58bf0de5f51121d14541dc4adb85e4b67ca295e2e947e21',
-  './js/data-store.js': '31adf066cf9366a1877f230a24e22aaceaa54f28265604d731f32fa38656f752',
+  './js/data-store.js': 'a92f502bb33e3c53f1630347a9295a78b90ac471df2c4816360c968e53d2609e',
   './js/forms.js': '0e786e040d4bb8ebf53525ace5854fa3d0074e6322288408bcbd0a5b3bd3a9cc',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',
@@ -389,7 +389,7 @@ self.addEventListener('fetch', function(event) {
       })
     );
   } else {
-    // Cross-origin (Firebase SDK, Google Fonts, Font Awesome CDN):
+    // Cross-origin (Supabase JS CDN, Google Fonts, Font Awesome CDN):
     // Try network first, fall back to cache, cache successful responses
     // No integrity check for cross-origin — hashes only cover same-origin precached assets
     event.respondWith(

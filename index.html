@@ -41,7 +41,7 @@
       ['log','warn','error'].forEach(function(k){
         var orig = console[k];
         console[k] = function(){
-          try { var s=String(arguments[0]||''); if(/\[(authdbg|perf|Auth|Router)\]|firebase|redirect|dashboard|initial state|auth/i.test(s)) add('['+k+']', arguments); } catch(e){}
+          try { var s=String(arguments[0]||''); if(/\[(authdbg|perf|Auth|Router)\]|redirect|dashboard|initial state|auth/i.test(s)) add('['+k+']', arguments); } catch(e){}
           return orig.apply(console, arguments);
         };
       });
@@ -50,11 +50,7 @@
       var ticks=0, iv=setInterval(function(){
         ticks++;
         try {
-          var fb = (typeof firebase!=='undefined');
-          var cu = fb && firebase.auth && firebase.auth().currentUser;
           add('[state]', [
-            'fb='+fb,
-            'currentUser='+(cu ? cu.uid.slice(0,6)+'…' : 'null'),
             'page='+(typeof Router!=='undefined' ? Router.currentPage : '?'),
             'hash='+location.hash,
             'signin-initiated='+(localStorage.getItem('gbe-signin-initiated')?'set':'-'),
@@ -590,11 +586,11 @@
        SCRIPTS — Critical path first, heavy deps deferred
        ============================================================
        ARCHITECTURE: Core SPA scripts load synchronously (~50KB) so
-       the page is interactive immediately. Firebase (~3MB), auth,
+       the page is interactive immediately. Supabase (~40KB UMD), auth,
        data layer, band player, and app controller load with defer
        (browser downloads ALL in parallel, executes in order after
-       DOM parsing). Public pages work in ~200ms; Firebase/auth
-       finish in the background.
+       DOM parsing). Public pages work in ~200ms; auth finishes in
+       the background.
        ============================================================ -->
 
   <!-- ── CRITICAL PATH (synchronous, small, fast) ── -->
@@ -603,13 +599,12 @@
   <script src="js/build.js"></script>
   <script src="js/perf.js?v=2"></script>
   <script src="js/config.js?v=2"></script>
-  <!-- ── DARK AUTH SOURCE FLAG (Week-3 Supabase Auth cutover) ──
-       Mirrors BP2_READ_SOURCE. Default 'firebase' => auth.js authenticates via
-       Firebase exactly as today; the Supabase branch in auth.js is present but
-       UNREACHED. The owner flips this to 'supabase' (one line, like the
-       BP2_READ_SOURCE line below) only while physically present for the AC-1
-       real-device test. Flip-back is the same single line. Firebase Auth stays
-       LIVE underneath the whole window as the rollback net. -->
+  <!-- ── AUTH SOURCE FLAG (Supabase cutover COMPLETE — fbexit) ──
+       Mirrors BP2_READ_SOURCE. Production value is 'supabase': auth.js runs
+       _initSupabase (first-party PKCE). The legacy 'firebase' path is RETIRED —
+       the client SDK left in fbexit S7 and the auth leg is a stub since S9 —
+       so any non-supabase value now degrades to auth-disabled. There is no
+       Firebase rollback net (project decommissioned). -->
   <script>window.GBE_AUTH_SOURCE = window.GBE_AUTH_SOURCE || 'supabase';</script>
   <!-- Supabase JS v2 (UMD global window.supabase). Loaded NON-deferred and
        BEFORE the deferred auth.js below, so window.supabase.createClient is
@@ -617,8 +612,8 @@
        deferred ones regardless of position.) This is SEPARATE from the late
        band-media __loadBP2() loader, which injects supabase-js dynamically
        AFTER auth.js and only on the band-player route — auth cannot rely on it.
-       Present-but-dark: with GBE_AUTH_SOURCE='firebase', auth.js never calls
-       createClient, so this is an idle ~40KB download, no behavior change. -->
+       LIVE: with GBE_AUTH_SOURCE='supabase' (production), auth.js calls
+       createClient at init — this script is on the auth critical path. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
   <script src="js/utils.js"></script>
   <script src="js/mobile-detect.js"></script>
@@ -639,7 +634,7 @@
 
   <!-- ── DEFERRED: Auth + Data + Features ── -->
   <script defer src="js/auth.js?v=21"></script>
-  <script defer src="js/data-store.js?v=2"></script>
+  <script defer src="js/data-store.js?v=3"></script>
   <script defer src="js/forms.js?v=2"></script>
   <script defer src="js/table-manager.js"></script>
   <script defer src="js/dashboard-widgets.js"></script>
