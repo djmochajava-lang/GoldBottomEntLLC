@@ -96,7 +96,12 @@
       batches.push(ids.slice(b, b + 10));
     }
     return Promise.all(batches.map(function(batch) {
-      return db.collection('songs').where(firebase.firestore.FieldPath.documentId(), 'in', batch).get();
+      // '__name__' is the Firestore document-id sentinel (equivalent to
+      // firebase.firestore.FieldPath.documentId()). Used as a string so this
+      // dead Firestore leg carries no firebase.* global reference now that the
+      // client Firebase SDK is removed. Songs are read via Supabase; this leg
+      // is unreachable under BP2_READ_SOURCE.songs==='supabase'.
+      return db.collection('songs').where('__name__', 'in', batch).get();
     })).then(function(snapshots) {
       var out = [];
       snapshots.forEach(function(snap) {

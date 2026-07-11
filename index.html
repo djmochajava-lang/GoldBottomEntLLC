@@ -98,10 +98,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <!-- Firebase preconnect for faster cold-start auth -->
-  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" />
-  <link rel="preconnect" href="https://firestore.googleapis.com" />
-
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha384-t1nt8BQoYMLFN5p42tRAtuAAFQaCQODekUVeKKZrEnEyp4H2R0RHFz0KWpmj7i8g" crossorigin="anonymous" />
 
@@ -637,14 +633,9 @@
   <script src="js/sidebar-v2.js?v=8"></script>
   <script src="js/mobile-dash-menu.js?v=1"></script>
 
-  <!-- ── DEFERRED: Firebase SDK (compat mode — no build tools required) ── -->
-  <!-- Downloads in parallel with critical path, executes after DOM parsing -->
-  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" integrity="sha384-ZaR6mWzmJtrRibZ1Vm7SoHFr8OXjyAuGAXalGDKqbxFT18oi/z+oZLIRFkpeNor1" crossorigin="anonymous"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" integrity="sha384-I1LYojsZ5RM1cOda44Z2h42Qa6YfsQ1XkXxREnhp4ueYBR/4d1pG1K+NZM537Vsj" crossorigin="anonymous"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" integrity="sha384-Ke0FJhH7LyRqDxZ0wt+/OXV38yfQVu7g9VPEEGjYmB4RVOY/ta04uecRhsMwT7V3" crossorigin="anonymous"></script>
-  <!-- firebase-storage-compat.js is NOT loaded here — only the Band Player + payment-settings
-       use Storage. It's lazy-loaded with the bp2 bundle (window.__loadBP2) to keep it off the
-       login critical path. Auth.getStorage() lazily inits firebase.storage() once it's loaded. -->
+  <!-- Client Firebase SDK removed (fbexit S7): the system runs on Supabase + Cloudflare;
+       auth + all band-player reads/writes are on Supabase. No firebase-*-compat.js loads
+       and no firebaseConfig ships. -->
 
   <!-- ── DEFERRED: Auth + Data + Features ── -->
   <script defer src="js/auth.js?v=20"></script>
@@ -688,7 +679,7 @@
     window.BP2_WRITE_SOURCE = window.BP2_WRITE_SOURCE || { users: 'supabase', stem_requests: 'supabase', playlists: 'supabase' };
     var BP2 = [
       'js/band-player-v2/bp2-utils.js', 'js/band-player-v2/bp2-core.js?v=2',
-      'js/band-player-v2/bp2-data.js?v=3', 'js/band-player-v2/bp2-write.js?v=3',
+      'js/band-player-v2/bp2-data.js?v=4', 'js/band-player-v2/bp2-write.js?v=4',
       'js/band-player-v2/bp2-player.js?v=2', 'js/band-player-v2/bp2-playlist.js?v=9',
       'js/band-player-v2/bp2-render.js?v=12', 'js/band-player-v2/bp2-render-edit.js',
       'js/band-player-v2/bp2-render-stems.js?v=2', 'js/band-player-v2/bp2-offline.js?v=3',
@@ -703,14 +694,6 @@
     var started = false;
     window.__loadBP2 = function () {
       if (started) return; started = true;
-      // Firebase Storage SDK FIRST (cross-origin — keep its integrity hash), then the bp2
-      // modules (same-origin, SW-hash-verified). async=false preserves execution order, so
-      // firebase.storage is registered before any bp2 module uses it.
-      var fb = document.createElement('script');
-      fb.src = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js';
-      fb.integrity = 'sha384-XgUhjZUY/4vSJ8bUS7DFmLGK73fbJgS+nlrQDEC5X3QBpGgO+597wN8Syegw3ONj';
-      fb.crossOrigin = 'anonymous'; fb.async = false;
-      document.head.appendChild(fb);
       // Supabase JS v2 (UMD global `window.supabase`) — band media (audio/charts/
       // artwork) is served from PRIVATE Supabase Storage via signed URLs. Loaded
       // here (async=false) so the global is registered before any bp2 module runs;

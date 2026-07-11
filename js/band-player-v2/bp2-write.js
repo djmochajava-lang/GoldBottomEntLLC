@@ -203,13 +203,13 @@
     var payload = Object.assign({}, extra || {});
     // Backend-aware timestamp: under Supabase (GBE_AUTH_SOURCE==='supabase')
     // Auth._serverTimestamp() returns an ISO string that the Supabase DB adapter
-    // can write into the confidentiality_accepted_at timestamptz column; under
-    // the legacy firebase default it returns the firebase serverTimestamp()
-    // sentinel — byte-identical to the prior behavior. Falls back to the raw
-    // firebase sentinel if Auth is unavailable.
+    // can write into the confidentiality_accepted_at timestamptz column. The
+    // fallback (Auth unavailable) now returns a plain ISO string too — the client
+    // Firebase SDK is removed, so there is no firebase.* global to reference; an
+    // ISO timestamp matches what Auth._serverTimestamp() returns under Supabase.
     payload[field] = (typeof Auth !== 'undefined' && typeof Auth._serverTimestamp === 'function')
       ? Auth._serverTimestamp()
-      : firebase.firestore.FieldValue.serverTimestamp();
+      : new Date().toISOString();
     return db.collection('users').doc(uid).update(payload);
   }
 
