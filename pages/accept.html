@@ -256,10 +256,11 @@
   </div>
 
   <!-- Same client stack the SPA already loads: SiteConfig (Supabase url + anon
-       publishable key — client-safe by design) + supabase-js v2 UMD from the
-       same jsdelivr URL index.html uses. No auth.js / router.js / utils.js. -->
+       publishable key — client-safe by design) + the same SELF-HOSTED, version-
+       pinned supabase-js v2 UMD vendor copy index.html uses
+       (story-supabase-js-sri-pin). No auth.js / router.js / utils.js. -->
   <script src="../js/config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+  <script src="../js/vendor/supabase-js-2.110.2.umd.js"></script>
   <script>
   (function () {
     'use strict';

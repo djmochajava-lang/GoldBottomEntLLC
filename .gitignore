@@ -35,7 +35,10 @@ AcknowledgementLetter.pdf
 claude.md
 index-local.html
 server/
-vendor/
+# Root-only (anchored): the LAN-shell asset bundle (Firebase/fonts/FA) stays
+# private. js/vendor/ (self-hosted version-pinned public SDKs, e.g. supabase-js
+# — story-supabase-js-sri-pin) IS tracked and deploys to Pages.
+/vendor/
 tools/
 dashboard/finances.html
 dashboard/documents.html

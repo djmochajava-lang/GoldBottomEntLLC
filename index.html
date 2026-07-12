@@ -606,7 +606,10 @@
        so any non-supabase value now degrades to auth-disabled. There is no
        Firebase rollback net (project decommissioned). -->
   <script>window.GBE_AUTH_SOURCE = window.GBE_AUTH_SOURCE || 'supabase';</script>
-  <!-- Supabase JS v2 (UMD global window.supabase). Loaded NON-deferred and
+  <!-- Supabase JS v2 (UMD global window.supabase) — SELF-HOSTED, version-pinned
+       vendor copy (story-supabase-js-sri-pin; npm-registry provenance verified,
+       sha384 in the commit). Same-origin, so the SW ASSET_HASHES integrity gate
+       covers it — no crossorigin/SRI attributes needed. Loaded NON-deferred and
        BEFORE the deferred auth.js below, so window.supabase.createClient is
        registered before auth.js runs. (Non-deferred scripts execute before
        deferred ones regardless of position.) This is SEPARATE from the late
@@ -614,7 +617,7 @@
        AFTER auth.js and only on the band-player route — auth cannot rely on it.
        LIVE: with GBE_AUTH_SOURCE='supabase' (production), auth.js calls
        createClient at init — this script is on the auth critical path. -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+  <script src="js/vendor/supabase-js-2.110.2.umd.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/mobile-detect.js"></script>
   <script src="js/toast.js"></script>
@@ -694,8 +697,8 @@
       // here (async=false) so the global is registered before any bp2 module runs;
       // bp2-core creates the client (anon/publishable key — client-safe).
       var sb = document.createElement('script');
-      sb.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
-      sb.crossOrigin = 'anonymous'; sb.async = false;
+      sb.src = 'js/vendor/supabase-js-2.110.2.umd.js';
+      sb.async = false;
       document.head.appendChild(sb);
       BP2.forEach(function (src) {
         var s = document.createElement('script');

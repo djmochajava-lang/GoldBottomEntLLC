@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.11-0750.22d364d';
+var GBE_BUILD = '2026.07.12-0002.89a0327';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '2bce5fa1f64f6cf933c3733eb9be8015ebfef0203084648a52970f6df9e99df4',
+  './js/build.js': 'b5ee5d0b9bba5b69a32caeb9eb9be39398bfa3e0fd5464de12be7dc1fa433e81',
   './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -47,6 +47,7 @@ var ASSET_HASHES = {
   './js/main.js': 'a0c2717e96b0e041d80e5a3349093c29a0206bb96a1d16fdebced18801a7c03d',
   './js/build-tag.js': 'e7481518d8d9cda649aee34d255dfc3834455c988ce96eac8c4cb6925c9e3c4d',
   './images/logo/gbe-logo.svg': '1e780d4036cf711a07d6d9091d37ce184440eda7cde4e2b2faef251c6f9219ee',
+  './js/vendor/supabase-js-2.110.2.umd.js': '21035ce4ffb6f1d6c5ba5344bbac8309bf394cdbba0b1371267a05a1d811fed8',
   './css/band-player-v2.css': '20fefafa6977deeaa0d99de51d0fb286e6e1d709f9d70adfe54123f3032448d1',
   './dashboard/band-player-v2.html': 'b870a370beb3c2eeeb768f149339157729a184722d08869822df155b2e591b96',
   './js/band-player-v2/bp2-utils.js': '8fbe63449c3956ad213c7eadb0548ed23802370d69f5091148e90a6201758879',
@@ -110,6 +111,10 @@ var PRECACHE_ASSETS = [
   './js/calendar.js',
   './js/main.js',
   './images/logo/gbe-logo.svg',
+  // Supabase JS v2 UMD — self-hosted, version-pinned vendor copy
+  // (story-supabase-js-sri-pin). Same-origin, so the ASSET_HASHES integrity
+  // gate covers the auth SDK; also makes auth offline-capable/outage-immune.
+  './js/vendor/supabase-js-2.110.2.umd.js',
   // Band Player v2.0
   './css/band-player-v2.css',
   './dashboard/band-player-v2.html',
@@ -389,7 +394,8 @@ self.addEventListener('fetch', function(event) {
       })
     );
   } else {
-    // Cross-origin (Supabase JS CDN, Google Fonts, Font Awesome CDN):
+    // Cross-origin (Google Fonts, Font Awesome CDN — supabase-js is now
+    // self-hosted + precached same-origin, story-supabase-js-sri-pin):
     // Try network first, fall back to cache, cache successful responses
     // No integrity check for cross-origin — hashes only cover same-origin precached assets
     event.respondWith(
