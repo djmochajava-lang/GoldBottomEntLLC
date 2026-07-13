@@ -346,8 +346,10 @@
   'use strict';
 
   // ── Consent copy MIRRORED from server/src/config/bio-consent-disclosure.js ──
-  // §7c. DRAFT pending Legal — if the server bumps `version`, update here too.
-  var CONSENT_VERSION = 'bio-consent-v1-2026-07';
+  // §7c. Legal-finalized v1_1 (L-1 withdrawal scope + L-2 no-guarantee, 2026-07-13).
+  // MUST stay byte-identical to the server disclosure text; the version string
+  // below MUST equal the server's accepted version or submissions can't publish.
+  var CONSENT_VERSION = 'bio-consent-v1_1-2026-07';
   var CONSENT_TEXT = [
     'Sharing your bio and photos with Gold Bottom Entertainment',
     '',
@@ -365,7 +367,8 @@
     'band’s style, so the final published version may not be word-for-word ' +
     'what you wrote.',
     '• Choosing if and when to publish anything is a separate decision made by ' +
-    'your manager. Sharing here does not put your bio live.',
+    'your manager. Sharing here does not put your bio live. Sharing your ' +
+    'information does not guarantee it will be used.',
     '• Any credits you list (for example, notable artists you have worked with) ' +
     'are verified before they are ever published.',
     '',
@@ -379,14 +382,21 @@
     '',
     'You can review or update what you shared at any time, and you can withdraw ' +
     'your submission — that returns it to a private draft only you and your ' +
-    'manager can see.'
+    'manager can see.',
+    '',
+    'Withdrawing stops us from using your bio and photos in any NEW promotional ' +
+    'materials going forward. It does NOT automatically remove them from ' +
+    'materials already printed, sent to venues, or posted before you withdrew, ' +
+    'though we will make reasonable efforts to stop further use. When you ' +
+    'withdraw, we keep a private copy of what you submitted so your manager has a ' +
+    'record — it is no longer used publicly.'
   ].join('\n');
   // Informational elements the member acknowledges by tapping the share button.
   var ACK_INFO = [
     { id: 'store',            text: 'GBE stores the bio and photos I provide as source material.' },
     { id: 'use_adapt',        text: 'GBE may use or ADAPT this material in the band’s marketing and EPK (wording may be reworked).' },
     { id: 'not_self_publish', text: 'Sharing here is a submission to my manager, not a live self-publish.' },
-    { id: 'publish_is_gbe',   text: 'Whether and when anything is published is GBE’s separate later decision, gated on this consent.' }
+    { id: 'publish_is_gbe',   text: 'Whether and when anything is published is GBE’s separate later decision, gated on this consent. Sharing my information does not guarantee it will be used.' }
   ];
 
   // Fields in plain-language order (AC-E1). Caps = server FIELD_LIMITS / §7a.
