@@ -16,6 +16,20 @@
        a real event (a gig assignment) makes an action genuinely necessary. -->
   <div id="mp-action-items"></div>
 
+  <!-- story-p0-musician-journey (audit 3.3): My Bio invitation — the way a new
+       member FINDS the bio ask (my-portal was orphaned from navigation; the 4 new
+       singers land here). Static card, matches the action-item card style. -->
+  <div class="musician-section" id="mp-mybio-cta" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:flex-start;gap:12px;background:var(--color-bg,#0d1117);border:1px solid rgba(212,160,23,0.35);border-radius:10px;padding:14px 16px;">
+      <i class="fa-solid fa-address-card" style="color:#d4a017;font-size:18px;margin-top:2px;flex:0 0 auto;"></i>
+      <div style="flex:1;min-width:0;">
+        <div style="color:var(--color-text,#e8e8e8);font-size:14px;font-weight:600;margin-bottom:2px;">My Bio — share your bio &amp; photos</div>
+        <div style="color:var(--color-text-secondary,#8b949e);font-size:12.5px;line-height:1.5;">Tell fans who you are. Your manager may feature you on the band page and press kit — it takes about two minutes, and you can edit or take it back anytime.</div>
+      </div>
+      <a href="#dashboard-my-portal" style="flex:0 0 auto;align-self:center;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:8px;background:#d4a017;color:#000;font-weight:600;font-size:12.5px;text-decoration:none;white-space:nowrap;">Share my bio</a>
+    </div>
+  </div>
+
   <!-- N1 (story-n1-gig-eligibility, task-n1-frontend): musician bench-status view
        (rehearsing → cleared → booked). Supabase-native — reads the HomeOffice
        server route GET /api/v1/roster/me/bench-status via Utils.apiFetch (NO

@@ -162,165 +162,324 @@
 (function() {
   'use strict';
 
-  var fdb = null;
+  /* ═══════════════════════════════════════════════════════════════════════════
+     Portal loader — story-p0-musician-journey (experience-audit 3.4 CRITICAL fix).
+     REPOINTED from the dead legacy `session-assignments` Firestore-compat path
+     (Supabase `session_assignments` — 4 unmatchable Firestore-era rows, no live
+     writer) to the LIVE read-models, via the member's own PKCE session (Auth._sb
+     — the same direct-Supabase pattern the My Bio section below uses; the legacy
+     Firestore-compat adapter is deliberately NOT extended):
+       • session_assignment_readmodel — own-row RLS (musician_uid = auth.uid);
+         published by the server (booking-publish.js publishAssignmentsOnce) from
+         the SoR. 9-col whitelist: id/booking_id/session_id/musician_uid/status/
+         invited_at/responded_at/origin/updated_at. pay_amount, notes, dress/
+         load-in are STRUCTURALLY excluded from the cache (InfoSec whitelist) —
+         pay is intentionally NOT rendered here (member pay visibility is the N2
+         gig_payout pending_actions surface on musician-home).
+       • show_readmodel — role-gated band read; title/date/venue/session_type/
+         out_of_town for the invite card.
+       • session_assignment_responses — the member-writable RESPOND leg (own-row
+         INSERT/UPDATE, bio_submissions pattern). Accept/Decline UPSERTs here;
+         the server-side reconciler (SESSION_RESPONSES_SYNC_ENABLED) pulls the
+         response into the SoR session_assignments, and the publisher then
+         republishes the readmodel. Until that round-trip completes we OVERLAY
+         the response on the readmodel status (read-your-writes), with a small
+         "syncing" chip. Responses are NEVER written to the readmodel directly —
+         the publisher upserts all readmodel columns from the SoR every pass and
+         would clobber them (and the readmodel's co-signed RLS has no client
+         write policy, by design).
+     The legacy `notifications` items read was REMOVED: notifications_items has
+     NO writer anywhere (audit 3.4) and the un-caught Promise.all could hang this
+     panel on "Loading..." forever. The loader is now fully try/caught with a
+     friendly retry state.
+     ═══════════════════════════════════════════════════════════════════════════ */
+
   var _uid = null;
 
-  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function esc(s) { return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function getSb() { return (typeof Auth !== 'undefined' && Auth._sb) ? Auth._sb : null; }
+
+  async function currentUid() {
+    var sb = getSb(); if (!sb) return null;
+    try {
+      var r = await sb.auth.getSession();
+      if (r && r.data && r.data.session && r.data.session.user) return r.data.session.user.id;
+    } catch (e) { /* fall through */ }
+    return (typeof Auth !== 'undefined' && Auth._user && Auth._user.uid) ? Auth._user.uid : null;
+  }
+
+  function fmtDate(d) {
+    if (!d) return '';
+    try {
+      return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    } catch (e) { return String(d); }
+  }
+
+  // Payment-setup nudge — reads the member's OWN user row over the existing
+  // remote-safe adapter surface (the same own-row read musician-home uses).
+  // NON-FATAL by design: any failure returns true (never nag on error, and a
+  // users-read blip must never take down the invites panel).
+  async function hasPaymentSetup() {
+    try {
+      if (typeof Auth === 'undefined' || !Auth._db || !_uid) return true;
+      var doc = await Auth._db.collection('users').doc(_uid).get();
+      var d = (doc && doc.exists) ? doc.data() : {};
+      return !!(d.paymentSetupAt || d.payment_method_enc);
+    } catch (e) { return true; }
+  }
+
+  function showLoading() {
+    document.getElementById('portal-pending-list').innerHTML =
+      '<div style="text-align:center;padding:var(--space-lg);color:var(--color-text-muted);font-size:var(--text-sm);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  }
+
+  // Friendly, recoverable error state (audit 3.4: the old loader could hang on
+  // "Loading..." forever with no way out).
+  function showError() {
+    var list = document.getElementById('portal-pending-list');
+    if (list) {
+      list.innerHTML =
+        '<div class="portal-invite-card" id="portal-error-card">' +
+          '<div style="display:flex;align-items:flex-start;gap:var(--space-sm);margin-bottom:var(--space-sm);">' +
+            '<i class="fa-solid fa-triangle-exclamation" style="color:#d29922;font-size:18px;margin-top:2px;flex-shrink:0;"></i>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.5;">We couldn\'t load your invites. Check your connection and try again.</div>' +
+          '</div>' +
+          '<button class="portal-accept-btn" id="portal-retry" style="width:100%;">Try again</button>' +
+        '</div>';
+      var rb = document.getElementById('portal-retry');
+      if (rb) rb.addEventListener('click', function() { showLoading(); loadPortal(); });
+    }
+    var up = document.getElementById('portal-upcoming-list');
+    if (up) up.innerHTML = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">—</div>';
+    var countEl = document.getElementById('portal-pending-count');
+    if (countEl) { countEl.textContent = ''; countEl.style.display = 'none'; }
+  }
+
+  // Effective status = the member's own response overlaid on the published
+  // readmodel status. A just-written response wins until the SoR round-trip
+  // republishes the readmodel (read-your-writes; `syncing` marks that window).
+  function effectiveOf(a, responses) {
+    var r = responses[a.id];
+    if (r && (r.response === 'accepted' || r.response === 'declined')) {
+      return { status: r.response, syncing: r.response !== a.status };
+    }
+    return { status: a.status, syncing: false };
+  }
+
+  function detailLinesHtml(s) {
+    var h = '';
+    var dateStr = fmtDate(s.date);
+    if (dateStr) h += '<div><i class="fa-solid fa-calendar" style="width:16px;"></i> ' + esc(dateStr) + '</div>';
+    if (s.venue) h += '<div><i class="fa-solid fa-location-dot" style="width:16px;"></i> ' + esc(s.venue) + '</div>';
+    if (s.out_of_town) h += '<div><i class="fa-solid fa-route" style="width:16px;"></i> Out-of-town date</div>';
+    if (!h) h = '<div>Details coming soon — your manager is finalizing this show.</div>';
+    return h;
+  }
+
+  function typeChipHtml(s) {
+    if (!s.session_type) return '';
+    return '<span style="flex-shrink:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-gold);background:rgba(212,160,23,0.12);border-radius:var(--radius-full);padding:3px 10px;">' + esc(s.session_type) + '</span>';
+  }
+
+  function inviteCardHtml(a, show) {
+    var s = show || {};
+    var h = '<div class="portal-invite-card">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-sm);margin-bottom:4px;">';
+    h += '<div style="font-weight:var(--fw-semibold);min-width:0;overflow-wrap:anywhere;">' + esc(s.title || 'Show invite') + '</div>';
+    h += typeChipHtml(s);
+    h += '</div>';
+    h += '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-sm);">' + detailLinesHtml(s) + '</div>';
+    h += '<div style="display:flex;gap:var(--space-xs);">';
+    h += '<button class="portal-accept-btn portal-respond" data-aid="' + esc(a.id) + '" data-resp="accepted" style="flex:1;">Accept</button>';
+    h += '<button class="portal-decline-btn portal-respond" data-aid="' + esc(a.id) + '" data-resp="declined" style="flex:1;">Decline</button>';
+    h += '</div></div>';
+    return h;
+  }
+
+  function upcomingCardHtml(a, show, syncing) {
+    var s = show || {};
+    var h = '<div class="portal-upcoming-card">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-sm);">';
+    h += '<div style="min-width:0;">';
+    h += '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;overflow-wrap:anywhere;">' + esc(s.title || 'Show') + '</div>';
+    h += '<div style="font-size:13px;color:var(--color-text-muted);">' + detailLinesHtml(s) + '</div>';
+    h += '</div>';
+    h += typeChipHtml(s);
+    h += '</div>';
+    // NOTE: no pay_amount here — it is structurally excluded from the public
+    // cache (InfoSec whitelist, RULE-S07). Pay visibility = N2 pending_actions.
+    if (syncing) {
+      h += '<div style="margin-top:8px;"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:var(--radius-full);background:rgba(63,185,80,0.12);color:#3fb950;"><i class="fa-solid fa-check"></i> Accepted — syncing with your manager</span></div>';
+    }
+    h += '</div>';
+    return h;
+  }
 
   async function loadPortal() {
-    if (!fdb || !_uid) return;
+    var sb = getSb();
+    if (!sb || !_uid) { showError(); return; }
+    try {
+      // (1) own assignments from the LIVE readmodel (own-row RLS scopes the
+      // result — no client-side uid filter can widen it) + (2) own responses
+      // (read-your-writes overlay) + (3) payment nudge — in parallel.
+      var results = await Promise.all([
+        sb.from('session_assignment_readmodel')
+          .select('id,session_id,status,invited_at,responded_at'),
+        sb.from('session_assignment_responses')
+          .select('assignment_id,response,responded_at'),
+        hasPaymentSetup()
+      ]);
+      var aRes = results[0], rRes = results[1], hasPayment = results[2];
+      if (aRes && aRes.error) throw new Error(aRes.error.message || 'assignments read failed');
+      var assignments = (aRes && aRes.data) || [];
 
-    // Load pending notifications, assignments, and sessions in parallel
-    var [notifSnap, assignSnap] = await Promise.all([
-      fdb.collection('notifications').doc(_uid).collection('items').where('status', '==', 'unread').get(),
-      fdb.collection('session-assignments').where('musician_uid', '==', _uid).get()
-    ]);
+      // The responses table read is NON-FATAL (it may be newly provisioned):
+      // on error we simply fall back to the published readmodel status.
+      var responses = {};
+      if (rRes && !rRes.error && rRes.data) {
+        rRes.data.forEach(function(r) { if (r && r.assignment_id) responses[r.assignment_id] = r; });
+      }
 
-    // Get all session IDs from assignments
-    var sessionIds = [];
-    var assignments = {};
-    assignSnap.forEach(function(doc) {
-      var d = doc.data(); d._id = doc.id;
-      assignments[d.session_id] = d;
-      if (sessionIds.indexOf(d.session_id) === -1) sessionIds.push(d.session_id);
-    });
+      // (4) show details for the cards (title/date/venue/type) — NON-FATAL;
+      // a missing show row degrades the card to "details coming soon".
+      var sessionIds = [];
+      assignments.forEach(function(a) {
+        if (a && a.session_id && sessionIds.indexOf(a.session_id) === -1) sessionIds.push(a.session_id);
+      });
+      var shows = {};
+      if (sessionIds.length) {
+        try {
+          var sRes = await sb.from('show_readmodel')
+            .select('id,title,date,venue,session_type,status,out_of_town')
+            .in('id', sessionIds);
+          if (sRes && !sRes.error && sRes.data) {
+            sRes.data.forEach(function(s) { if (s && s.id) shows[s.id] = s; });
+          }
+        } catch (e) { /* degrade gracefully */ }
+      }
 
-    // Load sessions for assignments
-    var sessionsMap = {};
-    for (var i = 0; i < sessionIds.length; i++) {
-      try {
-        var sessDoc = await fdb.collection('band-sessions').doc(sessionIds[i]).get();
-        if (sessDoc.exists) sessionsMap[sessionIds[i]] = sessDoc.data();
-      } catch (e) { /* skip */ }
+      render(assignments, responses, shows, hasPayment);
+    } catch (e) {
+      showError();
     }
+  }
 
-    // Check payment setup
-    var userDoc = await fdb.collection('users').doc(_uid).get();
-    var userData = userDoc.exists ? userDoc.data() : {};
-    var hasPayment = !!(userData.paymentSetupAt || userData.payment_method_enc);
-
-    // ── Render Pending Section ──
+  function render(assignments, responses, shows, hasPayment) {
     var pendingHtml = '';
     var pendingCount = 0;
 
-    // Payment setup prompt
+    // Payment setup prompt (parity with the original portal).
     if (!hasPayment) {
       pendingCount++;
       pendingHtml += '<div class="portal-invite-card">';
       pendingHtml += '<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-sm);">';
       pendingHtml += '<div><div style="font-weight:var(--fw-semibold);margin-bottom:4px;">Set Up Payment Info</div>';
       pendingHtml += '<div style="font-size:13px;color:var(--color-text-muted);">Set up how you\'d like to get paid so we can pay you on time.</div></div>';
-      pendingHtml += '<a href="#dashboard-payment-settings" class="portal-accept-btn" style="text-decoration:none;white-space:nowrap;">Set Up</a>';
+      pendingHtml += '<a href="#dashboard-payment-settings" class="portal-accept-btn" style="text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;">Set Up</a>';
       pendingHtml += '</div></div>';
     }
 
-    // Session invites (status = invited)
-    Object.keys(assignments).forEach(function(sessId) {
-      var a = assignments[sessId];
-      if (a.status !== 'invited') return;
-      var sess = sessionsMap[sessId] || {};
-      pendingCount++;
-      var dateStr = sess.date ? new Date(sess.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : '';
-      var tsd = sess.type_specific_data || {};
+    // Sort by show date ascending (undated last) — soonest decision first.
+    var sorted = assignments.slice().sort(function(x, y) {
+      var dx = (x && shows[x.session_id] && shows[x.session_id].date) || '9999-12-31';
+      var dy = (y && shows[y.session_id] && shows[y.session_id].date) || '9999-12-31';
+      return dx < dy ? -1 : (dx > dy ? 1 : 0);
+    });
 
-      pendingHtml += '<div class="portal-invite-card">';
-      pendingHtml += '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;">' + esc(sess.title || 'Session Invite') + '</div>';
-      pendingHtml += '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-sm);">';
-      if (dateStr) pendingHtml += '<div><i class="fa-solid fa-calendar" style="width:16px;"></i> ' + esc(dateStr) + (sess.time ? ' at ' + esc(sess.time) : '') + '</div>';
-      if (sess.venue) pendingHtml += '<div><i class="fa-solid fa-location-dot" style="width:16px;"></i> ' + esc(sess.venue) + '</div>';
-      if (tsd.dress_code) pendingHtml += '<div><i class="fa-solid fa-shirt" style="width:16px;"></i> ' + esc(tsd.dress_code) + '</div>';
-      if (tsd.load_in_time) pendingHtml += '<div><i class="fa-solid fa-truck-loading" style="width:16px;"></i> Load-in: ' + esc(tsd.load_in_time) + '</div>';
-      pendingHtml += '</div>';
-      pendingHtml += '<div style="display:flex;gap:var(--space-xs);">';
-      pendingHtml += '<button class="portal-accept-btn" onclick="window._portalAccept(\'' + esc(a._id) + '\',\'' + esc(sessId) + '\')">Accept</button>';
-      pendingHtml += '<button class="portal-decline-btn" onclick="window._portalDecline(\'' + esc(a._id) + '\')">Decline</button>';
-      pendingHtml += '</div></div>';
+    var today = new Date().toISOString().split('T')[0];
+    var upcomingHtml = '';
+
+    sorted.forEach(function(a) {
+      if (!a || !a.id) return;
+      var eff = effectiveOf(a, responses);
+      var show = shows[a.session_id] || null;
+      if (eff.status === 'invited' || eff.status === 'tentative') {
+        pendingCount++;
+        pendingHtml += inviteCardHtml(a, show);
+      } else if (eff.status === 'accepted') {
+        var s = show || {};
+        if (s.date && s.date < today) return;                                   // past show
+        if (s.status === 'completed' || s.status === 'cancelled') return;        // terminal show
+        upcomingHtml += upcomingCardHtml(a, show, eff.syncing);
+      }
+      // declined → not listed (parity with the original portal)
     });
 
     if (!pendingHtml) pendingHtml = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No pending items. You\'re all set!</div>';
+    var list = document.getElementById('portal-pending-list');
+    list.innerHTML = pendingHtml;
 
-    document.getElementById('portal-pending-list').innerHTML = pendingHtml;
+    // Bind Accept/Decline via listeners (no inline JS — defense-in-depth on
+    // top of esc(); ids never travel through an executable attribute).
+    list.querySelectorAll('.portal-respond').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var aid = btn.getAttribute('data-aid');
+        var resp = btn.getAttribute('data-resp');
+        if (resp === 'declined') window._portalDecline(aid);
+        else window._portalAccept(aid);
+      });
+    });
+
     var countEl = document.getElementById('portal-pending-count');
     countEl.textContent = pendingCount || '';
     countEl.style.display = pendingCount ? 'inline' : 'none';
-
-    // Update sidebar badge
     _updateSidebarBadge(pendingCount);
-
-    // ── Render Upcoming Sessions ──
-    var upcomingHtml = '';
-    var today = new Date().toISOString().split('T')[0];
-
-    Object.keys(assignments).forEach(function(sessId) {
-      var a = assignments[sessId];
-      if (a.status !== 'accepted') return;
-      var sess = sessionsMap[sessId] || {};
-      if (sess.date && sess.date < today) return; // past sessions
-
-      var dateStr = sess.date ? new Date(sess.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : '';
-      var tsd = sess.type_specific_data || {};
-
-      upcomingHtml += '<div class="portal-upcoming-card">';
-      upcomingHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
-      upcomingHtml += '<div>';
-      upcomingHtml += '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;">' + esc(sess.title || 'Session') + '</div>';
-      upcomingHtml += '<div style="font-size:13px;color:var(--color-text-muted);">';
-      if (dateStr) upcomingHtml += '<div><i class="fa-solid fa-calendar" style="width:16px;"></i> ' + esc(dateStr) + (sess.time ? ' at ' + esc(sess.time) : '') + '</div>';
-      if (sess.venue) upcomingHtml += '<div><i class="fa-solid fa-location-dot" style="width:16px;"></i> ' + esc(sess.venue) + '</div>';
-      if (tsd.dress_code) upcomingHtml += '<div><i class="fa-solid fa-shirt" style="width:16px;"></i> ' + esc(tsd.dress_code) + '</div>';
-      if (tsd.load_in_time) upcomingHtml += '<div><i class="fa-solid fa-truck-loading" style="width:16px;"></i> Load-in: ' + esc(tsd.load_in_time) + '</div>';
-      upcomingHtml += '</div></div>';
-      // Show pay after acceptance
-      if (a.pay_amount) upcomingHtml += '<div style="font-size:var(--text-sm);font-weight:var(--fw-semibold);color:#3fb950;">$' + a.pay_amount + '</div>';
-      upcomingHtml += '</div></div>';
-    });
 
     if (!upcomingHtml) upcomingHtml = '<div style="padding:var(--space-md);color:var(--color-text-muted);font-size:var(--text-sm);">No upcoming sessions.</div>';
     document.getElementById('portal-upcoming-list').innerHTML = upcomingHtml;
   }
 
-  // ═══ ACCEPT / DECLINE ═══
+  // ═══ ACCEPT / DECLINE — the respond leg ═══
+  // UPSERT the member's own row in session_assignment_responses (own-row RLS;
+  // musician_uid/responded_at are set server-side by defaults/trigger — the
+  // client sends ONLY assignment_id + response). The env-gated server
+  // reconciler pulls it into the SoR; the publisher republishes the readmodel.
 
-  window._portalAccept = async function(assignmentId, sessionId) {
+  var _responding = false;
+
+  async function respond(assignmentId, response, okMsg, okKind) {
+    if (_responding) return;
+    var sb = getSb();
+    if (!sb || !assignmentId) {
+      if (typeof Toast !== 'undefined') Toast.error('Not connected — try again.');
+      return;
+    }
+    _responding = true;
     try {
-      var batch = fdb.batch();
-      var now = Auth._serverTimestamp();
-
-      // Update assignment
-      batch.update(fdb.collection('session-assignments').doc(assignmentId), {
-        status: 'accepted',
-        responded_at: now
-      });
-
-      // Mark related notification as actioned
-      var notifSnap = await fdb.collection('notifications').doc(_uid).collection('items')
-        .where('session_id', '==', sessionId).where('status', '==', 'unread').get();
-      notifSnap.forEach(function(doc) {
-        batch.update(doc.ref, { status: 'actioned' });
-      });
-
-      await batch.commit();
-      if (typeof Toast !== 'undefined') Toast.success("You're booked!");
+      var res = await sb.from('session_assignment_responses').upsert(
+        { assignment_id: String(assignmentId), response: response },
+        { onConflict: 'assignment_id' }
+      );
+      if (res && res.error) throw new Error(res.error.message || 'write failed');
+      if (typeof Toast !== 'undefined') {
+        if (okKind === 'success') Toast.success(okMsg); else Toast.info(okMsg);
+      }
       await loadPortal();
     } catch (e) {
-      if (typeof Toast !== 'undefined') Toast.error('Accept failed: ' + e.message);
+      if (typeof Toast !== 'undefined') {
+        Toast.error((response === 'accepted' ? 'Accept' : 'Decline') + ' failed: ' + ((e && e.message) || 'try again'));
+      }
+    } finally {
+      _responding = false;
     }
+  }
+
+  window._portalAccept = function(assignmentId) {
+    return respond(assignmentId, 'accepted', "You're booked!", 'success');
   };
 
-  window._portalDecline = async function(assignmentId) {
-    try {
-      await fdb.collection('session-assignments').doc(assignmentId).update({
-        status: 'declined',
-        responded_at: Auth._serverTimestamp()
-      });
-      if (typeof Toast !== 'undefined') Toast.info('Session declined.');
-      await loadPortal();
-    } catch (e) {
-      if (typeof Toast !== 'undefined') Toast.error('Decline failed: ' + e.message);
-    }
+  window._portalDecline = function(assignmentId) {
+    var run = function() { respond(assignmentId, 'declined', 'Declined — your manager will be notified.', 'info'); };
+    // Confirm before declining (390px one-handed: a mis-tap must not silently
+    // turn down a gig). Falls back to immediate decline if Modal is absent.
+    if (typeof Modal !== 'undefined' && Modal.confirm) {
+      Modal.confirm('Decline this show? Your manager will be notified so they can re-staff it.', run);
+    } else { run(); }
   };
 
   // ═══ SIDEBAR BADGE ═══
+  // Targets the "My Portal" sidebar item added by this story
+  // (index.html data-page="dashboard-my-portal") — previously matched nothing.
 
   function _updateSidebarBadge(count) {
     var link = document.querySelector('[data-page="dashboard-my-portal"]');
@@ -336,16 +495,22 @@
     }
   }
 
-  // ═══ INIT ═══
+  // ═══ INIT (fully guarded — audit 3.4: the old init had no catch) ═══
 
-  function init() {
-    if (typeof Auth === 'undefined' || !Auth._db || !Auth._user) {
-      document.getElementById('portal-pending-list').innerHTML = '<div style="padding:var(--space-md);color:var(--color-text-muted);">Sign in to view your portal.</div>';
-      return;
+  async function init() {
+    try {
+      _uid = await currentUid();
+      var sb = getSb();
+      if (!sb || !_uid) {
+        document.getElementById('portal-pending-list').innerHTML =
+          '<div style="padding:var(--space-md);color:var(--color-text-muted);">Sign in to view your portal.</div>';
+        return;
+      }
+      showLoading();
+      await loadPortal();
+    } catch (e) {
+      showError();
     }
-    fdb = Auth._db;
-    _uid = Auth._user.uid;
-    loadPortal();
   }
 
   if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {

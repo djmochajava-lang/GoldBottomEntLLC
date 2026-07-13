@@ -384,6 +384,17 @@
             <i class="fa-solid fa-headphones"></i>
             <span class="sidebar-nav-text">Band Player</span>
           </a>
+          <!-- story-p0-musician-journey (audit 3.3): My Portal was ORPHANED — no nav link
+               anywhere. Member hub (invites, My Bio, quick links). Member roles only
+               (artist,band_member — same gating as Payment Info); remote-visible by
+               design (members are remote-only; route is NOT in localOnlyRoutes and the
+               router ACL at js/router.js allows band_member). my-portal.html's pending
+               badge updater targets [data-page="dashboard-my-portal"] — this item. -->
+          <a href="#dashboard-my-portal" class="sidebar-nav-item" data-page="dashboard-my-portal"
+             data-roles="artist,band_member">
+            <i class="fa-solid fa-id-badge"></i>
+            <span class="sidebar-nav-text">My Portal</span>
+          </a>
           <a href="#dashboard-calendar" class="sidebar-nav-item" data-page="dashboard-calendar"
              data-roles="admin,band_manager,artist,band_member">
             <i class="fa-solid fa-calendar-days"></i>
