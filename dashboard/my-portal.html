@@ -23,6 +23,18 @@
     </div>
   </div>
 
+  <!-- My Bio Section (story-bio-b-collect Flow A — member self-serve submission) -->
+  <div id="portal-mybio" style="margin-bottom:var(--space-lg);">
+    <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
+      <i class="fa-solid fa-address-card" style="color:var(--color-gold);"></i> My Bio
+    </h2>
+    <div id="mybio-root">
+      <div style="text-align:center;padding:var(--space-lg);color:var(--color-text-muted);font-size:var(--text-sm);">
+        <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+      </div>
+    </div>
+  </div>
+
   <!-- Upcoming Sessions -->
   <div id="portal-upcoming" style="margin-bottom:var(--space-lg);">
     <h2 style="font-size:var(--text-base);font-weight:var(--fw-semibold);margin-bottom:var(--space-md);display:flex;align-items:center;gap:var(--space-xs);">
@@ -71,6 +83,55 @@
     background:rgba(248,81,73,0.08);color:#f85149;border:1px solid rgba(248,81,73,0.3);border-radius:var(--radius-md);
     padding:10px 20px;cursor:pointer;font-size:var(--text-sm);min-height:44px;
   }
+
+  /* ── My Bio (story-bio-b-collect Flow A) ── */
+  .mybio-card { background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md); }
+  .mybio-field { margin-bottom:var(--space-md); }
+  .mybio-flabel { display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-sm);font-size:13px;font-weight:var(--fw-semibold);margin-bottom:4px; }
+  .mybio-counter { font-size:12px;color:var(--color-text-muted);font-variant-numeric:tabular-nums;white-space:nowrap; }
+  .mybio-counter.over { color:#f85149;font-weight:700; }
+  .mybio-helper { font-size:12px;color:var(--color-text-muted);margin-top:4px;line-height:1.4; }
+  .mybio-input, .mybio-textarea {
+    width:100%;box-sizing:border-box;background:var(--color-bg-tertiary);
+    border:1px solid var(--color-border);border-radius:var(--radius-md);
+    padding:12px 14px;color:var(--color-text);font-size:16px;font-family:inherit;
+  }
+  .mybio-input:focus, .mybio-textarea:focus { outline:none;border-color:var(--color-gold); }
+  .mybio-textarea { resize:vertical;min-height:64px;line-height:1.5; }
+  .mybio-input.over, .mybio-textarea.over { border-color:#f85149; }
+  .mybio-btn-primary {
+    background:var(--color-gold);color:#0d1117;border:none;border-radius:var(--radius-md);
+    padding:12px 22px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-bold);min-height:48px;width:100%;
+  }
+  .mybio-btn-primary:disabled { opacity:0.45;cursor:not-allowed; }
+  .mybio-btn-secondary {
+    background:var(--color-bg-tertiary);color:var(--color-text);border:1px solid var(--color-border);
+    border-radius:var(--radius-md);padding:12px 18px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);min-height:48px;
+  }
+  .mybio-btn-danger {
+    background:rgba(248,81,73,0.08);color:#f85149;border:1px solid rgba(248,81,73,0.3);
+    border-radius:var(--radius-md);padding:12px 18px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-semibold);min-height:48px;
+  }
+  .mybio-link { background:none;border:none;color:var(--color-gold);cursor:pointer;font-size:13px;font-weight:600;padding:6px 2px;text-decoration:underline; }
+  .mybio-photos { display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-bottom:var(--space-md); }
+  .mybio-photo-slot { border:1px dashed var(--color-border);border-radius:var(--radius-lg);padding:var(--space-sm);text-align:center;background:var(--color-bg-tertiary); }
+  .mybio-photo-frame { margin:0 auto var(--space-xs);background:rgba(212,160,23,0.10);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--color-text-muted); }
+  .mybio-photo-headshot .mybio-photo-frame { width:88px;height:88px;border-radius:var(--radius-full); }
+  .mybio-photo-promo .mybio-photo-frame { width:100%;height:88px;border-radius:var(--radius-md); }
+  .mybio-photo-frame img { width:100%;height:100%;object-fit:cover; }
+  .mybio-photo-purpose { font-size:12px;font-weight:600;color:var(--color-text);margin-bottom:2px; }
+  .mybio-photo-hint { font-size:11px;color:var(--color-text-muted);line-height:1.35; }
+  .mybio-chip { display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:var(--radius-full);background:rgba(139,148,158,0.15);color:#8b949e; }
+  .mybio-chip-shared { background:rgba(63,185,80,0.12);color:#3fb950; }
+  .mybio-consent-el { display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--color-border);font-size:13px;line-height:1.45; }
+  .mybio-consent-el input { width:22px;height:22px;margin:1px 0 0;flex-shrink:0;accent-color:var(--color-gold); }
+  .mybio-ack { font-size:13px;color:var(--color-text-secondary);line-height:1.5;padding-left:18px;margin:0 0 var(--space-md); }
+  .mybio-ack li { margin-bottom:6px; }
+  .mybio-terms { background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:var(--space-md);font-size:13px;line-height:1.55;color:var(--color-text-secondary);max-height:240px;overflow-y:auto;white-space:pre-wrap;margin-bottom:var(--space-md); }
+  .mybio-preview-card { background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md);margin-top:var(--space-sm); }
+  .mybio-preview-head { display:flex;gap:var(--space-md);align-items:center;margin-bottom:var(--space-sm); }
+  .mybio-preview-avatar { width:64px;height:64px;border-radius:var(--radius-full);object-fit:cover;background:rgba(212,160,23,0.15);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--color-gold); }
+  .mybio-preview-promo { width:100%;border-radius:var(--radius-md);margin-top:var(--space-sm);object-fit:cover;max-height:180px; }
 </style>
 
 <script>
@@ -268,5 +329,499 @@
   } else {
     init();
   }
+})();
+</script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   My Bio — story-bio-b-collect Flow A (member self-serve submission)
+   REMOTE path: the member writes their OWN Supabase `bio_submissions` row via
+   the existing authenticated PKCE client (Auth._sb) and stages photos to
+   Storage band-media/bio-staging/<auth.uid()>/…. This is SUBMISSION of source
+   material (D-49), NOT self-publish — end state is "shared with your manager".
+   Contract: BIO_B_SERVER_REPORT.md §7. Design/ACs: DESIGN_bio-b-experience.md.
+   Does NOT use Utils.apiFetch (that LAN path rejects remote by design).
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  // ── Consent copy MIRRORED from server/src/config/bio-consent-disclosure.js ──
+  // §7c. DRAFT pending Legal — if the server bumps `version`, update here too.
+  var CONSENT_VERSION = 'bio-consent-v1-2026-07';
+  var CONSENT_TEXT = [
+    'Sharing your bio and photos with Gold Bottom Entertainment',
+    '',
+    'When you add your bio and photos here, you are SHARING them with your ' +
+    'manager at Gold Bottom Ent so we have them on file. You are not publishing ' +
+    'them to the band page yourself.',
+    '',
+    'Here is what that means:',
+    '',
+    '• We store what you provide (your role, credits, short and long bio, and ' +
+    'any photos) as source material for the band.',
+    '• We may use or adapt this material in the band’s promotional ' +
+    'materials — the band page, an electronic press kit (EPK), social ' +
+    'posts, and similar marketing. We often rework the wording to fit the ' +
+    'band’s style, so the final published version may not be word-for-word ' +
+    'what you wrote.',
+    '• Choosing if and when to publish anything is a separate decision made by ' +
+    'your manager. Sharing here does not put your bio live.',
+    '• Any credits you list (for example, notable artists you have worked with) ' +
+    'are verified before they are ever published.',
+    '',
+    'About your photos: if you add a promotional photo, please make sure you ' +
+    'have the right to share it — that you took it yourself, or the ' +
+    'photographer has given you permission to use it. Photographers often keep ' +
+    'the copyright to photos they take, so this matters.',
+    '',
+    'You confirm that the information you provide is accurate, and that you are ' +
+    '18 or older.',
+    '',
+    'You can review or update what you shared at any time, and you can withdraw ' +
+    'your submission — that returns it to a private draft only you and your ' +
+    'manager can see.'
+  ].join('\n');
+  // Informational elements the member acknowledges by tapping the share button.
+  var ACK_INFO = [
+    { id: 'store',            text: 'GBE stores the bio and photos I provide as source material.' },
+    { id: 'use_adapt',        text: 'GBE may use or ADAPT this material in the band’s marketing and EPK (wording may be reworked).' },
+    { id: 'not_self_publish', text: 'Sharing here is a submission to my manager, not a live self-publish.' },
+    { id: 'publish_is_gbe',   text: 'Whether and when anything is published is GBE’s separate later decision, gated on this consent.' }
+  ];
+
+  // Fields in plain-language order (AC-E1). Caps = server FIELD_LIMITS / §7a.
+  var FIELDS = [
+    { key:'stage_name',  label:'Stage name',        max:40,   ph:'e.g. L.A. Young',            helper:'The name fans should see.' },
+    { key:'role_line',   label:'Your role',         max:30,   ph:'e.g. Background vocalist',   helper:'What you do in the band.' },
+    { key:'credit_line', label:'Notable credits',   max:80,   ph:'e.g. Toured with …',    helper:'Notable work — we confirm it before anything is published.' },
+    { key:'short_bio',   label:'Short bio',         max:280,  ph:'One or two sentences fans will read first.', helper:'The one that matters most.', multiline:true, required:true },
+    { key:'long_bio',    label:'Longer bio',        max:1200, ph:'The fuller story …',    helper:'Optional — share more if you like.', multiline:true, optional:true }
+  ];
+
+  var IMG_TYPES = ['image/jpeg','image/png','image/webp'];
+  var MAX_BYTES = 8 * 1024 * 1024;
+
+  // ── State ──
+  var _view = 'loading';
+  var _uid = null;
+  var _existing = null;              // loaded bio_submissions row (or null)
+  var _errMsg = '';
+  var _data = { stage_name:'', role_line:'', credit_line:'', short_bio:'', long_bio:'' };
+  var _photos = { headshot:{ key:null, url:null, uploading:false }, promo:{ key:null, url:null, uploading:false } };
+  var _consent = { legalName:'', age:false, accuracy:false, photo:false };
+  var _showLongBio = false;
+  var _showTerms = false;
+  var _showPreview = false;
+  var _submitting = false;
+  var _saveTimer = null;
+
+  function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function root(){ return document.getElementById('mybio-root'); }
+  function getSb(){ return (typeof Auth !== 'undefined' && Auth._sb) ? Auth._sb : null; }
+  function toastErr(m){ if (typeof Toast !== 'undefined') Toast.error(m); }
+  function toastOk(m){ if (typeof Toast !== 'undefined') Toast.success(m); }
+  function hasPhoto(){ return !!(_photos.headshot.key || _photos.promo.key); }
+
+  function uuid(){
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch(e){}
+    var b = null; try { b = crypto.getRandomValues(new Uint8Array(16)); } catch(e){}
+    if (b){ b[6]=(b[6]&0x0f)|0x40; b[8]=(b[8]&0x3f)|0x80; var h=[]; for(var i=0;i<16;i++)h.push((b[i]+0x100).toString(16).slice(1));
+      return h.slice(0,4).join('')+'-'+h.slice(4,6).join('')+'-'+h.slice(6,8).join('')+'-'+h.slice(8,10).join('')+'-'+h.slice(10,16).join(''); }
+    return 'x'+Date.now().toString(16)+Math.floor(Math.random()*1e8).toString(16);
+  }
+
+  // ── Local draft autosave (AC-E2) ──
+  function draftKey(){ return 'gbe-bio-draft-' + (_uid || 'anon'); }
+  function saveDraft(){
+    try { localStorage.setItem(draftKey(), JSON.stringify({ data:_data, photos:{ headshot:_photos.headshot.key, promo:_photos.promo.key } })); } catch(e){}
+  }
+  function saveDraftSoon(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(saveDraft, 400); }
+  function loadDraft(){
+    try {
+      var r = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+      if (r && r.data){
+        _data = { stage_name:r.data.stage_name||'', role_line:r.data.role_line||'', credit_line:r.data.credit_line||'', short_bio:r.data.short_bio||'', long_bio:r.data.long_bio||'' };
+        if (r.photos){ _photos.headshot.key = r.photos.headshot || null; _photos.promo.key = r.photos.promo || null; }
+        if (_data.long_bio) _showLongBio = true;
+      }
+    } catch(e){}
+  }
+  function clearDraft(){ try { localStorage.removeItem(draftKey()); } catch(e){} }
+
+  function hydrateFrom(row){
+    var p = (row && row.payload) || {};
+    _data = { stage_name:p.stage_name||'', role_line:p.role_line||'', credit_line:p.credit_line||'', short_bio:p.short_bio||'', long_bio:p.long_bio||'' };
+    var imgs = p.images || {};
+    // preserve any in-memory preview URL when the key still matches
+    _photos.headshot.key = imgs.headshot_staging_key || null;
+    _photos.promo.key = imgs.promo_staging_key || null;
+    if (_data.long_bio) _showLongBio = true;
+    if (row && row.consent && row.consent.legalName) _consent.legalName = row.consent.legalName;
+  }
+
+  // ── Load: read own submission (RLS returns only the caller's row) ──
+  async function currentUid(){
+    var sb = getSb(); if (!sb) return null;
+    try {
+      var r = await sb.auth.getSession();
+      if (r && r.data && r.data.session && r.data.session.user) return r.data.session.user.id;
+    } catch(e){}
+    return (typeof Auth !== 'undefined' && Auth._user && Auth._user.uid) ? Auth._user.uid : null;
+  }
+
+  async function load(){
+    var sb = getSb();
+    _uid = await currentUid();
+    if (!sb || !_uid){ _view = 'signedout'; render(); return; }
+    try {
+      var res = await sb.from('bio_submissions').select('*').maybeSingle();
+      if (res && res.error){ _view = 'error'; _errMsg = res.error.message || 'Could not load your bio.'; render(); return; }
+      _existing = (res && res.data) ? res.data : null;
+      if (!_existing){
+        loadDraft();
+        _view = (_data.short_bio || _data.stage_name || hasPhoto()) ? 'edit' : 'empty';
+      } else if (_existing.status === 'withdrawn'){
+        hydrateFrom(_existing); _view = 'withdrawn';
+      } else {
+        hydrateFrom(_existing); _view = 'submitted';
+      }
+    } catch(e){ _view = 'error'; _errMsg = (e && e.message) || 'Could not load your bio.'; }
+    render();
+  }
+
+  // ── Render dispatch ──
+  function render(){
+    var el = root(); if (!el) return;
+    if (_view === 'loading'){ el.innerHTML = '<div style="text-align:center;padding:var(--space-lg);color:var(--color-text-muted);font-size:var(--text-sm);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>'; return; }
+    if (_view === 'signedout'){ el.innerHTML = '<div class="mybio-card" style="color:var(--color-text-muted);font-size:var(--text-sm);">Sign in on the band site to add your bio.</div>'; return; }
+    if (_view === 'error'){
+      el.innerHTML = '<div class="mybio-card"><div style="color:#f85149;font-size:var(--text-sm);margin-bottom:var(--space-sm);"><i class="fa-solid fa-triangle-exclamation"></i> ' + esc(_errMsg) + '</div><button class="mybio-btn-secondary" id="mybio-retry">Try again</button></div>';
+      var rb = document.getElementById('mybio-retry'); if (rb) rb.addEventListener('click', function(){ _view='loading'; render(); load(); });
+      return;
+    }
+    if (_view === 'empty') return renderEmpty(el);
+    if (_view === 'edit') return renderEdit(el);
+    if (_view === 'consent') return renderConsent(el);
+    if (_view === 'submitted') return renderSubmitted(el);
+    if (_view === 'withdrawn') return renderWithdrawn(el);
+  }
+
+  // ── State: empty / first-visit (AC-A1: inviting single card, one action) ──
+  function renderEmpty(el){
+    el.innerHTML =
+      '<div class="mybio-card">' +
+        '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:6px;">' +
+          '<i class="fa-solid fa-microphone-lines" style="color:var(--color-gold);font-size:18px;"></i>' +
+          '<div style="font-weight:var(--fw-semibold);font-size:15px;">Share your bio &amp; photos so we can feature you</div>' +
+        '</div>' +
+        '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-md);line-height:1.5;">Tell fans who you are. Your manager may use this on the band page and press kit — you can edit or take it back anytime.</div>' +
+        '<button class="mybio-btn-primary" id="mybio-start"><i class="fa-solid fa-pen"></i> Add my bio</button>' +
+      '</div>';
+    var b = document.getElementById('mybio-start');
+    if (b) b.addEventListener('click', function(){ _view='edit'; render(); });
+  }
+
+  // ── State: editing (progressive fields + counters + photos) ──
+  function fieldHtml(f){
+    var val = _data[f.key] || '';
+    var over = val.length > f.max;
+    var input = f.multiline
+      ? '<textarea class="mybio-textarea' + (over?' over':'') + '" id="mybio-in-' + f.key + '" rows="' + (f.key==='long_bio'?5:3) + '" placeholder="' + esc(f.ph) + '">' + esc(val) + '</textarea>'
+      : '<input type="text" class="mybio-input' + (over?' over':'') + '" id="mybio-in-' + f.key + '" placeholder="' + esc(f.ph) + '" value="' + esc(val) + '" />';
+    return '<div class="mybio-field" id="mybio-field-' + f.key + '">' +
+      '<div class="mybio-flabel"><span>' + esc(f.label) + (f.required?' <span style="color:var(--color-gold);">•</span>':'') + '</span>' +
+      '<span class="mybio-counter' + (over?' over':'') + '" id="mybio-ct-' + f.key + '">' + val.length + '/' + f.max + '</span></div>' +
+      input +
+      '<div class="mybio-helper">' + esc(f.helper) + '</div>' +
+    '</div>';
+  }
+
+  function photosHtml(){
+    function slot(slotKey, purpose, hint){
+      var st = _photos[slotKey];
+      var frame;
+      if (st.url){ frame = '<img src="' + esc(st.url) + '" alt="" />'; }
+      else if (st.key){ frame = '<i class="fa-solid fa-check" style="color:#3fb950;"></i>'; }
+      else { frame = '<i class="fa-solid ' + (slotKey==='headshot'?'fa-user':'fa-image') + '"></i>'; }
+      var status = st.uploading ? '<div class="mybio-photo-hint" style="color:var(--color-gold);"><i class="fa-solid fa-spinner fa-spin"></i> Uploading…</div>'
+                 : (st.key ? '<div class="mybio-photo-hint mybio-chip-shared" style="background:none;color:#3fb950;">Added</div>' : '');
+      return '<div class="mybio-photo-slot mybio-photo-' + slotKey + '">' +
+        '<div class="mybio-photo-frame">' + frame + '</div>' +
+        '<div class="mybio-photo-purpose">' + esc(purpose) + '</div>' +
+        '<div class="mybio-photo-hint">' + esc(hint) + '</div>' +
+        status +
+        '<label class="mybio-link" style="display:inline-block;margin-top:4px;">' + (st.key?'Replace':'Add photo') +
+          '<input type="file" accept="image/jpeg,image/png,image/webp" id="mybio-file-' + slotKey + '" style="display:none;" /></label>' +
+      '</div>';
+    }
+    return '<div class="mybio-photos" id="mybio-photos-block">' +
+      slot('headshot','Headshot','A close-up portrait for your bio card.') +
+      slot('promo','Promo photo','A performance or promo shot — landscape works best.') +
+    '</div>';
+  }
+
+  function renderEdit(el){
+    var fieldsHtml = fieldHtml(FIELDS[0]) + fieldHtml(FIELDS[1]) + fieldHtml(FIELDS[2]) + fieldHtml(FIELDS[3]);
+    var longSection = _showLongBio
+      ? fieldHtml(FIELDS[4])
+      : '<button class="mybio-link" id="mybio-add-long"><i class="fa-solid fa-plus"></i> Add a longer bio (optional)</button>';
+    el.innerHTML =
+      '<div class="mybio-card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md);">' +
+          '<span class="mybio-chip"><i class="fa-solid fa-lock" style="font-size:11px;"></i> Draft — only you &amp; your manager can see this</span>' +
+        '</div>' +
+        '<div style="font-size:12px;font-weight:var(--fw-semibold);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Photos (optional)</div>' +
+        photosHtml() +
+        fieldsHtml +
+        '<div style="margin-bottom:var(--space-md);">' + longSection + '</div>' +
+        '<button class="mybio-btn-primary" id="mybio-review"><i class="fa-solid fa-arrow-right"></i> Review &amp; continue</button>' +
+        (_existing ? '<button class="mybio-btn-secondary" id="mybio-cancel" style="width:100%;margin-top:var(--space-sm);">Cancel</button>' : '') +
+      '</div>';
+
+    FIELDS.forEach(function(f){
+      var inp = document.getElementById('mybio-in-' + f.key);
+      if (!inp) return;
+      inp.addEventListener('input', function(){
+        _data[f.key] = inp.value;
+        var over = inp.value.length > f.max;
+        var ct = document.getElementById('mybio-ct-' + f.key);
+        if (ct){ ct.textContent = inp.value.length + '/' + f.max; ct.classList.toggle('over', over); }
+        inp.classList.toggle('over', over);
+        saveDraftSoon();
+        updateReviewBtn();
+      });
+    });
+    var addLong = document.getElementById('mybio-add-long');
+    if (addLong) addLong.addEventListener('click', function(){ _showLongBio = true; render(); });
+    wirePhotoInputs();
+    var rev = document.getElementById('mybio-review');
+    if (rev) rev.addEventListener('click', function(){ if (!reviewReady()) return; _view='consent'; _showTerms=false; render(); });
+    var cancel = document.getElementById('mybio-cancel');
+    if (cancel) cancel.addEventListener('click', function(){ _view = _existing ? (_existing.status==='withdrawn'?'withdrawn':'submitted') : 'empty'; render(); });
+    updateReviewBtn();
+  }
+
+  function wirePhotoInputs(){
+    ['headshot','promo'].forEach(function(slotKey){
+      var fi = document.getElementById('mybio-file-' + slotKey);
+      if (fi) fi.addEventListener('change', function(){ onPickPhoto(slotKey, fi); });
+    });
+  }
+
+  function renderPhotosBlock(){
+    var blk = document.getElementById('mybio-photos-block');
+    if (!blk) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = photosHtml();
+    blk.replaceWith(tmp.firstChild);
+    wirePhotoInputs();
+  }
+
+  function onPickPhoto(slotKey, input){
+    var file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (IMG_TYPES.indexOf(file.type) === -1){ toastErr('Use a JPG, PNG, or WebP image.'); return; }
+    if (file.size > MAX_BYTES){ toastErr('Image must be under 8 MB.'); return; }
+    var sb = getSb(); if (!sb || !sb.storage){ toastErr('Not connected — try again.'); return; }
+    var st = _photos[slotKey];
+    if (st.url){ try { URL.revokeObjectURL(st.url); } catch(e){} }
+    st.url = URL.createObjectURL(file);
+    st.uploading = true; st.key = null;
+    renderPhotosBlock(); updateReviewBtn();
+    var ext = file.type === 'image/png' ? 'png' : (file.type === 'image/webp' ? 'webp' : 'jpg');
+    var key = 'bio-staging/' + _uid + '/' + slotKey + '-' + uuid() + '.' + ext;
+    sb.storage.from('band-media').upload(key, file, { contentType: file.type, upsert: false }).then(function(res){
+      st.uploading = false;
+      if (res && res.error){ toastErr('Photo upload failed — try again.'); st.key = null; if (st.url){ try{URL.revokeObjectURL(st.url);}catch(e){} st.url=null; } }
+      else { st.key = key; saveDraft(); toastOk('Photo added.'); }
+      renderPhotosBlock(); updateReviewBtn();
+    }).catch(function(){
+      st.uploading = false; st.key = null;
+      toastErr('Photo upload failed — try again.');
+      renderPhotosBlock(); updateReviewBtn();
+    });
+  }
+
+  function anyOverCap(){
+    for (var i=0;i<FIELDS.length;i++){ var f=FIELDS[i]; if ((_data[f.key]||'').length > f.max) return true; }
+    return false;
+  }
+  function reviewReady(){
+    return (_data.short_bio||'').trim().length > 0 && !anyOverCap() && !_photos.headshot.uploading && !_photos.promo.uploading;
+  }
+  function updateReviewBtn(){
+    var b = document.getElementById('mybio-review'); if (!b) return;
+    b.disabled = !reviewReady();
+    b.title = reviewReady() ? '' : 'Add a short bio (and wait for any photo to finish) to continue.';
+  }
+
+  // ── State: consent (AC-E3 distinct step, informed, one deliberate tap) ──
+  function renderConsent(el){
+    var photo = hasPhoto();
+    var terms = _showTerms
+      ? '<div class="mybio-terms">' + esc(CONSENT_TEXT) + '</div>'
+      : '';
+    var ackList = ACK_INFO.map(function(e){ return '<li>' + esc(e.text) + '</li>'; }).join('');
+    var swornPhoto = photo
+      ? '<label class="mybio-consent-el"><input type="checkbox" id="mybio-c-photo"' + (_consent.photo?' checked':'') + ' /><span>I have the right to share any photo I added (I took it, or I hold a license from the photographer).</span></label>'
+      : '';
+    el.innerHTML =
+      '<div class="mybio-card">' +
+        '<button class="mybio-link" id="mybio-back" style="padding-left:0;"><i class="fa-solid fa-arrow-left"></i> Back to editing</button>' +
+        '<div style="font-weight:var(--fw-semibold);font-size:16px;margin:6px 0 var(--space-sm);">One more step — share with your manager</div>' +
+        '<div style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin-bottom:var(--space-md);">You’re about to <strong>share</strong> your bio and photos with your manager at Gold Bottom Ent. They’ll store it and may <strong>use or adapt</strong> it in the band’s marketing and press kit. This isn’t publishing it live — that’s a separate decision your manager makes later.</div>' +
+        '<button class="mybio-link" id="mybio-terms-toggle" style="padding-left:0;margin-bottom:var(--space-sm);">' + (_showTerms?'Hide full terms':'Read the full terms') + '</button>' +
+        terms +
+        '<div style="font-size:12px;font-weight:var(--fw-semibold);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px;">By sharing, you acknowledge:</div>' +
+        '<ul class="mybio-ack">' + ackList + '</ul>' +
+        '<div class="mybio-field">' +
+          '<div class="mybio-flabel"><span>Your legal name <span style="color:var(--color-gold);">•</span></span></div>' +
+          '<input type="text" class="mybio-input" id="mybio-c-name" placeholder="First and last name" value="' + esc(_consent.legalName) + '" />' +
+          '<div class="mybio-helper">Confirms this consent is yours. Not shown publicly.</div>' +
+        '</div>' +
+        swornPhoto +
+        '<label class="mybio-consent-el"><input type="checkbox" id="mybio-c-accuracy"' + (_consent.accuracy?' checked':'') + ' /><span>The information I’m sharing is accurate.</span></label>' +
+        '<label class="mybio-consent-el" style="border-bottom:1px solid var(--color-border);"><input type="checkbox" id="mybio-c-age"' + (_consent.age?' checked':'') + ' /><span>I am 18 or older.</span></label>' +
+        '<button class="mybio-btn-primary" id="mybio-submit" style="margin-top:var(--space-md);"><i class="fa-solid fa-paper-plane"></i> I understand — share with my manager</button>' +
+      '</div>';
+
+    document.getElementById('mybio-back').addEventListener('click', function(){ _view='edit'; render(); });
+    document.getElementById('mybio-terms-toggle').addEventListener('click', function(){ _showTerms=!_showTerms; render(); });
+    var nameEl = document.getElementById('mybio-c-name');
+    nameEl.addEventListener('input', function(){ _consent.legalName = nameEl.value; updateSubmitBtn(); });
+    var ageEl = document.getElementById('mybio-c-age');
+    ageEl.addEventListener('change', function(){ _consent.age = ageEl.checked; updateSubmitBtn(); });
+    var accEl = document.getElementById('mybio-c-accuracy');
+    accEl.addEventListener('change', function(){ _consent.accuracy = accEl.checked; updateSubmitBtn(); });
+    var photoEl = document.getElementById('mybio-c-photo');
+    if (photoEl) photoEl.addEventListener('change', function(){ _consent.photo = photoEl.checked; updateSubmitBtn(); });
+    var sub = document.getElementById('mybio-submit');
+    sub.addEventListener('click', doSubmit);
+    updateSubmitBtn();
+  }
+
+  function consentReady(){
+    var photo = hasPhoto();
+    return _consent.legalName.trim().length > 0 && _consent.age && _consent.accuracy && (!photo || _consent.photo);
+  }
+  function updateSubmitBtn(){
+    var b = document.getElementById('mybio-submit'); if (!b) return;
+    b.disabled = !consentReady() || _submitting;
+  }
+
+  function doSubmit(){
+    if (!consentReady() || _submitting) return;
+    var sb = getSb(); if (!sb){ toastErr('Not connected.'); return; }
+    _submitting = true;
+    var btn = document.getElementById('mybio-submit');
+    if (btn){ btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sharing…'; }
+    var photo = hasPhoto();
+    var ack = ['store','use_adapt','not_self_publish','publish_is_gbe','withdrawable'];
+    if (_consent.accuracy) ack.push('accuracy');
+    if (_consent.age) ack.push('age_18_plus');
+    if (photo && _consent.photo) ack.push('photo_rights');
+    if ((_data.credit_line||'').trim()) ack.push('credits_verified');
+    var payload = {
+      stage_name: _data.stage_name || '', role_line: _data.role_line || '', credit_line: _data.credit_line || '',
+      short_bio: _data.short_bio || '', long_bio: _data.long_bio || '',
+      images: { headshot_staging_key: _photos.headshot.key || null, promo_staging_key: _photos.promo.key || null }
+    };
+    var consent = {
+      version: CONSENT_VERSION, agreedAt: new Date().toISOString(), legalName: _consent.legalName.trim(),
+      ageAttestation18Plus: !!_consent.age, accuracyAttestation: !!_consent.accuracy,
+      photoRightsWarranty: photo ? !!_consent.photo : false,
+      elementsAcknowledged: ack
+    };
+    sb.from('bio_submissions').upsert({ payload: payload, consent: consent, status: 'submitted' }, { onConflict: 'user_id' }).then(function(res){
+      _submitting = false;
+      if (res && res.error){ toastErr('Could not share: ' + (res.error.message||'try again')); updateSubmitBtn(); if (btn) btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> I understand — share with my manager'; return; }
+      clearDraft();
+      toastOk('Shared with your manager.');
+      _showPreview = false;
+      load();
+    }).catch(function(e){
+      _submitting = false;
+      toastErr('Could not share: ' + ((e&&e.message)||'try again'));
+      updateSubmitBtn(); if (btn) btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> I understand — share with my manager';
+    });
+  }
+
+  // ── Rendered bio card (AC-A2 preview "see what fans see") ──
+  function bioCardHtml(){
+    var headImg = _photos.headshot.url ? '<img class="mybio-preview-avatar" src="' + esc(_photos.headshot.url) + '" alt="" />'
+      : (_photos.headshot.key ? '<div class="mybio-preview-avatar"><i class="fa-solid fa-user"></i></div>'
+      : '<div class="mybio-preview-avatar">' + esc((_data.stage_name||'?').charAt(0).toUpperCase()) + '</div>');
+    var promo = _photos.promo.url ? '<img class="mybio-preview-promo" src="' + esc(_photos.promo.url) + '" alt="" />'
+      : (_photos.promo.key ? '<div style="margin-top:var(--space-sm);"><span class="mybio-chip mybio-chip-shared"><i class="fa-solid fa-image"></i> Promo photo shared</span></div>' : '');
+    var credit = (_data.credit_line||'').trim() ? '<div style="font-size:12px;color:var(--color-gold);margin-top:4px;"><i class="fa-solid fa-star" style="font-size:10px;"></i> ' + esc(_data.credit_line) + '</div>' : '';
+    var longb = (_data.long_bio||'').trim() ? '<div style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin-top:var(--space-sm);">' + esc(_data.long_bio) + '</div>' : '';
+    return '<div class="mybio-preview-card">' +
+      '<div class="mybio-preview-head">' + headImg +
+        '<div><div style="font-weight:var(--fw-bold);font-size:16px;">' + esc(_data.stage_name||'Your name') + '</div>' +
+        '<div style="font-size:13px;color:var(--color-text-muted);">' + esc(_data.role_line||'') + '</div>' + credit + '</div>' +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--color-text);line-height:1.55;">' + esc(_data.short_bio||'') + '</div>' +
+      longb + promo +
+    '</div>';
+  }
+
+  // ── State: submitted (D-49: "shared", never "live") ──
+  function renderSubmitted(el){
+    el.innerHTML =
+      '<div class="mybio-card">' +
+        '<div style="display:flex;align-items:flex-start;gap:var(--space-sm);margin-bottom:var(--space-sm);">' +
+          '<i class="fa-solid fa-circle-check" style="color:#3fb950;font-size:20px;margin-top:2px;"></i>' +
+          '<div><div style="font-weight:var(--fw-semibold);">Thanks — shared with your manager</div>' +
+          '<div style="font-size:13px;color:var(--color-text-muted);line-height:1.5;margin-top:2px;">They’ll review it and may use this in promotional materials. It isn’t live yet — publishing is their separate decision.</div></div>' +
+        '</div>' +
+        '<div style="margin-bottom:var(--space-md);"><span class="mybio-chip mybio-chip-shared"><i class="fa-solid fa-share-nodes" style="font-size:11px;"></i> Shared — only you &amp; your manager can see this</span></div>' +
+        (_showPreview ? bioCardHtml() : '') +
+        '<div style="display:flex;flex-wrap:wrap;gap:var(--space-sm);margin-top:var(--space-md);">' +
+          '<button class="mybio-btn-secondary" id="mybio-preview-toggle"><i class="fa-solid fa-eye"></i> ' + (_showPreview?'Hide preview':'Preview what you shared') + '</button>' +
+          '<button class="mybio-btn-secondary" id="mybio-edit"><i class="fa-solid fa-pen"></i> Edit</button>' +
+          '<button class="mybio-btn-danger" id="mybio-withdraw"><i class="fa-solid fa-rotate-left"></i> Take back my submission</button>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('mybio-preview-toggle').addEventListener('click', function(){ _showPreview=!_showPreview; render(); });
+    document.getElementById('mybio-edit').addEventListener('click', function(){ _view='edit'; render(); });
+    document.getElementById('mybio-withdraw').addEventListener('click', doWithdraw);
+  }
+
+  function doWithdraw(){
+    var run = function(){
+      var sb = getSb(); if (!sb || !_existing){ return; }
+      var q = sb.from('bio_submissions').update({ status: 'withdrawn' });
+      q = _existing.id ? q.eq('id', _existing.id) : q.eq('user_id', _uid);
+      q.then(function(res){
+        if (res && res.error){ toastErr('Could not withdraw: ' + (res.error.message||'try again')); return; }
+        toastOk('Submission taken back — it’s a private draft now.');
+        load();
+      }).catch(function(e){ toastErr('Could not withdraw: ' + ((e&&e.message)||'try again')); });
+    };
+    if (typeof Modal !== 'undefined' && Modal.confirm){
+      Modal.confirm('Take back your submission? It returns to a private draft only you and your manager can see. You can share it again anytime.', run);
+    } else { run(); }
+  }
+
+  // ── State: withdrawn ──
+  function renderWithdrawn(el){
+    el.innerHTML =
+      '<div class="mybio-card">' +
+        '<div style="display:flex;align-items:flex-start;gap:var(--space-sm);margin-bottom:var(--space-md);">' +
+          '<i class="fa-solid fa-rotate-left" style="color:#d29922;font-size:18px;margin-top:2px;"></i>' +
+          '<div><div style="font-weight:var(--fw-semibold);">Submission taken back</div>' +
+          '<div style="font-size:13px;color:var(--color-text-muted);line-height:1.5;margin-top:2px;">It’s a private draft again — only you and your manager can see it. Share it again whenever you’re ready.</div></div>' +
+        '</div>' +
+        '<button class="mybio-btn-primary" id="mybio-reshare"><i class="fa-solid fa-share-nodes"></i> Share again</button>' +
+      '</div>';
+    document.getElementById('mybio-reshare').addEventListener('click', function(){ _view='edit'; render(); });
+  }
+
+  // ── Init ──
+  function boot(){ _view='loading'; render(); load(); }
+  if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function'){
+    Auth.whenReady(function(){ boot(); });
+  } else { boot(); }
 })();
 </script>
