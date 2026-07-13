@@ -132,6 +132,30 @@
   .mybio-preview-head { display:flex;gap:var(--space-md);align-items:center;margin-bottom:var(--space-sm); }
   .mybio-preview-avatar { width:64px;height:64px;border-radius:var(--radius-full);object-fit:cover;background:rgba(212,160,23,0.15);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--color-gold); }
   .mybio-preview-promo { width:100%;border-radius:var(--radius-md);margin-top:var(--space-sm);object-fit:cover;max-height:180px; }
+
+  /* ── Intake fork + document upload (story-bio-b document-intake, AC-A4/E6/C5) ── */
+  .mybio-fork { display:grid;gap:var(--space-sm);grid-template-columns:1fr; }
+  @media (min-width:560px){ .mybio-fork { grid-template-columns:1fr auto 1fr;align-items:stretch; } }
+  .mybio-fork-option { display:flex;flex-direction:column;gap:6px;background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-md);text-align:center;align-items:center; }
+  .mybio-fork-icon { width:44px;height:44px;border-radius:var(--radius-full);background:rgba(212,160,23,0.12);color:var(--color-gold);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:2px; }
+  .mybio-fork-title { font-weight:var(--fw-semibold);font-size:15px; }
+  .mybio-fork-desc { font-size:12px;color:var(--color-text-muted);line-height:1.45;margin-bottom:var(--space-sm);flex:1 0 auto; }
+  .mybio-fork-btn { background:var(--color-gold);color:#0d1117;border:none;border-radius:var(--radius-md);padding:12px 18px;cursor:pointer;font-size:var(--text-sm);font-weight:var(--fw-bold);min-height:44px;width:100%; }
+  .mybio-fork-or { display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em; }
+  .mybio-fork-or::before, .mybio-fork-or::after { content:'';display:block;height:1px;width:28px;background:var(--color-border);margin:0 8px; }
+  @media (min-width:560px){ .mybio-fork-or { flex-direction:column; } .mybio-fork-or::before, .mybio-fork-or::after { width:1px;height:28px;margin:8px 0; } }
+  .mybio-resume { display:flex;flex-wrap:wrap;gap:var(--space-sm);align-items:center;justify-content:space-between;background:rgba(212,160,23,0.08);border:1px solid rgba(212,160,23,0.25);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-md);font-size:13px;line-height:1.4; }
+  .mybio-builder-actions { display:flex;flex-direction:column;gap:var(--space-sm); }
+  .mybio-switch { margin-top:var(--space-md);padding-top:var(--space-md);border-top:1px solid var(--color-border);font-size:13px;color:var(--color-text-muted);line-height:1.5;display:flex;flex-wrap:wrap;align-items:center;gap:6px; }
+  .mybio-doc-drop { border:1px dashed var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg) var(--space-md);text-align:center;background:var(--color-bg-tertiary); }
+  .mybio-doc-file { display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) var(--space-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-radius:var(--radius-md); }
+  .mybio-doc-ic { color:var(--color-gold);font-size:20px;flex-shrink:0; }
+  .mybio-doc-name { font-weight:600;font-size:13px;word-break:break-word;overflow-wrap:anywhere; }
+  .mybio-progress { height:8px;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin:6px 0; }
+  .mybio-progress-bar { height:100%;width:42%;background:var(--color-gold);border-radius:var(--radius-full);animation:mybioIndeterminate 1.1s ease-in-out infinite; }
+  @keyframes mybioIndeterminate { 0%{ margin-left:-45%; } 100%{ margin-left:105%; } }
+  @media (prefers-reduced-motion:reduce){ .mybio-progress-bar { animation:none;width:100%; } }
+  .mybio-doc-ok { display:flex;align-items:flex-start;gap:var(--space-sm);background:rgba(63,185,80,0.10);border:1px solid rgba(63,185,80,0.3);border-radius:var(--radius-md);padding:var(--space-sm) var(--space-md);font-size:13px;line-height:1.5;color:var(--color-text-secondary);margin-top:var(--space-sm); }
 </style>
 
 <script>
@@ -411,6 +435,11 @@
   var IMG_TYPES = ['image/jpeg','image/png','image/webp'];
   var MAX_BYTES = 8 * 1024 * 1024;
 
+  // Document intake (§3): allow .txt/.docx/.pdf, ≤10MB. .doc rejected client-side.
+  var DOC_MAX_BYTES = 10 * 1024 * 1024;
+  var ALLOWED_DOC_EXT = ['txt','docx','pdf'];
+  var DOC_ACCEPT = '.txt,.docx,.pdf';
+
   // ── State ──
   var _view = 'loading';
   var _uid = null;
@@ -424,6 +453,9 @@
   var _showPreview = false;
   var _submitting = false;
   var _saveTimer = null;
+  // Staged bio document (source material — landed as rawSubmission by the reconciler, §4)
+  var _doc = { key:null, filename:'', ext:'', size:0, uploading:false, error:'' };
+  var _consentBackView = 'edit';   // where the consent "Back" button returns (edit | upload)
 
   function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function root(){ return document.getElementById('mybio-root'); }
@@ -431,6 +463,8 @@
   function toastErr(m){ if (typeof Toast !== 'undefined') Toast.error(m); }
   function toastOk(m){ if (typeof Toast !== 'undefined') Toast.success(m); }
   function hasPhoto(){ return !!(_photos.headshot.key || _photos.promo.key); }
+  function hasDoc(){ return !!_doc.key; }
+  function parseExt(name){ var m = /\.([A-Za-z0-9]+)$/.exec(name||''); return m ? m[1].toLowerCase() : ''; }
 
   function uuid(){
     try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch(e){}
@@ -443,7 +477,7 @@
   // ── Local draft autosave (AC-E2) ──
   function draftKey(){ return 'gbe-bio-draft-' + (_uid || 'anon'); }
   function saveDraft(){
-    try { localStorage.setItem(draftKey(), JSON.stringify({ data:_data, photos:{ headshot:_photos.headshot.key, promo:_photos.promo.key } })); } catch(e){}
+    try { localStorage.setItem(draftKey(), JSON.stringify({ data:_data, photos:{ headshot:_photos.headshot.key, promo:_photos.promo.key }, doc:{ key:_doc.key, filename:_doc.filename, ext:_doc.ext } })); } catch(e){}
   }
   function saveDraftSoon(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(saveDraft, 400); }
   function loadDraft(){
@@ -452,11 +486,23 @@
       if (r && r.data){
         _data = { stage_name:r.data.stage_name||'', role_line:r.data.role_line||'', credit_line:r.data.credit_line||'', short_bio:r.data.short_bio||'', long_bio:r.data.long_bio||'' };
         if (r.photos){ _photos.headshot.key = r.photos.headshot || null; _photos.promo.key = r.photos.promo || null; }
+        if (r.doc){ _doc.key = r.doc.key || null; _doc.filename = r.doc.filename || ''; _doc.ext = r.doc.ext || ''; }
         if (_data.long_bio) _showLongBio = true;
       }
     } catch(e){}
   }
   function clearDraft(){ try { localStorage.removeItem(draftKey()); } catch(e){} }
+  function hasLocalDraft(){
+    try {
+      var r = JSON.parse(localStorage.getItem(draftKey()) || 'null');
+      if (!r) return false;
+      var d = r.data || {};
+      if (d.stage_name || d.role_line || d.credit_line || d.short_bio || d.long_bio) return true;
+      if (r.photos && (r.photos.headshot || r.photos.promo)) return true;
+      if (r.doc && r.doc.key) return true;
+      return false;
+    } catch(e){ return false; }
+  }
 
   function hydrateFrom(row){
     var p = (row && row.payload) || {};
@@ -465,6 +511,11 @@
     // preserve any in-memory preview URL when the key still matches
     _photos.headshot.key = imgs.headshot_staging_key || null;
     _photos.promo.key = imgs.promo_staging_key || null;
+    // Document source material (may already be extracted+removed server-side; meta persists)
+    _doc.key = p.document_staging_key || null;
+    _doc.filename = (p.document_meta && p.document_meta.filename) || '';
+    _doc.ext = (p.document_meta && p.document_meta.ext) || '';
+    _doc.uploading = false; _doc.error = '';
     if (_data.long_bio) _showLongBio = true;
     if (row && row.consent && row.consent.legalName) _consent.legalName = row.consent.legalName;
   }
@@ -489,7 +540,9 @@
       _existing = (res && res.data) ? res.data : null;
       if (!_existing){
         loadDraft();
-        _view = (_data.short_bio || _data.stage_name || hasPhoto()) ? 'edit' : 'empty';
+        if (_data.short_bio || _data.stage_name || hasPhoto()) _view = 'edit';
+        else if (hasDoc()) _view = 'upload';
+        else _view = 'empty';
       } else if (_existing.status === 'withdrawn'){
         hydrateFrom(_existing); _view = 'withdrawn';
       } else {
@@ -509,26 +562,53 @@
       var rb = document.getElementById('mybio-retry'); if (rb) rb.addEventListener('click', function(){ _view='loading'; render(); load(); });
       return;
     }
-    if (_view === 'empty') return renderEmpty(el);
+    if (_view === 'empty') return renderFork(el);
     if (_view === 'edit') return renderEdit(el);
+    if (_view === 'upload') return renderUpload(el);
     if (_view === 'consent') return renderConsent(el);
     if (_view === 'submitted') return renderSubmitted(el);
     if (_view === 'withdrawn') return renderWithdrawn(el);
   }
 
-  // ── State: empty / first-visit (AC-A1: inviting single card, one action) ──
-  function renderEmpty(el){
+  // ── State: fork / first-visit (AC-A1 inviting; AC-A4 two equal intake paths) ──
+  function renderFork(el){
+    var resume = hasLocalDraft()
+      ? '<div class="mybio-resume"><span><i class="fa-solid fa-clock-rotate-left" style="color:var(--color-gold);"></i> You have a saved draft — only you &amp; your manager can see it.</span>' +
+        '<button class="mybio-btn-secondary" id="mybio-resume">Continue your draft</button></div>'
+      : '';
     el.innerHTML =
       '<div class="mybio-card">' +
         '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:6px;">' +
           '<i class="fa-solid fa-microphone-lines" style="color:var(--color-gold);font-size:18px;"></i>' +
           '<div style="font-weight:var(--fw-semibold);font-size:15px;">Share your bio &amp; photos so we can feature you</div>' +
         '</div>' +
-        '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-md);line-height:1.5;">Tell fans who you are. Your manager may use this on the band page and press kit — you can edit or take it back anytime.</div>' +
-        '<button class="mybio-btn-primary" id="mybio-start"><i class="fa-solid fa-pen"></i> Add my bio</button>' +
+        '<div style="font-size:13px;color:var(--color-text-muted);margin-bottom:var(--space-md);line-height:1.5;">Tell fans who you are. Your manager may use this on the band page and press kit — you can edit or take it back anytime. Pick whichever is easiest:</div>' +
+        resume +
+        '<div class="mybio-fork">' +
+          '<div class="mybio-fork-option">' +
+            '<div class="mybio-fork-icon"><i class="fa-solid fa-pen"></i></div>' +
+            '<div class="mybio-fork-title">Build your bio</div>' +
+            '<div class="mybio-fork-desc">Fill out a short guided form — your role, notable credits, and a sentence or two.</div>' +
+            '<button class="mybio-fork-btn" id="mybio-fork-build"><i class="fa-solid fa-pen"></i> Build your bio</button>' +
+          '</div>' +
+          '<div class="mybio-fork-or">or</div>' +
+          '<div class="mybio-fork-option">' +
+            '<div class="mybio-fork-icon"><i class="fa-solid fa-file-arrow-up"></i></div>' +
+            '<div class="mybio-fork-title">Upload your existing bio</div>' +
+            '<div class="mybio-fork-desc">Already have one written? Upload a Word, PDF, or text file — we’ll take it from there.</div>' +
+            '<button class="mybio-fork-btn" id="mybio-fork-upload"><i class="fa-solid fa-file-arrow-up"></i> Upload a file</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
-    var b = document.getElementById('mybio-start');
-    if (b) b.addEventListener('click', function(){ _view='edit'; render(); });
+    var b1 = document.getElementById('mybio-fork-build');
+    if (b1) b1.addEventListener('click', function(){ _view='edit'; render(); });
+    var b2 = document.getElementById('mybio-fork-upload');
+    if (b2) b2.addEventListener('click', function(){ _view='upload'; render(); });
+    var rz = document.getElementById('mybio-resume');
+    if (rz) rz.addEventListener('click', function(){
+      _view = ((_data.short_bio||_data.stage_name||_data.role_line||_data.credit_line||_data.long_bio) || hasPhoto()) ? 'edit' : (hasDoc() ? 'upload' : 'edit');
+      render();
+    });
   }
 
   // ── State: editing (progressive fields + counters + photos) ──
@@ -570,6 +650,16 @@
     '</div>';
   }
 
+  // Affordance to jump to / manage the uploaded document from the Bio Builder (both
+  // live on the same submission row — a Builder member can also attach a document).
+  function docSwitchHtml(){
+    if (hasDoc()){
+      return '<div class="mybio-switch"><i class="fa-solid fa-file-lines" style="color:var(--color-gold);"></i> Document attached: <strong style="color:var(--color-text);">' + esc(_doc.filename||'your file') + '</strong>' +
+        ' <button class="mybio-link" id="mybio-goto-upload" style="padding:0;">Manage file</button></div>';
+    }
+    return '<div class="mybio-switch">Already have a bio written? <button class="mybio-link" id="mybio-goto-upload" style="padding:0;">Upload a file instead</button></div>';
+  }
+
   function renderEdit(el){
     var fieldsHtml = fieldHtml(FIELDS[0]) + fieldHtml(FIELDS[1]) + fieldHtml(FIELDS[2]) + fieldHtml(FIELDS[3]);
     var longSection = _showLongBio
@@ -577,15 +667,22 @@
       : '<button class="mybio-link" id="mybio-add-long"><i class="fa-solid fa-plus"></i> Add a longer bio (optional)</button>';
     el.innerHTML =
       '<div class="mybio-card">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-md);">' +
-          '<span class="mybio-chip"><i class="fa-solid fa-lock" style="font-size:11px;"></i> Draft — only you &amp; your manager can see this</span>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-sm);margin-bottom:6px;">' +
+          '<div style="font-weight:var(--fw-semibold);font-size:15px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-pen" style="color:var(--color-gold);"></i> Bio Builder</div>' +
+          '<span class="mybio-chip"><i class="fa-solid fa-lock" style="font-size:11px;"></i> Draft</span>' +
         '</div>' +
+        '<div style="font-size:12px;color:var(--color-text-muted);margin-bottom:var(--space-md);line-height:1.45;">Only you &amp; your manager can see this until you Finish and share it. Your progress is saved as you type.</div>' +
         '<div style="font-size:12px;font-weight:var(--fw-semibold);color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Photos (optional)</div>' +
         photosHtml() +
         fieldsHtml +
         '<div style="margin-bottom:var(--space-md);">' + longSection + '</div>' +
-        '<button class="mybio-btn-primary" id="mybio-review"><i class="fa-solid fa-arrow-right"></i> Review &amp; continue</button>' +
-        (_existing ? '<button class="mybio-btn-secondary" id="mybio-cancel" style="width:100%;margin-top:var(--space-sm);">Cancel</button>' : '') +
+        '<div class="mybio-builder-actions">' +
+          '<button class="mybio-btn-primary" id="mybio-finish"><i class="fa-solid fa-flag-checkered"></i> Finish — review &amp; share</button>' +
+          '<button class="mybio-btn-secondary" id="mybio-save" style="width:100%;"><i class="fa-solid fa-clock-rotate-left"></i> Save for later</button>' +
+          (_existing ? '<button class="mybio-btn-secondary" id="mybio-cancel" style="width:100%;">Cancel</button>' : '') +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--color-text-muted);margin-top:8px;text-align:center;line-height:1.4;">Finish takes you to a quick review and consent — nothing is shared until you confirm. Save for later keeps your progress.</div>' +
+        docSwitchHtml() +
       '</div>';
 
     FIELDS.forEach(function(f){
@@ -604,10 +701,14 @@
     var addLong = document.getElementById('mybio-add-long');
     if (addLong) addLong.addEventListener('click', function(){ _showLongBio = true; render(); });
     wirePhotoInputs();
-    var rev = document.getElementById('mybio-review');
-    if (rev) rev.addEventListener('click', function(){ if (!reviewReady()) return; _view='consent'; _showTerms=false; render(); });
+    var fin = document.getElementById('mybio-finish');
+    if (fin) fin.addEventListener('click', function(){ if (!reviewReady()) return; _consentBackView='edit'; _view='consent'; _showTerms=false; render(); });
+    var sav = document.getElementById('mybio-save');
+    if (sav) sav.addEventListener('click', function(){ saveDraft(); toastOk('Saved for later — your progress is kept. Come back anytime.'); _view = _existing ? (_existing.status==='withdrawn'?'withdrawn':'submitted') : 'empty'; render(); });
     var cancel = document.getElementById('mybio-cancel');
     if (cancel) cancel.addEventListener('click', function(){ _view = _existing ? (_existing.status==='withdrawn'?'withdrawn':'submitted') : 'empty'; render(); });
+    var gotoUp = document.getElementById('mybio-goto-upload');
+    if (gotoUp) gotoUp.addEventListener('click', function(){ _view='upload'; render(); });
     updateReviewBtn();
   }
 
@@ -657,13 +758,101 @@
     for (var i=0;i<FIELDS.length;i++){ var f=FIELDS[i]; if ((_data[f.key]||'').length > f.max) return true; }
     return false;
   }
+  // Ready to proceed to consent: a short bio OR an uploaded document (AC-C5 no-form path),
+  // nothing over cap, nothing still uploading.
   function reviewReady(){
-    return (_data.short_bio||'').trim().length > 0 && !anyOverCap() && !_photos.headshot.uploading && !_photos.promo.uploading;
+    var hasContent = (_data.short_bio||'').trim().length > 0 || hasDoc();
+    return hasContent && !anyOverCap() && !_photos.headshot.uploading && !_photos.promo.uploading && !_doc.uploading;
   }
   function updateReviewBtn(){
-    var b = document.getElementById('mybio-review'); if (!b) return;
-    b.disabled = !reviewReady();
-    b.title = reviewReady() ? '' : 'Add a short bio (and wait for any photo to finish) to continue.';
+    var ok = reviewReady();
+    var f = document.getElementById('mybio-finish');
+    if (f){ f.disabled = !ok; f.title = ok ? '' : 'Add a short bio or upload a file (and let any upload finish) to continue.'; }
+    var c = document.getElementById('mybio-upload-continue');
+    if (c){ c.disabled = !hasDoc() || _doc.uploading; }
+  }
+
+  // ── State: upload existing bio document (AC-E6 progress + "we'll pull your bio";
+  //    AC-C5 short path to submitted, no form required). Stages to band-media per §3a. ──
+  function renderUpload(el){
+    var body;
+    if (_doc.uploading){
+      body =
+        '<div class="mybio-doc-file"><i class="fa-solid fa-spinner fa-spin mybio-doc-ic"></i>' +
+          '<div style="flex:1;min-width:0;"><div class="mybio-doc-name">' + esc(_doc.filename||'Your file') + '</div>' +
+            '<div class="mybio-progress"><div class="mybio-progress-bar"></div></div>' +
+            '<div style="font-size:12px;color:var(--color-gold);">Uploading your document…</div></div>' +
+        '</div>';
+    } else if (hasDoc()){
+      body =
+        '<div class="mybio-doc-file"><i class="fa-solid fa-file-lines mybio-doc-ic"></i>' +
+          '<div style="flex:1;min-width:0;"><div class="mybio-doc-name">' + esc(_doc.filename||'Your file') + '</div>' +
+            '<div style="font-size:12px;color:#3fb950;">Uploaded</div></div>' +
+          '<label class="mybio-link" style="flex-shrink:0;">Replace<input type="file" accept="' + DOC_ACCEPT + '" id="mybio-doc-input" style="display:none;" /></label>' +
+        '</div>' +
+        '<div class="mybio-doc-ok"><i class="fa-solid fa-circle-check" style="color:#3fb950;font-size:16px;margin-top:1px;"></i>' +
+          '<div>We’ll pull your bio from this — your manager will review it. Whether it’s used anywhere is their separate decision to make later.</div></div>' +
+        '<button class="mybio-btn-primary" id="mybio-upload-continue" style="margin-top:var(--space-md);"><i class="fa-solid fa-arrow-right"></i> Continue</button>' +
+        '<button class="mybio-btn-secondary" id="mybio-doc-remove" style="width:100%;margin-top:var(--space-sm);">Remove file</button>';
+    } else {
+      body =
+        '<div class="mybio-doc-drop">' +
+          '<i class="fa-solid fa-file-arrow-up" style="color:var(--color-gold);font-size:26px;margin-bottom:8px;"></i>' +
+          '<div style="font-weight:var(--fw-semibold);margin-bottom:4px;">Choose your bio file</div>' +
+          '<div style="font-size:12px;color:var(--color-text-muted);line-height:1.45;margin-bottom:var(--space-md);">Word (.docx), PDF, or text (.txt) file, up to 10&nbsp;MB. We’ll pull your bio from it — your manager will review it.</div>' +
+          '<label class="mybio-btn-primary" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;width:auto;padding-left:22px;padding-right:22px;cursor:pointer;"><i class="fa-solid fa-folder-open"></i> Choose a file<input type="file" accept="' + DOC_ACCEPT + '" id="mybio-doc-input" style="display:none;" /></label>' +
+        '</div>';
+    }
+    var errHtml = _doc.error ? '<div style="color:#f85149;font-size:13px;margin-top:var(--space-sm);line-height:1.45;"><i class="fa-solid fa-triangle-exclamation"></i> ' + esc(_doc.error) + '</div>' : '';
+    var switchHtml = ((_data.short_bio||'').trim() || _data.stage_name)
+      ? '<div class="mybio-switch">You’ve also started the Bio Builder. <button class="mybio-link" id="mybio-goto-edit" style="padding:0;">Edit those details</button></div>'
+      : '<div class="mybio-switch">Prefer to type it out? <button class="mybio-link" id="mybio-goto-edit" style="padding:0;">Fill out the Bio Builder instead</button></div>';
+    el.innerHTML =
+      '<div class="mybio-card">' +
+        '<button class="mybio-link" id="mybio-upload-back" style="padding-left:0;"><i class="fa-solid fa-arrow-left"></i> Back</button>' +
+        '<div style="font-weight:var(--fw-semibold);font-size:15px;display:flex;align-items:center;gap:8px;margin:6px 0 var(--space-md);"><i class="fa-solid fa-file-arrow-up" style="color:var(--color-gold);"></i> Upload your existing bio</div>' +
+        body +
+        errHtml +
+        switchHtml +
+      '</div>';
+    var inp = document.getElementById('mybio-doc-input');
+    if (inp) inp.addEventListener('change', function(){ onPickDoc(inp); });
+    var cont = document.getElementById('mybio-upload-continue');
+    if (cont) cont.addEventListener('click', function(){ if (!hasDoc() || _doc.uploading) return; _consentBackView='upload'; _view='consent'; _showTerms=false; render(); });
+    var rem = document.getElementById('mybio-doc-remove');
+    if (rem) rem.addEventListener('click', function(){ _doc.key=null; _doc.filename=''; _doc.ext=''; _doc.error=''; saveDraft(); render(); });
+    var back = document.getElementById('mybio-upload-back');
+    if (back) back.addEventListener('click', function(){ _view = _existing ? (_existing.status==='withdrawn'?'withdrawn':'submitted') : 'empty'; render(); });
+    var gotoEdit = document.getElementById('mybio-goto-edit');
+    if (gotoEdit) gotoEdit.addEventListener('click', function(){ _view='edit'; render(); });
+    updateReviewBtn();
+  }
+
+  // Validate client-side then stage the raw file to Supabase Storage band-media at
+  // bio-staging/<auth.uid()>/doc-<uuid>.<ext> using the member's PKCE session (§3a).
+  function onPickDoc(input){
+    var file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    _doc.error = '';
+    var ext = parseExt(file.name);
+    if (ext === 'doc'){ _doc.error = 'Word 97–2003 (.doc) files aren’t supported. Please save your file as .docx or PDF and upload again.'; render(); return; }
+    if (ALLOWED_DOC_EXT.indexOf(ext) === -1){ _doc.error = 'Please upload a Word (.docx), PDF, or text (.txt) file.'; render(); return; }
+    if (file.size > DOC_MAX_BYTES){ _doc.error = 'Your file is too large. Please upload a file under 10 MB.'; render(); return; }
+    var sb = getSb(); if (!sb || !sb.storage){ _doc.error = 'Not connected — please try again.'; render(); return; }
+    var key = 'bio-staging/' + _uid + '/doc-' + uuid() + '.' + ext;
+    _doc.uploading = true; _doc.key = null; _doc.filename = file.name; _doc.ext = ext; _doc.size = file.size; _doc.error = '';
+    render();
+    sb.storage.from('band-media').upload(key, file, { contentType: file.type, upsert: false }).then(function(res){
+      _doc.uploading = false;
+      if (res && res.error){ _doc.key = null; _doc.error = 'Upload failed — please try again.'; toastErr('Document upload failed — try again.'); }
+      else { _doc.key = key; saveDraft(); toastOk('Document uploaded.'); }
+      render();
+    }).catch(function(){
+      _doc.uploading = false; _doc.key = null; _doc.error = 'Upload failed — please try again.';
+      toastErr('Document upload failed — try again.');
+      render();
+    });
   }
 
   // ── State: consent (AC-E3 distinct step, informed, one deliberate tap) ──
@@ -678,7 +867,7 @@
       : '';
     el.innerHTML =
       '<div class="mybio-card">' +
-        '<button class="mybio-link" id="mybio-back" style="padding-left:0;"><i class="fa-solid fa-arrow-left"></i> Back to editing</button>' +
+        '<button class="mybio-link" id="mybio-back" style="padding-left:0;"><i class="fa-solid fa-arrow-left"></i> ' + (_consentBackView==='upload'?'Back to upload':'Back to editing') + '</button>' +
         '<div style="font-weight:var(--fw-semibold);font-size:16px;margin:6px 0 var(--space-sm);">One more step — share with your manager</div>' +
         '<div style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin-bottom:var(--space-md);">You’re about to <strong>share</strong> your bio and photos with your manager at Gold Bottom Ent. They’ll store it and may <strong>use or adapt</strong> it in the band’s marketing and press kit. This isn’t publishing it live — that’s a separate decision your manager makes later.</div>' +
         '<button class="mybio-link" id="mybio-terms-toggle" style="padding-left:0;margin-bottom:var(--space-sm);">' + (_showTerms?'Hide full terms':'Read the full terms') + '</button>' +
@@ -696,7 +885,7 @@
         '<button class="mybio-btn-primary" id="mybio-submit" style="margin-top:var(--space-md);"><i class="fa-solid fa-paper-plane"></i> I understand — share with my manager</button>' +
       '</div>';
 
-    document.getElementById('mybio-back').addEventListener('click', function(){ _view='edit'; render(); });
+    document.getElementById('mybio-back').addEventListener('click', function(){ _view = _consentBackView || 'edit'; render(); });
     document.getElementById('mybio-terms-toggle').addEventListener('click', function(){ _showTerms=!_showTerms; render(); });
     var nameEl = document.getElementById('mybio-c-name');
     nameEl.addEventListener('input', function(){ _consent.legalName = nameEl.value; updateSubmitBtn(); });
@@ -737,6 +926,11 @@
       short_bio: _data.short_bio || '', long_bio: _data.long_bio || '',
       images: { headshot_staging_key: _photos.headshot.key || null, promo_staging_key: _photos.promo.key || null }
     };
+    // Additive document keys (§3b) — the reconciler extracts text → rawSubmission, then removes the staged object.
+    if (hasDoc()){
+      payload.document_staging_key = _doc.key;
+      payload.document_meta = { filename: _doc.filename || '', ext: _doc.ext || '' };
+    }
     var consent = {
       version: CONSENT_VERSION, agreedAt: new Date().toISOString(), legalName: _consent.legalName.trim(),
       ageAttestation18Plus: !!_consent.age, accuracyAttestation: !!_consent.accuracy,
@@ -786,6 +980,7 @@
           '<div style="font-size:13px;color:var(--color-text-muted);line-height:1.5;margin-top:2px;">They’ll review it and may use this in promotional materials. It isn’t live yet — publishing is their separate decision.</div></div>' +
         '</div>' +
         '<div style="margin-bottom:var(--space-md);"><span class="mybio-chip mybio-chip-shared"><i class="fa-solid fa-share-nodes" style="font-size:11px;"></i> Shared — only you &amp; your manager can see this</span></div>' +
+        (hasDoc() ? '<div style="margin-bottom:var(--space-md);"><span class="mybio-chip mybio-chip-shared"><i class="fa-solid fa-file-lines" style="font-size:11px;"></i> Document shared: ' + esc(_doc.filename||'your file') + '</span></div>' : '') +
         (_showPreview ? bioCardHtml() : '') +
         '<div style="display:flex;flex-wrap:wrap;gap:var(--space-sm);margin-top:var(--space-md);">' +
           '<button class="mybio-btn-secondary" id="mybio-preview-toggle"><i class="fa-solid fa-eye"></i> ' + (_showPreview?'Hide preview':'Preview what you shared') + '</button>' +
