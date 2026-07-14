@@ -773,7 +773,7 @@ const DataStore = {
         status: 'active',
         email: 'booking@layoungbandpage.com',
         phone: '[PHONE]',
-        bio: 'International soul artist, Phyllis Hyman tribute performer. #1 UK FM Radio, 5 Top-5 UK hits, Maryland Artist of Year 2018.',
+        bio: 'Soul, jazz & R&B vocalist; fronts L.A. Young & Soul Society. Opened for Freddie Jackson; recorded with Pieces of A Dream; signature show The Phyllis Hyman Experience.',
         website: '../LAYoungBandPage/index.html',
         contractStart: '2025-01-15',
         contractEnd: '2027-12-31',
