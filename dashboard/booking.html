@@ -832,7 +832,16 @@
                 venue: r.venue_name || 'TBD',
                 eventDate: r.event_date || '',
                 eventType: r.event_type,
-                updated_at: r.updated_at
+                updated_at: r.updated_at,
+                // story-external-contract-path (§iii BM-cache allowlist):
+                // contract-path fork + external lifecycle TRACKING fields —
+                // enums/dates/ints + flag COUNTS only (flag text is LAN-only).
+                contract_path: r.contract_path || 'gbe',
+                external_contract_status: r.external_contract_status || null,
+                external_next_action_owner: r.external_next_action_owner || null,
+                external_status_changed_at: r.external_status_changed_at || null,
+                external_version_count: r.external_version_count,
+                legal_flag_counts: r.legal_flag_counts || null
               };
             });
           }
@@ -917,6 +926,13 @@
         if (b.eventType) {
           html += '<div style="margin-top:4px;"><span style="display:inline-block;padding:1px 8px;border-radius:var(--radius-sm);font-size:0.7rem;background:rgba(139,148,158,0.15);color:var(--color-text-muted);">' + esc(b.eventType) + '</span></div>';
         }
+        // story-external-contract-path: pipeline-card mini-badge when the deal
+        // is on the venue/promoter's paper (remote carries the readmodel field;
+        // LAN carries the blob key).
+        if ((b.contract_path || b.contractPath) === 'external') {
+          var ecMiniState = b.external_contract_status ? ecStateMeta(b.external_contract_status).label : '';
+          html += '<div style="margin-top:4px;"><span data-testid="ec-mini-badge" style="display:inline-block;padding:1px 8px;border-radius:var(--radius-sm);font-size:0.7rem;background:rgba(188,140,255,0.15);color:#bc8cff;"><i class="fa-solid fa-file-contract" style="font-size:0.6rem;"></i> Their paper' + (ecMiniState ? ' · ' + esc(ecMiniState) : '') + '</span></div>';
+        }
         html += '</div>';
       });
       col.innerHTML = html;
@@ -926,6 +942,570 @@
     document.querySelectorAll('.booking-card').forEach(function(card) {
       card.addEventListener('click', function() { openBookingDetail(card.dataset.id); });
     });
+  }
+
+  /* ==================================================================
+     EXTERNAL CONTRACT — story-external-contract-path
+     (DESIGN_external-contract-path-2026-07-13 §i/§ii, AC-X1..X11)
+     The venue/promoter-paper fork + lifecycle tracker on the deal modal.
+     LAN: full view via /bookings/:id/external-contract (files, flags,
+     downloads). Remote: TRACKING from booking_readmodel fields; writes ride
+     the booking_actions relay; file BYTES stage through the PRIVATE
+     contract-intake bucket (own-prefix) — downloads are LAN-only and the
+     remote UI says so plainly (AC-X11).
+     ================================================================== */
+
+  function ecStateMeta(status) {
+    var map = {
+      awaiting_their_draft:  { label: 'Waiting on their draft',                       icon: 'fa-hourglass-half' },
+      under_review:          { label: 'Under review',                                 icon: 'fa-magnifying-glass' },
+      redlines_sent:         { label: 'Redlines sent',                                icon: 'fa-pen' },
+      final_received:        { label: 'Final received — needs GBE signature',         icon: 'fa-file-signature' },
+      signed_by_gbe:         { label: 'Signed by GBE — awaiting their executed copy', icon: 'fa-signature' },
+      fully_executed:        { label: 'Fully executed',                               icon: 'fa-circle-check' },
+      abandoned:             { label: 'Abandoned',                                    icon: 'fa-ban' },
+      switched_to_gbe_paper: { label: 'Switched to GBE agreement',                    icon: 'fa-rotate-left' }
+    };
+    return map[status] || { label: status || 'Unknown', icon: 'fa-file' };
+  }
+
+  // Business days elapsed since an ISO timestamp (mirror of the server calc:
+  // Mon–Fri days strictly after the from-day, through today inclusive).
+  function ecBusinessDays(iso) {
+    if (!iso) return 0;
+    var from = new Date(iso);
+    var now = new Date();
+    if (isNaN(from.getTime()) || now <= from) return 0;
+    var d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+    var end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var count = 0;
+    while (d < end) {
+      d.setDate(d.getDate() + 1);
+      var dow = d.getDay();
+      if (dow !== 0 && dow !== 6) count++;
+    }
+    return count;
+  }
+
+  // Staleness tier (AC-X7): counterparty-owed >3bd amber / >7bd red;
+  // GBE-owed >2bd amber. 0 = fresh.
+  function ecStaleTier(owner, bd) {
+    if (owner === 'counterparty') return bd > 7 ? 2 : (bd > 3 ? 1 : 0);
+    if (owner === 'gbe') return bd > 2 ? 1 : 0;
+    return 0;
+  }
+
+  var EC_BTN = 'min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 var(--space-md);font-size:var(--text-sm);';
+
+  // LAN multipart helper (apiFetch is JSON-only; FormData must set its own
+  // boundary). The global CSRF interceptor in utils.js still applies.
+  async function ecApiUpload(path, formData, method) {
+    var headers = {};
+    if (typeof Auth !== 'undefined') {
+      var token = Auth._apiKey || Auth._sessionToken;
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+    }
+    var resp = await fetch(apiUrl() + path, { method: method || 'POST', headers: headers, body: formData });
+    var j = null;
+    try { j = await resp.json(); } catch (e) { /* non-JSON error body */ }
+    if (!resp.ok) throw new Error((j && j.error) || ('API ' + resp.status));
+    return j;
+  }
+
+  // Remote: queue a BM action on the booking_actions relay (same table/RLS as
+  // every other field action; ~1 min landing — AC-X11 syncing convention).
+  async function ecQueueAction(bookingId, actionType, payload) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) throw new Error('Not signed in');
+    var sessionRes = await sb.auth.getSession();
+    var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
+    if (!uid) throw new Error('Not signed in');
+    var row = { actor_id: uid, target_id: String(bookingId), action_type: actionType };
+    if (payload) row.payload = payload;
+    var res = await sb.from('booking_actions').insert(row);
+    if (res.error) throw new Error(res.error.message);
+    return { queued: true, uid: uid };
+  }
+
+  // Remote: stage a contract file into the PRIVATE contract-intake bucket
+  // under the caller's OWN prefix <uid>/<bookingId>/<uuid>.<ext> (RLS-pinned;
+  // the server re-derives + re-validates everything at landing).
+  async function ecStageFile(bookingId, file) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) throw new Error('Not signed in');
+    var sessionRes = await sb.auth.getSession();
+    var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
+    if (!uid) throw new Error('Not signed in');
+    var ext = String(file.name || '').split('.').pop().toLowerCase();
+    if (ext !== 'pdf' && ext !== 'docx') {
+      throw new Error('Upload the contract as a PDF or Word (.docx) file.');
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('The file exceeds the 10MB limit. Please upload a smaller file.');
+    }
+    var uuid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2));
+    var key = uid + '/' + String(bookingId) + '/' + uuid + '.' + ext;
+    var up = await sb.storage.from('contract-intake').upload(key, file, {
+      contentType: file.type || 'application/octet-stream', upsert: false
+    });
+    if (up.error) throw new Error('Upload failed: ' + up.error.message);
+    return { key: key, uid: uid };
+  }
+
+  /** Render the Contract section into #bk-contract-section. */
+  async function renderContractSection(b) {
+    var host = document.getElementById('bk-contract-section');
+    if (!host) return;
+    var bookingId = b.id;
+
+    if (isLocal) {
+      host.innerHTML = '<div style="padding:var(--space-sm);color:var(--color-text-muted);font-size:var(--text-sm);"><i class="fa-solid fa-spinner fa-spin"></i> Loading contract state…</div>';
+      try {
+        var view = await apiFetch('/bookings/' + encodeURIComponent(bookingId) + '/external-contract');
+        host.innerHTML = ecSectionHtml(bookingId, view, true);
+        ecBindHandlers(bookingId, view, true);
+      } catch (e) {
+        console.warn('[Booking] contract view load failed:', e);
+        host.innerHTML = '<div style="padding:var(--space-sm);color:var(--color-text-muted);font-size:var(--text-sm);">Contract state unavailable — is the server running?</div>';
+      }
+      return;
+    }
+
+    // Remote: tracking view from the readmodel fields already on the row.
+    var flagCounts = null;
+    try { flagCounts = b.legal_flag_counts ? JSON.parse(b.legal_flag_counts) : null; } catch (e) { flagCounts = null; }
+    var view2 = {
+      contractPath: b.contract_path || 'gbe',
+      locked: false, lockReason: null, // remote lock states render server-truth on next sync; switch is still confirm-gated + server-enforced
+      external: b.contract_path === 'external' ? {
+        status: b.external_contract_status || 'awaiting_their_draft',
+        nextActionOwner: b.external_next_action_owner || 'counterparty',
+        statusChangedAt: b.external_status_changed_at || null,
+        businessDaysInState: ecBusinessDays(b.external_status_changed_at),
+        currentVersion: b.external_version_count || 0,
+        flagCounts: flagCounts,
+        files: null // bytes + full metadata are LAN-only by design
+      } : null,
+      notes: []
+    };
+    host.innerHTML = ecSectionHtml(bookingId, view2, false);
+    ecBindHandlers(bookingId, view2, false);
+  }
+
+  /** Build the section HTML (shared LAN/remote; `full` = LAN). */
+  function ecSectionHtml(bookingId, view, full) {
+    var pathIsExt = view.contractPath === 'external';
+    var h = '<div style="padding:var(--space-md);background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);">';
+    h += '<div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-sm);">';
+    h += '<h3 style="font-size:0.9rem;margin:0;"><i class="fa-solid fa-file-contract" style="color:var(--color-gold);margin-right:4px;"></i> Contract</h3>';
+    h += pathIsExt
+      ? pill('rgba(188,140,255,0.15)', '#bc8cff', 'Their paper')
+      : pill('rgba(212,160,23,0.15)', '#d4a017', 'GBE agreement');
+
+    // Switch control (AC-X10): one action + consequence-stating confirm;
+    // forbidden switches render DISABLED with the reason, never hidden.
+    if (view.locked) {
+      h += '<span data-testid="ec-switch-locked" style="margin-left:auto;font-size:0.72rem;color:var(--color-text-muted);border:1px solid var(--color-border);border-radius:var(--radius-full);padding:4px 10px;opacity:0.8;"><i class="fa-solid fa-lock"></i> ' + esc(view.lockReason || 'locked — contract signed') + '</span>';
+    } else {
+      h += '<button type="button" id="ec-switch-btn" data-testid="ec-switch-btn" class="btn" style="' + EC_BTN + 'margin-left:auto;">' +
+        '<i class="fa-solid fa-rotate"></i> ' + (pathIsExt ? 'Switch back to GBE agreement' : 'Switch to venue’s paper') + '</button>';
+    }
+    h += '</div>';
+
+    // Switch confirm sheet (hidden until tapped) — ≤3 plain sentences (AC-X1).
+    h += '<div id="ec-switch-confirm" data-testid="ec-switch-confirm" style="display:none;margin-bottom:var(--space-sm);padding:var(--space-sm) var(--space-md);border:1px solid rgba(210,153,34,0.4);border-radius:var(--radius-sm);background:rgba(210,153,34,0.06);">';
+    h += '<p style="margin:0 0 var(--space-sm) 0;font-size:var(--text-sm);line-height:1.5;">' + (pathIsExt
+      ? 'Their-contract tracking closes and a fresh GBE agreement is issued exactly as a new acceptance. The buyer signs on their original quote link. The quote and deposit figures stay as accepted.'
+      : 'The buyer will NOT be sent a GBE agreement to e-sign. You’ll receive, review, and track THEIR contract here until fully executed. The quote and deposit figures stay as accepted.') + '</p>';
+    h += '<div style="display:flex;gap:var(--space-sm);flex-wrap:wrap;">';
+    h += '<button type="button" id="ec-switch-yes" data-testid="ec-switch-yes" class="btn btn-primary" style="' + EC_BTN + '">Confirm switch</button>';
+    h += '<button type="button" id="ec-switch-no" class="btn" style="' + EC_BTN + '">Cancel</button>';
+    h += '</div></div>';
+
+    if (!pathIsExt) {
+      h += '<p style="margin:0;font-size:0.78rem;color:var(--color-text-muted);">Standard flow: our agreement is e-signed by the buyer from their quote link. Switch only if the venue or promoter insists on their own contract.</p>';
+      h += '</div>';
+      return h;
+    }
+
+    // ── External lifecycle tracker (AC-X2: state + ball + days, always) ──
+    var ext = view.external || { status: 'awaiting_their_draft', nextActionOwner: 'counterparty', businessDaysInState: 0, currentVersion: 0 };
+    var meta = ecStateMeta(ext.status);
+    var bd = ext.businessDaysInState != null ? ext.businessDaysInState : ecBusinessDays(ext.statusChangedAt);
+    var tier = ['fully_executed', 'abandoned', 'switched_to_gbe_paper'].includes(ext.status) ? 0 : ecStaleTier(ext.nextActionOwner, bd);
+    var stateColor = tier >= 2 ? '#f85149' : (tier === 1 ? '#d29922' : (ext.status === 'fully_executed' ? '#3fb950' : '#bc8cff'));
+    var ballLabel = ext.nextActionOwner === 'gbe' ? 'GBE' : 'Venue';
+
+    h += '<div data-testid="ec-state-chip" style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;padding:var(--space-sm) var(--space-md);border-left:3px solid ' + stateColor + ';background:rgba(' + hexToRGB(stateColor) + ',0.08);border-radius:var(--radius-sm);margin-bottom:var(--space-sm);">';
+    h += '<i class="fa-solid ' + meta.icon + '" style="color:' + stateColor + ';"></i>';
+    h += '<strong style="font-size:var(--text-sm);">' + esc(meta.label) + '</strong>';
+    if (!['fully_executed', 'abandoned', 'switched_to_gbe_paper'].includes(ext.status)) {
+      h += '<span style="font-size:0.75rem;color:var(--color-text-muted);">Ball: <strong style="color:var(--color-text);">' + ballLabel + '</strong> · ' + bd + ' business day' + (bd === 1 ? '' : 's') + '</span>';
+      if (tier === 1) h += pill('rgba(210,153,34,0.2)', '#d29922', 'Going stale');
+      if (tier >= 2) h += pill('rgba(248,81,73,0.2)', '#f85149', 'Overdue');
+    }
+    if (ext.status === 'fully_executed') {
+      h += '<span style="font-size:0.75rem;color:var(--color-text-muted);">' + (ext.statusChangedAt ? new Date(ext.statusChangedAt).toLocaleDateString() : '') + (ext.paymentVia ? ' · deposit: ' + (ext.paymentVia === 'gbe_link' ? 'our Square link' : 'per their contract') : '') + '</span>';
+    }
+    h += '</div>';
+
+    // ── Legal flags (AC-X5) ──
+    h += ecFlagsHtml(ext, full);
+
+    // ── Next actions per state (AC-X2: no dead ends) ──
+    h += '<div id="ec-actions" style="display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-sm);">';
+    var st = ext.status;
+    if (st === 'awaiting_their_draft') {
+      h += ecUploadBtn('Upload contract', 'inbound');
+      h += '<span style="font-size:0.72rem;color:var(--color-text-muted);align-self:center;">They can email it to booking@layoungbandpage.com or reply to the quote email.</span>';
+    } else if (st === 'under_review') {
+      h += '<button type="button" class="btn ec-status-btn" data-testid="ec-mark-redlines" data-to="redlines_sent" style="' + EC_BTN + '"><i class="fa-solid fa-pen"></i> Mark redlines sent</button>';
+      h += '<button type="button" class="btn btn-primary ec-status-btn" data-testid="ec-accept-final" data-to="final_received" style="' + EC_BTN + '"><i class="fa-solid fa-check"></i> Accept as final</button>';
+      h += ecUploadBtn('Upload revision', 'inbound');
+    } else if (st === 'redlines_sent') {
+      h += ecUploadBtn('Upload their revision', 'inbound');
+    } else if (st === 'final_received') {
+      h += ecUploadBtn('Upload signed copy', 'outbound_signed');
+      h += '<button type="button" class="btn btn-primary ec-status-btn" data-testid="ec-mark-signed" data-to="signed_by_gbe" style="' + EC_BTN + '"><i class="fa-solid fa-signature"></i> Mark signed by GBE</button>';
+    } else if (st === 'signed_by_gbe') {
+      h += '<button type="button" id="ec-execute-btn" data-testid="ec-execute-btn" class="btn btn-primary" style="' + EC_BTN + '"><i class="fa-solid fa-flag-checkered"></i> Mark fully executed</button>';
+    }
+    if (['awaiting_their_draft', 'under_review', 'redlines_sent', 'final_received'].includes(st)) {
+      h += '<button type="button" class="btn ec-status-btn" data-testid="ec-abandon" data-to="abandoned" style="' + EC_BTN + 'margin-left:auto;background:rgba(248,81,73,0.08);color:#f85149;border:1px solid rgba(248,81,73,0.2);"><i class="fa-solid fa-ban"></i> Abandon</button>';
+    }
+    h += '</div>';
+
+    // Status-note input (shown on demand by the status buttons’ confirm row).
+    h += '<div id="ec-status-confirm" style="display:none;margin-bottom:var(--space-sm);padding:var(--space-sm) var(--space-md);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-bg-secondary);">';
+    h += '<p id="ec-status-confirm-text" style="margin:0 0 var(--space-xs) 0;font-size:var(--text-sm);"></p>';
+    h += '<input type="text" id="ec-status-note" maxlength="2000" placeholder="Optional note (e.g. the asks you sent)" style="width:100%;box-sizing:border-box;padding:var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:var(--text-sm);margin-bottom:var(--space-sm);">';
+    h += '<div style="display:flex;gap:var(--space-sm);"><button type="button" id="ec-status-yes" data-testid="ec-status-yes" class="btn btn-primary" style="' + EC_BTN + '">Confirm</button>';
+    h += '<button type="button" id="ec-status-no" class="btn" style="' + EC_BTN + '">Cancel</button></div></div>';
+
+    // Hidden shared file input + upload progress line (AC-X3: ≤3 taps).
+    h += '<input type="file" id="ec-file-input" accept=".pdf,.docx" style="display:none;">';
+    h += '<div id="ec-upload-note" style="display:none;font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-sm);"></div>';
+
+    // ── Execute sheet (AC-X8: ONE guided action — file REQUIRED + the
+    //    deposit question, our-link default) ──
+    h += '<div id="ec-execute-sheet" data-testid="ec-execute-sheet" style="display:none;margin-bottom:var(--space-sm);padding:var(--space-md);border:1px solid rgba(63,185,80,0.4);border-radius:var(--radius-sm);background:rgba(63,185,80,0.05);">';
+    h += '<h4 style="margin:0 0 var(--space-xs) 0;font-size:0.85rem;">Mark fully executed</h4>';
+    h += '<p style="margin:0 0 var(--space-sm) 0;font-size:0.78rem;color:var(--color-text-muted);">Attach the fully-executed contract (required) and choose how the deposit is handled.</p>';
+    h += '<button type="button" id="ec-exec-attach" data-testid="ec-exec-attach" class="btn" style="' + EC_BTN + 'margin-bottom:var(--space-sm);"><i class="fa-solid fa-paperclip"></i> Attach executed contract</button>';
+    h += '<span id="ec-exec-filename" style="font-size:0.78rem;color:#3fb950;margin-left:8px;"></span>';
+    h += '<label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--text-sm);margin:var(--space-xs) 0;cursor:pointer;"><input type="radio" name="ec-payvia" value="gbe_link" checked style="margin-top:3px;"> <span>Deposit: send our secure Square link <span style="color:var(--color-text-muted);">(default — buyer gets the deposit email and the booking page shows the deposit step)</span></span></label>';
+    h += '<label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--text-sm);margin:var(--space-xs) 0;cursor:pointer;"><input type="radio" name="ec-payvia" value="their_terms" style="margin-top:3px;"> <span>Deposit handled per their contract <span style="color:var(--color-text-muted);">(buyer sees Confirmed — no deposit screen)</span></span></label>';
+    h += '<div style="display:flex;gap:var(--space-sm);margin-top:var(--space-sm);">';
+    h += '<button type="button" id="ec-exec-confirm" data-testid="ec-exec-confirm" class="btn btn-primary" style="' + EC_BTN + '" disabled>Mark executed</button>';
+    h += '<button type="button" id="ec-exec-cancel" class="btn" style="' + EC_BTN + '">Cancel</button>';
+    h += '</div></div>';
+
+    // ── Version timeline (AC-X4) ──
+    h += ecTimelineHtml(ext, full);
+
+    // Remote honesty note (AC-X11).
+    if (!full) {
+      h += '<p style="margin:var(--space-sm) 0 0 0;font-size:0.72rem;color:var(--color-text-muted);"><i class="fa-solid fa-circle-info"></i> Actions sync within about a minute. Contract files are stored on HomeOffice — open the dashboard on the home network to download them.</p>';
+    }
+
+    h += '</div>';
+    return h;
+  }
+
+  function ecUploadBtn(label, direction) {
+    return '<button type="button" class="btn ec-upload-btn" data-testid="ec-upload-btn" data-direction="' + direction + '" style="' + EC_BTN + '"><i class="fa-solid fa-file-arrow-up"></i> ' + esc(label) + '</button>';
+  }
+
+  /** Legal flag cards (LAN full text) / counts (remote). AC-X5. */
+  function ecFlagsHtml(ext, full) {
+    var h = '';
+    if (full) {
+      var flags = ext.legalFlags || null;
+      var prescan = ext.prescan || null;
+      if (flags && flags.verdict === 'no_red_flags') {
+        h += '<div data-testid="ec-flags-clean" style="padding:var(--space-sm) var(--space-md);border:1px solid rgba(63,185,80,0.35);border-radius:var(--radius-sm);background:rgba(63,185,80,0.06);margin-bottom:var(--space-sm);font-size:var(--text-sm);color:#3fb950;"><i class="fa-solid fa-circle-check"></i> Legal review (v' + esc(String(flags.file_version || '')) + '): No red flags found.</div>';
+      } else if (flags && flags.items && flags.items.length) {
+        var sevColor = { CRITICAL: '#f85149', CAUTION: '#d29922', NOTE: '#8b949e' };
+        h += '<div data-testid="ec-flags" style="margin-bottom:var(--space-sm);">';
+        h += '<div style="font-size:0.78rem;color:var(--color-text-muted);margin-bottom:var(--space-xs);">Legal red-flag review — v' + esc(String(flags.file_version || '')) + '</div>';
+        flags.items.forEach(function(it) {
+          var c = sevColor[it.severity] || '#8b949e';
+          h += '<div style="border-left:3px solid ' + c + ';background:rgba(' + hexToRGB(c) + ',0.07);border-radius:var(--radius-sm);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-xs);">';
+          h += '<div style="display:flex;gap:var(--space-sm);align-items:center;flex-wrap:wrap;margin-bottom:2px;">' + pill('rgba(' + hexToRGB(c) + ',0.2)', c, it.severity) + '<strong style="font-size:0.8rem;">' + esc(it.topic) + '</strong>' + (it.clause_ref ? '<span style="font-size:0.7rem;color:var(--color-text-muted);">' + esc(it.clause_ref) + '</span>' : '') + '</div>';
+          if (it.what_it_says) h += '<div style="font-size:0.76rem;line-height:1.5;"><strong>What it says:</strong> ' + esc(it.what_it_says) + '</div>';
+          if (it.why_it_matters) h += '<div style="font-size:0.76rem;line-height:1.5;"><strong>Why it matters:</strong> ' + esc(it.why_it_matters) + '</div>';
+          if (it.suggested_ask) h += '<div style="font-size:0.76rem;line-height:1.5;"><strong>What to ask for:</strong> ' + esc(it.suggested_ask) + '</div>';
+          h += '</div>';
+        });
+        h += '</div>';
+      } else if (prescan && prescan.hits && prescan.hits.length) {
+        h += '<div data-testid="ec-prescan" style="margin-bottom:var(--space-sm);padding:var(--space-sm) var(--space-md);border:1px dashed var(--color-border);border-radius:var(--radius-sm);">';
+        h += '<div style="font-size:0.72rem;color:var(--color-text-muted);margin-bottom:var(--space-xs);"><i class="fa-solid fa-robot"></i> ' + esc(prescan.label || 'Automated pre-scan — Legal review pending') + '</div>';
+        prescan.hits.forEach(function(hit) {
+          var c2 = hit.severity === 'CRITICAL' ? '#f85149' : (hit.severity === 'CAUTION' ? '#d29922' : '#8b949e');
+          h += '<div style="font-size:0.76rem;margin-bottom:2px;">' + pill('rgba(' + hexToRGB(c2) + ',0.18)', c2, hit.severity) + ' ' + esc(hit.topic) + '</div>';
+        });
+        h += '</div>';
+      } else if (ext.currentVersion > 0 && !['fully_executed', 'abandoned', 'switched_to_gbe_paper'].includes(ext.status)) {
+        h += '<div style="margin-bottom:var(--space-sm);font-size:0.78rem;color:var(--color-text-muted);"><i class="fa-solid fa-scale-balanced"></i> Legal review pending.</div>';
+      }
+    } else if (ext.flagCounts) {
+      h += '<div data-testid="ec-flag-counts" style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-sm);">';
+      if (ext.flagCounts.critical) h += pill('rgba(248,81,73,0.18)', '#f85149', ext.flagCounts.critical + ' critical');
+      if (ext.flagCounts.caution) h += pill('rgba(210,153,34,0.18)', '#d29922', ext.flagCounts.caution + ' caution');
+      if (ext.flagCounts.note) h += pill('rgba(139,148,158,0.18)', '#8b949e', ext.flagCounts.note + ' note');
+      if (!ext.flagCounts.critical && !ext.flagCounts.caution && !ext.flagCounts.note) h += pill('rgba(63,185,80,0.15)', '#3fb950', 'No red flags');
+      h += '<span style="font-size:0.7rem;color:var(--color-text-muted);align-self:center;">Full flag text on HomeOffice</span></div>';
+    }
+    return h;
+  }
+
+  /** Version timeline: newest first — vN badge, direction word, date, note,
+      download (LAN) / metadata note (remote). AC-X4. */
+  function ecTimelineHtml(ext, full) {
+    var h = '';
+    if (full && ext.files && ext.files.length) {
+      var dirMeta = {
+        inbound:          { word: 'Received',      icon: 'fa-inbox',          color: '#58a6ff' },
+        outbound_redline: { word: 'Redline sent',  icon: 'fa-pen',            color: '#d29922' },
+        outbound_signed:  { word: 'Signed by GBE', icon: 'fa-signature',      color: '#bc8cff' },
+        executed:         { word: 'Executed',      icon: 'fa-circle-check',   color: '#3fb950' }
+      };
+      h += '<div data-testid="ec-timeline" style="border-top:1px solid var(--color-border);padding-top:var(--space-sm);">';
+      h += '<div style="font-size:0.78rem;color:var(--color-text-muted);margin-bottom:var(--space-xs);">Versions</div>';
+      ext.files.forEach(function(f) {
+        var dm = dirMeta[f.direction] || { word: f.direction, icon: 'fa-file', color: '#8b949e' };
+        h += '<div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;padding:var(--space-xs) 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.78rem;">';
+        h += '<span style="font-weight:700;color:' + dm.color + ';min-width:34px;">v' + esc(String(f.version)) + '</span>';
+        h += '<span style="color:' + dm.color + ';"><i class="fa-solid ' + dm.icon + '"></i> ' + esc(dm.word) + '</span>';
+        h += '<span style="color:var(--color-text-muted);">' + new Date(f.created_at).toLocaleDateString() + '</span>';
+        if (f.original_filename) h += '<span style="color:var(--color-text-muted);overflow-wrap:anywhere;">' + esc(f.original_filename) + '</span>';
+        if (f.note) h += '<span style="color:var(--color-text-muted);font-style:italic;">' + esc(f.note) + '</span>';
+        h += '<a class="btn" style="min-height:44px;display:inline-flex;align-items:center;gap:6px;padding:0 var(--space-sm);font-size:0.75rem;margin-left:auto;text-decoration:none;" href="' + apiUrl() + '/external-contract-files/' + encodeURIComponent(f.id) + '/download" target="_blank" rel="noopener"><i class="fa-solid fa-download"></i> Download</a>';
+        h += '</div>';
+      });
+      h += '</div>';
+    } else if (!full && ext.currentVersion > 0) {
+      h += '<div data-testid="ec-timeline-remote" style="border-top:1px solid var(--color-border);padding-top:var(--space-sm);font-size:0.78rem;color:var(--color-text-muted);">' + ext.currentVersion + ' file version' + (ext.currentVersion === 1 ? '' : 's') + ' on record — open on HomeOffice for the files.</div>';
+    }
+    return h;
+  }
+
+  /** Wire up the section’s controls. */
+  function ecBindHandlers(bookingId, view, full) {
+    var pathIsExt = view.contractPath === 'external';
+
+    function toast(ok, msg) {
+      if (typeof Toast === 'undefined') { alert(msg); return; }
+      ok ? Toast.success(msg) : Toast.error(msg);
+    }
+    function refreshSection() {
+      // LAN: re-fetch truth. Remote: reload the pipeline (optimistic chips
+      // already applied by callers; landed state arrives on the next sync).
+      if (full) {
+        renderContractSection({ id: bookingId });
+      } else {
+        loadPipeline();
+      }
+    }
+
+    // Switch (confirm sheet)
+    var switchBtn = document.getElementById('ec-switch-btn');
+    if (switchBtn) {
+      switchBtn.addEventListener('click', function() {
+        var sheet = document.getElementById('ec-switch-confirm');
+        sheet.style.display = sheet.style.display === 'none' ? '' : 'none';
+      });
+      document.getElementById('ec-switch-no').addEventListener('click', function() {
+        document.getElementById('ec-switch-confirm').style.display = 'none';
+      });
+      document.getElementById('ec-switch-yes').addEventListener('click', async function() {
+        var btn = this;
+        var target = pathIsExt ? 'gbe' : 'external';
+        btn.disabled = true;
+        try {
+          if (full) {
+            await apiFetch('/bookings/' + encodeURIComponent(bookingId) + '/external-contract', {
+              method: 'POST', body: JSON.stringify({ path: target })
+            });
+            toast(true, target === 'external' ? 'Switched to venue’s paper' : 'Switched back to GBE agreement');
+          } else {
+            await ecQueueAction(bookingId, 'set_contract_path', { path: target });
+            // Optimistic chip (AC-X11) so the BM sees the flip immediately.
+            var row = pipelineData.find(function(x) { return String(x.id) === String(bookingId); });
+            if (row) { row.contract_path = target; if (target === 'external' && !row.external_contract_status) { row.external_contract_status = 'awaiting_their_draft'; row.external_next_action_owner = 'counterparty'; row.external_status_changed_at = new Date().toISOString(); } }
+            toast(true, (target === 'external' ? 'Switched to venue’s paper' : 'Switched back to GBE agreement') + ' — syncing shortly');
+          }
+          refreshSection();
+        } catch (e) {
+          btn.disabled = false;
+          toast(false, 'Switch failed: ' + e.message);
+        }
+      });
+    }
+
+    if (!pathIsExt) return;
+
+    // Status transitions (confirm row with optional note)
+    var pendingTo = null;
+    var confirmText = {
+      redlines_sent: 'Mark redlines sent — the ball moves to the venue and staleness nudges watch for their reply.',
+      final_received: 'Accept this version as final — next step is the GBE signature (Jeffery Ponder signs outside the e-sign system).',
+      signed_by_gbe: 'Mark signed by GBE — the ball moves to the venue for countersign and their executed copy.',
+      abandoned: 'Abandon this contract — the deal’s paper trail is kept, but the lifecycle closes.'
+    };
+    document.querySelectorAll('.ec-status-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        pendingTo = btn.dataset.to;
+        var sheet = document.getElementById('ec-status-confirm');
+        document.getElementById('ec-status-confirm-text').textContent = confirmText[pendingTo] || ('Move to ' + pendingTo + '?');
+        sheet.style.display = '';
+        document.getElementById('ec-status-note').focus();
+      });
+    });
+    var statusNo = document.getElementById('ec-status-no');
+    if (statusNo) statusNo.addEventListener('click', function() {
+      document.getElementById('ec-status-confirm').style.display = 'none';
+      pendingTo = null;
+    });
+    var statusYes = document.getElementById('ec-status-yes');
+    if (statusYes) statusYes.addEventListener('click', async function() {
+      if (!pendingTo) return;
+      var btn = this;
+      var note = document.getElementById('ec-status-note').value.trim().slice(0, 2000);
+      btn.disabled = true;
+      try {
+        if (full) {
+          await apiFetch('/bookings/' + encodeURIComponent(bookingId) + '/external-contract/status', {
+            method: 'PUT', body: JSON.stringify({ to: pendingTo, note: note || undefined })
+          });
+          toast(true, 'Updated: ' + ecStateMeta(pendingTo).label);
+        } else {
+          await ecQueueAction(bookingId, 'external_contract_status', { to: pendingTo, note: note || undefined });
+          var row = pipelineData.find(function(x) { return String(x.id) === String(bookingId); });
+          if (row) { row.external_contract_status = pendingTo; row.external_next_action_owner = (pendingTo === 'redlines_sent' || pendingTo === 'signed_by_gbe') ? 'counterparty' : 'gbe'; row.external_status_changed_at = new Date().toISOString(); }
+          toast(true, 'Updated: ' + ecStateMeta(pendingTo).label + ' — syncing shortly');
+        }
+        refreshSection();
+      } catch (e) {
+        btn.disabled = false;
+        toast(false, 'Update failed: ' + e.message);
+      }
+    });
+
+    // Uploads (AC-X3: button → picker → lands; typed plain-English errors)
+    var fileInput = document.getElementById('ec-file-input');
+    var uploadDirection = 'inbound';
+    var execMode = false;
+    var execFile = null;
+    document.querySelectorAll('.ec-upload-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        uploadDirection = btn.dataset.direction || 'inbound';
+        execMode = false;
+        fileInput.value = '';
+        fileInput.click();
+      });
+    });
+
+    // Execute sheet (AC-X8)
+    var execBtn = document.getElementById('ec-execute-btn');
+    if (execBtn) {
+      execBtn.addEventListener('click', function() {
+        document.getElementById('ec-execute-sheet').style.display = '';
+      });
+      document.getElementById('ec-exec-cancel').addEventListener('click', function() {
+        document.getElementById('ec-execute-sheet').style.display = 'none';
+        execFile = null;
+        document.getElementById('ec-exec-filename').textContent = '';
+        document.getElementById('ec-exec-confirm').disabled = true;
+      });
+      document.getElementById('ec-exec-attach').addEventListener('click', function() {
+        execMode = true;
+        fileInput.value = '';
+        fileInput.click();
+      });
+      document.getElementById('ec-exec-confirm').addEventListener('click', async function() {
+        if (!execFile) return; // impossible to execute without the artifact
+        var btn = this;
+        var payVia = (document.querySelector('input[name="ec-payvia"]:checked') || {}).value || 'gbe_link';
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Marking executed…';
+        try {
+          if (full) {
+            var fd = new FormData();
+            fd.append('file', execFile);
+            fd.append('payment_via', payVia);
+            await ecApiUpload('/bookings/' + encodeURIComponent(bookingId) + '/external-contract/execute', fd, 'PUT');
+            toast(true, payVia === 'gbe_link'
+              ? 'Fully executed — buyer receives the executed copy and our secure deposit link.'
+              : 'Fully executed — buyer receives the executed copy; booking confirmed (deposit per their contract).');
+          } else {
+            var staged = await ecStageFile(bookingId, execFile);
+            await ecQueueAction(bookingId, 'external_contract_execute', {
+              staging_key: staged.key, filename: execFile.name, payment_via: payVia
+            });
+            var row = pipelineData.find(function(x) { return String(x.id) === String(bookingId); });
+            if (row) { row.external_contract_status = 'fully_executed'; row.external_status_changed_at = new Date().toISOString(); }
+            toast(true, 'Executed copy uploaded — syncing shortly. The buyer will see ' + (payVia === 'gbe_link' ? 'the deposit step next.' : '“Confirmed” next.'));
+          }
+          closeModal();
+          loadPipeline();
+        } catch (e) {
+          btn.disabled = false;
+          btn.innerHTML = 'Mark executed';
+          toast(false, 'Could not mark executed: ' + e.message);
+        }
+      });
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', async function() {
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        // Client-side plain-English pre-checks (server re-validates by magic bytes).
+        var ext2 = String(file.name || '').split('.').pop().toLowerCase();
+        if (ext2 !== 'pdf' && ext2 !== 'docx') {
+          toast(false, 'Upload the contract as a PDF or Word (.docx) file.');
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast(false, 'The file exceeds the 10MB limit. Please upload a smaller file.');
+          return;
+        }
+        if (execMode) {
+          execFile = file;
+          document.getElementById('ec-exec-filename').textContent = file.name;
+          document.getElementById('ec-exec-confirm').disabled = false;
+          return;
+        }
+        var noteEl = document.getElementById('ec-upload-note');
+        noteEl.style.display = '';
+        noteEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading ' + esc(file.name) + '…';
+        try {
+          if (full) {
+            var fd2 = new FormData();
+            fd2.append('file', file);
+            fd2.append('direction', uploadDirection);
+            var r = await ecApiUpload('/bookings/' + encodeURIComponent(bookingId) + '/external-contract/files', fd2, 'POST');
+            toast(true, 'v' + r.version + ' received' + (r.status === 'under_review' ? ' — under review' : ''));
+          } else {
+            var staged2 = await ecStageFile(bookingId, file);
+            await ecQueueAction(bookingId, 'external_contract_upload', {
+              staging_key: staged2.key, filename: file.name, direction: uploadDirection
+            });
+            var row2 = pipelineData.find(function(x) { return String(x.id) === String(bookingId); });
+            if (row2 && uploadDirection === 'inbound') { row2.external_contract_status = 'under_review'; row2.external_next_action_owner = 'gbe'; row2.external_status_changed_at = new Date().toISOString(); row2.external_version_count = (row2.external_version_count || 0) + 1; }
+            toast(true, 'Contract uploaded — syncing shortly');
+          }
+          noteEl.style.display = 'none';
+          refreshSection();
+        } catch (e) {
+          noteEl.style.display = 'none';
+          toast(false, e.message || 'Upload failed');
+        }
+      });
+    }
   }
 
   /* ---- Booking Detail Modal ---- */
@@ -947,6 +1527,12 @@
 
       // Reply From indicator
       html += replyFromHTML(b.stage);
+
+      // Contract section (story-external-contract-path) — path chip + switch,
+      // external lifecycle tracker, upload, timeline, flags, execute sheet.
+      // Rendered async after the modal opens (LAN fetches the full view;
+      // remote renders from the readmodel tracking fields).
+      html += '<div id="bk-contract-section" data-testid="contract-section" style="margin-bottom:var(--space-md);"></div>';
 
       // Booking form
       html += '<form id="bk-form">';
@@ -1014,6 +1600,9 @@
       html += '</div>';
 
       openModal(html);
+
+      // Contract section (async render — never blocks the modal open)
+      renderContractSection(b);
 
       // Remote: Generate Quote button handler
       var genQuoteBtn = document.getElementById('bk-gen-quote-btn');

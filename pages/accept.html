@@ -129,7 +129,7 @@
       <div class="offer-glyph">&#9888;&#65039;</div>
       <h2>Link Invalid or Expired</h2>
       <p>This link is invalid or has expired &mdash; contact us to request a new quote link.</p>
-      <p>If you recently completed your deposit, your booking is confirmed &mdash; see your confirmation email.</p>
+      <p>If your booking was recently confirmed or your deposit completed, you&rsquo;re all set &mdash; see your confirmation email.</p>
     </div>
 
     <!-- Processing banner (shared) -->
@@ -197,6 +197,28 @@
       <div class="offer-glyph">&#128231;</div>
       <h2>Quote Accepted</h2>
       <p>Your agreement is being prepared &mdash; it will appear here shortly and a signing copy has been emailed to you.</p>
+    </div>
+
+    <!-- External paper (story-external-contract-path §v): buyer sends THEIR
+         contract — our e-sign step NEVER renders on this path (AC-X6). -->
+    <div id="state-ext-send" data-testid="state-ext-send" style="display:none;">
+      <div class="offer-card">
+        <h2>Quote Accepted &mdash; Next: Your Contract</h2>
+        <p style="color:var(--color-text-secondary); line-height:1.6;">
+          Your team indicated you&rsquo;ll use your own agreement. Send it to
+          <a href="mailto:booking@layoungbandpage.com" style="color:var(--color-gold);">booking@layoungbandpage.com</a>
+          (or just reply to your quote email) and we&rsquo;ll take it from there.
+        </p>
+        <p style="color:var(--color-text-muted); font-size:var(--text-sm); line-height:1.6;">
+          The figures from your accepted quote stay exactly as agreed. This page updates automatically as things progress.
+        </p>
+      </div>
+    </div>
+
+    <div id="state-ext-review" class="offer-center" data-testid="state-ext-review" style="display:none;">
+      <div class="offer-glyph">&#128196;</div>
+      <h2>Contract in Progress</h2>
+      <p>We&rsquo;re finalizing the performance agreement directly with your team. Nothing is needed from you on this page right now.</p>
     </div>
 
     <!-- Phase: signed (deposit link being prepared) -->
@@ -327,8 +349,8 @@
     function clearWriteError() { hide('banner-error'); }
 
     var ALL_STATES = ['state-loading', 'state-error', 'state-offered', 'state-sign',
-      'state-sign-pending', 'state-signed-wait', 'state-deposit', 'state-complete',
-      'state-declined', 'state-expired'];
+      'state-sign-pending', 'state-ext-send', 'state-ext-review', 'state-signed-wait',
+      'state-deposit', 'state-complete', 'state-declined', 'state-expired'];
     function showState(id) {
       for (var i = 0; i < ALL_STATES.length; i++) hide(ALL_STATES[i]);
       show(id);
@@ -352,9 +374,14 @@
     }
 
     /* ── Stepper ───────────────────────────────────────────────────────── */
-    // steps: accept(0) sign(1) deposit(2) complete(3)
-    function updateStepper(phase) {
+    // steps: accept(0) sign|contract(1) deposit(2) complete(3)
+    // External paper (story-external-contract-path §v): step 2 reads
+    // "Contract" instead of "Sign" — one-word swap, progress semantics
+    // unchanged. The buyer NEVER sees a "sign" label on external paper (AC-X6).
+    function updateStepper(phase, isExternal) {
       var ids = ['step-accept', 'step-sign', 'step-deposit', 'step-complete'];
+      var signLabelEl = $('step-sign') && $('step-sign').querySelector('span');
+      if (signLabelEl) signLabelEl.textContent = isExternal ? 'Contract' : 'Sign';
       var activeIdx;
       if (phase === 'offered') activeIdx = 0;
       else if (phase === 'accepted') activeIdx = 1;
@@ -441,13 +468,21 @@
       stopPolling();
       hide('banner-processing');
       $('refresh-row').style.display = 'none';
+      var wasExternal = !!(knownPayload && knownPayload.externalContract);
       if (pendingAction === 'decline' || knownPhase === 'declined') {
         updateStepper('declined');
         showState('state-declined');
       } else if (knownPhase === 'signed' || knownPhase === 'deposit' || knownPhase === 'complete') {
         // task-tka-e contract: the row is EVICTED at completion — an emptying
         // RPC after the deposit phase means the deal closed successfully.
-        updateStepper('complete');
+        updateStepper('complete', wasExternal);
+        showState('state-complete');
+      } else if (wasExternal && knownPhase === 'accepted') {
+        // story-external-contract-path §v: on their-terms execution the offer
+        // CAS-es accepted→signed→complete in ONE landing and the row EVICTS —
+        // an in-session external deal that empties from 'accepted' has been
+        // fully executed. Land directly on Confirmed.
+        updateStepper('complete', true);
         showState('state-complete');
       } else if (knownPhase === 'offered' && knownPayload && knownPayload.expiresAt &&
                  new Date(knownPayload.expiresAt).getTime() < Date.now()) {
@@ -463,8 +498,9 @@
     function renderPhase(row) {
       var phase = row.phase;
       var p = row.payload || {};
+      var isExternal = !!p.externalContract;
       clearWriteError();
-      updateStepper(phase);
+      updateStepper(phase, isExternal);
 
       if (pendingAction) {
         show('banner-processing');
@@ -478,6 +514,14 @@
         var busy = !!pendingAction;
         $('btn-accept').disabled = busy;
         $('btn-decline').disabled = busy;
+      } else if (phase === 'accepted' && isExternal) {
+        // External paper (story-external-contract-path §v): the e-sign step is
+        // NEVER shown. Two honest states keyed off the redacted cache block.
+        if (p.externalContract.state === 'send_us_your_contract') {
+          showState('state-ext-send');
+        } else {
+          showState('state-ext-review');
+        }
       } else if (phase === 'accepted') {
         if (pendingAction === 'sign') {
           // sign staged, awaiting landing — keep a quiet waiting view
