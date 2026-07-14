@@ -132,7 +132,10 @@ const Router = {
     // 'home' line below (and restore 'services'/'about' to 'home' if desired).
     'home': 'ent-home',
     'dashboard-band-player-v2': 'dashboard-band-player',
-    'ent-events': 'ent-home',
+    // 'ent-events' redirect REMOVED (story-showcase-wave1, D-52 §iii F1/§v):
+    // the events page carries the showcase card + band-page forward link and
+    // must resolve again. Reachable by direct hash only — the nav Events link
+    // stays hidden (unchanged).
     // dashboard-inbox retired 2026-07-04 (story-booking-inquiry-incident) — remote mode read a
     // dead Firestore inbox_pipeline collection nothing has written to since the Supabase cutover.
     // dashboard-booking's "Inquiries" tab is the working replacement (live booking_inquiry_readmodel,
