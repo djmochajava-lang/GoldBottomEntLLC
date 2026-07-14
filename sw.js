@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.14-0505.3a0a22c';
+var GBE_BUILD = '2026.07.14-0507.14d8761';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '95530003158ff105a31483d2cc72e2221d733fbc054f711a32552743c8150b11',
+  './js/build.js': '30b72ed8bc6e29dc94da9ec0174d9945222374925ef2329db0bd345b48d00707',
   './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
