@@ -322,17 +322,27 @@
       var db = c.getDb();
 
       var gigsHtml = '<option value="">None</option>';
-      // Pre-load upcoming gigs for "Link to Gig" dropdown (non-blocking)
-      db.collection('gigs').where('status', '==', 'upcoming').orderBy('date', 'asc').get()
-        .then(function(snap) {
-          snap.forEach(function(doc) {
-            var g = doc.data();
-            var dateStr = g.date && g.date.toDate ? g.date.toDate().toLocaleDateString() : '';
-            gigsHtml += '<option value="' + doc.id + '">' + (g.title || 'Gig') + (dateStr ? ' (' + dateStr + ')' : '') + '</option>';
-          });
-          var sel = document.getElementById('bp2-pl-gig');
-          if (sel) sel.innerHTML = gigsHtml;
-        }).catch(function() {});
+      // Pre-load upcoming gigs for "Link to Gig" dropdown (non-blocking).
+      // Reads the Supabase `gigs` cache via the authenticated PKCE client
+      // (Auth._sb) — same idiom my-portal.html uses for RLS-gated reads —
+      // REPLACING the retired direct Firestore gigs query. gig_date is a plain
+      // ISO string (NOT a Firestore Timestamp, so no .toDate()). If Auth._sb is
+      // not ready, or the read errors/returns empty, the dropdown simply keeps
+      // its "None" option — no throw, no console error.
+      var _sb = (typeof Auth !== 'undefined' && Auth._sb) ? Auth._sb : null;
+      if (_sb) {
+        _sb.from('gigs').select('id,title,gig_date,status').eq('status', 'upcoming').order('gig_date', { ascending: true })
+          .then(function(res) {
+            if (!res || res.error || !res.data) return;
+            res.data.forEach(function(g) {
+              var dateStr = g.gig_date ? new Date(g.gig_date).toLocaleDateString() : '';
+              gigsHtml += '<option value="' + g.id + '">' + (g.title || 'Gig') + (dateStr ? ' (' + dateStr + ')' : '') + '</option>';
+            });
+            var sel = document.getElementById('bp2-pl-gig');
+            if (sel) sel.innerHTML = gigsHtml;
+          })
+          .catch(function() {});
+      }
 
       Modal.open({
         title: 'Create Playlist',
@@ -386,7 +396,15 @@
 
       return BP2Write.createPlaylist(plData, gigId).then(function(ref) {
         if (gigId) {
-          db.collection('gigs').doc(gigId).update({ playlistId: ref.id }).catch(function() {});
+          // Link the gig back to this playlist in the Supabase `gigs` cache
+          // (fire-and-forget, errors swallowed — low urgency). RLS role-gates
+          // this write to BM/admin/artist; a non-privileged caller's update
+          // silently no-ops, which is the intended behavior.
+          var _sb = (typeof Auth !== 'undefined' && Auth._sb) ? Auth._sb : null;
+          if (_sb) {
+            _sb.from('gigs').update({ playlist_id: ref.id }).eq('id', gigId)
+              .then(function() {}).catch(function() {});
+          }
         }
         if (typeof Modal !== 'undefined') Modal.close();
         if (typeof Toast !== 'undefined') Toast.success('Playlist created: ' + name);

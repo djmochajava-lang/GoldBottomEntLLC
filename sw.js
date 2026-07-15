@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.14-0714.613b8e4';
+var GBE_BUILD = '2026.07.15-1257.0b554d4';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': 'c470cb81aec9099aee3ecd23187a57cba0cd33b7622bee7cdff5db70b3ddf9ef',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': '4256a19f113a7317827c73ee343d92f2b8e5ccf42ca5442cf0a4ea06b9eb0216',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': '7cef683bb181698cd90754e1166eab0fd08d1c49acff74f7780ff9c824075ce0',
-  './js/build.js': '4e2c71ab70649553c6c45919d91db45e775755fe763f9cd347114f39dd6d8795',
+  './js/build.js': '02248c656d5907029a904334a963800d514d6611237890d3725a702a6b88baa0',
   './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -54,7 +54,7 @@ var ASSET_HASHES = {
   './js/band-player-v2/bp2-core.js': '0ce5888de38b8472dd81962b1507c99ba4dc8182ffa37c5872459f2887577000',
   './js/band-player-v2/bp2-data.js': 'ec2b15ea9a6a646560b84e4ebef718284409a320342ae9893dd77bd31173a5e9',
   './js/band-player-v2/bp2-player.js': '88fb1c39038e7a203976afdfd40f881797fbc002a35c0e95890f4400a5d2709c',
-  './js/band-player-v2/bp2-playlist.js': 'a71b295a3c39a7c21698cf3c6a3bc23c1577c513c823feb5050b96a66ed2ff78',
+  './js/band-player-v2/bp2-playlist.js': 'adae8532c3ea7f2a6583597f5bdc36084cd4a2c2fa419ce46a132e1954abac3d',
   './js/band-player-v2/bp2-render.js': '79b7bc8fdd6aa5dd8b28919cafc65970dcad54408439ed9dac8a11096b3526df',
   './js/band-player-v2/bp2-render-edit.js': 'e4b942ee7fd429ce5afae06e195285e3f08967808677eb36d8425290a6036302',
   './js/band-player-v2/bp2-render-stems.js': '42a4c2efcf8e3142585af89ee6702d6112a8cfaee4bc9ba54afd69ff7daf9b22',

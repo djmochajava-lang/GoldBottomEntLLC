@@ -441,26 +441,50 @@
 
   // ── Load Upcoming Gigs ──────────────────────
   function loadGigs() {
-    if (!db) { updateGigStats(0); return; }
+    // Reads the Supabase `gigs` cache via the authenticated PKCE client
+    // (Auth._sb), REPLACING the retired Firestore path (the compat shim mapped
+    // orderBy('date') to a non-existent `date` column — the cache column is
+    // `gig_date` — so the old read silently failed). Shows gigs assigned to
+    // THIS member: status 'upcoming' AND this uid present in the
+    // assigned_musicians jsonb array. Empty/error ⇒ graceful empty state
+    // (#mp-gigs-empty shown, #mp-stat-gigs = 0), no console error.
+    var _sb = (typeof Auth !== 'undefined' && Auth._sb) ? Auth._sb : null;
+    if (!_sb || !uid) { renderGigs([]); updateGigStats(0); return; }
 
-    db.collection('gigs')
-      .where('assignedMusicians', 'array-contains', uid)
-      .where('status', '==', 'upcoming')
-      .orderBy('date', 'asc')
+    // assigned_musicians is a JSONB array — jsonb containment (@>) needs a JSON
+    // value, so pass JSON.stringify([uid]) (a plain [uid] serializes to a
+    // Postgres array literal and 400s "invalid input syntax for type json").
+    // A defensive client-side filter below guarantees only gigs that truly list
+    // this uid render, independent of operator nuances.
+    _sb.from('gigs')
+      .select('id,title,venue,gig_date,status,playlist_id,assigned_musicians')
+      .eq('status', 'upcoming')
+      .contains('assigned_musicians', JSON.stringify([uid]))
+      .order('gig_date', { ascending: true })
       .limit(10)
-      .get()
-      .then(function(snapshot) {
-        var gigs = [];
-        snapshot.forEach(function(doc) {
-          gigs.push(Object.assign({ _id: doc.id }, doc.data()));
+      .then(function(res) {
+        if (!res || res.error || !res.data) { renderGigs([]); updateGigStats(0); return; }
+        // Map the cache row shape onto what renderGigs expects (gig_date ISO
+        // string → date; playlist_id → playlistId). Defensive filter: keep only
+        // rows whose assigned_musicians array actually includes this uid.
+        var gigs = res.data.filter(function(r) {
+          return Array.isArray(r.assigned_musicians) && r.assigned_musicians.indexOf(uid) !== -1;
+        }).map(function(r) {
+          return {
+            _id: r.id,
+            title: r.title,
+            venue: r.venue,
+            date: r.gig_date,
+            playlistId: r.playlist_id
+          };
         });
         renderGigs(gigs);
         updateGigStats(gigs.length);
         // Load checkpoints for these gigs
         if (gigs.length > 0) loadCheckpoints(gigs);
       })
-      .catch(function(err) {
-        console.warn('[MusicianPortal] Failed to load gigs:', err.message);
+      .catch(function() {
+        renderGigs([]);
         updateGigStats(0);
       });
   }
