@@ -1,13 +1,14 @@
 <!-- dashboard/my-portal.html — Musician's Hub (non-music interactions) -->
 <div class="dashboard-page" id="dash-my-portal">
 
-  <!-- Page Header -->
+  <!-- Page Header — story-member-portal-is-dashboard: this IS the band member's
+       dashboard landing (personalized greeting), not a secondary page. -->
   <div style="margin-bottom:var(--space-lg);">
     <h1 style="display:flex;align-items:center;gap:var(--space-sm);">
       <i class="fa-solid fa-id-badge" style="color:var(--color-gold);"></i>
-      My Portal
+      <span id="portal-welcome">My Portal</span>
     </h1>
-    <p class="text-muted" style="margin:0;font-size:var(--text-sm);">Your hub for sessions, agreements, and account settings.</p>
+    <p class="text-muted" style="margin:0;font-size:var(--text-sm);">Your hub for gig invites, your bio, the Band Player, and account settings.</p>
   </div>
 
   <!-- Pending Section -->
@@ -497,8 +498,20 @@
 
   // ═══ INIT (fully guarded — audit 3.4: the old init had no catch) ═══
 
+  // Personalize the header greeting (degrades to "My Portal" on any miss).
+  function setWelcome() {
+    try {
+      var el = document.getElementById('portal-welcome');
+      if (!el) return;
+      var u = (typeof Auth !== 'undefined' && Auth.getCurrentUser) ? Auth.getCurrentUser() : null;
+      var name = u && (u.displayName || u.email);
+      if (name) el.textContent = 'Welcome, ' + String(name).split(/[ @]/)[0];
+    } catch (e) { /* keep default */ }
+  }
+
   async function init() {
     try {
+      setWelcome();
       _uid = await currentUid();
       var sb = getSb();
       if (!sb || !_uid) {

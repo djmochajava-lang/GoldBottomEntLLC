@@ -146,6 +146,20 @@ const Router = {
     // dashboard-booking's "Inquiries" tab is the working replacement (live booking_inquiry_readmodel,
     // default active tab), so this now redirects there instead of maintaining two read paths.
     'dashboard-inbox': 'dashboard-booking',
+    // story-member-portal-is-dashboard (2026-07-16): the band member's single
+    // dashboard surface IS "My Portal" (dashboard-my-portal → my-portal.html).
+    // The two now-redundant member landings are folded into it:
+    //   • dashboard-musician-home (musician-home.html) — orphaned; ~4 dead
+    //     Firestore panels (agreements/timeline/payments/practice-stats). Its one
+    //     live element set (invites, My Bio) already lives, better, in My Portal.
+    //   • dashboard-musician (musician.html) — the old "Dashboard" surface that
+    //     duplicated My Portal's Pending + Upcoming Sessions + Quick Links.
+    // Redirecting both here guarantees ONE surface, no second overlapping page,
+    // and auto-heals any stale bookmark / deep link (e.g. sign.html "Back to
+    // Portal"). Role landing (router role-map + auth.js _roleLandingPage) points
+    // straight at dashboard-my-portal, so this is a belt-and-suspenders net.
+    'dashboard-musician-home': 'dashboard-my-portal',
+    'dashboard-musician': 'dashboard-my-portal',
   },
 
   /**
@@ -318,7 +332,7 @@ const Router = {
       var _roleMap = {
         admin: 'dashboard-admin',
         band_manager: 'dashboard-manager',
-        band_member: 'dashboard-musician-home',
+        band_member: 'dashboard-my-portal',
         artist: 'dashboard-artist'
       };
       if (_homeRole && _roleMap[_homeRole]) {
@@ -460,7 +474,7 @@ const Router = {
                 Toast.error('Your role does not have access to this section.');
               }
               // Redirect to role-appropriate home (replace hash immediately to prevent URL leak)
-              var _roleDest = (_currentRole === 'band_member' || _currentRole === 'artist') ? 'dashboard-musician-home' : 'dashboard-home';
+              var _roleDest = (_currentRole === 'band_member' || _currentRole === 'artist') ? 'dashboard-my-portal' : 'dashboard-home';
               window.history.replaceState({ page: _roleDest }, '', '#' + _roleDest);
               this.navigateTo(_roleDest, true);
               return;
@@ -471,7 +485,7 @@ const Router = {
               if (typeof Toast !== 'undefined') {
                 Toast.error('Your role does not have access to this section.');
               }
-              var _roleDest2 = (_currentRole === 'band_member' || _currentRole === 'artist') ? 'dashboard-musician-home' : 'dashboard-home';
+              var _roleDest2 = (_currentRole === 'band_member' || _currentRole === 'artist') ? 'dashboard-my-portal' : 'dashboard-home';
               window.history.replaceState({ page: _roleDest2 }, '', '#' + _roleDest2);
               this.navigateTo(_roleDest2, true);
               return;

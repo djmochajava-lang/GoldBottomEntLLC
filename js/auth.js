@@ -1850,7 +1850,11 @@ const Auth = {
     var map = {
       admin: 'dashboard-admin',
       band_manager: 'dashboard-manager',
-      band_member: 'dashboard-musician',
+      // story-member-portal-is-dashboard (2026-07-16): a band member's dashboard
+      // landing IS "My Portal" — the single consolidated member surface (invites-
+      // first, My Bio, Band Player, badge). Was 'dashboard-musician' (musician.html),
+      // one of three overlapping member surfaces now folded into my-portal.html.
+      band_member: 'dashboard-my-portal',
       artist: 'dashboard-artist'
     };
     return map[role] || 'dashboard-home';
