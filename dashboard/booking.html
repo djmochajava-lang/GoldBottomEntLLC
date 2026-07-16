@@ -619,6 +619,16 @@
       }
       html += '</div>';
 
+      // ── Create a Quote — PRIMARY action on a booking inquiry (story-bm-guided-quote-authoring).
+      // Obvious affordance at the top of the detail (AC-1). A "Quote in progress" chip replaces
+      // it when a pending_approval draft already exists (resumable, non-destructive).
+      if (r.classification === 'booking_inquiry' || r.classification === 'booking_followup') {
+        html += '<div id="inq-quote-cta" style="margin-bottom:var(--space-md);">' +
+          '<button id="inq-create-quote-btn" data-id="' + esc(String(r.id)) + '" class="btn btn-primary" ' +
+          'style="width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:var(--text-base);font-weight:600;">' +
+          '<i class="fa-solid fa-file-invoice-dollar"></i> Create a Quote</button></div>';
+      }
+
       // Contact info
       html += '<div style="display:grid;grid-template-columns:110px 1fr;gap:4px var(--space-sm);margin-bottom:var(--space-md);font-size:var(--text-sm);">';
       html += '<div style="color:var(--color-text-muted);font-weight:600;">From</div><div>' + esc(senderDisplay) + '</div>';
@@ -695,6 +705,13 @@
       }
 
       openModal(html);
+
+      // Wire the Create-a-Quote CTA + swap to a resumable chip if a draft is already in flight.
+      var _cqBtn = document.getElementById('inq-create-quote-btn');
+      if (_cqBtn) {
+        _cqBtn.addEventListener('click', function() { openQuoteStepper(r); });
+        _refreshQuoteInProgress(r);
+      }
 
       // Shared post-action handling: optimistic local patch + re-render + toast.
       // Remote writes are queued (applied by booking-reconcile.js within ~1 min);
@@ -2090,6 +2107,355 @@
       if (countEl) countEl.textContent = '';
     }
   }
+
+  /* ==================================================================
+     GUIDED QUOTE AUTHORING — story-bm-guided-quote-authoring (remote, Option B)
+     The BM builds a quote in a mobile-first stepper on the PUBLIC site. Every
+     dollar figure is computed SERVER-SIDE: the stepper only writes NON-FINANCIAL
+     selectors (create_quote) to the booking_actions relay; booking-reconcile.js
+     prices the draft (pricing-config) and publishes it to the
+     booking_quote_draft_readmodel; the Review step reads that back = exactly what
+     the buyer will receive; Send rides the existing approve_quote path (prices +
+     sends the buyer email + advances the stage). Draft persists server-side, so a
+     failed/abandoned send is non-destructive + resumable ("Quote in progress").
+     ================================================================== */
+
+  // Buyer-facing package labels ONLY (no prices client-side — the server prices).
+  var QUOTE_PACKAGES = [
+    { key: 'solo',           label: 'Solo Performance w/ Tracks', desc: '1 × 45-min set' },
+    { key: 'duo',            label: 'Acoustic Duo',               desc: '2 × 45-min sets' },
+    { key: 'small-band',     label: 'Small Band (5-Piece)',       desc: '2 × 45-min sets' },
+    { key: 'full-band',      label: 'Full Band (7-Piece)',        desc: '2 × 45-min sets' },
+    { key: 'full-show',      label: 'Full Show / Tribute',        desc: '2 × 45-min sets' },
+    { key: 'la-with-dj',     label: 'L.A. with DJ',               desc: '2 × 45-min sets' },
+    { key: 'hosting-mc',     label: 'Hosting & MC',               desc: 'Event duration' },
+    { key: 'studio-session', label: 'Studio Recording Session',   desc: 'Per 4-hour session' }
+  ];
+  var QUOTE_EVENT_TYPES = [
+    'wedding', 'corporate', 'gala', 'festival', 'tribute', 'fundraiser',
+    'private-party', 'club-lounge', 'concert', 'other'
+  ];
+
+  var _qState = null; // { inq, step, packageKey, eventType, eventDate, depositPercent, note, draftId, figures }
+
+  function _money(n) {
+    if (n == null || isNaN(n)) return '—';
+    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+  function _titleCase(s) { return String(s || '').replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }); }
+
+  // Write a quote relay action (create_quote / approve_quote) into booking_actions.
+  // actor_id is the caller's OWN Supabase auth.uid (RLS WITH CHECK) — role is re-resolved
+  // server-side by the reconciler; the client never sets amounts (server prices).
+  async function writeQuoteAction(targetId, actionType, payload) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) throw new Error('Please sign in on the public site to author quotes.');
+    var sessionRes = await sb.auth.getSession();
+    var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
+    if (!uid) throw new Error('Not signed in.');
+    var res = await sb.from('booking_actions').insert({
+      actor_id: uid, target_id: String(targetId), action_type: actionType, payload: payload || {}
+    });
+    if (res.error) throw new Error(res.error.message);
+    return { queued: true, uid: uid };
+  }
+
+  // Read the latest server-computed draft for an inquiry from the read-model (own-row RLS).
+  async function getLatestDraft(inboxId) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) return null;
+    var res = await sb.from('booking_quote_draft_readmodel').select('*')
+      .eq('inbox_id', String(inboxId)).order('created_at', { ascending: false }).limit(1);
+    if (res.error || !res.data || !res.data.length) return null;
+    return res.data[0];
+  }
+
+  // Poll the read-model until the reconciler has published a NEW draft (created after sinceMs).
+  async function pollForDraft(inboxId, sinceMs, maxMs) {
+    var deadline = Date.now() + (maxMs || 90000);
+    while (Date.now() < deadline) {
+      var d = await getLatestDraft(inboxId);
+      if (d && d.status === 'pending_approval' && (!sinceMs || new Date(d.created_at).getTime() >= sinceMs - 3000)) return d;
+      await new Promise(function(r){ setTimeout(r, 3000); });
+    }
+    return null;
+  }
+
+  // Swap the inquiry-detail CTA to a resumable "Quote in progress" chip if a draft exists.
+  async function _refreshQuoteInProgress(inq) {
+    try {
+      var d = await getLatestDraft(inq.id);
+      var slot = document.getElementById('inq-quote-cta');
+      if (!slot || !d || d.status !== 'pending_approval') return;
+      slot.innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--radius-md);background:rgba(212,160,23,0.12);border:1px solid rgba(212,160,23,0.4);margin-bottom:8px;">' +
+          '<i class="fa-solid fa-file-circle-plus" style="color:#d4a017;"></i>' +
+          '<div style="flex:1;min-width:0;"><div style="font-weight:600;">Quote in progress</div>' +
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + esc(_titleCase(d.package_label || d.package_key)) + ' · ' + _money(d.quote_total) + '</div></div></div>' +
+        '<button id="inq-resume-quote-btn" class="btn btn-primary" style="width:100%;min-height:48px;font-weight:600;"><i class="fa-solid fa-arrow-right"></i> Resume &amp; Send Quote</button>';
+      var rb = document.getElementById('inq-resume-quote-btn');
+      if (rb) rb.addEventListener('click', function() { openQuoteStepper(inq, { resumeDraft: d }); });
+    } catch (e) { /* non-fatal — CTA stays as "Create a Quote" */ }
+  }
+
+  function _closeStepper() {
+    var ov = document.getElementById('quote-stepper-overlay');
+    if (ov) ov.remove();
+    document.body.style.overflow = '';
+    _qState = null;
+  }
+
+  // Open the guided stepper. opts.resumeDraft jumps straight to Review with a persisted draft.
+  function openQuoteStepper(inq, opts) {
+    opts = opts || {};
+    _qState = {
+      inq: inq, step: 0,
+      packageKey: null, eventType: (inq.event_type || null), eventDate: '',
+      depositPercent: 50, note: '',
+      draftId: opts.resumeDraft ? opts.resumeDraft.id : null,
+      figures: opts.resumeDraft || null
+    };
+    if (typeof closeModal === 'function') closeModal();
+    var ov = document.createElement('div');
+    ov.id = 'quote-stepper-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:var(--color-bg);display:flex;flex-direction:column;overflow:hidden;';
+    document.body.appendChild(ov);
+    document.body.style.overflow = 'hidden';
+    if (opts.resumeDraft) { _qState.step = 3; _renderStepper(); }
+    else _renderStepper();
+  }
+
+  var _QSTEPS = ['Services', 'Date & Deposit', 'Terms', 'Review & Send'];
+
+  function _renderStepper() {
+    var ov = document.getElementById('quote-stepper-overlay');
+    if (!ov || !_qState) return;
+    var s = _qState.step;
+    var buyer = _qState.inq.from_name || _qState.inq.from_addr || 'the client';
+
+    // Progress header (visible progress; one primary action per step; non-destructive back).
+    var prog = '<div style="display:flex;gap:6px;margin-top:10px;">';
+    for (var i = 0; i < _QSTEPS.length; i++) {
+      prog += '<div style="flex:1;height:4px;border-radius:2px;background:' + (i <= s ? 'var(--color-gold)' : 'var(--color-border)') + ';"></div>';
+    }
+    prog += '</div>';
+    var header =
+      '<div style="flex-shrink:0;padding:14px 16px;border-bottom:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+          '<div style="min-width:0;"><div style="font-weight:700;font-size:var(--text-base);">Create a Quote</div>' +
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Step ' + (s+1) + ' of 4 · ' + _QSTEPS[s] + ' · for ' + esc(buyer) + '</div></div>' +
+          '<button id="q-close" aria-label="Close" style="background:none;border:none;color:var(--color-text-muted);font-size:20px;min-width:44px;min-height:44px;cursor:pointer;">&times;</button>' +
+        '</div>' + prog +
+      '</div>';
+
+    var body = '<div id="q-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">';
+    if (s === 0) body += _stepServices();
+    else if (s === 1) body += _stepDates();
+    else if (s === 2) body += _stepTerms();
+    else body += _stepReview();
+    body += '</div>';
+
+    // Footer: non-destructive Back + single primary action.
+    var primaryLabel = ['Next', 'Next', 'Build Quote', 'Send Quote'][s];
+    var primaryIcon = ['fa-arrow-right', 'fa-arrow-right', 'fa-gears', 'fa-paper-plane'][s];
+    var footer =
+      '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        (s > 0 && s !== 3 ? '<button id="q-back" class="btn" style="min-height:48px;flex:0 0 auto;padding:0 18px;"><i class="fa-solid fa-arrow-left"></i> Back</button>' : '') +
+        (s === 3 ? '<button id="q-back" class="btn" style="min-height:48px;flex:0 0 auto;padding:0 18px;"><i class="fa-solid fa-arrow-left"></i> Back</button>' : '') +
+        '<button id="q-primary" class="btn btn-primary" style="min-height:48px;flex:1;font-weight:600;font-size:var(--text-base);"><i class="fa-solid ' + primaryIcon + '"></i> ' + primaryLabel + '</button>' +
+      '</div>';
+
+    ov.innerHTML = header + body + footer;
+    document.getElementById('q-close').addEventListener('click', _closeStepper);
+    var back = document.getElementById('q-back');
+    if (back) back.addEventListener('click', function() { _qCollect(); _qGo(_qState.step - 1); });
+    document.getElementById('q-primary').addEventListener('click', _qPrimary);
+  }
+
+  function _stepServices() {
+    var h = '<p style="margin:0 0 12px;color:var(--color-text-muted);font-size:var(--text-sm);">What are they booking? Pick a package and event type — we price it for you.</p>';
+    h += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">';
+    QUOTE_PACKAGES.forEach(function(p) {
+      var on = _qState.packageKey === p.key;
+      h += '<label style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--radius-md);border:1px solid ' + (on ? 'var(--color-gold)' : 'var(--color-border)') + ';background:' + (on ? 'rgba(212,160,23,0.08)' : 'var(--color-bg-secondary)') + ';cursor:pointer;min-height:44px;">' +
+        '<input type="radio" name="q-pkg" value="' + p.key + '"' + (on ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--color-gold);flex-shrink:0;">' +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:600;">' + esc(p.label) + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + esc(p.desc) + '</div></div></label>';
+    });
+    h += '</div>';
+    h += '<label class="form-label" style="font-weight:600;">Event type</label>';
+    h += '<select id="q-eventtype" class="form-input" style="width:100%;min-height:44px;">';
+    QUOTE_EVENT_TYPES.forEach(function(t) {
+      h += '<option value="' + t + '"' + (_qState.eventType === t ? ' selected' : '') + '>' + esc(_titleCase(t)) + '</option>';
+    });
+    h += '</select>';
+    return h;
+  }
+
+  function _stepDates() {
+    var h = '<p style="margin:0 0 12px;color:var(--color-text-muted);font-size:var(--text-sm);">When is the event, and how much deposit to secure the date?</p>';
+    h += '<label class="form-label" style="font-weight:600;">Event date</label>';
+    h += '<input type="date" id="q-date" class="form-input" value="' + esc(_qState.eventDate || '') + '" style="width:100%;min-height:44px;margin-bottom:16px;">';
+    h += '<label class="form-label" style="font-weight:600;">Deposit to secure the date (%)</label>';
+    h += '<input type="number" id="q-deposit" inputmode="numeric" pattern="[0-9]*" min="0" max="100" step="5" value="' + (_qState.depositPercent != null ? _qState.depositPercent : 50) + '" class="form-input" style="width:100%;min-height:44px;">';
+    h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-lock" style="margin-right:4px;"></i> The quote total is calculated by GBE from your package + event type — you\'ll see the exact figure on the next review screen.</p>';
+    return h;
+  }
+
+  function _stepTerms() {
+    var h = '<p style="margin:0 0 12px;color:var(--color-text-muted);font-size:var(--text-sm);">Anything to add for this client? (optional)</p>';
+    h += '<label class="form-label" style="font-weight:600;">Note for the quote</label>';
+    h += '<textarea id="q-note" class="form-input" rows="4" maxlength="2000" placeholder="e.g. includes travel within the DMV; setup 90 min prior…" style="width:100%;resize:vertical;">' + esc(_qState.note || '') + '</textarea>';
+    var pkg = QUOTE_PACKAGES.filter(function(p){ return p.key === _qState.packageKey; })[0];
+    h += '<div style="margin-top:16px;padding:14px;border-radius:var(--radius-md);background:var(--color-bg-secondary);border:1px solid var(--color-border);font-size:var(--text-sm);">' +
+      '<div style="font-weight:600;margin-bottom:6px;">Ready to price</div>' +
+      '<div style="color:var(--color-text-muted);">' + esc(pkg ? pkg.label : _qState.packageKey) + ' · ' + esc(_titleCase(_qState.eventType)) + (_qState.eventDate ? ' · ' + esc(_qState.eventDate) : '') + ' · ' + (_qState.depositPercent) + '% deposit</div>' +
+      '<div style="color:var(--color-text-muted);margin-top:6px;font-size:var(--text-xs);">Tapping <strong>Build Quote</strong> asks GBE to calculate the total. This can take up to a minute.</div></div>';
+    return h;
+  }
+
+  function _stepReview() {
+    var f = _qState.figures;
+    var buyer = _qState.inq.from_name || _qState.inq.from_addr || 'the client';
+    if (!f) {
+      return '<div style="text-align:center;padding:32px 12px;color:var(--color-text-muted);"><i class="fa-solid fa-triangle-exclamation" style="font-size:24px;color:#d29922;"></i>' +
+        '<p style="margin-top:10px;">No priced draft yet. Go Back and tap <strong>Build Quote</strong>.</p></div>';
+    }
+    var h = '<div style="padding:12px 14px;border-radius:var(--radius-md);background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.35);margin-bottom:14px;font-size:var(--text-sm);">' +
+      '<i class="fa-solid fa-eye" style="color:#3fb950;margin-right:6px;"></i>This is exactly what <strong>' + esc(buyer) + '</strong> will receive.</div>';
+    h += '<div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;">' +
+      '<div style="padding:14px;text-align:center;border-bottom:2px solid var(--color-gold);background:var(--color-bg-secondary);">' +
+        '<div style="font-weight:700;color:var(--color-gold);">Gold Bottom Ent. LLC</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Performance Quote</div></div>' +
+      '<div style="padding:14px;font-size:var(--text-sm);">' +
+        _reviewRow('Client', esc(buyer)) +
+        _reviewRow('Package', esc(_titleCase(f.package_label || f.package_key))) +
+        _reviewRow('Event', esc(_titleCase(f.event_type || _qState.eventType))) +
+        _reviewRow('Date', esc(f.event_date && f.event_date !== 'TBD' ? f.event_date : (_qState.eventDate || 'TBD'))) +
+      '</div>' +
+      '<div style="padding:14px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:700;">Total</span>' +
+          '<span style="font-weight:700;font-size:var(--text-xl);color:var(--color-gold);">' + _money(f.quote_total) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;color:var(--color-text-muted);font-size:var(--text-sm);margin-top:4px;">' +
+          '<span>Deposit to secure' + (f.deposit_percent != null ? ' (' + f.deposit_percent + '%)' : '') + '</span><span>' + _money(f.deposit_amount) + '</span></div>' +
+      '</div></div>';
+    h += '<p style="margin:12px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);">Send delivers this quote by email to ' + esc(_qState.inq.from_addr || 'the client') + ' and moves the deal forward. If sending fails, your draft is saved and you can resume it.</p>';
+    return h;
+  }
+  function _reviewRow(k, v) {
+    return '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:var(--color-text-muted);">' + k + '</span><span style="font-weight:600;text-align:right;">' + v + '</span></div>';
+  }
+
+  // Collect the current step's inputs into state (non-destructive back/next).
+  function _qCollect() {
+    if (!_qState) return;
+    var s = _qState.step;
+    if (s === 0) {
+      var pk = document.querySelector('input[name="q-pkg"]:checked');
+      if (pk) _qState.packageKey = pk.value;
+      var et = document.getElementById('q-eventtype');
+      if (et) _qState.eventType = et.value;
+    } else if (s === 1) {
+      var dt = document.getElementById('q-date');
+      if (dt) _qState.eventDate = dt.value;
+      var dp = document.getElementById('q-deposit');
+      if (dp) { var v = parseInt(dp.value, 10); if (!isNaN(v)) _qState.depositPercent = Math.max(0, Math.min(100, v)); }
+    } else if (s === 2) {
+      var nt = document.getElementById('q-note');
+      if (nt) _qState.note = nt.value;
+    }
+  }
+
+  function _qGo(step) {
+    if (!_qState) return;
+    _qState.step = Math.max(0, Math.min(3, step));
+    _renderStepper();
+  }
+
+  async function _qPrimary() {
+    _qCollect();
+    var s = _qState.step;
+    if (s === 0) {
+      if (!_qState.packageKey) { if (typeof Toast !== 'undefined') Toast.error('Pick a package first.'); return; }
+      _qGo(1);
+    } else if (s === 1) {
+      _qGo(2);
+    } else if (s === 2) {
+      await _qBuild();
+    } else if (s === 3) {
+      await _qSend();
+    }
+  }
+
+  // Build: write create_quote to the relay, then poll the read-model for the server price.
+  async function _qBuild() {
+    var btn = document.getElementById('q-primary');
+    var since = Date.now();
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Building quote…'; }
+    try {
+      await writeQuoteAction(_qState.inq.id, 'create_quote', {
+        packageKey: _qState.packageKey,
+        eventType: _qState.eventType,
+        eventDate: _qState.eventDate || undefined,
+        depositPercentOverride: _qState.depositPercent,
+        note: _qState.note || undefined
+      });
+      var body = document.getElementById('q-body');
+      if (body) body.innerHTML = '<div style="text-align:center;padding:40px 12px;color:var(--color-text-muted);">' +
+        '<i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:var(--color-gold);"></i>' +
+        '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Calculating your quote…</p>' +
+        '<p style="font-size:var(--text-xs);">GBE is pricing this package. This can take up to a minute.</p></div>';
+      var draft = await pollForDraft(_qState.inq.id, since, 100000);
+      if (!draft) {
+        if (typeof Toast !== 'undefined') Toast.error('Still calculating — check back shortly; your inputs are saved.');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
+        _renderStepper();
+        return;
+      }
+      _qState.draftId = draft.id;
+      _qState.figures = draft;
+      _qGo(3);
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Could not build quote: ' + e.message);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
+    }
+  }
+
+  // Send: ride the existing approve_quote path (server prices + emails + advances stage).
+  async function _qSend() {
+    if (!_qState.draftId) { if (typeof Toast !== 'undefined') Toast.error('No draft to send. Go Back and Build Quote.'); return; }
+    var btn = document.getElementById('q-primary');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…'; }
+    try {
+      await writeQuoteAction(_qState.inq.id, 'approve_quote', {
+        draftId: _qState.draftId,
+        depositPercentOverride: _qState.depositPercent
+      });
+      // Mark the inquiry responded so it leaves the "needs action" set (optimistic).
+      try { await performInboxAction(_qState.inq.id, 'mark_inbox_responded'); } catch (_) {}
+      var ov = document.getElementById('quote-stepper-overlay');
+      if (ov) ov.innerHTML =
+        '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">' +
+          '<div style="width:64px;height:64px;border-radius:50%;background:rgba(63,185,80,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid fa-check" style="color:#3fb950;font-size:28px;"></i></div>' +
+          '<div style="font-weight:700;font-size:var(--text-lg);">Quote sent</div>' +
+          '<div style="color:var(--color-text-muted);margin-top:6px;max-width:320px;">' + _money(_qState.figures && _qState.figures.quote_total) + ' quote is being emailed to ' + esc(_qState.inq.from_addr || 'the client') + ' and the deal has moved forward.</div>' +
+          '<button id="q-done" class="btn btn-primary" style="margin-top:22px;min-height:48px;padding:0 28px;font-weight:600;">Done</button>' +
+        '</div>';
+      var done = document.getElementById('q-done');
+      if (done) done.addEventListener('click', function() {
+        _closeStepper();
+        var row = inquiriesData.find(function(x){ return String(x.id) === String(_qState && _qState.inq.id); });
+        if (typeof refreshInquiriesView === 'function') refreshInquiriesView();
+        if (typeof loadPipeline === 'function') loadPipeline();
+      });
+    } catch (e) {
+      if (typeof Toast !== 'undefined') Toast.error('Send failed — your draft is saved: ' + e.message);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Quote'; }
+    }
+  }
+
+  // Expose for inline handlers / other modules.
+  window.openQuoteStepper = openQuoteStepper;
 
   /* ---- Initial Load ---- */
   // Load email protocol first, then data
