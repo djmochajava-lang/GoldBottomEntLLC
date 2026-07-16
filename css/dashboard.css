@@ -2082,3 +2082,89 @@ body.gbe-dmenu-open { overflow: hidden; }
   .gbe-dmenu,
   .gbe-dmenu .sidebar-nav-item { transition: none !important; animation: none !important; }
 }
+
+/* =========================================================================
+   BAND-MANAGER BOTTOM TAB BAR (#bm-tabbar) — story-nav-discoverability-key-surfaces
+   Always-visible mobile path to the key band-manager surfaces. Hidden by
+   default; shown only when ALL three hold:
+     • mobile width (<=1024px)                          — media query
+     • dashboard layout   body[data-layout="dashboard"] — set by Router.switchLayout
+     • band_manager role  body[data-role="band_manager"]— set by Auth._updateRoleUI
+   Tabs 1-4 carry .sidebar-nav-item + data-page so Router.updateActiveNav()
+   lights the current tab (no parallel active-state system). Body-level fixed
+   element, so position:fixed resolves to the viewport.
+   ========================================================================= */
+.bm-tabbar { display: none; }
+
+@media (max-width: 1024px) {
+  body[data-layout="dashboard"][data-role="band_manager"] #bm-tabbar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9980;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(13, 17, 23, 0.98);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--color-border, #30363d);
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  }
+  /* Keep page content clear of the fixed bar (incl. the iOS home indicator). */
+  body[data-layout="dashboard"][data-role="band_manager"] .dashboard-main-wrapper {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* One equal-width column per tab. Overrides the compact desktop
+   .sidebar-nav-item base styles (higher specificity via .bm-tabbar scope). */
+.bm-tabbar .bm-tab {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;              /* >=44px tap target */
+  margin: 0;
+  padding: 8px 2px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--color-text-muted, #7d8590);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: var(--fw-medium, 500);
+  line-height: 1.1;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  transform: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.12s ease;
+}
+.bm-tabbar .bm-tab i {
+  font-size: 19px;
+  color: inherit;
+  opacity: 0.9;
+}
+.bm-tabbar .bm-tab .bm-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.bm-tabbar .bm-tab:active { color: var(--color-gold, #d4a017); }
+/* Active tab = current page (Router.updateActiveNav toggles .active). */
+.bm-tabbar .bm-tab.active {
+  color: var(--color-gold, #d4a017);
+  box-shadow: inset 0 3px 0 var(--color-gold, #d4a017);
+}
+.bm-tabbar .bm-tab.active i { opacity: 1; }
+/* Instant tap feedback while the target page loads. */
+.bm-tabbar .bm-tab.is-loading { color: var(--color-gold, #d4a017); opacity: 0.8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bm-tabbar .bm-tab { transition: none !important; }
+}

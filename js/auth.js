@@ -3533,6 +3533,11 @@ const Auth = {
   _updateRoleUI: function() {
     var role = this._activeRole || this._role || 'member';
 
+    // Expose the active role on <body> so pure-CSS surfaces can gate on it —
+    // e.g. the band-manager bottom tab bar (#bm-tabbar) shows only for
+    // body[data-role="band_manager"] (story-nav-discoverability-key-surfaces).
+    try { document.body.setAttribute('data-role', role); } catch (e) {}
+
     // Show/hide each nav item that declares which roles can see it
     var items = document.querySelectorAll('.sidebar-nav-item[data-roles]');
     for (var i = 0; i < items.length; i++) {

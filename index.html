@@ -580,6 +580,49 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       BAND-MANAGER BOTTOM TAB BAR (story-nav-discoverability-key-surfaces)
+       ------------------------------------------------------------
+       Locked design (passed design gate 2026-07-15): a 5-tab bottom
+       nav that gives the band manager an always-visible path to the
+       key working surfaces on mobile — no more URL-only discovery.
+       Tabs 1-4 are real <a href="#..."> routes, so the Router's
+       document-level click delegation navigates them and
+       Router.updateActiveNav() lights the current tab for free (each
+       carries `.sidebar-nav-item` + `data-page`, the exact selector
+       updateActiveNav already toggles — no parallel active-state
+       system, router.js untouched). Tab 5 ("More") opens the existing
+       full-screen #gbe-dmenu overlay (all other surfaces).
+       Visibility is gated purely in CSS to: dashboard layout +
+       mobile width + band_manager/admin role (body[data-layout] set
+       by Router.switchLayout, body[data-role] set by Auth._updateRoleUI).
+       Body-level (sibling of #gbe-dmenu) so position:fixed resolves to
+       the viewport, not a transformed/blurred ancestor. MIRROR any edit
+       into index-local.html. -->
+  <nav id="bm-tabbar" class="bm-tabbar" aria-label="Band manager navigation">
+    <a href="#dashboard-manager" class="bm-tab sidebar-nav-item" data-page="dashboard-manager">
+      <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
+      <span class="bm-tab-label">Dashboard</span>
+    </a>
+    <a href="#dashboard-booking" class="bm-tab sidebar-nav-item" data-page="dashboard-booking">
+      <i class="fa-solid fa-diagram-project" aria-hidden="true"></i>
+      <span class="bm-tab-label">Pipeline</span>
+    </a>
+    <a href="#dashboard-calendar" class="bm-tab sidebar-nav-item" data-page="dashboard-calendar">
+      <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>
+      <span class="bm-tab-label">Calendar</span>
+    </a>
+    <a href="#dashboard-band-player" class="bm-tab sidebar-nav-item" data-page="dashboard-band-player">
+      <i class="fa-solid fa-headphones" aria-hidden="true"></i>
+      <span class="bm-tab-label">Band Player</span>
+    </a>
+    <button type="button" class="bm-tab bm-tab-more" aria-label="More — open full menu"
+            onclick="var b=document.querySelector('.sidebar-mobile-toggle'); if(b){b.click();}">
+      <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+      <span class="bm-tab-label">More</span>
+    </button>
+  </nav>
+
   <!-- Early interactivity — makes sidebar work BEFORE all 42 scripts load.
        On mobile cellular, scripts take 15-20s to download sequentially.
        Without this, the hamburger and nav links are dead during that window. -->
