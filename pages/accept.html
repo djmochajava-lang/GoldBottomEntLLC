@@ -322,6 +322,8 @@
     var knownPayload = null;
     var pendingAction = null;   // 'accept' | 'decline' | 'sign' — staged, awaiting landing
     var depositWasTest = false; // true once the mock (TEST) deposit screen rendered — drives the receipt test-mode note
+    var depositMockController = null; // GBEMockPay.mount() controller for the deposit screen
+    var depositSettling = false;      // true while a buyer pay_deposit is in flight (guards re-mount)
     var pollTimer = null;
     var pollCount = 0;
     var pollStopped = false;
@@ -691,55 +693,151 @@
       $('deposit-figures').innerHTML = figHtml;
 
       var link = $('link-deposit');
-      // Defense-in-depth: only ever link an https: URL (the readmodel is
-      // server-built, but never render a non-https scheme as a payment CTA)
-      if (dep.checkoutUrl && /^https:\/\//i.test(String(dep.checkoutUrl))) {
-        link.href = dep.checkoutUrl;
-        link.style.display = '';
-      } else {
-        // deposit phase but link not yet built (rare) — hide until it lands
-        link.style.display = 'none';
-      }
-      // Mock driver deliberately uses the non-routable .example TLD — surface
-      // the TEST-MODE reality instead of treating link-open failure as an error
+      var squareNote = $('deposit-square-note');
+      var mockHost = $('deposit-mockpay');
+
+      // Mock driver deliberately uses the non-routable .example TLD.
       var isTest = false;
       try { isTest = /\.example(\/|$)/.test(new URL(dep.checkoutUrl || '', location.href).hostname + '/'); }
       catch (e) { isTest = /squareup\.example/.test(String(dep.checkoutUrl || '')); }
-
-      // TEST/MOCK mode: render the SHARED visible mock-payment SCREEN in-page
-      // (story-mock-payment-visible-screen). The mock Square link is
-      // non-routable, so instead of sending the buyer to a dead tab we SHOW
-      // them the payment moment: the shared component's own TEST-MODE banner +
-      // the honest, card-less "Sample" card mockup. It captures NOTHING (no
-      // inputs) — the deposit still completes via the server settlement + the
-      // existing phase poll (→ state-complete). For a REAL Square driver
-      // (future cutover) this preview stays hidden and the deposit remains
-      // Square-HOSTED (C6 / SAQ-A) via the outbound link below.
-      var mockHost = $('deposit-mockpay');
-      var squareNote = $('deposit-square-note');
       depositWasTest = isTest;
+
       if (isTest && mockHost && window.GBEMockPay) {
-        hide('banner-testmode'); // shared screen renders its own richer banner
+        // TEST/MOCK mode: render the SHARED payment screen with a FUNCTIONAL Pay
+        // button (story-buyer-quote-accept-experience — the piece deferred from
+        // story-mock-payment-visible-screen). The buyer taps Pay → we stage a
+        // pay_deposit intent → the HomeOffice reconciler settles the mock deposit
+        // SERVER-SIDE (mockpay_*, is_test, real revenue $0) → the deal closes and
+        // the page lands on the Booking Confirmed state. The mock Square link is
+        // non-routable (.example), so the dead outbound link is NOT shown in test
+        // mode — the shared Pay button IS the action. Settlement logic + secrets
+        // stay server-side (thin client): this page only stages intent + polls.
+        hide('banner-testmode');           // the shared screen renders its own richer banner
         if (squareNote) squareNote.style.display = 'none';
+        if (link) link.style.display = 'none';
+        // Don't re-mount while a settle is already in flight — a stray refresh
+        // must never wipe the processing spinner mid-payment.
+        if (depositMockController && depositSettling) { mockHost.style.display = ''; return; }
         var depCents = (dep.amount != null && !isNaN(Number(dep.amount)))
           ? Math.round(Number(dep.amount) * 100) : 0;
         try {
-          window.GBEMockPay.renderScreen(mockHost, {
+          if (depositMockController && depositMockController.destroy) depositMockController.destroy();
+          mockHost.innerHTML = '';
+          depositMockController = window.GBEMockPay.mount(mockHost, {
             testMode: true,
             purpose: 'deposit',
             currency: dep.currency || 'USD',
             lineItems: [{ label: 'Booking deposit', amount: depCents }],
-            hideTotal: true // deposit-figures above already itemizes the amounts
+            totalCents: depCents,
+            totalLabel: 'Deposit due',
+            payLabel: 'Pay deposit ' + fmtMoney(dep.amount) + ' (Test)',
+            onPay: settleMockDeposit,
+            onReceipt: function () {
+              // The shared screen showed its honest TEST receipt; land the buyer
+              // on the canonical Booking Confirmed page (aria announce + TEST
+              // note carried by depositWasTest).
+              updateStepper('complete', !!(knownPayload && knownPayload.externalContract));
+              showState('state-complete');
+            }
           });
           mockHost.style.display = '';
-        } catch (e) { if (squareNote) squareNote.style.display = ''; }
+        } catch (e) {
+          // Shared screen unavailable — surface the honest TEST banner; keep the
+          // dead link hidden. The buyer can still reply to their quote email.
+          mockHost.style.display = 'none';
+          show('banner-testmode');
+        }
       } else {
+        // REAL Square driver (future cutover): the deposit stays Square-HOSTED
+        // (C6 / SAQ-A) via the outbound link — no mock screen, no pay_deposit.
         if (mockHost) mockHost.style.display = 'none';
         if (squareNote) squareNote.style.display = '';
-        // Keep the honest TEST banner if this IS a mock deposit but the shared
-        // screen couldn't render — never leave a test deposit unlabelled.
-        if (isTest) show('banner-testmode'); else hide('banner-testmode');
+        // Defense-in-depth: only ever link an https: URL as a payment CTA.
+        if (link) {
+          if (dep.checkoutUrl && /^https:\/\//i.test(String(dep.checkoutUrl))) {
+            link.href = dep.checkoutUrl; link.style.display = '';
+          } else {
+            link.style.display = 'none';
+          }
+        }
+        hide('banner-testmode');
       }
+    }
+
+    /* Buyer taps "Pay" on the shared mock screen (story-buyer-quote-accept-
+       experience). Stage a pay_deposit intent into the anon write-mailbox, then
+       poll the offer RPC until the deal closes (phase 'complete', or the row
+       evicts — an empty RPC after the deposit phase means settled, task-f).
+       Returns a Promise the shared screen awaits: resolve → its receipt (then
+       onReceipt lands the canonical Confirmed page); reject(err.friendly) → the
+       screen re-shows the Pay form with the message so the buyer can retry
+       (server settlement is idempotent on a retry). */
+    function settleMockDeposit() {
+      return new Promise(function (resolve, reject) {
+        var sb = getClient();
+        if (!sb) {
+          var e0 = new Error('conn');
+          e0.friendly = 'Connection unavailable — please try again, or reply to your quote email.';
+          reject(e0); return;
+        }
+        var hp = $('hp-field');
+        var row = {
+          action_type: 'pay_deposit',
+          token: token,
+          payload: {},                       // NO amount — server settles the frozen figure
+          honeypot: hp ? String(hp.value || '') : ''
+        };
+        depositSettling = true;
+        pendingAction = 'pay';
+        stopPolling();                        // this promise owns polling until it settles
+        clearWriteError();
+        sb.from(STAGING_TABLE).insert(row).then(function (res) {
+          if (res && res.error) throw res.error;
+          var tries = 0, MAX = 40;
+          (function pollSettle() {
+            tries++;
+            sb.rpc(RPC_NAME, { p_token: token }).then(function (r) {
+              if (r && r.error) throw r.error;
+              var rows = r ? r.data : null;
+              if (!rows || !rows.length) {           // evicted after deposit ⇒ settled (task-f)
+                knownPhase = 'complete'; depositSettling = false; resolve({}); return;
+              }
+              var ph = rows[0].phase;
+              knownPhase = ph; knownPayload = rows[0].payload || {};
+              if (ph === 'complete') { depositSettling = false; resolve({}); return; }
+              if (ph === 'declined' || ph === 'expired') {
+                depositSettling = false; pendingAction = null;
+                var e1 = new Error('phase');
+                e1.friendly = 'This quote is no longer payable — please reply to your quote email.';
+                reject(e1); return;
+              }
+              if (tries >= MAX) {
+                depositSettling = false;
+                schedulePoll();                // let the background poll keep watching for completion
+                var e2 = new Error('timeout');
+                e2.friendly = 'Still recording your deposit — this can take a minute. Check your email for confirmation, or tap Refresh Status.';
+                reject(e2); return;
+              }
+              var delay = tries < 10 ? POLL_EARLY_MS : (tries < 20 ? POLL_MID_MS : POLL_LATE_MS);
+              pollTimer = setTimeout(pollSettle, delay);
+            }).catch(function () {
+              if (tries >= MAX) {
+                depositSettling = false; schedulePoll();
+                var e3 = new Error('net');
+                e3.friendly = 'Connection problem confirming your deposit — check your email, or tap Refresh Status.';
+                reject(e3); return;
+              }
+              pollTimer = setTimeout(pollSettle, POLL_MID_MS);
+            });
+          })();
+        }).catch(function (err) {
+          console.warn('[offer] pay_deposit submit failed:', err && err.message ? err.message : err);
+          depositSettling = false; pendingAction = null;
+          var ei = new Error('insert');
+          ei.friendly = 'We couldn’t submit that just now — please try again in a moment, or reply to your quote email.';
+          reject(ei);
+        });
+      });
     }
 
     /* ── Buyer writes (anon INSERT into the staging mailbox, C3) ───────── */
