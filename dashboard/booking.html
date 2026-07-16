@@ -2170,15 +2170,46 @@
     return res.data[0];
   }
 
+  // Parse a read-model timestamp robustly. The read-model created_at is the SQLite
+  // datetime string "2026-07-16 15:52:40" (space-separated, no T/Z) which iOS Safari's
+  // Date() parses as Invalid Date -> NaN. Normalize to ISO-UTC before parsing so the
+  // freshness guard below can't silently reject a freshly-built draft on the BM's iPhone
+  // (QA close-review MUST-FIX). Returns NaN only for genuinely empty input.
+  function _draftTs(v) {
+    if (!v) return NaN;
+    var s = String(v).trim();
+    if (s.indexOf('T') === -1) s = s.replace(' ', 'T');
+    if (!/[zZ]$|[+\-]\d\d:?\d\d$/.test(s)) s += 'Z';
+    return new Date(s).getTime();
+  }
+
   // Poll the read-model until the reconciler has published a NEW draft (created after sinceMs).
   async function pollForDraft(inboxId, sinceMs, maxMs) {
     var deadline = Date.now() + (maxMs || 90000);
     while (Date.now() < deadline) {
       var d = await getLatestDraft(inboxId);
-      if (d && d.status === 'pending_approval' && (!sinceMs || new Date(d.created_at).getTime() >= sinceMs - 3000)) return d;
+      // If the timestamp is unparseable for any reason, accept the pending draft rather than
+      // false-timeout (belt-and-suspenders to the _draftTs normalization).
+      var ts = d ? _draftTs(d.created_at) : NaN;
+      if (d && d.status === 'pending_approval' && (!sinceMs || isNaN(ts) || ts >= sinceMs - 3000)) return d;
       await new Promise(function(r){ setTimeout(r, 3000); });
     }
     return null;
+  }
+
+  // After queuing approve_quote, confirm the reconciler actually approved+sent before
+  // declaring success — the draft row is evicted (or flips off pending_approval) on a
+  // successful approve. Symmetric with Build's poll (QA close-review MUST-FIX: previously
+  // Send painted "Quote sent" the instant the action was merely QUEUED). Returns
+  // 'confirmed' | 'pending' (timed out — still processing, not a failure).
+  async function _pollSendConfirmed(inboxId, draftId, maxMs) {
+    var deadline = Date.now() + (maxMs || 90000);
+    while (Date.now() < deadline) {
+      var d = await getLatestDraft(inboxId);
+      if (!d || d.id !== draftId || d.status !== 'pending_approval') return 'confirmed';
+      await new Promise(function(r){ setTimeout(r, 3000); });
+    }
+    return 'pending';
   }
 
   // Swap the inquiry-detail CTA to a resumable "Quote in progress" chip if a draft exists.
@@ -2208,12 +2239,19 @@
   // Open the guided stepper. opts.resumeDraft jumps straight to Review with a persisted draft.
   function openQuoteStepper(inq, opts) {
     opts = opts || {};
+    var rd = opts.resumeDraft || null;
     _qState = {
       inq: inq, step: 0,
-      packageKey: null, eventType: (inq.event_type || null), eventDate: '',
-      depositPercent: 50, note: '',
-      draftId: opts.resumeDraft ? opts.resumeDraft.id : null,
-      figures: opts.resumeDraft || null
+      // On resume, seed selectors + deposit FROM the persisted draft so the Review figure
+      // the BM already saw is exactly what Send re-prices/emails (QA close-review MUST-FIX:
+      // previously depositPercent was hardcoded 50, diverging a resumed non-50% draft).
+      packageKey: rd ? (rd.package_key || null) : null,
+      eventType: (rd && rd.event_type) || (inq.event_type || null),
+      eventDate: (rd && rd.event_date) || '',
+      depositPercent: (rd && rd.deposit_percent != null) ? Number(rd.deposit_percent) : 50,
+      note: '',
+      draftId: rd ? rd.id : null,
+      figures: rd
     };
     if (typeof closeModal === 'function') closeModal();
     var ov = document.createElement('div');
@@ -2295,7 +2333,7 @@
   function _stepDates() {
     var h = '<p style="margin:0 0 12px;color:var(--color-text-muted);font-size:var(--text-sm);">When is the event, and how much deposit to secure the date?</p>';
     h += '<label class="form-label" style="font-weight:600;">Event date</label>';
-    h += '<input type="date" id="q-date" class="form-input" value="' + esc(_qState.eventDate || '') + '" style="width:100%;min-height:44px;margin-bottom:16px;">';
+    h += '<input type="date" id="q-date" class="form-input" min="' + new Date().toISOString().slice(0, 10) + '" value="' + esc(_qState.eventDate || '') + '" style="width:100%;min-height:44px;margin-bottom:16px;">';
     h += '<label class="form-label" style="font-weight:600;">Deposit to secure the date (%)</label>';
     h += '<input type="number" id="q-deposit" inputmode="numeric" pattern="[0-9]*" min="0" max="100" step="5" value="' + (_qState.depositPercent != null ? _qState.depositPercent : 50) + '" class="form-input" style="width:100%;min-height:44px;">';
     h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-lock" style="margin-right:4px;"></i> The quote total is calculated by GBE from your package + event type — you\'ll see the exact figure on the next review screen.</p>';
@@ -2390,8 +2428,12 @@
   // Build: write create_quote to the relay, then poll the read-model for the server price.
   async function _qBuild() {
     var btn = document.getElementById('q-primary');
+    var back = document.getElementById('q-back');
     var since = Date.now();
+    // Lock BOTH nav controls while pricing is in flight so an async result can't fight
+    // a mid-wait Back tap (EO close-review MUST-FIX).
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Building quote…'; }
+    if (back) back.disabled = true;
     try {
       await writeQuoteAction(_qState.inq.id, 'create_quote', {
         packageKey: _qState.packageKey,
@@ -2406,9 +2448,12 @@
         '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Calculating your quote…</p>' +
         '<p style="font-size:var(--text-xs);">GBE is pricing this package. This can take up to a minute.</p></div>';
       var draft = await pollForDraft(_qState.inq.id, since, 100000);
+      // The BM may have closed the stepper during the ~1-min wait (_qState nulled). The
+      // quote still priced fine server-side; resolve silently instead of throwing a false
+      // "Could not build quote" toast (EO close-review MUST-FIX).
+      if (!_qState) return;
       if (!draft) {
         if (typeof Toast !== 'undefined') Toast.error('Still calculating — check back shortly; your inputs are saved.');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
         _renderStepper();
         return;
       }
@@ -2416,8 +2461,10 @@
       _qState.figures = draft;
       _qGo(3);
     } catch (e) {
+      if (!_qState) return;
       if (typeof Toast !== 'undefined') Toast.error('Could not build quote: ' + e.message);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
+      if (back) back.disabled = false;
     }
   }
 
@@ -2425,32 +2472,49 @@
   async function _qSend() {
     if (!_qState.draftId) { if (typeof Toast !== 'undefined') Toast.error('No draft to send. Go Back and Build Quote.'); return; }
     var btn = document.getElementById('q-primary');
+    var back = document.getElementById('q-back');
+    var buyerAddr = _qState.inq.from_addr;           // capture before any await/close
+    var inqId = _qState.inq.id;
+    var figures = _qState.figures;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…'; }
+    if (back) back.disabled = true;                  // lock Back during the send (EO MUST-FIX)
     try {
-      await writeQuoteAction(_qState.inq.id, 'approve_quote', {
+      await writeQuoteAction(inqId, 'approve_quote', {
         draftId: _qState.draftId,
         depositPercentOverride: _qState.depositPercent
       });
       // Mark the inquiry responded so it leaves the "needs action" set (optimistic).
-      try { await performInboxAction(_qState.inq.id, 'mark_inbox_responded'); } catch (_) {}
+      try { await performInboxAction(inqId, 'mark_inbox_responded'); } catch (_) {}
+      // Interim "sending" state while we confirm the reconciler actually approved+emailed.
+      var ovI = document.getElementById('quote-stepper-overlay');
+      if (ovI) ovI.innerHTML =
+        '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--color-text-muted);">' +
+          '<i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:var(--color-gold);"></i>' +
+          '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Sending your quote…</p>' +
+          '<p style="font-size:var(--text-xs);">Emailing ' + esc(buyerAddr || 'the client') + ' and advancing the deal.</p></div>';
+      var draftId = _qState.draftId;
+      var outcome = await _pollSendConfirmed(inqId, draftId, 90000);   // 'confirmed' | 'pending'
+      var confirmed = outcome === 'confirmed';
       var ov = document.getElementById('quote-stepper-overlay');
       if (ov) ov.innerHTML =
         '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">' +
-          '<div style="width:64px;height:64px;border-radius:50%;background:rgba(63,185,80,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid fa-check" style="color:#3fb950;font-size:28px;"></i></div>' +
-          '<div style="font-weight:700;font-size:var(--text-lg);">Quote sent</div>' +
-          '<div style="color:var(--color-text-muted);margin-top:6px;max-width:320px;">' + _money(_qState.figures && _qState.figures.quote_total) + ' quote is being emailed to ' + esc(_qState.inq.from_addr || 'the client') + ' and the deal has moved forward.</div>' +
+          '<div style="width:64px;height:64px;border-radius:50%;background:' + (confirmed ? 'rgba(63,185,80,0.15)' : 'rgba(212,160,23,0.15)') + ';display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid ' + (confirmed ? 'fa-check" style="color:#3fb950' : 'fa-paper-plane" style="color:#d4a017') + ';font-size:28px;"></i></div>' +
+          '<div style="font-weight:700;font-size:var(--text-lg);">' + (confirmed ? 'Quote sent' : 'Quote is sending') + '</div>' +
+          '<div style="color:var(--color-text-muted);margin-top:6px;max-width:320px;">' + _money(figures && figures.quote_total) + (confirmed
+            ? ' quote was emailed to ' + esc(buyerAddr || 'the client') + ' and the deal moved forward.'
+            : ' quote to ' + esc(buyerAddr || 'the client') + ' is still processing — it will be emailed shortly. You can reopen this inquiry to confirm.') + '</div>' +
           '<button id="q-done" class="btn btn-primary" style="margin-top:22px;min-height:48px;padding:0 28px;font-weight:600;">Done</button>' +
         '</div>';
       var done = document.getElementById('q-done');
       if (done) done.addEventListener('click', function() {
         _closeStepper();
-        var row = inquiriesData.find(function(x){ return String(x.id) === String(_qState && _qState.inq.id); });
         if (typeof refreshInquiriesView === 'function') refreshInquiriesView();
         if (typeof loadPipeline === 'function') loadPipeline();
       });
     } catch (e) {
       if (typeof Toast !== 'undefined') Toast.error('Send failed — your draft is saved: ' + e.message);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Quote'; }
+      if (back) back.disabled = false;
     }
   }
 
