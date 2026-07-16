@@ -1,0 +1,629 @@
+<!-- dashboard/scanner.html — Staff Door Scanner (role-gated: admin, band_manager) -->
+<!--
+  story-ticket-scan-moves-to-gbe-dashboard (2026-07-16)
+
+  The door scanner relocated OFF the public artist page ONTO the role-gated GBE
+  staff dashboard. Only authenticated admin / band_manager reach this route
+  (Router ACL 'dashboard-scanner' + sidebar data-roles). The scan ENGINE is
+  unchanged — it reuses the already-built public ticket API:
+    POST https://gbe-tickets.goldbottom.workers.dev/api/v1/tickets/scan
+  the Cloudflare Worker front (permanent, no DNS move — feedback_no_dns_move).
+  That path is on the Worker's strict allowlist, is CSRF-exempt, CORS-allows
+  this origin, and rate-limits 30 scans/min/IP. Server does HMAC QR validation +
+  audit logging (scanned_by). We send NO secrets from the client — the token
+  comes off the QR, the staff name off the authenticated session.
+
+  Door-list-locality resolution (F6 tension, CTO+InfoSec, this gate): the prior
+  "door list stays LAN" note is HONORED for the BULK door-list EXPORT (that stays
+  a LAN/HomeOffice function). But INDIVIDUAL scans MUST work remotely — a staff
+  member at a venue on their phone (feedback_everything_works_on_public_site) —
+  so per-scan validation goes over the public Worker endpoint, exactly as the
+  ticket rail already exposes it. One ticket token in, one ADMITTED/USED/INVALID
+  out; no roster, no PII list, is ever pulled to the phone.
+
+  Camera path: native BarcodeDetector where available (Chrome/Android). iOS
+  Safari lacks BarcodeDetector — there the phone camera app scans the QR (which
+  still deep-links, harmless) and the always-visible manual paste field is the
+  in-page fallback. No external JS libraries (free-tier / self-hosted rule).
+-->
+
+<style>
+/* ── Staff Door Scanner (scoped .scan-) ─────────────────────────── */
+.scan-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0.5rem 0 2rem;
+}
+.scan-head { text-align: center; margin-bottom: 1rem; }
+.scan-head h1 {
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  color: var(--color-gold, #d4a017);
+  font-size: 1.6rem;
+  margin: 0 0 0.15rem;
+}
+.scan-sub { color: var(--color-text-secondary, #8b949e); font-size: 0.95rem; margin: 0; }
+
+.scan-staff-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: var(--color-text-muted, #6e7681);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 1rem;
+}
+.scan-staff-line strong { color: var(--color-text-secondary, #c9d1d9); }
+
+.scan-card {
+  background: var(--color-bg-secondary, #161b22);
+  border: 1px solid var(--color-border, #30363d);
+  border-radius: var(--radius-md, 10px);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.scan-card label {
+  display: block;
+  color: var(--color-gold, #d4a017);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+.scan-card .scan-note {
+  color: var(--color-text-muted, #6e7681);
+  font-size: 0.8rem;
+  margin: 0 0 0.7rem;
+  line-height: 1.4;
+}
+.scan-input {
+  width: 100%;
+  padding: 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #30363d);
+  background: var(--color-bg, #0d1117);
+  color: var(--color-text, #e6edf3);
+  font-size: 1rem;
+  min-height: 44px;
+}
+.scan-input:focus { outline: 2px solid var(--color-gold, #d4a017); border-color: transparent; }
+
+.scan-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.8rem 1.25rem;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-gold, #d4a017);
+  color: #1a1205;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.scan-btn:disabled { opacity: 0.5; cursor: default; }
+.scan-btn-block { width: 100%; }
+
+/* First-run camera explainer */
+.scan-explainer .scan-explainer-icon {
+  font-size: 2.4rem;
+  color: var(--color-gold, #d4a017);
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+.scan-explainer h2 {
+  font-size: 1.1rem;
+  color: var(--color-text, #e6edf3);
+  text-align: center;
+  margin: 0 0 0.5rem;
+}
+.scan-explainer p {
+  color: var(--color-text-secondary, #8b949e);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: center;
+  margin: 0 0 1rem;
+}
+
+/* Camera stage */
+.scan-stage {
+  position: relative;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--color-border, #30363d);
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+.scan-stage video {
+  display: block;
+  width: 100%;
+  max-height: 58vh;
+  object-fit: cover;
+}
+.scan-reticle {
+  position: absolute;
+  inset: 14%;
+  border: 3px solid rgba(212, 160, 23, 0.75);
+  border-radius: 14px;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
+}
+.scan-stage-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--color-text-secondary, #c9d1d9);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.78);
+}
+.scan-stage-msg[hidden] { display: none; }
+
+.scan-paste-row { display: flex; gap: 0.5rem; }
+.scan-paste-row .scan-input { flex: 1; min-width: 0; font-size: 0.9rem; }
+.scan-paste-row .scan-btn { flex: 0 0 auto; padding: 0.8rem 1rem; }
+
+/* ── Full-screen result states (BIG, glanceable at a dark door) ── */
+.scan-result {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: #fff;
+}
+.scan-result[hidden] { display: none; }
+.scan-result.is-checking { background: #10131a; }
+.scan-result.is-admitted { background: #157f3d; }   /* GREEN — admitted */
+.scan-result.is-rejected { background: #b3202e; }   /* RED — used / invalid */
+.scan-result.is-offline  { background: #4b5563; }   /* GREY — offline / error */
+
+.scan-result-icon { font-size: 5.5rem; line-height: 1; }
+.scan-result-title {
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.scan-result-detail { font-size: 1.15rem; opacity: 0.96; max-width: 34ch; line-height: 1.4; }
+.scan-result-tail {
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+  opacity: 0.85;
+  letter-spacing: 0.15em;
+}
+.scan-result-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.4rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.scan-result-btn {
+  padding: 1rem 1.9rem;
+  min-height: 52px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.scan-spinner {
+  width: 46px; height: 46px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: scanSpin 0.8s linear infinite;
+}
+@keyframes scanSpin { to { transform: rotate(360deg); } }
+</style>
+
+<section id="gbe-scan-root" class="scan-page">
+  <div class="scan-head">
+    <h1><i class="fa-solid fa-qrcode"></i> Door Check-In</h1>
+    <p class="scan-sub">Staff ticket scanner &mdash; The Phyllis Hyman Experience</p>
+  </div>
+
+  <div class="scan-staff-line">
+    <i class="fa-solid fa-user-shield"></i>
+    <span>Scanning as <strong id="scan-staff-name">staff</strong></span>
+  </div>
+
+  <!-- First-run camera-permission explainer -->
+  <div id="scan-explainer" class="scan-card scan-explainer" hidden>
+    <div class="scan-explainer-icon"><i class="fa-solid fa-camera"></i></div>
+    <h2>Use the camera to scan tickets</h2>
+    <p>This turns on your phone camera to read ticket QR codes at the door. Nothing is
+       recorded except the check-in. You can also type a code by hand below.</p>
+    <button id="scan-explainer-start" class="scan-btn scan-btn-block">Turn On Camera</button>
+  </div>
+
+  <!-- Scanner UI -->
+  <div id="scan-main" hidden>
+    <div class="scan-stage" id="scan-stage">
+      <video id="scan-video" playsinline muted></video>
+      <div class="scan-reticle" id="scan-reticle" hidden></div>
+      <div class="scan-stage-msg" id="scan-stage-msg">
+        <span id="scan-stage-text">Checking camera&hellip;</span>
+        <button id="scan-camera-btn" class="scan-btn" hidden>Start Camera</button>
+      </div>
+    </div>
+
+    <div class="scan-card">
+      <label for="scan-token-input">No camera? Enter the ticket link or code</label>
+      <div class="scan-paste-row">
+        <input id="scan-token-input" class="scan-input" type="text" inputmode="text"
+               autocomplete="off" autocapitalize="off" spellcheck="false"
+               placeholder="token= link, or the code">
+        <button id="scan-token-btn" class="scan-btn" type="button">Check</button>
+      </div>
+      <p class="scan-note" style="margin:0.5rem 0 0;">Works with the full QR link or just the token.
+         Each ticket QR admits one person, once.</p>
+    </div>
+  </div>
+
+  <!-- Full-screen result card -->
+  <div id="scan-result" class="scan-result" hidden role="status" aria-live="assertive">
+    <div class="scan-spinner" id="scan-result-spinner" hidden></div>
+    <div class="scan-result-icon" id="scan-result-icon"></div>
+    <div class="scan-result-title" id="scan-result-title"></div>
+    <div class="scan-result-detail" id="scan-result-detail"></div>
+    <div class="scan-result-tail" id="scan-result-tail"></div>
+    <div class="scan-result-actions">
+      <button id="scan-result-retry" class="scan-result-btn" hidden>Retry</button>
+      <button id="scan-result-next" class="scan-result-btn" hidden>Scan Next</button>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── CONFIG — public ticket Worker (remote-reachable; CSRF-exempt) ── */
+  var GBE_API_BASE = 'https://gbe-tickets.goldbottom.workers.dev';
+  var SCAN_URL     = GBE_API_BASE + '/api/v1/tickets/scan';
+  var CAM_EXPLAINED_KEY = 'gbe-scan-cam-explained';
+  var ADMIT_RESET_MS = 2500;   // ADMITTED auto-resets to scanning
+  var DUP_IGNORE_MS  = 4000;   // ignore the same QR sitting in view
+
+  /* ── State ── */
+  var _stream = null, _detector = null, _detectTimer = null, _resetTimer = null;
+  var _liveTimer = null;       // DOM-connection watchdog for cleanup
+  var _busy = false;
+  var _lastToken = null, _lastTokenAt = 0, _lastTried = null;
+  var _cameraOk = false;
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) { var el = $(id); if (el) el.hidden = false; }
+  function hide(id) { var el = $(id); if (el) el.hidden = true; }
+
+  /* ── Staff identity from the authenticated session (audit: scanned_by) ── */
+  function getStaff() {
+    try {
+      if (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
+        var name = Auth.getUserDisplayName ? Auth.getUserDisplayName() : '';
+        if (name && name !== 'Guest') return name;
+        var email = Auth.getUserEmail ? Auth.getUserEmail() : '';
+        if (email) return email;
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  /* ── Token extraction (full QR link or bare hex) ── */
+  function extractToken(raw) {
+    if (!raw) return null;
+    var s = String(raw).trim();
+    var m = s.match(/[?&#]token=([A-Fa-f0-9]{8,64})/);
+    if (m) return m[1].toLowerCase();
+    if (/^[A-Fa-f0-9]{16,64}$/.test(s)) return s.toLowerCase();
+    return null;
+  }
+
+  function fetchWithTimeout(url, opts, ms) {
+    ms = ms || 8000;
+    var ctrl = new AbortController();
+    var tid = setTimeout(function () { ctrl.abort(); }, ms);
+    var fetchOpts = Object.assign({}, opts || {}, { signal: ctrl.signal });
+    return fetch(url, fetchOpts).finally(function () { clearTimeout(tid); });
+  }
+
+  function readJson(res) {
+    return res.text().then(function (txt) {
+      try { return txt ? JSON.parse(txt) : {}; }
+      catch (e) { return { _nonJson: true }; }
+    });
+  }
+
+  /* ── Feedback cues: haptic + short WebAudio tone ── */
+  function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
+  function beep(kind) {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      var ctx = beep._ctx || (beep._ctx = new AC());
+      if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      var now = ctx.currentTime;
+      if (kind === 'ok') { o.frequency.value = 880; }
+      else { o.frequency.value = 220; o.type = 'square'; }
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+      o.start(now); o.stop(now + 0.3);
+    } catch (e) {}
+  }
+
+  /* ── Result card ── */
+  function clearResetTimer() { if (_resetTimer) { clearTimeout(_resetTimer); _resetTimer = null; } }
+
+  function showResult(kind, icon, title, detail, tail, opts) {
+    opts = opts || {};
+    clearResetTimer();
+    var card = $('scan-result');
+    if (!card) return;
+    card.className = 'scan-result ' + kind;
+    $('scan-result-icon').textContent = icon || '';
+    $('scan-result-title').textContent = title || '';
+    $('scan-result-detail').textContent = detail || '';
+    $('scan-result-tail').textContent = tail || '';
+    if (opts.spinner) show('scan-result-spinner'); else hide('scan-result-spinner');
+    if (opts.retry) show('scan-result-retry'); else hide('scan-result-retry');
+    if (opts.next) show('scan-result-next'); else hide('scan-result-next');
+    card.hidden = false;
+  }
+
+  function hideResult() {
+    clearResetTimer();
+    var card = $('scan-result');
+    if (card) card.hidden = true;
+    _busy = false;
+  }
+
+  function tailOf(token) { return token ? '…' + String(token).slice(-6) : ''; }
+
+  function fmtUsedAt(usedAt) {
+    if (!usedAt) return '';
+    try {
+      var d = new Date(String(usedAt).replace(' ', 'T') + 'Z');
+      if (isNaN(d.getTime())) return String(usedAt);
+      var time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      var today = new Date();
+      var sameDay = d.getFullYear() === today.getFullYear() &&
+                    d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+      return sameDay ? time : (d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time);
+    } catch (e) { return String(usedAt); }
+  }
+
+  /* ── Render the API's states ── */
+  function renderScanOutcome(body, token) {
+    var record = body && body.token_record;
+    var tail = tailOf((record && record.token) || token);
+
+    if (body && body.admitted === true) {
+      buzz(80); beep('ok');
+      showResult('is-admitted', '✓', 'ADMITTED', 'Welcome in.', tail, { next: true });
+      _resetTimer = setTimeout(function () { hideResult(); }, ADMIT_RESET_MS);
+      return;
+    }
+
+    var reason = (body && body.reason) || '';
+    buzz([70, 60, 70]); beep('bad');
+    if (reason === 'already_used') {
+      var when = record && record.used_at ? fmtUsedAt(record.used_at) : '';
+      var by = record && record.scanned_by ? (' by ' + record.scanned_by) : '';
+      showResult('is-rejected', '✕', 'Already scanned',
+        (when ? ('First scanned at ' + when + by + '.') : 'This ticket was already used.'),
+        tail, { next: true });
+    } else if (reason === 'invalid_ticket') {
+      showResult('is-rejected', '✕', 'Not valid',
+        'Ticket was voided or reissued — check the door list.', tail, { next: true });
+    } else {
+      showResult('is-rejected', '✕', 'Not valid',
+        'Not a valid ticket for this event.', tail, { next: true });
+    }
+  }
+
+  /* ── Submit a token ── */
+  function submitToken(token, source) {
+    if (!token || _busy) return;
+    _busy = true;
+    _lastTried = token; _lastToken = token; _lastTokenAt = Date.now();
+
+    showResult('is-checking', '', 'Checking…', 'Hold on one second.', tailOf(token), { spinner: true });
+
+    fetchWithTimeout(SCAN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token, scannedBy: getStaff() || null })
+    }, 8000).then(function (res) {
+      return readJson(res).then(function (body) {
+        if (res.status === 429) {
+          showResult('is-offline', '⏳', 'Scanning too fast',
+            'Give it a few seconds, then retry.', tailOf(token), { retry: true, next: true });
+          return;
+        }
+        if (!res.ok && body && body._nonJson) {
+          showResult('is-offline', '⚠', 'Connection lost',
+            'Retry, or use the paper door list.', tailOf(token), { retry: true, next: true });
+          return;
+        }
+        if (!res.ok && typeof body.admitted === 'undefined') {
+          showResult('is-offline', '⚠', 'Something went wrong',
+            'Retry — if it keeps failing, use the paper door list.', tailOf(token), { retry: true, next: true });
+          return;
+        }
+        renderScanOutcome(body, token);
+      });
+    }).catch(function () {
+      showResult('is-offline', '⚠', 'Connection lost',
+        'Retry, or use the paper door list.', tailOf(token), { retry: true, next: true });
+    });
+
+    if (source === 'paste') { var input = $('scan-token-input'); if (input) input.value = ''; }
+  }
+
+  function handleRaw(raw, source) {
+    if (_busy) return;
+    var token = extractToken(raw);
+    if (!token) {
+      buzz([70, 60, 70]); beep('bad');
+      showResult('is-rejected', '✕', 'Not a ticket',
+        'That code isn’t one of our ticket QR links.', '', { next: true });
+      return;
+    }
+    if (source === 'camera' && token === _lastToken && (Date.now() - _lastTokenAt) < DUP_IGNORE_MS) return;
+    submitToken(token, source);
+  }
+
+  /* ── Camera (BarcodeDetector where available) ── */
+  function detectSupport(cb) {
+    if (!('BarcodeDetector' in window)) return cb(false);
+    try {
+      window.BarcodeDetector.getSupportedFormats().then(function (formats) {
+        cb(!!formats && formats.indexOf('qr_code') !== -1);
+      }).catch(function () { cb(false); });
+    } catch (e) { cb(false); }
+  }
+
+  function setStageMsg(text, withButton) {
+    var txt = $('scan-stage-text');
+    if (txt) txt.textContent = text || '';
+    if (withButton) show('scan-camera-btn'); else hide('scan-camera-btn');
+    var msg = $('scan-stage-msg'); if (msg) msg.hidden = false;
+  }
+  function hideStageMsg() { hide('scan-stage-msg'); show('scan-reticle'); }
+
+  function startCamera() {
+    if (!_cameraOk || _stream) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStageMsg('Camera isn’t available in this browser — enter the ticket code below.', false);
+      return;
+    }
+    setStageMsg('Starting camera…', false);
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(function (stream) {
+        _stream = stream;
+        var video = $('scan-video');
+        if (!video) { stopCamera(); return; }
+        video.srcObject = stream;
+        var p = video.play(); if (p && p.catch) p.catch(function () {});
+        try { _detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+        catch (e) { stopCamera(); setStageMsg('Camera scanning isn’t supported here — enter the code below.', false); return; }
+        hideStageMsg();
+        _detectTimer = setInterval(function () {
+          if (_busy || !_detector || !video.videoWidth) return;
+          _detector.detect(video).then(function (codes) {
+            if (codes && codes.length && codes[0].rawValue) handleRaw(codes[0].rawValue, 'camera');
+          }).catch(function () {});
+        }, 300);
+      }).catch(function () {
+        setStageMsg('Camera permission was denied — enter the ticket code below, or open the QR with the phone’s camera app.', true);
+      });
+  }
+
+  function stopCamera() {
+    if (_detectTimer) { clearInterval(_detectTimer); _detectTimer = null; }
+    _detector = null;
+    if (_stream) { try { _stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} _stream = null; }
+    var video = $('scan-video'); if (video) { try { video.srcObject = null; } catch (e) {} }
+    hide('scan-reticle');
+  }
+
+  function initCameraStage() {
+    detectSupport(function (ok) {
+      _cameraOk = ok;
+      if (!ok) {
+        setStageMsg('In-page camera scanning isn’t supported in this browser. Scan the QR with the phone’s camera app, or enter the ticket code below.', false);
+        return;
+      }
+      var btn = $('scan-camera-btn');
+      if (btn) btn.addEventListener('click', function () { startCamera(); });
+      startCamera();
+    });
+  }
+
+  /* ── Enter the scanner (after the one-time camera explainer) ── */
+  function enterMain() {
+    hide('scan-explainer');
+    show('scan-main');
+    initCameraStage();
+  }
+
+  function boot() {
+    var staffEl = $('scan-staff-name');
+    if (staffEl) staffEl.textContent = getStaff() || 'staff';
+
+    // Paste fallback (always available)
+    var pasteBtn = $('scan-token-btn'), pasteInput = $('scan-token-input');
+    if (pasteBtn && pasteInput) {
+      pasteBtn.addEventListener('click', function () { var v = pasteInput.value.trim(); if (v) handleRaw(v, 'paste'); });
+      pasteInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); pasteBtn.click(); } });
+    }
+    var nextBtn = $('scan-result-next'); if (nextBtn) nextBtn.addEventListener('click', hideResult);
+    var retryBtn = $('scan-result-retry');
+    if (retryBtn) retryBtn.addEventListener('click', function () { var t = _lastTried; hideResult(); if (t) submitToken(t, 'retry'); });
+
+    var startBtn = $('scan-explainer-start');
+    if (startBtn) startBtn.addEventListener('click', function () {
+      try { localStorage.setItem(CAM_EXPLAINED_KEY, '1'); } catch (e) {}
+      enterMain();
+    });
+
+    // First run → show the camera explainer; thereafter go straight in.
+    var explained = false;
+    try { explained = localStorage.getItem(CAM_EXPLAINED_KEY) === '1'; } catch (e) {}
+    if (explained) enterMain(); else show('scan-explainer');
+  }
+
+  /* ── Lifecycle: stop the camera when the fragment leaves the DOM ── */
+  function cleanup() {
+    stopCamera();
+    clearResetTimer();
+    if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('pagehide', cleanup);
+    if (window.__gbeScanCleanup === cleanup) window.__gbeScanCleanup = null;
+  }
+  function onVisibility() { if (document.hidden) stopCamera(); }
+
+  function wireLifecycle() {
+    // Retire any previous injection's camera/timers before this one takes over.
+    if (typeof window.__gbeScanCleanup === 'function') { try { window.__gbeScanCleanup(); } catch (e) {} }
+    window.__gbeScanCleanup = cleanup;
+    window.addEventListener('pagehide', cleanup);
+    document.addEventListener('visibilitychange', onVisibility);
+    // PageLoader replaces the dashboard container's innerHTML on navigation,
+    // which detaches our root. Watch for that and clean up the camera.
+    var root = $('gbe-scan-root');
+    _liveTimer = setInterval(function () {
+      if (!root || !root.isConnected) cleanup();
+    }, 1000);
+  }
+
+  wireLifecycle();
+  boot();
+})();
+</script>

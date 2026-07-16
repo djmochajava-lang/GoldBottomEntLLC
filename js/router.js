@@ -97,6 +97,11 @@ const Router = {
     // Ticket Sales (FRD-8)
     'dashboard-tickets': 'dashboard/tickets.html',
 
+    // Staff Door Scanner (story-ticket-scan-moves-to-gbe-dashboard) — role-gated
+    // staff surface; individual scans MUST work remotely (venue phone), so this
+    // is NOT local-only. Reuses the public ticket Worker scan endpoint.
+    'dashboard-scanner': 'dashboard/scanner.html',
+
     // Claude Agent Dashboard (FRD-16)
     'dashboard-claude-agent': 'dashboard/claude-agent.html',
 
@@ -418,6 +423,7 @@ const Router = {
           'dashboard-my-portal': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-agreements': ['admin', 'band_manager', 'artist', 'band_member'],
           'dashboard-deals':      ['admin', 'band_manager'],
+          'dashboard-scanner':    ['admin', 'band_manager'],
         };
         var _allowedRoles = _rolePageAccess[pageName];
         var _currentRole = Auth.getRole ? Auth.getRole() : null;
@@ -780,6 +786,7 @@ const Router = {
       'dashboard-crm-contacts': 'CRM Contacts',
       'dashboard-quotes': 'Quote Pipeline',
       'dashboard-tickets': 'Ticket Sales',
+      'dashboard-scanner': 'Door Scanner',
       'dashboard-agreements': 'Agreements',
       'dashboard-musicians-log': 'Musicians Log',
       'dashboard-band-roster': 'Band Roster',
