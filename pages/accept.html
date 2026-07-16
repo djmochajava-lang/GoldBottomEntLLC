@@ -234,7 +234,15 @@
       <div class="offer-card">
         <h2>Deposit Payment</h2>
         <div id="deposit-figures"></div>
-        <p style="color:var(--color-text-secondary); font-size:var(--text-sm); line-height:1.6;">
+        <!-- SHARED mock-payment screen (story-mock-payment-visible-screen):
+             in TEST/mock mode this shows the itemized deposit + the honest,
+             card-less "Sample" card mockup rendered by the ONE shared
+             component (window.GBEMockPay) — the same component the ticket
+             checkout embeds. It captures NOTHING. For a REAL Square driver the
+             deposit stays Square-HOSTED (C6/SAQ-A): this preview is hidden and
+             the button below opens Square's own hosted checkout. -->
+        <div id="deposit-mockpay" class="deposit-mockpay" style="display:none;"></div>
+        <p id="deposit-square-note" style="color:var(--color-text-secondary); font-size:var(--text-sm); line-height:1.6;">
           Payment is handled securely by <strong>Square</strong> on their hosted checkout page &mdash;
           we never see or store your card details. The button below opens Square in a new tab.
         </p>
@@ -282,6 +290,7 @@
        pinned supabase-js v2 UMD vendor copy index.html uses
        (story-supabase-js-sri-pin). No auth.js / router.js / utils.js. -->
   <script src="../js/config.js"></script>
+  <script src="../js/gbe-mock-payment.js"></script>
   <script src="../js/vendor/supabase-js-2.110.2.umd.js"></script>
   <script>
   (function () {
@@ -671,7 +680,38 @@
       var isTest = false;
       try { isTest = /\.example(\/|$)/.test(new URL(dep.checkoutUrl || '', location.href).hostname + '/'); }
       catch (e) { isTest = /squareup\.example/.test(String(dep.checkoutUrl || '')); }
-      if (isTest) show('banner-testmode'); else hide('banner-testmode');
+
+      // TEST/MOCK mode: render the SHARED visible mock-payment SCREEN in-page
+      // (story-mock-payment-visible-screen). The mock Square link is
+      // non-routable, so instead of sending the buyer to a dead tab we SHOW
+      // them the payment moment: the shared component's own TEST-MODE banner +
+      // the honest, card-less "Sample" card mockup. It captures NOTHING (no
+      // inputs) — the deposit still completes via the server settlement + the
+      // existing phase poll (→ state-complete). For a REAL Square driver
+      // (future cutover) this preview stays hidden and the deposit remains
+      // Square-HOSTED (C6 / SAQ-A) via the outbound link below.
+      var mockHost = $('deposit-mockpay');
+      var squareNote = $('deposit-square-note');
+      if (isTest && mockHost && window.GBEMockPay) {
+        hide('banner-testmode'); // shared screen renders its own richer banner
+        if (squareNote) squareNote.style.display = 'none';
+        var depCents = (dep.amount != null && !isNaN(Number(dep.amount)))
+          ? Math.round(Number(dep.amount) * 100) : 0;
+        try {
+          window.GBEMockPay.renderScreen(mockHost, {
+            testMode: true,
+            purpose: 'deposit',
+            currency: dep.currency || 'USD',
+            lineItems: [{ label: 'Booking deposit', amount: depCents }],
+            hideTotal: true // deposit-figures above already itemizes the amounts
+          });
+          mockHost.style.display = '';
+        } catch (e) { if (squareNote) squareNote.style.display = ''; }
+      } else {
+        if (mockHost) mockHost.style.display = 'none';
+        if (squareNote) squareNote.style.display = '';
+        hide('banner-testmode');
+      }
     }
 
     /* ── Buyer writes (anon INSERT into the staging mailbox, C3) ───────── */
