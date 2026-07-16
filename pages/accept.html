@@ -257,9 +257,17 @@
     <div id="state-complete" class="offer-center" data-testid="state-complete" style="display:none;">
       <div class="offer-glyph">&#127881;</div>
       <h2>Booking Confirmed</h2>
+      <!-- TEST-MODE receipt label (story-mock-payment-visible-screen): shown only
+           when the deposit ran on the mock driver, so the receipt carries the
+           same honest label as the payment screen did. -->
+      <div id="complete-testmode-note" class="offer-banner offer-banner-testmode" data-testid="complete-testmode-note" style="display:none;">TEST MODE &mdash; no real payment was processed and this is not a valid booking.</div>
       <p>Your deposit has been received and your booking is confirmed. A confirmation email with your executed agreement and receipt details is on its way.</p>
       <p>We&rsquo;ll be in touch ahead of your event with logistics and next steps. Thank you for booking with Gold Bottom Entertainment!</p>
     </div>
+
+    <!-- Polite live region: announces processing/success to assistive tech
+         (story-mock-payment-visible-screen a11y AC — WCAG 4.1.3). -->
+    <div id="offer-live" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"></div>
 
     <!-- Declined -->
     <div id="state-declined" class="offer-center" data-testid="state-declined" style="display:none;">
@@ -313,6 +321,7 @@
     var knownPhase = null;      // last phase seen from the RPC
     var knownPayload = null;
     var pendingAction = null;   // 'accept' | 'decline' | 'sign' — staged, awaiting landing
+    var depositWasTest = false; // true once the mock (TEST) deposit screen rendered — drives the receipt test-mode note
     var pollTimer = null;
     var pollCount = 0;
     var pollStopped = false;
@@ -360,9 +369,25 @@
     var ALL_STATES = ['state-loading', 'state-error', 'state-offered', 'state-sign',
       'state-sign-pending', 'state-ext-send', 'state-ext-review', 'state-signed-wait',
       'state-deposit', 'state-complete', 'state-declined', 'state-expired'];
+    function announce(msg) {
+      var live = $('offer-live');
+      if (live) live.textContent = msg || '';
+    }
+
     function showState(id) {
       for (var i = 0; i < ALL_STATES.length; i++) hide(ALL_STATES[i]);
       show(id);
+      // Announce the success/receipt moment + carry the TEST label onto the
+      // receipt (story-mock-payment-visible-screen: a11y + honest labeling).
+      if (id === 'state-complete') {
+        var note = $('complete-testmode-note');
+        if (note) note.style.display = depositWasTest ? '' : 'none';
+        announce(depositWasTest
+          ? 'Test deposit recorded. Your booking is confirmed. No real payment was processed.'
+          : 'Your deposit has been received and your booking is confirmed.');
+      } else if (id === 'state-declined') {
+        announce('Your response has been recorded.');
+      }
     }
 
     /* Same anonymous client pattern as Forms._getSupabaseClient (P8):
@@ -692,6 +717,7 @@
       // Square-HOSTED (C6 / SAQ-A) via the outbound link below.
       var mockHost = $('deposit-mockpay');
       var squareNote = $('deposit-square-note');
+      depositWasTest = isTest;
       if (isTest && mockHost && window.GBEMockPay) {
         hide('banner-testmode'); // shared screen renders its own richer banner
         if (squareNote) squareNote.style.display = 'none';
@@ -710,7 +736,9 @@
       } else {
         if (mockHost) mockHost.style.display = 'none';
         if (squareNote) squareNote.style.display = '';
-        hide('banner-testmode');
+        // Keep the honest TEST banner if this IS a mock deposit but the shared
+        // screen couldn't render — never leave a test deposit unlabelled.
+        if (isTest) show('banner-testmode'); else hide('banner-testmode');
       }
     }
 
