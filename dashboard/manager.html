@@ -1,6 +1,20 @@
 <!-- dashboard/manager.html — Band Manager Dashboard (operations) -->
 <div class="dashboard-page" id="dash-manager">
 
+  <style>
+    /* Triage skeleton shimmer — reserves height so the surface never jumps (no CLS). */
+    #dash-manager .bm-skel{position:relative;overflow:hidden;background:var(--color-bg-tertiary);}
+    #dash-manager .bm-skel::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);animation:bmSkelShimmer 1.2s infinite;}
+    @keyframes bmSkelShimmer{100%{transform:translateX(100%);}}
+    @media (prefers-reduced-motion: reduce){#dash-manager .bm-skel::after{animation:none;}}
+    #dash-manager a.metric-card:hover{border-color:var(--color-gold)!important;}
+  </style>
+
+  <!-- Triage CTA — a newly-received quote request is the FIRST, most-prominent action on the
+       surface (story-bm-dashboard-quote-triage AC-1). Hidden until the triage load resolves;
+       skeleton reserves a stable slot so the header never jumps (no CLS). -->
+  <div id="bm-triage-cta" style="margin-bottom:var(--space-lg);"></div>
+
   <div class="dashboard-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--space-sm);">
     <div>
       <h1>Dashboard</h1>
@@ -65,13 +79,25 @@
   function hexToRGB(hex) { hex = hex.replace('#',''); return parseInt(hex.substring(0,2),16)+','+parseInt(hex.substring(2,4),16)+','+parseInt(hex.substring(4,6),16); }
   function _isZeroValue(v) { if (v===0||v==='0') return true; if (typeof v==='string'&&/^\$?0(\.00)?$/.test(v.trim())) return true; return false; }
 
-  function metricCard(icon, color, value, label) {
+  /* metricCard — a metric is now a whole-card DRILL-THROUGH link to its filtered list
+     (story-bm-dashboard-quote-triage AC-2: "New Leads: 3" → those 3). `href` is a hash
+     route; `urgent` (optional) lifts a non-zero call-to-action card (e.g. New Requests). */
+  function metricCard(icon, color, value, label, href, urgent) {
     var emptyHint = _isZeroValue(value) ? '<div style="font-size:var(--text-xs);color:var(--color-text-muted);opacity:0.7;margin-top:2px;font-style:italic;">No data yet</div>' : '';
-    return '<div class="metric-card glass-card" style="display:flex;align-items:center;gap:var(--space-md);padding:var(--space-lg);background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);">'+
+    var isUrgent  = urgent && !_isZeroValue(value);
+    var border    = isUrgent ? '1px solid rgba('+hexToRGB(color)+',0.55)' : '1px solid var(--color-border)';
+    var bg        = isUrgent ? 'rgba('+hexToRGB(color)+',0.08)' : 'var(--color-bg-secondary)';
+    var inner =
       '<div style="width:48px;height:48px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);flex-shrink:0;background:rgba('+hexToRGB(color)+',0.15);color:'+color+';">'+
       '<i class="fa-solid '+icon+'"></i></div>'+
-      '<div><div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+value+'</div>'+
-      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+label+'</div>'+emptyHint+'</div></div>';
+      '<div style="flex:1;min-width:0;"><div style="font-size:var(--text-2xl);font-weight:var(--fw-bold);color:var(--color-text);">'+value+'</div>'+
+      '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+label+'</div>'+emptyHint+'</div>'+
+      '<i class="fa-solid fa-chevron-right" style="color:var(--color-text-muted);opacity:0.5;font-size:var(--text-sm);flex-shrink:0;"></i>';
+    var baseCss = 'display:flex;align-items:center;gap:var(--space-md);min-height:44px;padding:var(--space-lg);background:'+bg+';border:'+border+';border-radius:var(--radius-lg);';
+    if (href) {
+      return '<a href="'+href+'" class="metric-card glass-card" aria-label="'+Utils.escapeHtml(label+': '+value)+'" style="'+baseCss+'text-decoration:none;color:inherit;cursor:pointer;transition:border-color 150ms ease;">'+inner+'</a>';
+    }
+    return '<div class="metric-card glass-card" style="'+baseCss+'">'+inner+'</div>';
   }
 
   function qaBtn(href, icon, color, label) {
@@ -112,44 +138,222 @@
   function _renderMetrics(opts) {
     var bmm = document.getElementById('bm-metrics');
     if (!bmm) return;
+    var newReq = opts.newRequests != null ? opts.newRequests : 0;
+    /* New Requests leads the row and is styled urgent when >0 — it drills to the Booking
+       inquiries where new quote requests land (AC-1/AC-2). */
     var bmHtml =
-      metricCard('fa-filter',           '#f0883e', opts.pipelineCount,    'Pipeline Actions') +
-      metricCard('fa-file-signature',   '#3fb950', opts.activeContracts,  'Active Contracts') +
-      metricCard('fa-pen-nib',          '#d29922', opts.pendingSignatures,'Pending Signatures') +
-      metricCard('fa-calendar-days',    '#d29922', opts.upcomingShows,    'Upcoming Shows') +
-      metricCard('fa-clock-rotate-left','#c778d9', opts.followupsDue,     'Follow-ups Due') +
-      metricCard('fa-users',            '#d4a017', opts.roster,           'Roster');
+      metricCard('fa-envelope-open-text','#d4a017', newReq,               'New Requests',      '#dashboard-booking',   true) +
+      metricCard('fa-filter',           '#f0883e', opts.pipelineCount,    'Pipeline Actions',  '#dashboard-booking') +
+      metricCard('fa-file-signature',   '#3fb950', opts.activeContracts,  'Active Contracts',  '#dashboard-contracts') +
+      metricCard('fa-pen-nib',          '#d29922', opts.pendingSignatures,'Pending Signatures','#dashboard-agreements') +
+      metricCard('fa-calendar-days',    '#d29922', opts.upcomingShows,    'Upcoming Shows',    '#dashboard-calendar') +
+      metricCard('fa-clock-rotate-left','#c778d9', opts.followupsDue,     'Follow-ups Due',    '#dashboard-booking') +
+      metricCard('fa-users',            '#d4a017', opts.roster,           'Roster',            '#dashboard-roster');
     if (isLocal) {
-      bmHtml += metricCard('fa-chart-line','#3fb950', Utils.formatCurrency(m.revenueYTD), 'Revenue YTD');
+      bmHtml += metricCard('fa-chart-line','#3fb950', Utils.formatCurrency(m.revenueYTD), 'Revenue YTD', '#dashboard-finances');
     }
     bmm.innerHTML = bmHtml;
   }
 
-  /* ── Pipeline card renderer ── */
-  function _renderPipelineCard(items) {
+  /* ═══════════════════════════════════════════════════════════════════════
+     TRIAGE — "Pipeline · Needs Action" (story-bm-dashboard-quote-triage)
+     A LIVE, unified action list drawn from four sources, each row showing
+     WHAT + how old + ONE next action (AC-3). New quote requests always sort
+     first (they're the revenue). Teaching zero-state, skeleton (no CLS),
+     whole-row ≥44px tap targets, 10+ overflow handled. All reads are capped
+     and fail-safe: a source that errors simply contributes nothing.
+     ═══════════════════════════════════════════════════════════════════════ */
+  var TRIAGE_KINDS = {
+    quote_request: { order:0, color:'#d4a017', icon:'fa-envelope-open-text', action:'Respond',        href:'#dashboard-booking'    },
+    quote_send:    { order:1, color:'#58a6ff', icon:'fa-paper-plane',        action:'Send quote',     href:'#dashboard-quotes'     },
+    agreement:     { order:2, color:'#d29922', icon:'fa-file-signature',     action:'Follow up',      href:'#dashboard-agreements' },
+    deposit:       { order:3, color:'#bc8cff', icon:'fa-sack-dollar',        action:'Request deposit',href:'#dashboard-booking'    }
+  };
+  var TRIAGE_MAX = 8; // rows shown before the "+N more" overflow row
+
+  function _triageAge(ts) {
+    if (!ts) return '';
+    var ms = (ts && ts.toMillis) ? ts.toMillis() : (ts && ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime());
+    if (isNaN(ms)) return '';
+    return Utils.timeAgo(new Date(ms).toISOString());
+  }
+  function _triageMs(ts) {
+    if (!ts) return 0;
+    var ms = (ts && ts.toMillis) ? ts.toMillis() : (ts && ts.toDate ? ts.toDate().getTime() : new Date(ts).getTime());
+    return isNaN(ms) ? 0 : ms;
+  }
+
+  /* Skeleton — shimmer rows that reserve the card's height so nothing jumps. */
+  function _renderTriageSkeleton() {
     var bmp = document.getElementById('bm-pipeline');
     if (!bmp) return;
-    var pipelineItems = items || [];
-    var stageColors = {lead:'#8b949e',qualified:'#58a6ff',proposed:'#d4a017',negotiating:'#f0883e',confirmed:'#3fb950',contracted:'#3fb950',completed:'#3fb950',closed:'#f85149'};
-    var stageLabels = {lead:'New Lead',qualified:'Qualified',proposed:'Proposed',negotiating:'Negotiating',confirmed:'Confirmed',contracted:'Contracted',completed:'Completed',closed:'Closed'};
-    var pHtml = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-filter" style="color:#f0883e;"></i> Pipeline — Needs Action</h3>';
-    if (!pipelineItems.length) {
-      pHtml += '<p class="text-muted" style="display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-check-circle" style="color:#3fb950;"></i>Pipeline is clear</p>';
-    } else {
-      pHtml += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
-      pipelineItems.slice(0,5).forEach(function(b){
-        var color = stageColors[b.stage]||'#8b949e';
-        var date  = b.eventDate || b.date || '';
-        pHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+color+';">'+
-          '<div><div style="font-weight:600;">'+Utils.escapeHtml(b.clientName||b.name||b.contactName||b.venue||'Client')+'</div>'+
-          '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">'+(date?Utils.formatDate(date):'')+' '+Utils.escapeHtml(b.venue||'')+'</div></div>'+
-          '<span style="font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba('+hexToRGB(color)+',0.15);color:'+color+';font-weight:600;white-space:nowrap;">'+(stageLabels[b.stage]||Utils.escapeHtml(b.stage||''))+'</span></div>';
-      });
-      pHtml += '</div>';
-      if (pipelineItems.length > 5) pHtml += '<p style="margin-top:var(--space-sm);font-size:var(--text-sm);color:var(--color-text-muted);">+' + (pipelineItems.length-5) + ' more</p>';
+    var row = '<div style="display:flex;align-items:center;gap:var(--space-md);min-height:44px;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);">'+
+      '<div class="bm-skel" style="width:32px;height:32px;border-radius:var(--radius-md);flex-shrink:0;"></div>'+
+      '<div style="flex:1;"><div class="bm-skel" style="width:60%;height:12px;border-radius:4px;margin-bottom:6px;"></div><div class="bm-skel" style="width:35%;height:10px;border-radius:4px;"></div></div></div>';
+    bmp.innerHTML =
+      '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-list-check" style="color:#f0883e;"></i> Pipeline · Needs Action</h3>'+
+      '<div style="display:flex;flex-direction:column;gap:var(--space-sm);" aria-busy="true">'+row+row+row+'</div>';
+  }
+
+  /* Top-of-surface CTA for new quote requests (AC-1). Empty/loading → collapses
+     to nothing (no reserved gap) so it never competes when there's no request. */
+  function _renderTriageCta(newReqItems) {
+    var el = document.getElementById('bm-triage-cta');
+    if (!el) return;
+    var n = (newReqItems || []).length;
+    if (!n) { el.innerHTML = ''; el.style.marginBottom = '0'; return; }
+    el.style.marginBottom = 'var(--space-lg)';
+    var lead = newReqItems[0];
+    var who  = Utils.escapeHtml(lead._who || 'A new client');
+    var age  = lead._age ? ' · ' + Utils.escapeHtml(lead._age) : '';
+    var head = n === 1 ? '1 new quote request' : n + ' new quote requests';
+    var sub  = n === 1 ? (who + age + ' — respond to lock the booking') : ('Latest: ' + who + age);
+    el.innerHTML =
+      '<a href="#dashboard-booking" aria-label="'+Utils.escapeHtml(head)+' — respond" style="display:flex;align-items:center;gap:var(--space-md);min-height:44px;padding:var(--space-lg);border-radius:var(--radius-lg);background:linear-gradient(135deg,rgba(212,160,23,0.18),rgba(212,160,23,0.06));border:1px solid rgba(212,160,23,0.55);text-decoration:none;color:inherit;">'+
+        '<div style="width:44px;height:44px;border-radius:50%;background:rgba(212,160,23,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-envelope-open-text" style="color:#d4a017;font-size:var(--text-lg);"></i></div>'+
+        '<div style="flex:1;min-width:0;"><div style="font-weight:var(--fw-bold);color:var(--color-text);font-size:var(--text-lg);">'+head+'</div>'+
+        '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+sub+'</div></div>'+
+        '<span style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-full);background:var(--color-gold);color:#000;font-weight:var(--fw-semibold);font-size:var(--text-sm);">Respond <i class="fa-solid fa-arrow-right"></i></span>'+
+      '</a>';
+  }
+
+  /* The unified action list. `items` = normalized rows sorted for display. */
+  function _renderActionList(items) {
+    var bmp = document.getElementById('bm-pipeline');
+    if (!bmp) return;
+    var rows = items || [];
+    var html = '<h3 style="margin-bottom:var(--space-md);"><i class="fa-solid fa-list-check" style="color:#f0883e;"></i> Pipeline · Needs Action</h3>';
+    if (!rows.length) {
+      /* Teaching zero-state — tells the BM what will show up and where first. */
+      html += '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:var(--space-lg) var(--space-md);">'+
+        '<i class="fa-solid fa-mug-hot" style="color:#3fb950;font-size:var(--text-2xl);"></i>'+
+        '<div style="font-weight:600;color:var(--color-text);">You’re all caught up</div>'+
+        '<div style="font-size:var(--text-sm);color:var(--color-text-muted);">New quote requests appear here first — then quotes to send, agreements to sign, and deposits to collect.</div>'+
+      '</div>';
+      bmp.innerHTML = html;
+      return;
     }
-    pHtml += '<a href="#dashboard-booking" style="display:inline-flex;align-items:center;gap:6px;margin-top:var(--space-md);font-size:var(--text-sm);color:#f0883e;text-decoration:none;font-weight:600;">Full Pipeline <i class="fa-solid fa-arrow-right"></i></a>';
-    bmp.innerHTML = pHtml;
+    html += '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+    rows.slice(0, TRIAGE_MAX).forEach(function(r){
+      var k = TRIAGE_KINDS[r.kind] || TRIAGE_KINDS.quote_request;
+      html += '<a href="'+k.href+'" aria-label="'+Utils.escapeHtml(k.action+': '+r._who)+'" style="display:flex;align-items:center;gap:var(--space-md);min-height:44px;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid '+k.color+';text-decoration:none;color:inherit;">'+
+        '<div style="width:32px;height:32px;border-radius:var(--radius-md);flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba('+hexToRGB(k.color)+',0.15);color:'+k.color+';"><i class="fa-solid '+k.icon+'"></i></div>'+
+        '<div style="flex:1;min-width:0;">'+
+          '<div style="font-weight:600;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+Utils.escapeHtml(r._who)+'</div>'+
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">'+Utils.escapeHtml(r._label)+(r._age?' · '+Utils.escapeHtml(r._age):'')+'</div>'+
+        '</div>'+
+        '<span style="flex-shrink:0;font-size:var(--text-xs);padding:4px 10px;border-radius:var(--radius-full);background:rgba('+hexToRGB(k.color)+',0.15);color:'+k.color+';font-weight:600;white-space:nowrap;">'+k.action+'</span>'+
+      '</a>';
+    });
+    html += '</div>';
+    if (rows.length > TRIAGE_MAX) {
+      html += '<a href="#dashboard-booking" style="display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;margin-top:var(--space-sm);font-size:var(--text-sm);color:#f0883e;text-decoration:none;font-weight:600;">+'+(rows.length-TRIAGE_MAX)+' more to action <i class="fa-solid fa-arrow-right"></i></a>';
+    }
+    bmp.innerHTML = html;
+  }
+
+  /* ── Triage state + orchestrator ── */
+  var _triage = { quote_request: [], quote_send: [], agreement: [], deposit: [] };
+  /* Sources #3/#4 load once from the live Firestore reads below; a focus refresh
+     re-reads only the fast client sources (#1/#2), so we must NOT clobber these
+     live values back to the (often empty) DataStore baseline on refresh. */
+  var _triageLive = { agreement: false, deposit: false };
+  function _triageSet(kind, rows) {
+    if (!TRIAGE_KINDS[kind]) return;
+    _triage[kind] = rows || [];
+    _triageRender();
+  }
+  function _triageRender() {
+    var all = [];
+    Object.keys(TRIAGE_KINDS).forEach(function(kind){
+      (_triage[kind] || []).forEach(function(r){ all.push(r); });
+    });
+    all.sort(function(a, b){
+      var oa = (TRIAGE_KINDS[a.kind]||{}).order || 0, ob = (TRIAGE_KINDS[b.kind]||{}).order || 0;
+      if (oa !== ob) return oa - ob;       // group order: requests → send → sign → deposit
+      return (a._ms || 0) - (b._ms || 0);   // within a group: oldest-waiting first (most overdue)
+    });
+    var newReq = _triage.quote_request || [];
+    _renderTriageCta(newReq);
+    _renderActionList(all);
+    if (typeof _live !== 'undefined' && _live) { _live.newRequests = newReq.length; _applyLiveMetrics(); }
+  }
+
+  /* Confirmed-but-unpaid bookings → deposit rows (triage source #4). */
+  function _depositRowsFromBookings(arr) {
+    return (arr || []).filter(function(b){
+      if (b.stage !== 'confirmed') return false;
+      var paid = b.depositPaid || b.deposit_paid || (b.depositStatus === 'paid') || (String(b.deposit_status||'').toLowerCase() === 'paid');
+      return !paid;
+    }).map(function(b){
+      var ts = b.updatedAt || b.updated_at || b.createdAt || b.created_at;
+      return { kind:'deposit', _who: b.clientName || b.name || b.contactName || b.venue || 'Confirmed booking',
+               _label: 'Deposit not received' + (b.venue ? ' · ' + b.venue : ''), _age: _triageAge(ts), _ms: _triageMs(ts) };
+    });
+  }
+  /* Unanswered booking inquiries → new-quote-request rows (triage source #1, PRIMARY). */
+  function _quoteRequestRows(rows) {
+    return (rows || []).filter(function(r){
+      return (r.classification === 'booking_inquiry' || r.classification === 'booking_followup') && !r.responded_at;
+    }).map(function(r){
+      var ts = r.received_at || r.submitted_at || r.created_at;
+      return { kind:'quote_request', _who: r.from_name || r.from_addr || r.name || r.email || 'New client',
+               _label: r.subject ? r.subject : 'New quote request', _age: _triageAge(ts), _ms: _triageMs(ts) };
+    });
+  }
+  /* quote_pipeline drafts → quotes-to-send rows (triage source #2). */
+  function _quoteSendRows(rows) {
+    return (rows || []).filter(function(q){ return (q.status||'').toLowerCase() === 'draft'; })
+      .map(function(q){
+        var ts = q.updatedAt || q.updated_at || q.createdAt || q.created_at;
+        return { kind:'quote_send', _who: q.clientName || q.client || q.contactName || q.venue || 'Draft quote',
+                 _label: 'Quote drafted, not sent', _age: _triageAge(ts), _ms: _triageMs(ts) };
+      });
+  }
+
+  /* ── Triage loader — fills the four sources; each read is capped and fail-safe
+     (a source that errors simply contributes nothing; the others still render). ── */
+  function _loadTriage() {
+    /* Synchronous baseline so the card is never empty-by-default, and so local
+       dashboards (no live read layer) still show agreements + deposits. Skip a
+       source once the live read has populated it (don't clobber on refresh). */
+    if (!_triageLive.agreement) {
+      _triage.agreement = pendingContracts.map(function(c){
+        var ts = c.updatedAt || c.createdAt;
+        return { kind:'agreement', _who: c.party || c.title || c.name || 'Agreement', _label:'Awaiting signature', _age: _triageAge(ts), _ms: _triageMs(ts) };
+      });
+    }
+    if (!_triageLive.deposit) {
+      _triage.deposit = _depositRowsFromBookings(bookings);
+    }
+
+    /* Source #1 — new quote requests. local: Express API; remote: Supabase read-model. */
+    if (isLocal) {
+      Utils.apiFetch('/booking-inbox?limit=200').then(function(data){
+        _triageSet('quote_request', _quoteRequestRows((data && data.data) || []));
+      }).catch(function(err){ console.warn('[Manager] triage inquiries (local) failed:', err && err.message); _triageRender(); });
+    } else {
+      var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+      if (!sb) { _triageRender(); }
+      else {
+        sb.from('booking_inquiry_readmodel').select('*').order('created_at', { ascending:false }).limit(200)
+          .then(function(res){
+            if (res.error) { console.warn('[Manager] triage inquiries fetch failed:', res.error.message); _triageRender(); return; }
+            _triageSet('quote_request', _quoteRequestRows(res.data || []));
+          });
+      }
+    }
+
+    /* Source #2 — quotes awaiting send (quote_pipeline drafts, via the read layer). */
+    if (typeof Auth !== 'undefined' && Auth._db) {
+      Auth._db.collection('quote_pipeline').limit(200).get()
+        .then(function(snap){ var rows = []; snap.forEach(function(d){ rows.push(d.data()); }); _triageSet('quote_send', _quoteSendRows(rows)); })
+        .catch(function(err){ console.warn('[Manager] triage quote_pipeline failed:', err && err.message); });
+    }
+
+    /* Sources #3 (agreements) & #4 (deposits) refine asynchronously via
+       _onAgreementsSnap() and the live bookings Promise.all. Render the baseline now. */
+    _triageRender();
   }
 
   /* ── Initial synchronous render from DataStore (baseline / local / fallback) ── */
@@ -157,6 +361,7 @@
   var _dsStaleFollowups = _deriveStaleFollowups(bookings);
   function _renderFromDataStore() {
     _renderMetrics({
+      newRequests:       (typeof _live !== 'undefined' && _live && _live.newRequests != null) ? _live.newRequests : 0,
       pipelineCount:     _dsPipelineItems.length,
       activeContracts:   m.activeContracts,
       pendingSignatures: pendingContracts.length,
@@ -164,7 +369,8 @@
       followupsDue:      _dsStaleFollowups.length,
       roster:            m.totalRoster
     });
-    _renderPipelineCard(_dsPipelineItems);
+    /* Triage owns #bm-pipeline now — show a skeleton until _loadTriage() resolves. */
+    _renderTriageSkeleton();
   }
   _renderFromDataStore();
 
@@ -541,14 +747,17 @@
      and _onAgreementsSnap (agreements card, defined above). Each writes its own
      keys then calls _applyLiveMetrics() so cards update as data arrives. */
   var _live = {
+    newRequests: null,
     pipelineCount: null, activeContracts: null, pendingSignatures: null,
     upcomingShows: null, followupsDue: null, roster: null,
     _sessionItems: null, _confirmedShows: null
   };
 
+  /* Re-render the metric row. Live values (remote) override; nulls fall back to the
+     DataStore baseline. newRequests comes from the triage load (local + remote). */
   function _applyLiveMetrics() {
-    if (isLocal) return; // local stays on DataStore baseline (incl. Revenue YTD)
     _renderMetrics({
+      newRequests:       _live.newRequests        != null ? _live.newRequests       : 0,
       pipelineCount:     _live.pipelineCount     != null ? _live.pipelineCount     : _dsPipelineItems.length,
       activeContracts:   _live.activeContracts   != null ? _live.activeContracts   : m.activeContracts,
       pendingSignatures: _live.pendingSignatures != null ? _live.pendingSignatures : pendingContracts.length,
@@ -567,6 +776,20 @@
     if (isLocal || !snap) return;
     // snap is the sent/pending set. Pending Signatures = exact count.
     _live.pendingSignatures = snap.size;
+    /* Same snapshot feeds triage source #3 (unsigned agreements) — no extra read. */
+    var agRows = [];
+    snap.docs.forEach(function(doc){
+      var a = doc.data() || {};
+      agRows.push({
+        kind: 'agreement',
+        _who: a.musicianName || a.title || a.templateTitle || 'Agreement',
+        _label: 'Awaiting signature' + (a.title || a.templateTitle ? ' · ' + (a.title || a.templateTitle) : ''),
+        _age: _triageAge(a.sentAt || a.createdAt),
+        _ms: _triageMs(a.sentAt || a.createdAt)
+      });
+    });
+    _triageLive.agreement = true;
+    _triageSet('agreement', agRows);
     _applyLiveMetrics();
   }
 
@@ -604,7 +827,7 @@
       var liveRosterCount= res[2];
       var liveActiveCount= res[3];
 
-      /* Pipeline card + pipeline-derived metrics (only if bookings loaded) */
+      /* Pipeline-derived metrics + triage deposit source (only if bookings loaded) */
       if (liveBookings) {
         var pipelineItems = _derivePipelineItems(liveBookings);
         var followups     = _deriveStaleFollowups(liveBookings);
@@ -613,7 +836,9 @@
         _live._confirmedShows = liveBookings.filter(function(b){
           return (b.stage==='confirmed'||b.stage==='contracted') && ((b.eventDate||b.date)||'') >= todayStr;
         }).map(function(b){ return { title:b.name||b.contactName||b.clientName||'Event', venue:b.venue||b.location||'', date:b.eventDate||b.date, kind:'booking', badge:b.stage }; });
-        _renderPipelineCard(pipelineItems);
+        /* Unpaid deposits = confirmed bookings not yet marked deposit-paid (triage source #4). */
+        _triageLive.deposit = true;
+        _triageSet('deposit', _depositRowsFromBookings(liveBookings));
       }
 
       /* Upcoming shows from sessions */
@@ -823,6 +1048,24 @@
       });
     });
   }
+
+  /* ── Kick off triage + honest live-refresh trigger ──
+     No socket, so we refresh when the BM returns to the surface: on tab re-focus
+     and on visibility change (nav-return already re-runs this whole fragment via
+     PageLoader). Listeners are de-duplicated across visits via a window cleanup
+     handle so they never stack up. */
+  _loadTriage();
+
+  var _triageRefresh = (Utils && Utils.debounce) ? Utils.debounce(_loadTriage, 400) : _loadTriage;
+  var _onVisible = function(){ if (document.visibilityState === 'visible') _triageRefresh(); };
+  if (window.__bmTriageCleanup) { try { window.__bmTriageCleanup(); } catch (e) {} }
+  document.addEventListener('visibilitychange', _onVisible);
+  window.addEventListener('focus', _triageRefresh);
+  window.__bmTriageCleanup = function(){
+    document.removeEventListener('visibilitychange', _onVisible);
+    window.removeEventListener('focus', _triageRefresh);
+    window.__bmTriageCleanup = null;
+  };
 
 })();
 </script>
