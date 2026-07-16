@@ -8,6 +8,17 @@
  * This file is authored ONCE and dropped VERBATIM into each repo's js/ dir.
  * It is the single source of truth for the mock-payment UX — do NOT fork.
  *
+ * OWNING CONTRACT / CROSS-REPO PARITY (story-shared-ux-components-owned,
+ * 2026-07-16): this component is the single OWNER of the mock-payment SCREEN.
+ * Because the two public repos are independent (no auto-sync), the file is kept
+ * in BOTH, and the copies MUST stay BYTE-IDENTICAL:
+ *   • GoldBottomEntLLC/js/gbe-mock-payment.js
+ *   • LAYoungBandPage/js/gbe-mock-payment.js
+ * To change the payment screen: edit one copy, copy it VERBATIM over the other,
+ * and confirm they match (`md5 <both paths>`) BEFORE committing. Never fork or
+ * inline this markup in a consumer page — every consumer renders through the
+ * public API below (mount / renderScreen).
+ *
  * WHAT IT RENDERS (the visible screen the EO asked for):
  *   1. An unmistakable "TEST MODE — no real payment" banner on the SCREEN,
  *      on the card MOCKUP, and on the RECEIPT.

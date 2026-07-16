@@ -8,6 +8,15 @@
  *   • Services page — pages/entertainment/services.html (story-services-page-
  *     interactive-best-fit reuses this SAME component — do NOT fork)
  *
+ * OWNING CONTRACT (story-shared-ux-components-owned, 2026-07-16):
+ *   Single owner of the show-package card UX — ONE file, GoldBottomEntLLC repo
+ *   only (GBE public site). Every consumer — the quote form, its
+ *   review-before-send step, and the services best-fit picker — renders through
+ *   the public API below; never inline or re-implement the card markup in a
+ *   page. Edit here and all consumers update at once. No price / per-musician
+ *   rate ever ships in this file (public repo — trade-secret pricing stays
+ *   server-side).
+ *
  * CONTENT CONTRACT — CUSTOMER-FACING FIELDS ONLY:
  *   label · tagline · personnel · runtime · inclusions[]
  * There is NO price and NO internal/per-musician rate in this component. The
