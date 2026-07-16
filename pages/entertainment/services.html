@@ -21,6 +21,76 @@
       </a>
     </div>
 
+    <!-- S1.5 · Best-Fit Finder (story-services-page-interactive-best-fit) -->
+    <!-- Guided, inline occasion + qualifier picker → ONE recommended package,
+         rendered via the SHARED window.GBEPackageCards component (no fork, no rates),
+         with a "why this fits" line and a CTA that carries the selection into the
+         quote form (#ent-quote?format=<id>, pre-selecting the package). -->
+    <div class="section-spacer">
+      <div class="glass-card svc-finder reveal" data-testid="svc-finder" aria-labelledby="svc-finder-title">
+        <p class="svc-eyebrow"><i class="fa-solid fa-wand-magic-sparkles"></i> Find your best fit in 15 seconds</p>
+        <h2 id="svc-finder-title" class="svc-finder-title">Not sure which show? Let's match you.</h2>
+        <p class="svc-finder-sub">Tell us what you're planning &mdash; we'll recommend the one package built for your night, then carry it straight into your quote.</p>
+
+        <!-- Step 1 · Occasion -->
+        <div class="svc-finder-step" data-step="occasion">
+          <p class="svc-finder-q"><span class="svc-finder-step-badge">1</span> What are you planning?</p>
+          <div class="svc-finder-tiles" role="group" aria-label="Choose your occasion" data-testid="svc-finder-occasions">
+            <button type="button" class="svc-tile" data-occasion="wedding" aria-pressed="false">
+              <i class="fa-solid fa-champagne-glasses" aria-hidden="true"></i>
+              <span>Wedding &amp; Private Event</span>
+            </button>
+            <button type="button" class="svc-tile" data-occasion="corporate" aria-pressed="false">
+              <i class="fa-solid fa-building" aria-hidden="true"></i>
+              <span>Corporate &amp; Gala</span>
+            </button>
+            <button type="button" class="svc-tile" data-occasion="venue" aria-pressed="false">
+              <i class="fa-solid fa-ticket" aria-hidden="true"></i>
+              <span>Venue &amp; Club Night</span>
+            </button>
+            <button type="button" class="svc-tile" data-occasion="festival" aria-pressed="false">
+              <i class="fa-solid fa-tent" aria-hidden="true"></i>
+              <span>Festival &amp; Concert</span>
+            </button>
+            <button type="button" class="svc-tile" data-occasion="studio" aria-pressed="false">
+              <i class="fa-solid fa-microphone-lines" aria-hidden="true"></i>
+              <span>Studio Session</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2 · Qualifiers (revealed after an occasion is chosen; hidden for studio) -->
+        <div class="svc-finder-step svc-finder-qualifiers" data-step="qualifiers" hidden>
+          <div class="svc-finder-qgroup">
+            <p class="svc-finder-q"><span class="svc-finder-step-badge">2</span> About how many guests?</p>
+            <div class="svc-finder-pills" role="group" aria-label="Guest count" data-qualifier="size" data-testid="svc-finder-size">
+              <button type="button" class="svc-pill" data-value="small" aria-pressed="false">Under 100</button>
+              <button type="button" class="svc-pill" data-value="medium" aria-pressed="false">100&ndash;250</button>
+              <button type="button" class="svc-pill" data-value="large" aria-pressed="false">250+</button>
+            </div>
+          </div>
+          <div class="svc-finder-qgroup">
+            <p class="svc-finder-q"><span class="svc-finder-step-badge">3</span> What's the energy?</p>
+            <div class="svc-finder-pills" role="group" aria-label="Energy level" data-qualifier="energy" data-testid="svc-finder-energy">
+              <button type="button" class="svc-pill" data-value="intimate" aria-pressed="false">Intimate &amp; atmospheric</button>
+              <button type="button" class="svc-pill" data-value="full" aria-pressed="false">Full dance floor</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result · best-fit card + why-it-fits + CTA -->
+        <div class="svc-finder-result" data-testid="svc-finder-result" aria-live="polite" hidden>
+          <p class="svc-finder-result-eyebrow"><i class="fa-solid fa-star" aria-hidden="true"></i> Your best-fit package</p>
+          <p class="svc-finder-why" data-testid="svc-finder-why"></p>
+          <div class="svc-finder-card" data-testid="svc-finder-card"></div>
+          <a class="btn btn-primary btn-lg btn-block shimmer-sweep svc-finder-cta" href="#ent-quote" data-testid="svc-finder-cta">
+            <i class="fa-solid fa-calendar-check"></i> Request a quote for this package
+          </a>
+          <p class="svc-micro text-center">Not quite it? Adjust your answers above, or <a href="#ent-quote">browse the full quote form</a>.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- S2 · Buyer segments -->
     <div class="section-spacer">
       <h2 class="section-heading text-center reveal">Whatever You're Hosting, We've Played It</h2>
@@ -243,6 +313,76 @@
   }
   #page-ent-services .section-spacer { margin-top: var(--space-3xl); }
 
+  /* ── Best-Fit Finder (story-services-page-interactive-best-fit) ── */
+  #page-ent-services .svc-finder { max-width: 720px; margin: var(--space-xl) auto 0; padding: var(--space-xl); }
+  #page-ent-services .svc-finder-title {
+    font-family: 'Montserrat', sans-serif; margin: 0 0 var(--space-xs); font-size: var(--text-2xl); line-height: 1.2;
+  }
+  #page-ent-services .svc-finder-sub { color: var(--color-text-secondary); line-height: 1.6; margin: 0 0 var(--space-lg); }
+  #page-ent-services .svc-finder-step { margin-top: var(--space-lg); }
+  #page-ent-services .svc-finder-q {
+    display: flex; align-items: center; gap: var(--space-sm);
+    font-family: 'Montserrat', sans-serif; font-weight: var(--fw-semibold);
+    margin: 0 0 var(--space-sm); color: var(--color-text);
+  }
+  #page-ent-services .svc-finder-step-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; flex: 0 0 26px; border-radius: var(--radius-full);
+    border: 1px solid var(--color-gold); color: var(--color-gold);
+    font-size: var(--text-sm); font-weight: var(--fw-bold);
+  }
+  #page-ent-services .svc-finder-tiles {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm);
+  }
+  #page-ent-services .svc-tile {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    gap: 8px; min-height: 88px; padding: var(--space-md) var(--space-sm);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); color: var(--color-text); cursor: pointer;
+    font-family: 'Montserrat', sans-serif; font-size: var(--text-sm); font-weight: var(--fw-medium);
+    transition: border-color .18s ease, background .18s ease, transform .12s ease;
+  }
+  #page-ent-services .svc-tile i { font-size: var(--text-xl); color: var(--color-gold); }
+  #page-ent-services .svc-tile:hover { border-color: var(--color-gold); transform: translateY(-2px); }
+  #page-ent-services .svc-tile[aria-pressed="true"] {
+    border-color: var(--color-gold); background: rgba(212,160,23,0.14);
+    box-shadow: 0 0 0 1px var(--color-gold) inset;
+  }
+  #page-ent-services .svc-finder-qualifiers {
+    display: grid; gap: var(--space-lg); padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border); animation: svcFinderReveal .25s ease-out;
+  }
+  #page-ent-services .svc-finder-pills { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+  #page-ent-services .svc-pill {
+    min-height: 44px; padding: 10px 18px; border-radius: var(--radius-full);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+    color: var(--color-text); cursor: pointer; font-size: var(--text-sm); font-weight: var(--fw-medium);
+    transition: border-color .18s ease, background .18s ease;
+  }
+  #page-ent-services .svc-pill:hover { border-color: var(--color-gold); }
+  #page-ent-services .svc-pill[aria-pressed="true"] {
+    border-color: var(--color-gold); background: rgba(212,160,23,0.16); color: var(--color-gold);
+  }
+  #page-ent-services .svc-finder-result {
+    margin-top: var(--space-lg); padding-top: var(--space-lg);
+    border-top: 1px solid var(--color-border); animation: svcFinderReveal .25s ease-out;
+  }
+  #page-ent-services .svc-finder-result-eyebrow {
+    font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--color-gold); margin: 0 0 var(--space-xs);
+  }
+  #page-ent-services .svc-finder-why { color: var(--color-text-secondary); line-height: 1.7; margin: 0 0 var(--space-xs); }
+  #page-ent-services .svc-finder-cta { margin-top: var(--space-md); }
+  @keyframes svcFinderReveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    #page-ent-services .svc-finder-qualifiers,
+    #page-ent-services .svc-finder-result { animation: none; }
+    #page-ent-services .svc-tile:hover { transform: none; }
+  }
+  @media (max-width: 480px) {
+    #page-ent-services .svc-finder { padding: var(--space-lg); }
+  }
+
   #page-ent-services .svc-buyer-stack {
     display: grid; grid-template-columns: 1fr; gap: var(--space-lg);
     max-width: 860px; margin: var(--space-xl) auto 0;
@@ -309,3 +449,134 @@
     #page-ent-services .svc-buyer-card { padding: var(--space-lg); }
   }
 </style>
+
+<script>
+/* Best-Fit Finder — story-services-page-interactive-best-fit
+ * Guided occasion + qualifier picker → ONE recommended package, rendered with the
+ * SHARED window.GBEPackageCards component (no fork, no rates). Carries the selection
+ * into the quote form via #ent-quote?format=<id> (router-parsed, pre-selects the package).
+ * Thin client: presentation + a small deterministic rule map, zero secrets. */
+(function () {
+  var root = document.getElementById('page-ent-services');
+  if (!root) return;
+  var finder = root.querySelector('.svc-finder');
+  if (!finder) return;
+
+  var qualifiersStep = finder.querySelector('.svc-finder-qualifiers');
+  var resultEl       = finder.querySelector('.svc-finder-result');
+  var whyEl          = finder.querySelector('[data-testid="svc-finder-why"]');
+  var cardEl         = finder.querySelector('[data-testid="svc-finder-card"]');
+  var ctaEl          = finder.querySelector('[data-testid="svc-finder-cta"]');
+
+  var state = { occasion: null, size: null, energy: null };
+
+  var OCCASION_LABEL = {
+    wedding: 'wedding or private event',
+    corporate: 'corporate event or gala',
+    venue: 'venue or club night',
+    festival: 'festival or concert',
+    studio: 'studio session'
+  };
+  var SIZE_LABEL = { small: 'an intimate crowd', medium: 'a 100–250 guest room', large: 'a 250-plus crowd' };
+
+  // ── Deterministic best-fit rule map: occasion -> size -> energy -> package id ──
+  // Package ids are the SAME ids used by GBEPackageCards + the quote-form dropdown.
+  var RULES = {
+    wedding: {
+      small:  { intimate: 'duo',        full: 'la-with-dj' },
+      medium: { intimate: 'la-with-dj', full: 'small-band' },
+      large:  { intimate: 'small-band', full: 'full-band' }
+    },
+    corporate: {
+      small:  { intimate: 'solo',       full: 'la-with-dj' },
+      medium: { intimate: 'small-band', full: 'full-band' },
+      large:  { intimate: 'small-band', full: 'full-band' }
+    },
+    venue: {
+      small:  { intimate: 'duo',        full: 'la-with-dj' },
+      medium: { intimate: 'la-with-dj', full: 'small-band' },
+      large:  { intimate: 'small-band', full: 'full-band' }
+    },
+    festival: {
+      small:  { intimate: 'small-band', full: 'full-band' },
+      medium: { intimate: 'full-band',  full: 'full-band' },
+      large:  { intimate: 'full-band',  full: 'full-show' }
+    }
+  };
+
+  // Short, customer-safe "why this fits" line (no rates; Phyllis-only policy respected).
+  function whyText(pkgId, occasion, size, energy) {
+    var occ = OCCASION_LABEL[occasion] || 'event';
+    if (occasion === 'studio') {
+      return 'For studio and session work, our Studio Recording Session puts that rare contralto — lead vocals, features, and session work — on your track.';
+    }
+    var sz = SIZE_LABEL[size] || 'your room';
+    var energyPhrase = energy === 'full'
+      ? 'and you want a full dance floor'
+      : 'and you want an intimate, atmospheric feel';
+    var pkgReason = {
+      'solo':        'a polished solo set with professional tracks keeps the focus on the voice without crowding the room',
+      'duo':         'a stripped-down acoustic duo leans in close and sets the perfect mood',
+      'la-with-dj':  'live vocals over curated DJ mixes bring club-night energy that keeps people moving',
+      'small-band':  'a 5-piece live band fills the room with a full rhythm section, sized just right',
+      'full-band':   'a 7-piece live show turns the night into a full concert experience',
+      'full-show':   'the full show with band and background vocalists — including The Phyllis Hyman Experience — delivers a headline production'
+    }[pkgId] || 'it is the right fit for your night';
+    return 'For a ' + occ + ' with ' + sz + ' ' + energyPhrase + ', ' + pkgReason + '.';
+  }
+
+  function computePackage() {
+    if (state.occasion === 'studio') return 'studio-session';
+    if (!state.occasion || !state.size || !state.energy) return null;
+    var byOcc = RULES[state.occasion];
+    if (!byOcc) return null;
+    return byOcc[state.size][state.energy];
+  }
+
+  function renderResult() {
+    var pkgId = computePackage();
+    if (!pkgId) { resultEl.hidden = true; return; }
+    // Render the SHARED package card (single source of truth; customer-safe, no rates).
+    if (typeof GBEPackageCards !== 'undefined' && GBEPackageCards.render) {
+      GBEPackageCards.render(pkgId, cardEl);
+    }
+    whyEl.textContent = whyText(pkgId, state.occasion, state.size, state.energy);
+    ctaEl.setAttribute('href', '#ent-quote?format=' + encodeURIComponent(pkgId));
+    resultEl.hidden = false;
+  }
+
+  // Single-select helper within a button group.
+  function bindGroup(container, onPick) {
+    if (!container) return;
+    container.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn || !container.contains(btn)) return;
+      Array.prototype.forEach.call(container.querySelectorAll('button'), function (b) {
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      onPick(btn);
+    });
+  }
+
+  bindGroup(finder.querySelector('[data-testid="svc-finder-occasions"]'), function (btn) {
+    state.occasion = btn.getAttribute('data-occasion');
+    if (state.occasion === 'studio') {
+      // Studio needs no qualifiers — go straight to the recommendation.
+      qualifiersStep.hidden = true;
+      state.size = null; state.energy = null;
+      renderResult();
+    } else {
+      qualifiersStep.hidden = false;
+      renderResult(); // shows once size + energy are also chosen
+    }
+  });
+  bindGroup(finder.querySelector('[data-testid="svc-finder-size"]'), function (btn) {
+    state.size = btn.getAttribute('data-value');
+    renderResult();
+  });
+  bindGroup(finder.querySelector('[data-testid="svc-finder-energy"]'), function (btn) {
+    state.energy = btn.getAttribute('data-value');
+    renderResult();
+  });
+})();
+</script>

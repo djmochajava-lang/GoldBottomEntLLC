@@ -230,9 +230,32 @@
     if (typeof GBEPackageCards === 'undefined' || !GBEPackageCards.render) return;
     GBEPackageCards.render(formatSelect.value, packageCardEl);
   }
+  // Pre-select a package carried in from the services Best-Fit Finder
+  // (#ent-quote?format=<id>, story-services-page-interactive-best-fit). The id
+  // set matches the dropdown option values exactly. Router parses the hash query;
+  // fall back to a direct hash parse so this works even before Router is ready.
+  function getPreselectedFormat() {
+    try {
+      if (typeof Router !== 'undefined' && Router.getQueryParams) {
+        var v = Router.getQueryParams().get('format');
+        if (v) return v;
+      }
+    } catch (e) {}
+    var h = window.location.hash || '';
+    var qi = h.indexOf('?');
+    if (qi === -1) return '';
+    return new URLSearchParams(h.substring(qi + 1)).get('format') || '';
+  }
+
   if (formatSelect && packageCardEl) {
     formatSelect.addEventListener('change', renderPackageCard);
-    // Restore card if the select already holds a value (e.g. back-nav).
+    // Carry-through pre-selection wins; only apply if it's a real option.
+    var preset = getPreselectedFormat();
+    if (preset) {
+      var hasOption = Array.prototype.some.call(formatSelect.options, function (o) { return o.value === preset; });
+      if (hasOption) formatSelect.value = preset;
+    }
+    // Restore card if the select already holds a value (pre-select or back-nav).
     if (formatSelect.value) renderPackageCard();
   }
 
