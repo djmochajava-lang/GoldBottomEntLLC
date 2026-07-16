@@ -111,6 +111,11 @@
               <option value="studio-session">Studio Recording Session</option>
             </select>
             <p class="text-muted" style="font-size: var(--text-xs); margin-top: 4px;">Solo includes one 20–30 min set. All band packages include (2) 45-minute sets. Ask about custom configurations.</p>
+            <!-- Shared show-package card (story-quote-form-show-package-card): renders inline
+                 below the dropdown when a package is selected. Powered by window.GBEPackageCards
+                 (js/package-cards.js) — the SAME component the services page reuses. Customer-
+                 facing fields only; no rates. -->
+            <div id="quote-package-card" data-testid="quote-package-card" hidden></div>
           </div>
           <div class="grid grid-2">
             <div class="form-group">
@@ -213,6 +218,22 @@
   if (dateInput) {
     var today = new Date().toISOString().split('T')[0];
     dateInput.setAttribute('min', today);
+  }
+
+  // ── Show-package card (story-quote-form-show-package-card) ──
+  // Selecting a package renders the SHARED card inline below the dropdown.
+  // Changing updates it; clearing hides it. Single source: window.GBEPackageCards.
+  var formatSelect = form.querySelector('[name="performanceFormat"]');
+  var packageCardEl = document.getElementById('quote-package-card');
+  function renderPackageCard() {
+    if (!formatSelect || !packageCardEl) return;
+    if (typeof GBEPackageCards === 'undefined' || !GBEPackageCards.render) return;
+    GBEPackageCards.render(formatSelect.value, packageCardEl);
+  }
+  if (formatSelect && packageCardEl) {
+    formatSelect.addEventListener('change', renderPackageCard);
+    // Restore card if the select already holds a value (e.g. back-nav).
+    if (formatSelect.value) renderPackageCard();
   }
 
   function showFeedback(msg, isError) {
@@ -356,6 +377,8 @@
         form.reset();
         // Re-set min date after reset
         if (dateInput) dateInput.setAttribute('min', new Date().toISOString().split('T')[0]);
+        // reset() clears the select without firing 'change' — hide the card.
+        renderPackageCard();
       })
       .catch(function(err) {
         console.error('Quote form submission error:', err);
