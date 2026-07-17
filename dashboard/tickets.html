@@ -6,7 +6,7 @@
      directly. W3: wizard step 2 = Admission & Tiers (replace-set editor).
      W4: wizard step 3 = Card Image — photo staged to the PRIVATE show-intake
      bucket (own-prefix RLS), server pipeline re-encodes (EXIF stripped,
-     ≤400KB) into band-media/show-cards/ and sets image_url; the client never
+     ≤400KB) into show-media/show-cards/ and sets image_url; the client never
      sets image_url. All saves carry the EO W2 latency package: 120s poll
      budget, 30s progressive copy, offline message only post-budget,
      background queued→Saved flip. Orders/Promos/Door/Analytics stay LAN-only. -->
@@ -789,7 +789,7 @@
      W4 image leg: photo staged to the PRIVATE show-intake bucket under the
      caller's own prefix <uid>/<eventId>/<uuid>.<ext> (RLS-pinned), then the
      set_show_image relay verb — the SERVER downloads, validates magic bytes,
-     re-encodes (EXIF/GPS stripped, ≤400KB), publishes to band-media and sets
+     re-encodes (EXIF/GPS stripped, ≤400KB), publishes to show-media and sets
      image_url. The client NEVER sets image_url directly.
      ══════════════════════════════════════════════════════════════════ */
 
