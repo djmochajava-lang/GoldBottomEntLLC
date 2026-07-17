@@ -1533,7 +1533,7 @@
       var result = await pollActionResult(actionId, {
         onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
       });
-      if (!_wz) { watchQueuedAction(actionId, 'the card image'); return; } // closed mid-wait
+      if (!_wz) { _saving = false; watchQueuedAction(actionId, 'the card image'); return; } // closed mid-wait
       if (result.state === 'rejected') {
         _wz.img.phase = 'chosen'; // keep the file so Retry re-stages it
         _wz.dirty = true;
@@ -1582,7 +1582,7 @@
         var result = await pollActionResult(actionId, {
           onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
         });
-        if (!_wz) { watchQueuedAction(actionId, 'the image removal'); return; }
+        if (!_wz) { _saving = false; watchQueuedAction(actionId, 'the image removal'); return; }
         if (result.state === 'rejected') {
           setStatusStrip('failed', rejectionMessage(result.tag), removeImage);
           _saving = false;
@@ -1703,7 +1703,7 @@
       var result = await pollActionResult(actionId, {
         onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
       });
-      if (!_wz) { watchQueuedAction(actionId, 'the tier changes'); return; } // closed mid-wait — still flip the list when it lands
+      if (!_wz) { _saving = false; watchQueuedAction(actionId, 'the tier changes'); return; } // closed mid-wait — still flip the list when it lands
       if (result.state === 'rejected') {
         setStatusStrip('failed', rejectionMessage(result.tag), true);
         restoreBtn();
@@ -1816,7 +1816,7 @@
         var result = await pollActionResult(actionId, {
           onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
         });
-        if (!_wz) { watchQueuedAction(actionId, isNew ? 'your new draft' : 'your details change'); return; } // closed mid-wait — still flip the list when it lands
+        if (!_wz) { _saving = false; watchQueuedAction(actionId, isNew ? 'your new draft' : 'your details change'); return; } // closed mid-wait — still flip the list when it lands
         if (result.state === 'rejected') {
           setStatusStrip('failed', rejectionMessage(result.tag), true);
           if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details'); }
