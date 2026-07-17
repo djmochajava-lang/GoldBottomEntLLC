@@ -187,14 +187,21 @@ const Modal = {
    * @param {string} message - Confirmation message
    * @param {Function} [onConfirm] - Called if user confirms
    * @param {Function} [onCancel] - Called if user cancels
+   * @param {Object} [opts] - Optional label overrides (ADDITIVE, back-compatible —
+   *   story-show-wizard-w5, EO checklist item 5: action-specific button labels
+   *   like "Publish"/"Not yet" instead of generic "Confirm"/"Cancel").
+   * @param {string} [opts.title='Confirm'] - Dialog title
+   * @param {string} [opts.confirmText='Confirm'] - Confirm button label
+   * @param {string} [opts.cancelText='Cancel'] - Cancel button label
    */
-  confirm: function(message, onConfirm, onCancel) {
+  confirm: function(message, onConfirm, onCancel, opts) {
+    opts = opts || {};
     this.open({
-      title: 'Confirm',
+      title: opts.title || 'Confirm',
       content: '<p style="margin:0;line-height:1.6;">' + message + '</p>',
       size: 'sm',
-      saveText: 'Confirm',
-      cancelText: 'Cancel',
+      saveText: opts.confirmText || 'Confirm',
+      cancelText: opts.cancelText || 'Cancel',
       onSave: onConfirm || function() {},
       onCancel: onCancel || function() {}
     });
