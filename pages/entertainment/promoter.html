@@ -501,10 +501,17 @@
     margin-top: var(--space-md);
   }
 
+  /* EO N1: keep the gold CTA above an 800px-tall laptop fold */
+  @media (min-width: 769px) {
+    .promoter-hero .page-subtitle { margin-bottom: var(--space-md); }
+    .promoter-hero-media video { height: min(44vh, 440px); }
+  }
   @media (max-width: 768px) {
     .promoter-proof-grid { grid-template-columns: repeat(2, 1fr); }
     .promoter-format-grid { grid-template-columns: repeat(2, 1fr); }
     .promoter-band-grid { grid-template-columns: repeat(2, 1fr); }
+    /* EO N2 (E1 tablet leg): 5 cards in a 2-col grid leave an orphan — span the last card */
+    .promoter-band-grid .band-member:last-child:nth-child(odd) { grid-column: 1 / -1; }
   }
   @media (max-width: 480px) {
     .promoter-hero { padding: var(--space-sm) 0 var(--space-sm); }
