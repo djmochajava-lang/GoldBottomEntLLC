@@ -234,9 +234,10 @@ body.sidebar-mobile-open {
    Tablets / Large Phones: max-width 768px
    ============================================= */
 
-@media (max-width: 768px) {
-
-  /* --- Public Header --- */
+/* EO S5 condition (design-QA 2026-07-17): the 8-item desktop nav clips between
+   769–1199px ("Get a Quote" off-screen on iPads) — hand that band to the mobile
+   overlay, which renders every item correctly. Cutover raised from 768px. */
+@media (max-width: 1199px) {
   .public-nav {
     display: none;
   }
@@ -248,6 +249,9 @@ body.sidebar-mobile-open {
   .header-actions .dashboard-btn {
     display: none;
   }
+}
+
+@media (max-width: 768px) {
 
   /* --- Typography scale down --- */
   h1, .hero-title {
