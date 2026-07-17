@@ -1,9 +1,12 @@
-<!-- dashboard/tickets.html — Shows & Tickets (story-show-wizard-w2-wizard-core) -->
+<!-- dashboard/tickets.html — Shows & Tickets (story-show-wizard-w3-tiers-step) -->
 <!-- Shows tab: manager readmodel (Supabase, remote) / Express (LAN). Writes ride the
      booking_actions relay remotely (create_show_draft / update_show_card /
-     delete_show_draft) with own-row result polling; LAN uses the hardened
-     /api/v1/tickets routes directly. The retired legacy events store path is
-     DELETED (DEF-013 discharged). Orders/Promos/Door/Analytics stay LAN-only. -->
+     set_show_tiers / delete_show_draft) with own-row result polling; LAN uses
+     the hardened /api/v1/tickets routes directly. W3: wizard step 2 = Admission
+     & Tiers (replace-set editor); the legacy read-only Tiers tab is DELETED.
+     All saves carry the EO W2 latency package: 120s poll budget, 30s
+     progressive copy, offline message only post-budget, background queued→
+     Saved flip. Orders/Promos/Door/Analytics stay LAN-only. -->
 <div class="dashboard-page" id="dash-tickets">
   <div class="dashboard-page-header">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
@@ -19,9 +22,6 @@
   <div id="tix-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);overflow-x:auto;">
     <button class="tix-tab active" data-tab="events" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;white-space:nowrap;">
       <i class="fa-solid fa-calendar-star"></i> Shows
-    </button>
-    <button class="tix-tab" data-tab="tiers" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
-      <i class="fa-solid fa-layer-group"></i> Ticket Tiers
     </button>
     <button class="tix-tab" data-tab="orders" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
       <i class="fa-solid fa-receipt"></i> Orders
@@ -45,21 +45,8 @@
     <div id="swz-show-list"></div>
   </div>
 
-  <!-- ==================== TIERS TAB (read-only until the wizard's Admission & Tiers step ships) ==================== -->
-  <div id="tab-tiers" class="tix-tab-content" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-md);">
-      <div>
-        <label style="font-size:var(--text-sm);color:var(--color-text-muted);margin-right:var(--space-xs);">Show:</label>
-        <select id="tix-tier-event-select" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);max-width:100%;">
-          <option value="">-- Select Show --</option>
-        </select>
-      </div>
-    </div>
-    <div id="tix-tiers-view"></div>
-    <p style="margin-top:var(--space-md);font-size:var(--text-xs);color:var(--color-text-muted);">
-      <i class="fa-solid fa-circle-info"></i> Tier editing moves into the Show Wizard's Admission &amp; Tiers step — coming in the next update.
-    </p>
-  </div>
+  <!-- (W3) The read-only Tiers tab is gone — tier editing lives in the wizard's
+       Admission & Tiers step (spec §4.1: "Tab 2 'Tiers' is absorbed into the wizard"). -->
 
   <!-- ==================== ORDERS TAB ==================== -->
   <div id="tab-orders" class="tix-tab-content" style="display:none;">
@@ -274,6 +261,21 @@
   .swz-status-strip.queued { display: flex; background: rgba(210,153,34,0.12); color: #d29922; }
   .swz-status-strip.failed { display: flex; background: rgba(248,81,73,0.12); color: #f85149; }
   .swz-tier-card { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-secondary); padding: 12px; margin-bottom: 10px; }
+  .swz-tier-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .swz-tier-title { font-weight: 700; font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .swz-tier-remove {
+    background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+    color: var(--color-text-muted); cursor: pointer; min-width: 44px; min-height: 44px; font-size: 0.85rem;
+  }
+  .swz-tier-remove:hover { background: rgba(248,81,73,0.15); color: #f85149; border-color: rgba(248,81,73,0.3); }
+  .swz-tier-lock {
+    display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 10px;
+    border-radius: var(--radius-sm); background: rgba(210,153,34,0.1);
+    color: #d29922; font-size: var(--text-xs);
+  }
+  .swz-tier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 480px) { .swz-tier-grid { grid-template-columns: 1fr; } }
+  .swz-input[readonly] { opacity: 0.6; cursor: not-allowed; }
 
   @media (max-width: 768px) {
     #dash-tickets .data-table { display: block; overflow-x: auto; }
@@ -411,7 +413,10 @@
         return {
           id: String(t.id), tier_name: t.tier_name, price_cents: Math.round(Number(t.price || 0) * 100),
           capacity: Number(t.capacity || 0), sold: Number(t.sold || 0), held: Number(t.held || 0),
-          description: t.description || null
+          description: t.description || null,
+          min_per_order: (t.min_per_order != null) ? Number(t.min_per_order) : 1,
+          max_per_order: (t.max_per_order != null) ? Number(t.max_per_order) : 10,
+          sort_order: Number(t.sort_order || 0)
         };
       }),
       total_capacity: Number(evt.total_capacity || 0),
@@ -556,7 +561,7 @@
   }
 
   function populateEventSelects() {
-    var selects = [document.getElementById('tix-tier-event-select')];
+    var selects = [];
     if (isLocal) {
       selects.push(document.getElementById('tix-door-event-select'));
       selects.push(document.getElementById('tix-order-event-filter'));
@@ -587,7 +592,6 @@
       renderShowList('ok');
       renderStats();
       populateEventSelects();
-      renderTiersView();
     } catch (e) {
       console.error('[Shows] load failed:', e);
       if (e && e.message === 'not_signed_in') renderShowList('signin');
@@ -617,22 +621,81 @@
     return res.data.id;
   }
 
-  // Poll own action row. Resolves {state:'applied'|'rejected'|'pending', tag}
-  async function pollActionResult(actionId, maxMs) {
+  /* EO W2 latency-UX ruling (BINDING, AUDIT_LOG_story-show-wizard-w2 §Binding for W3):
+     the reconciler cadence is ~5min worst-case with observed ~80s edit latency, so a
+     60s budget produced FALSE "office may be offline" messages on slow-but-online
+     saves. Every wizard save now: polls for >= 120s (a full reconciler cadence),
+     switches to progressive "still working" copy at ~30s, and shows the
+     offline/queued message ONLY after the full budget. If a save resolves after
+     the user moved on, a background watcher flips queued→Saved and refreshes
+     the list row. No false offline messages under 120s. */
+  var SAVE_POLL_BUDGET_MS = 120000;   // >= a full reconciler cadence (EO ruling)
+  var SAVE_POLL_SLOW_AT_MS = 30000;   // progressive copy threshold
+  var SAVE_POLL_INTERVAL_MS = 2000;
+  var BG_WATCH_BUDGET_MS = 600000;    // background queued→Saved flip window (10 min)
+  var BG_WATCH_INTERVAL_MS = 10000;
+  var SLOW_COPY = 'Still working — the home office is syncing… (this can take a couple of minutes)';
+  var QUEUED_COPY = 'Queued — the home office may be offline; this will land automatically when it reconnects.';
+
+  // Read one action row's outcome. Resolves {state:'applied'|'rejected'|'pending', tag}
+  async function readActionResult(actionId) {
     var sb = getSb();
-    var deadline = Date.now() + (maxMs || 60000);
-    while (Date.now() < deadline) {
-      await new Promise(function(r) { setTimeout(r, 2000); });
-      var res = await sb.from('booking_actions').select('reconciled_at,result').eq('id', actionId).single();
-      if (res.error) continue; // transient read blip — keep polling until budget
-      var row = res.data || {};
-      if (row.result) {
-        if (String(row.result).indexOf('rejected:') === 0) return { state: 'rejected', tag: row.result };
-        return { state: 'applied', tag: row.result }; // applied or noop:*
+    var res = await sb.from('booking_actions').select('reconciled_at,result').eq('id', actionId).single();
+    if (res.error) return null; // transient read blip — caller keeps polling
+    var row = res.data || {};
+    if (row.result) {
+      if (String(row.result).indexOf('rejected:') === 0) return { state: 'rejected', tag: row.result };
+      return { state: 'applied', tag: row.result }; // applied or noop:*
+    }
+    if (row.reconciled_at) return { state: 'applied', tag: 'applied' }; // legacy stamp without tag
+    return { state: 'pending', tag: null };
+  }
+
+  // Poll own action row within the EO latency budget.
+  // opts: { budgetMs (default 120s), onSlow() fired once at ~30s }
+  async function pollActionResult(actionId, opts) {
+    opts = opts || {};
+    var budget = opts.budgetMs || SAVE_POLL_BUDGET_MS;
+    var start = Date.now();
+    var slowFired = false;
+    while (Date.now() - start < budget) {
+      await new Promise(function(r) { setTimeout(r, SAVE_POLL_INTERVAL_MS); });
+      if (!slowFired && (Date.now() - start) >= SAVE_POLL_SLOW_AT_MS && typeof opts.onSlow === 'function') {
+        slowFired = true;
+        try { opts.onSlow(); } catch (_) {}
       }
-      if (row.reconciled_at) return { state: 'applied', tag: 'applied' }; // legacy stamp without tag
+      var out = await readActionResult(actionId);
+      if (out && out.state !== 'pending') return out;
     }
     return { state: 'pending', tag: null };
+  }
+
+  // Background watcher for queued saves: if the action lands after the user moved
+  // on, flip the status strip queued→Saved ✓ and refresh the show list row.
+  // label = human name of what was saved (already-escaped-safe plain text).
+  function watchQueuedAction(actionId, label) {
+    var deadline = Date.now() + BG_WATCH_BUDGET_MS;
+    function tick() {
+      if (Date.now() > deadline) return;
+      setTimeout(function() {
+        readActionResult(actionId).then(function(out) {
+          if (!out || out.state === 'pending') { tick(); return; }
+          var strip = document.getElementById('swz-status');
+          if (out.state === 'applied') {
+            if (strip && strip.className.indexOf('queued') !== -1) {
+              setStatusStrip('saved', 'Saved ✓ — ' + label + ' landed at the office.', false);
+            } else if (typeof Toast !== 'undefined') {
+              Toast.success('Saved ✓ — ' + label + ' landed at the office.');
+            }
+          } else { // rejected — surface honestly even late
+            if (strip) setStatusStrip('failed', rejectionMessage(out.tag), false);
+            else if (typeof Toast !== 'undefined') Toast.error(rejectionMessage(out.tag));
+          }
+          loadShows(); // refresh the list row
+        }).catch(function() { tick(); });
+      }, BG_WATCH_INTERVAL_MS);
+    }
+    tick();
   }
 
   // Honest human mapping for rejection tags (surfaced verbatim-ish, never hidden)
@@ -644,8 +707,9 @@
       'event_not_found': 'This show no longer exists — close and refresh the list.',
       'bad_correlation_id': 'Something went wrong creating this draft — try again.',
       'not_an_unpublished_draft': 'Only never-published drafts can be deleted.',
-      'tier_has_sales': 'A tier with sales can’t be removed.',
-      'duplicate_tier_name': 'Two tiers have the same name — rename one.'
+      'tier_has_sales': 'A tier with sales can’t be removed — keep its row (capacity can still grow).',
+      'duplicate_tier_name': 'Two tiers have the same name — rename one.',
+      'min_per_order_gt_max': 'A tier’s minimum per order is higher than its maximum — fix the range.'
     };
     if (map[t]) return map[t];
     if (t.indexOf('role_') === 0) return 'Your account doesn’t have manager access for shows.';
@@ -671,13 +735,19 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
-     SHOW WIZARD — stepper shell + Step 1 (Details)  [spec §4.2]
-     Steps 2–5 (Image / Admission & Tiers / Preview / Publish) are not
-     built yet — the rail shows them locked; nothing dead is tappable.
+     SHOW WIZARD — Step 1 (Details) + Step 2 (Admission & Tiers) [spec §4.2/§W3]
+     Steps 3–5 (Image / Preview / Publish) are not built yet — the rail
+     shows them locked; nothing dead is tappable.
+     NOTE (W3 sequencing deviation from spec §4.2's ordering): the spec lists
+     Image as step 2 and Tiers as step 3, but W4 (image leg) ships after W3
+     under the strict-sequential build rule — so Admission & Tiers is step 2
+     and Image is the next locked step. EO design-QA may re-order in W4/W5.
      ══════════════════════════════════════════════════════════════════ */
 
-  var WSTEPS = ['Details', 'Image', 'Tiers', 'Preview', 'Publish'];
-  var _wz = null; // { row (null=new), corr, dirty }
+  var WSTEPS = ['Details', 'Tiers', 'Image', 'Preview', 'Publish'];       // rail labels
+  var STEP_TITLES = ['Details', 'Admission & Tiers', 'Image', 'Preview', 'Publish'];
+  var UNLOCKED_STEPS = 2; // steps 1-2 live; 3-5 locked honestly
+  var _wz = null; // { row (null=new), corr, dirty, step (1-based), tiers (step-2 working copy) }
 
   var AGE_OPTIONS = [
     { v: '', label: 'Not specified' },
@@ -698,7 +768,7 @@
   }
 
   function openWizard(row) {
-    _wz = { row: row || null, corr: row ? null : corrId(), dirty: false };
+    _wz = { row: row || null, corr: row ? null : corrId(), dirty: false, step: 1, tiers: null };
     var ov = document.createElement('div');
     ov.id = 'swz-overlay';
     document.body.appendChild(ov);
@@ -706,6 +776,8 @@
     renderWizard();
   }
 
+  // withRetry: falsy = no retry button; truthy = retry re-runs the CURRENT
+  // step's save (Details or Tiers) — or pass a function for a custom retry.
   function setStatusStrip(state, msg, withRetry) {
     var strip = document.getElementById('swz-status');
     if (!strip) return;
@@ -716,37 +788,60 @@
       (withRetry ? '<button id="swz-retry-save" class="btn btn-sm" style="min-height:36px;">Retry</button>' : '');
     if (withRetry) {
       var rb = document.getElementById('swz-retry-save');
-      if (rb) rb.addEventListener('click', saveDetails);
+      var fn = (typeof withRetry === 'function') ? withRetry
+        : ((_wz && _wz.step === 2) ? saveTiers : saveDetails);
+      if (rb) rb.addEventListener('click', fn);
     }
   }
 
+  // Navigate between unlocked steps (dirty guard owned by the caller).
+  function gotoStep(n) {
+    if (!_wz) return;
+    _wz.step = n;
+    _wz.dirty = false;
+    if (n === 2) _wz.tiers = null; // rebuild the working copy from the row
+    renderWizard();
+  }
+
+  // Shared stepper chrome: header + 5-segment rail + status strip mount.
+  function wizChrome(stepIdx /*0-based*/, headline, showName) {
+    var rail = '<div style="display:flex;gap:6px;margin-top:10px;">';
+    for (var i = 0; i < WSTEPS.length; i++) {
+      rail += '<div style="flex:1;height:4px;border-radius:2px;background:' + (i <= stepIdx ? 'var(--color-gold)' : 'var(--color-border)') + ';"></div>';
+    }
+    rail += '</div><div style="display:flex;gap:6px;margin-top:4px;">';
+    for (var j = 0; j < WSTEPS.length; j++) {
+      var lbl;
+      if (j === stepIdx) lbl = '<span style="color:var(--color-gold);font-weight:600;">' + WSTEPS[j] + '</span>';
+      else if (j < UNLOCKED_STEPS) lbl = WSTEPS[j];
+      else lbl = '<i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> ' + WSTEPS[j];
+      rail += '<div class="swz-rail-label">' + lbl + '</div>';
+    }
+    rail += '</div>';
+    return '<div style="flex-shrink:0;padding:14px 16px;border-bottom:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+          '<div style="min-width:0;"><div style="font-weight:700;font-size:var(--text-base);">' + escHtml(headline) + '</div>' +
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Step ' + (stepIdx + 1) + ' of 5 · ' + STEP_TITLES[stepIdx] + ' · ' + escHtml(showName) + '</div></div>' +
+          '<button id="swz-close" aria-label="Close" style="background:none;border:none;color:var(--color-text-muted);font-size:20px;min-width:44px;min-height:44px;cursor:pointer;">&times;</button>' +
+        '</div>' + rail +
+      '</div>' +
+      '<div id="swz-status" class="swz-status-strip"></div>';
+  }
+
   function renderWizard() {
+    if (!_wz) return;
+    if (_wz.step === 2) renderTiersStep();
+    else renderDetailsStep();
+  }
+
+  function renderDetailsStep() {
     var ov = document.getElementById('swz-overlay');
     if (!ov || !_wz) return;
     var row = _wz.row;
     var isNew = !row;
     var title = isNew ? 'New Show' : (row.event_name || '(untitled show)');
 
-    // 5-segment rail: step 1 active; 2-5 locked (visual only — not buttons)
-    var rail = '<div style="display:flex;gap:6px;margin-top:10px;">';
-    for (var i = 0; i < WSTEPS.length; i++) {
-      rail += '<div style="flex:1;height:4px;border-radius:2px;background:' + (i === 0 ? 'var(--color-gold)' : 'var(--color-border)') + ';"></div>';
-    }
-    rail += '</div><div style="display:flex;gap:6px;margin-top:4px;">';
-    for (var j = 0; j < WSTEPS.length; j++) {
-      rail += '<div class="swz-rail-label">' + (j === 0 ? '<span style="color:var(--color-gold);font-weight:600;">' + WSTEPS[j] + '</span>' : '<i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> ' + WSTEPS[j]) + '</div>';
-    }
-    rail += '</div>';
-
-    var header =
-      '<div style="flex-shrink:0;padding:14px 16px;border-bottom:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
-          '<div style="min-width:0;"><div style="font-weight:700;font-size:var(--text-base);">' + (isNew ? 'Create a Show' : 'Edit Show') + '</div>' +
-          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Step 1 of 5 · Details · ' + escHtml(title) + '</div></div>' +
-          '<button id="swz-close" aria-label="Close" style="background:none;border:none;color:var(--color-text-muted);font-size:20px;min-width:44px;min-height:44px;cursor:pointer;">&times;</button>' +
-        '</div>' + rail +
-      '</div>' +
-      '<div id="swz-status" class="swz-status-strip"></div>';
+    var header = wizChrome(0, isNew ? 'Create a Show' : 'Edit Show', title);
 
     function val(k) { return row ? (row[k] == null ? '' : String(row[k])) : ''; }
     var tr = row ? Number(row.ticket_required) : 1;
@@ -805,18 +900,27 @@
           '<div style="flex:1;"><div style="font-weight:600;">Ticketed show</div>' +
           '<div class="swz-help" style="margin-top:2px;" id="swz-ticketed-help"></div></div>' +
         '</label>' +
-        '<div class="swz-help">Ticket tiers and pricing are set up in the Admission &amp; Tiers step — coming in the next update.</div>' +
+        '<div class="swz-help">Set up tiers and pricing in the next step (Admission &amp; Tiers).</div>' +
       '</div>';
 
     var footer =
       '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
         '<button id="swz-save" class="btn btn-primary" style="min-height:48px;flex:1;font-weight:600;font-size:var(--text-base);"><i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details') + '</button>' +
+        (isNew ? '' : '<button id="swz-next-tiers" class="btn" style="min-height:48px;padding:0 16px;">Tiers <i class="fa-solid fa-arrow-right"></i></button>') +
       '</div>';
 
     ov.innerHTML = header + body + footer;
 
     document.getElementById('swz-close').addEventListener('click', function() { closeWizard(false); });
     document.getElementById('swz-save').addEventListener('click', saveDetails);
+    var nextBtn = document.getElementById('swz-next-tiers');
+    if (nextBtn) nextBtn.addEventListener('click', function() {
+      if (_wz && _wz.dirty) {
+        Modal.confirm('Discard changes to this step?', function() { gotoStep(2); });
+        return;
+      }
+      gotoStep(2);
+    });
 
     // dirty tracking + description counter + admission helper copy
     var descEl = document.getElementById('swz-desc');
@@ -895,6 +999,399 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     STEP 2 — ADMISSION & TIERS (story-show-wizard-w3, spec §4.2 Step 3)
+     Reflects the SAVED ticketRequired from Details. Ticketed shows get the
+     replace-set tier editor (≤6 rows, dollars→integer cents client-side,
+     server stays authoritative). Free shows get the honest no-tiers state
+     with the change-toggle path back to Details.
+     ══════════════════════════════════════════════════════════════════ */
+
+  function buildTierWorkingCopy(row) {
+    var tiers = (row.tiers || []).slice().sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+    return tiers.map(function(t) {
+      var dollars = Number(t.price_cents || 0) / 100;
+      return {
+        tierId: t.id || null,
+        name: t.tier_name || '',
+        priceStr: (dollars === Math.floor(dollars)) ? String(dollars) : dollars.toFixed(2),
+        capacityStr: (t.capacity != null) ? String(t.capacity) : '',
+        minStr: (t.min_per_order != null) ? String(t.min_per_order) : '1',
+        maxStr: (t.max_per_order != null) ? String(t.max_per_order) : '10',
+        description: t.description || '',
+        sold: Number(t.sold || 0),
+        held: Number(t.held || 0)
+      };
+    });
+  }
+
+  function tierHasSales(t) { return (t.sold + t.held) > 0; }
+
+  function tierCardHtml(t, idx) {
+    var hasSales = tierHasSales(t);
+    var p = 'swz-t-' + idx + '-';
+    return '<div class="swz-tier-card">' +
+      '<div class="swz-tier-head">' +
+        '<div class="swz-tier-title">Tier ' + (idx + 1) + '</div>' +
+        (hasSales ? '' :
+          '<button class="swz-tier-remove" data-remove-idx="' + idx + '" title="Remove tier" aria-label="Remove tier ' + (idx + 1) + '"><i class="fa-solid fa-trash"></i></button>') +
+      '</div>' +
+      (hasSales ?
+        '<div class="swz-tier-lock"><i class="fa-solid fa-lock"></i><span>Has sales (' + t.sold + ' sold · ' + t.held + ' held) — capacity can grow, but this tier can’t be removed or renamed.</span></div>' : '') +
+      '<label class="swz-form-label" for="' + p + 'name">Tier name *</label>' +
+      '<input id="' + p + 'name" class="swz-input" type="text" maxlength="120" value="' + escHtml(t.name) + '" placeholder="e.g. General Admission"' + (hasSales ? ' readonly' : '') + '>' +
+      '<div class="swz-field-err" id="' + p + 'name-err"></div>' +
+      '<div class="swz-tier-grid">' +
+        '<div><label class="swz-form-label" for="' + p + 'price">Price (dollars) *</label>' +
+        '<input id="' + p + 'price" class="swz-input" type="number" inputmode="decimal" min="0" max="1000" step="0.01" value="' + escHtml(t.priceStr) + '" placeholder="e.g. 25">' +
+        '<div class="swz-field-err" id="' + p + 'price-err"></div>' +
+        '<div class="swz-help">$0–$1,000 · $0 = free ticket (RSVP)</div></div>' +
+        '<div><label class="swz-form-label" for="' + p + 'cap">Capacity *</label>' +
+        '<input id="' + p + 'cap" class="swz-input" type="number" inputmode="numeric" min="0" max="5000" step="1" value="' + escHtml(t.capacityStr) + '" placeholder="e.g. 100">' +
+        '<div class="swz-field-err" id="' + p + 'cap-err"></div></div>' +
+      '</div>' +
+      '<div class="swz-tier-grid">' +
+        '<div><label class="swz-form-label" for="' + p + 'min">Min per order</label>' +
+        '<input id="' + p + 'min" class="swz-input" type="number" inputmode="numeric" min="1" max="10" step="1" value="' + escHtml(t.minStr) + '"></div>' +
+        '<div><label class="swz-form-label" for="' + p + 'max">Max per order</label>' +
+        '<input id="' + p + 'max" class="swz-input" type="number" inputmode="numeric" min="1" max="10" step="1" value="' + escHtml(t.maxStr) + '"></div>' +
+      '</div>' +
+      '<div class="swz-field-err" id="' + p + 'minmax-err"></div>' +
+      '<label class="swz-form-label" for="' + p + 'desc">Description</label>' +
+      '<textarea id="' + p + 'desc" class="swz-input" rows="2" maxlength="500" style="resize:vertical;" placeholder="What does this tier include?">' + escHtml(t.description) + '</textarea>' +
+      '<div class="swz-help"><span id="' + p + 'desc-count">' + (t.description || '').length + '</span>/500</div>' +
+    '</div>';
+  }
+
+  function renderTiersStep() {
+    var ov = document.getElementById('swz-overlay');
+    if (!ov || !_wz) return;
+    var row = _wz.row;
+    if (!row) { gotoStep(1); return; } // tiers need a landed draft
+    var title = row.event_name || '(untitled show)';
+    var header = wizChrome(1, 'Admission & Tiers', title);
+    var body, footer;
+
+    if (!Number(row.ticket_required)) {
+      // ── Honest FREE state (ticketRequired reflected from Details) ──
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">' +
+          '<div style="width:64px;height:64px;border-radius:50%;background:rgba(88,166,255,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid fa-champagne-glasses" style="color:#58a6ff;font-size:26px;"></i></div>' +
+          '<div style="font-weight:700;font-size:var(--text-lg);">Free show — no tiers needed</div>' +
+          '<div style="color:var(--color-text-muted);margin-top:8px;max-width:340px;">This show is set to Free admission. The card announces the show; guests don’t need tickets. Want to sell tickets instead? Switch the show to Ticketed in the Details step.</div>' +
+          '<button id="swz-free-to-details" class="btn" style="margin-top:20px;min-height:48px;padding:0 20px;"><i class="fa-solid fa-arrow-left"></i> Change Admission in Details</button>' +
+        '</div>';
+      footer =
+        '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+          '<button id="swz-back-details" class="btn" style="min-height:48px;padding:0 16px;"><i class="fa-solid fa-arrow-left"></i> Details</button>' +
+          '<div style="flex:1;"></div>' +
+        '</div>';
+      ov.innerHTML = header + body + footer;
+      document.getElementById('swz-close').addEventListener('click', function() { closeWizard(false); });
+      document.getElementById('swz-back-details').addEventListener('click', function() { gotoStep(1); });
+      document.getElementById('swz-free-to-details').addEventListener('click', function() { gotoStep(1); });
+      return;
+    }
+
+    // ── Ticketed: the tier editor ──
+    if (!_wz.tiers) _wz.tiers = buildTierWorkingCopy(row);
+    var tiers = _wz.tiers;
+    var atCap = tiers.length >= 6;
+
+    var listHtml;
+    if (!tiers.length) {
+      listHtml =
+        '<div class="tix-lan-msg" style="margin-top:14px;">' +
+          '<i class="fa-solid fa-layer-group"></i>' +
+          '<h3 style="margin-bottom:var(--space-xs);">No tiers yet</h3>' +
+          '<p>A ticketed show needs at least one tier before it can publish. Add your first tier below.</p></div>';
+    } else {
+      listHtml = tiers.map(tierCardHtml).join('');
+    }
+
+    body =
+      '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
+        '<p style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm);">Ticket tiers for this show — up to 6. Saving replaces the show’s full tier list, so removals apply when you save.</p>' +
+        listHtml +
+        '<button id="swz-add-tier" class="btn" style="margin-top:12px;min-height:48px;width:100%;"' + (atCap ? ' disabled' : '') + '><i class="fa-solid fa-plus"></i> Add Tier</button>' +
+        (atCap ? '<div class="swz-help" style="text-align:center;">Up to 6 tiers per show.</div>' : '') +
+      '</div>';
+
+    footer =
+      '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<button id="swz-back-details" class="btn" style="min-height:48px;padding:0 16px;"><i class="fa-solid fa-arrow-left"></i> Details</button>' +
+        '<button id="swz-save-tiers" class="btn btn-primary" style="min-height:48px;flex:1;font-weight:600;font-size:var(--text-base);"><i class="fa-solid fa-floppy-disk"></i> Save Tiers</button>' +
+      '</div>';
+
+    ov.innerHTML = header + body + footer;
+
+    document.getElementById('swz-close').addEventListener('click', function() { closeWizard(false); });
+    document.getElementById('swz-back-details').addEventListener('click', function() {
+      if (_wz && _wz.dirty) { Modal.confirm('Discard changes to this step?', function() { gotoStep(1); }); return; }
+      gotoStep(1);
+    });
+    document.getElementById('swz-save-tiers').addEventListener('click', saveTiers);
+
+    var addBtn = document.getElementById('swz-add-tier');
+    if (addBtn) addBtn.addEventListener('click', function() {
+      if (!_wz || _wz.tiers.length >= 6) return;
+      syncTierInputsToWorkingCopy();
+      _wz.tiers.push({ tierId: null, name: '', priceStr: '', capacityStr: '', minStr: '1', maxStr: '10', description: '', sold: 0, held: 0 });
+      _wz.dirty = true;
+      renderTiersStep();
+    });
+
+    ov.querySelectorAll('.swz-tier-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        if (!_wz) return;
+        var idx = Number(btn.dataset.removeIdx);
+        syncTierInputsToWorkingCopy();
+        _wz.tiers.splice(idx, 1);
+        _wz.dirty = true;
+        renderTiersStep();
+      });
+    });
+
+    // live working-copy sync + dirty tracking + description counters
+    tiers.forEach(function(t, idx) {
+      var p = 'swz-t-' + idx + '-';
+      [['name', 'name'], ['price', 'priceStr'], ['cap', 'capacityStr'], ['min', 'minStr'], ['max', 'maxStr'], ['desc', 'description']].forEach(function(pair) {
+        var el = document.getElementById(p + pair[0]);
+        if (!el) return;
+        el.addEventListener('input', function() {
+          if (!_wz) return;
+          _wz.tiers[idx][pair[1]] = el.value;
+          _wz.dirty = true;
+          if (pair[0] === 'desc') {
+            var c = document.getElementById(p + 'desc-count');
+            if (c) c.textContent = String((el.value || '').length);
+          }
+        });
+      });
+    });
+  }
+
+  // Pull current DOM values into the working copy (before add/remove re-renders).
+  function syncTierInputsToWorkingCopy() {
+    if (!_wz || !_wz.tiers) return;
+    _wz.tiers.forEach(function(t, idx) {
+      var p = 'swz-t-' + idx + '-';
+      var g = function(id) { var el = document.getElementById(p + id); return el ? el.value : null; };
+      if (g('name') !== null) t.name = g('name');
+      if (g('price') !== null) t.priceStr = g('price');
+      if (g('cap') !== null) t.capacityStr = g('cap');
+      if (g('min') !== null) t.minStr = g('min');
+      if (g('max') !== null) t.maxStr = g('max');
+      if (g('desc') !== null) t.description = g('desc');
+    });
+  }
+
+  // Client validation mirroring show-card-schemas.js set_show_tiers + the
+  // lander's cross-field guards (server stays authoritative).
+  function collectTiers() {
+    syncTierInputsToWorkingCopy();
+    var errors = {};
+    var payload = [];
+    var seenNames = {};
+    _wz.tiers.forEach(function(t, idx) {
+      var p = 'swz-t-' + idx + '-';
+      var name = String(t.name || '').trim();
+      if (!name) errors[p + 'name'] = 'Tier name is required.';
+      else if (name.length > 120) errors[p + 'name'] = 'Keep the name under 120 characters.';
+      else {
+        var key = name.toLowerCase();
+        if (seenNames[key] !== undefined) {
+          errors[p + 'name'] = 'Two tiers have the same name — rename one.';
+          errors['swz-t-' + seenNames[key] + '-name'] = 'Two tiers have the same name — rename one.';
+        } else seenNames[key] = idx;
+      }
+
+      var priceStr = String(t.priceStr || '').trim();
+      var cents = null;
+      if (priceStr === '') errors[p + 'price'] = 'Price is required — use 0 for a free ticket.';
+      else if (!/^\d+(\.\d{1,2})?$/.test(priceStr)) errors[p + 'price'] = 'Use dollars and cents, e.g. 25 or 25.50.';
+      else {
+        cents = Math.round(parseFloat(priceStr) * 100);
+        if (cents > 100000) errors[p + 'price'] = 'Prices are capped at $1,000.';
+      }
+
+      var capStr = String(t.capacityStr || '').trim();
+      var cap = Number(capStr);
+      var floor = t.sold + t.held;
+      if (capStr === '' || !isFinite(cap) || cap !== Math.floor(cap) || cap < 0 || cap > 5000) {
+        errors[p + 'cap'] = 'Capacity must be a whole number between 0 and 5,000.';
+      } else if (cap < floor) {
+        errors[p + 'cap'] = 'Capacity can’t go below ' + floor + ' — ' + floor + ' ticket' + (floor === 1 ? ' is' : 's are') + ' already sold or held.';
+      }
+
+      var mn = Number(String(t.minStr || '').trim() || '1');
+      var mx = Number(String(t.maxStr || '').trim() || '10');
+      if (!isFinite(mn) || mn !== Math.floor(mn) || mn < 1 || mn > 10 ||
+          !isFinite(mx) || mx !== Math.floor(mx) || mx < 1 || mx > 10) {
+        errors[p + 'minmax'] = 'Per-order limits must be whole numbers from 1 to 10.';
+      } else if (mn > mx) {
+        errors[p + 'minmax'] = 'Min per order can’t exceed max per order.';
+      }
+
+      payload.push({
+        tierName: name,
+        price_cents: cents === null ? 0 : cents,
+        capacity: isFinite(cap) ? cap : 0,
+        description: String(t.description || '').trim(),
+        minPerOrder: mn,
+        maxPerOrder: mx
+      });
+    });
+    return { tiers: payload, errors: errors };
+  }
+
+  function showTierErrors(errors) {
+    if (!_wz || !_wz.tiers) return;
+    _wz.tiers.forEach(function(t, idx) {
+      var p = 'swz-t-' + idx + '-';
+      ['name', 'price', 'cap', 'minmax'].forEach(function(f) {
+        var el = document.getElementById(p + (f === 'minmax' ? 'min' : f));
+        var err = document.getElementById(p + f + '-err');
+        var msg = errors[p + f];
+        if (el && f !== 'minmax') el.classList[msg ? 'add' : 'remove']('swz-invalid');
+        if (f === 'minmax') {
+          var mnEl = document.getElementById(p + 'min'), mxEl = document.getElementById(p + 'max');
+          if (mnEl) mnEl.classList[msg ? 'add' : 'remove']('swz-invalid');
+          if (mxEl) mxEl.classList[msg ? 'add' : 'remove']('swz-invalid');
+        }
+        if (err) { err.textContent = msg || ''; err.style.display = msg ? 'block' : 'none'; }
+      });
+    });
+  }
+
+  // Signature check so the readmodel echo can be recognized post-save
+  // (capacity deliberately NOT compared — the server clamps it to sold+held).
+  function tiersEcho(row, sentTiers) {
+    var got = (row.tiers || []).map(function(t) { return String(t.tier_name || '').trim().toLowerCase() + '|' + Number(t.price_cents || 0); }).sort();
+    var want = sentTiers.map(function(t) { return t.tierName.trim().toLowerCase() + '|' + t.price_cents; }).sort();
+    return got.join(',') === want.join(',');
+  }
+
+  // Poll the manager readmodel for the refreshed row (remote read-model lag cover).
+  async function refreshRowRemote(eventId, predicate, maxMs) {
+    var sb = getSb();
+    if (!sb) return null;
+    var deadline = Date.now() + (maxMs || 20000);
+    var last = null;
+    while (Date.now() < deadline) {
+      var res = await sb.from('ticket_event_manager_readmodel').select('*').eq('id', String(eventId)).limit(1);
+      if (!res.error && res.data && res.data.length) {
+        var row = res.data[0];
+        if (typeof row.tiers === 'string') { try { row.tiers = JSON.parse(row.tiers); } catch (_) { row.tiers = []; } }
+        if (!Array.isArray(row.tiers)) row.tiers = [];
+        last = row;
+        if (!predicate || predicate(row)) return row;
+      }
+      await new Promise(function(r) { setTimeout(r, 2500); });
+    }
+    return last;
+  }
+
+  async function saveTiers() {
+    if (_saving || !_wz || !_wz.row) return;
+    var c = collectTiers();
+    showTierErrors(c.errors);
+    if (Object.keys(c.errors).length) {
+      setStatusStrip('failed', 'Fix the highlighted fields.', false);
+      return;
+    }
+    var row = _wz.row;
+    var sent = c.tiers;
+    _saving = true;
+    var btn = document.getElementById('swz-save-tiers');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
+    setStatusStrip('saving', 'Saving tiers… (reaches the office within a minute)', false);
+
+    function restoreBtn() {
+      var b = document.getElementById('swz-save-tiers');
+      if (b) { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Tiers'; }
+    }
+
+    try {
+      if (isLocal) {
+        // LAN parity: replace-set expressed through the hardened per-tier routes
+        // (same Joi bounds module as the relay), correlated by tier id.
+        var keptIds = {};
+        sent.forEach(function(t, i) { var w = _wz.tiers[i]; if (w && w.tierId) keptIds[w.tierId] = true; });
+        for (var d = 0; d < (row.tiers || []).length; d++) {
+          var ex = row.tiers[d];
+          if (!keptIds[ex.id]) {
+            var delResp = await tFetch('/tiers/' + encodeURIComponent(ex.id), { method: 'DELETE' });
+            if (!delResp.ok) { var db1 = await delResp.json().catch(function() { return {}; }); throw new Error(db1.message || db1.error || ('Server responded ' + delResp.status)); }
+          }
+        }
+        for (var i2 = 0; i2 < sent.length; i2++) {
+          var w2 = _wz.tiers[i2];
+          var lanBody = {
+            tierName: sent[i2].tierName,
+            price: sent[i2].price_cents / 100,
+            capacity: sent[i2].capacity,
+            description: sent[i2].description || null,
+            minPerOrder: sent[i2].minPerOrder,
+            maxPerOrder: sent[i2].maxPerOrder,
+            sortOrder: i2
+          };
+          var resp2 = (w2 && w2.tierId)
+            ? await tFetch('/tiers/' + encodeURIComponent(w2.tierId), { method: 'PUT', body: JSON.stringify(lanBody) })
+            : await tFetch('/events/' + encodeURIComponent(row.id) + '/tiers', { method: 'POST', body: JSON.stringify(lanBody) });
+          if (!resp2.ok) { var eb2 = await resp2.json().catch(function() { return {}; }); throw new Error(eb2.message || eb2.error || ('Server responded ' + resp2.status)); }
+        }
+        var fresh = await tFetch('/events/' + encodeURIComponent(row.id)).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
+        _saving = false;
+        if (!_wz) { loadShows(); return; }
+        _wz.dirty = false;
+        if (fresh) _wz.row = normalizeLanEvent(fresh);
+        _wz.tiers = null;
+        renderTiersStep();
+        setStatusStrip('saved', 'Tiers saved ✓', false);
+        loadShows();
+        return;
+      }
+
+      // Remote: one replace-set relay verb + EO latency-budget poll
+      var actionId = await relayWrite('set_show_tiers', row.id, { tiers: sent });
+      var result = await pollActionResult(actionId, {
+        onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
+      });
+      if (!_wz) { watchQueuedAction(actionId, 'the tier changes'); return; } // closed mid-wait — still flip the list when it lands
+      if (result.state === 'rejected') {
+        setStatusStrip('failed', rejectionMessage(result.tag), true);
+        restoreBtn();
+        _saving = false;
+        return;
+      }
+      if (result.state === 'pending') {
+        // Full 120s budget exhausted — ONLY NOW may the offline copy appear.
+        setStatusStrip('queued', QUEUED_COPY, false);
+        restoreBtn();
+        _wz.dirty = false; // queued server-side (staging row persisted)
+        _saving = false;
+        watchQueuedAction(actionId, 'the tier changes for “' + (row.event_name || 'this show') + '”');
+        return;
+      }
+      // applied — pick up the server truth (ids, clamps, sort) from the readmodel echo
+      _saving = false;
+      _wz.dirty = false;
+      var freshRow = await refreshRowRemote(row.id, function(r) { return tiersEcho(r, sent); }, 20000);
+      if (!_wz) { loadShows(); return; }
+      var lagged = !(freshRow && tiersEcho(freshRow, sent));
+      if (freshRow) _wz.row = freshRow;
+      _wz.tiers = null;
+      renderTiersStep();
+      setStatusStrip('saved', lagged ? 'Changes saved — refreshing…' : 'Tiers saved ✓', false);
+      loadShows();
+    } catch (e) {
+      if (_wz) setStatusStrip('failed', 'Could not save: ' + (e && e.message ? e.message : 'unknown error'), true);
+      restoreBtn();
+      _saving = false;
+    }
+  }
+
   // Diff payload vs the loaded row for update_show_card (min 1 key server rule)
   function diffAgainstRow(payload, row) {
     var out = {};
@@ -969,8 +1466,12 @@
         } else {
           actionId = await relayWrite('update_show_card', _wz.row.id, payload);
         }
-        var result = await pollActionResult(actionId, 60000);
-        if (!_wz) return; // wizard closed mid-wait — change still lands server-side
+        // EO W2 latency package: 120s budget, progressive copy at ~30s,
+        // offline message ONLY after the full budget.
+        var result = await pollActionResult(actionId, {
+          onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
+        });
+        if (!_wz) { watchQueuedAction(actionId, isNew ? 'your new draft' : 'your details change'); return; } // closed mid-wait — still flip the list when it lands
         if (result.state === 'rejected') {
           setStatusStrip('failed', rejectionMessage(result.tag), true);
           if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details'); }
@@ -978,11 +1479,13 @@
           return;
         }
         if (result.state === 'pending') {
-          // The S5-gap fix, made visible: honest queued state — never an infinite spinner
-          setStatusStrip('queued', 'Queued — the home office may be offline; this will land automatically when it reconnects.', false);
+          // Full 120s budget exhausted — ONLY NOW may the offline copy appear
+          // (the S5-gap fix, made visible: honest queued state — never an infinite spinner).
+          setStatusStrip('queued', QUEUED_COPY, false);
           if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details'); }
           _wz.dirty = false; // inputs are queued server-side (staging row persisted)
           _saving = false;
+          watchQueuedAction(actionId, isNew ? ('your new draft “' + (payload.eventName || 'show') + '”') : ('the details for “' + (_wz.row.event_name || 'this show') + '”'));
           return;
         }
         await onSaveLanded(isNew, isNew ? _wz.corr : null);
@@ -1024,18 +1527,20 @@
           '<div style="font-weight:600;margin-bottom:8px;"><i class="fa-solid fa-road" style="color:var(--color-gold);"></i> Coming in the next updates</div>' +
           '<div style="color:var(--color-text-muted);line-height:1.7;">' +
             '<i class="fa-solid fa-image" style="width:18px;"></i> Card image upload<br>' +
-            '<i class="fa-solid fa-layer-group" style="width:18px;"></i> Admission &amp; ticket tiers<br>' +
             '<i class="fa-solid fa-eye" style="width:18px;"></i> Live card preview<br>' +
             '<i class="fa-solid fa-bullhorn" style="width:18px;"></i> Publish / unpublish' +
           '</div></div>' +
         '<div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center;">' +
           (canReopen ? '<button id="swz-again" class="btn" style="min-height:48px;padding:0 20px;">Edit Details Again</button>' : '') +
+          (canReopen ? '<button id="swz-go-tiers" class="btn" style="min-height:48px;padding:0 20px;"><i class="fa-solid fa-layer-group"></i> Admission &amp; Tiers</button>' : '') +
           '<button id="swz-done" class="btn btn-primary" style="min-height:48px;padding:0 28px;font-weight:600;">Done</button>' +
         '</div></div>';
     var done = document.getElementById('swz-done');
     if (done) done.addEventListener('click', function() { closeWizard(true); });
     var again = document.getElementById('swz-again');
     if (again) again.addEventListener('click', function() { renderWizard(); });
+    var goTiers = document.getElementById('swz-go-tiers');
+    if (goTiers) goTiers.addEventListener('click', function() { gotoStep(2); });
   }
 
   /* ── Draft delete (delete_show_draft — never-published drafts only) ── */
@@ -1052,13 +1557,17 @@
           loadShows();
           return;
         }
-        if (typeof Toast !== 'undefined') Toast.info('Deleting draft…');
+        if (typeof Toast !== 'undefined') Toast.info('Deleting draft… (reaches the office within a minute)');
         var actionId = await relayWrite('delete_show_draft', row.id, {});
-        var result = await pollActionResult(actionId, 60000);
+        // Same EO 120s latency budget as the wizard saves — no false offline messages.
+        var result = await pollActionResult(actionId, {
+          onSlow: function() { if (typeof Toast !== 'undefined') Toast.info(SLOW_COPY); }
+        });
         if (result.state === 'rejected') {
           if (typeof Toast !== 'undefined') Toast.error(rejectionMessage(result.tag));
         } else if (result.state === 'pending') {
           if (typeof Toast !== 'undefined') Toast.warning ? Toast.warning('Delete queued — the home office may be offline; it will land when it reconnects.') : Toast.info('Delete queued — it will land when the office reconnects.');
+          watchQueuedAction(actionId, 'the draft delete');
         } else {
           if (typeof Toast !== 'undefined') Toast.success('Draft deleted');
         }
@@ -1077,46 +1586,8 @@
     openWizard(null);
   });
 
-  /* ══════════════════════════════════════════════════════════════════
-     TIERS TAB — read-only view from the same show rows (interim; tier
-     EDITING ships with the wizard's Admission & Tiers step)
-     ══════════════════════════════════════════════════════════════════ */
-
-  var tierEventSel = document.getElementById('tix-tier-event-select');
-  tierEventSel.addEventListener('change', renderTiersView);
-
-  function renderTiersView() {
-    var view = document.getElementById('tix-tiers-view');
-    if (!view) return;
-    var id = tierEventSel.value;
-    if (!id) {
-      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Select a show above to see its ticket tiers.</p>';
-      return;
-    }
-    var row = showsCache.find(function(s) { return s.id === id; });
-    var tiers = row ? (row.tiers || []) : [];
-    if (!row) {
-      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Show not found — refresh the list.</p>';
-      return;
-    }
-    if (!Number(row.ticket_required)) {
-      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">This is a free show — no ticket tiers needed.</p>';
-      return;
-    }
-    if (!tiers.length) {
-      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">No tiers yet for this show.</p>';
-      return;
-    }
-    view.innerHTML = tiers.map(function(t) {
-      return '<div class="swz-tier-card">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
-          '<div style="font-weight:700;">' + escHtml(t.tier_name) + '</div>' +
-          '<div style="color:var(--color-gold);font-weight:700;">' + centsToLabel(t.price_cents) + '</div></div>' +
-        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">' +
-          'Capacity ' + (t.capacity || 0) + ' · Sold ' + (t.sold || 0) +
-          (t.description ? ' · ' + escHtml(t.description) : '') + '</div></div>';
-    }).join('');
-  }
+  // (W3) The legacy read-only Tiers tab JS is gone — tier editing lives in
+  // the wizard's Admission & Tiers step above.
 
   // ══════════════════════════════════════════
   //  ORDERS TAB (Express — LAN only)
