@@ -2432,8 +2432,8 @@ const Auth = {
           '<i class="fa-solid fa-shield-halved" style="font-size:36px;color:#d4a017;margin-bottom:12px;display:block;"></i>' +
           '<p style="margin:0;color:rgba(255,255,255,0.6);font-size:14px;line-height:1.5;">' +
             (isLocal
-              ? 'Enter your PIN or sign in<br>to access the dashboard.'
-              : 'Sign in to request<br>dashboard access.') +
+              ? 'Enter your PIN or sign in<br>to access your portal.'
+              : 'Sign in to your<br>Gold Bottom portal.') +
           '</p>' +
         '</div>' +
         // PIN section (LAN only)
@@ -2522,7 +2522,7 @@ const Auth = {
       '</div>';
 
     Modal.open({
-      title: 'Dashboard Access',
+      title: 'Portal Sign-In',
       content: contentHTML,
       size: 'sm',
       showFooter: false,
