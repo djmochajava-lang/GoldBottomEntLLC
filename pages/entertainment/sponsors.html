@@ -1,0 +1,360 @@
+<!-- pages/entertainment/sponsors.html — Sponsors (sizzle S6, DESIGN_sell-the-sizzle §2h)
+     The 5th business-partner lane (owner doctrine 07-16; L.A.'s request).
+     DEGRADED version ships by design: NO tiers, NO prices, NO audience numbers —
+     those are owner+Finance-gated (OI-9/OI-10). Placement CONCEPTS only, phrased
+     as opportunities. Intake rides the FROZEN contact wire (formType
+     'entertainment' → SoR lane general) with inquiryType 'sponsorship'.
+     Every factual claim on this page traces to the SoR ticket_events published
+     rows, the EPK, or an owner record — do not add claims without a source. -->
+<section class="page-section" id="page-ent-sponsors">
+  <div class="container">
+
+    <!-- Hero -->
+    <div class="sponsors-hero reveal">
+      <h1 class="page-title">Partner With the Show</h1>
+      <p class="page-subtitle">Put your brand in the room when Washington, DC comes out for The Phyllis Hyman Experience.</p>
+      <div class="sponsors-hero-cta">
+        <a href="#" class="btn btn-primary btn-lg shimmer-sweep"
+           onclick="document.getElementById('sponsor-intake').scrollIntoView({behavior:'smooth'});return false;">
+          <i class="fa-solid fa-handshake"></i> Start a Sponsorship Conversation
+        </a>
+      </div>
+    </div>
+
+    <!-- What you're sponsoring — facts only, no numbers (OI-10 gate) -->
+    <div class="sponsors-property reveal">
+      <h2 class="section-heading">What You're Sponsoring</h2>
+      <p class="sponsors-lead">
+        Gold Bottom Entertainment produces live soul and jazz events in the
+        Washington, DC Metro area, built around the music of Phyllis Hyman &mdash;
+        a catalog audiences already know and love. Sponsorship puts your name on
+        two announced productions:
+      </p>
+      <div class="sponsors-show-grid">
+        <div class="glass-card sponsor-show-card">
+          <i class="fa-solid fa-star"></i>
+          <h3>The Phyllis Hyman Experience</h3>
+          <p class="show-meta">September 26, 2026 &bull; Washington, DC<br /><span class="show-meta-sub">Venue announcement soon</span></p>
+          <p>A ticketed showcase featuring L.A. Young &amp; Soul Society &mdash; tickets on sale now.</p>
+        </div>
+        <div class="glass-card sponsor-show-card">
+          <i class="fa-solid fa-music"></i>
+          <h3>L.A. Young &amp; Soul Society &mdash; Live</h3>
+          <p class="show-meta">October 17, 2026 &bull; Washington, DC<br /><span class="show-meta-sub">Venue announcement soon</span></p>
+          <p>A free show &mdash; no ticket needed &mdash; and a second moment for your brand in front of this audience.</p>
+        </div>
+      </div>
+      <p class="sponsors-honest-note">
+        The audience is the one Phyllis Hyman's music has always drawn: grown-folks
+        soul and jazz listeners across the DMV. We don't publish attendance
+        projections or reach statistics &mdash; what we offer is a named show, a real
+        date, and a brand-safe night your name can ride on, produced end-to-end by
+        Gold Bottom Entertainment: online ticketing, email confirmations, scanned
+        door entry, and live show pages on our sites.
+      </p>
+      <blockquote class="press-quote glass-card sponsors-quote">
+        <p><i class="fa-solid fa-quote-left" style="color: var(--color-gold); margin-right: var(--space-xs);"></i>
+          ...made you believe, for just one night, that the Queen was alive and among us.</p>
+        <cite>&mdash; Tony "Doc" Hardy, Radio Host &bull; Jazz and Soul on Ice &bull; WPKN 89.5 FM Bridgeport, CT</cite>
+      </blockquote>
+    </div>
+
+    <!-- Placement concepts — opportunities, not commitments; tiers/prices are OI-9-gated -->
+    <div class="sponsors-placements reveal">
+      <h2 class="section-heading">Placement Opportunities</h2>
+      <p class="sponsors-lead">Opportunities include:</p>
+      <div class="sponsors-placement-grid">
+        <div class="glass-card placement-card">
+          <i class="fa-solid fa-window-maximize"></i>
+          <h4>Show &amp; Ticket Pages</h4>
+          <p>Logo presence on the show and ticket pages our audience uses to find and buy.</p>
+        </div>
+        <div class="glass-card placement-card">
+          <i class="fa-solid fa-envelope-open-text"></i>
+          <h4>Ticket Emails</h4>
+          <p>Logo or mention in the confirmation emails every ticket buyer receives.</p>
+        </div>
+        <div class="glass-card placement-card">
+          <i class="fa-solid fa-people-group"></i>
+          <h4>Event-Day Presence</h4>
+          <p>Banner or table placement at the venue, and a verbal thank-you from the stage.</p>
+        </div>
+        <div class="glass-card placement-card">
+          <i class="fa-solid fa-bullhorn"></i>
+          <h4>Announcements</h4>
+          <p>Inclusion in show announcements as the dates roll out.</p>
+        </div>
+      </div>
+      <p class="sponsors-tailored-note">
+        We don't sell fixed tiers off a rate card &mdash; every sponsorship package
+        is tailored per partner. Tell us what matters to your brand and we'll shape
+        a proposal around it.
+      </p>
+    </div>
+
+    <!-- Why this show — association pitch, individual credibility ONCE -->
+    <div class="sponsors-why glass-card reveal">
+      <h2 class="section-heading">Why This Show</h2>
+      <p>
+        You may not know the band yet &mdash; but this audience knows this music,
+        and a sponsor here isn't an interruption. Your brand is welcomed into a
+        warm room that came out for songs it already loves. The show is fronted by
+        L.A. Young &mdash; named Artist of the Year at the 2018 Maryland Music
+        Awards &mdash; with players whose credits span P-Funk, The Temptations,
+        and the Maryland Entertainment Hall of Fame.
+      </p>
+    </div>
+
+    <!-- Sponsorship interest intake — SHORT partner-contact form (§2h-5).
+         Wire: formType 'entertainment' (FROZEN) + inquiryType 'sponsorship'
+         → Forms.submitContact 3-strategy relay → SoR booking_inbox lane general,
+         same triage rail the S5 interim used. Zero server change. -->
+    <div class="glass-card sponsors-intake reveal" id="sponsor-intake">
+      <h2>Start the Conversation</h2>
+      <p class="sponsors-intake-sub">Tell us a little about your organization &mdash; we'll respond within 24 hours.</p>
+      <form id="sponsor-intake-form" data-form="sponsor-intake">
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="sp-name">Full Name *</label>
+            <input type="text" class="form-input" id="sp-name" name="name" required placeholder="Your name" minlength="2" maxlength="200" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="sp-org">Organization</label>
+            <input type="text" class="form-input" id="sp-org" name="organization" placeholder="Company or organization" maxlength="200" />
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="sp-email">Email *</label>
+            <input type="email" class="form-input" id="sp-email" name="email" required placeholder="you@example.com" maxlength="254" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="sp-phone">Phone</label>
+            <input type="tel" class="form-input" id="sp-phone" name="phone" placeholder="(555) 123-4567" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sp-message">What interests you? *</label>
+          <textarea class="form-textarea" id="sp-message" name="message" rows="5" required maxlength="3000"
+                    placeholder="Which show, what kind of presence, what your brand is looking for..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sp-budget">Sponsorship Budget Comfort</label>
+          <select class="form-select" id="sp-budget" name="budgetRange">
+            <option value="">Select range (optional)...</option>
+            <option value="under-1000">Under $1,000</option>
+            <option value="1000-2500">$1,000 - $2,500</option>
+            <option value="2500-5000">$2,500 - $5,000</option>
+            <option value="5000-plus">$5,000+</option>
+            <option value="discuss">Prefer to Discuss</option>
+          </select>
+        </div>
+        <div class="form-status" id="sp-form-status" style="display:none;"></div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block shimmer-sweep" id="sp-submit-btn">
+          <i class="fa-solid fa-paper-plane"></i> Send Sponsorship Inquiry
+        </button>
+      </form>
+    </div>
+
+    <!-- Cross-links (§2h-6) -->
+    <p class="sponsors-crosslinks reveal">
+      Booking the band instead? <a href="#ent-quote">Get a Quote <i class="fa-solid fa-arrow-right"></i></a>
+      <span class="crosslink-sep">&bull;</span>
+      See the show <a href="#ent-tickets">Tickets <i class="fa-solid fa-arrow-right"></i></a>
+    </p>
+
+  </div>
+</section>
+
+<style>
+  /* Sponsors page — sizzle S6 (§2h). Gold glass-card design system, mobile-first 390px. */
+  .sponsors-hero { text-align: center; padding: var(--space-lg) 0 var(--space-md); }
+  .sponsors-hero-cta { margin-top: var(--space-md); }
+
+  #page-ent-sponsors .section-heading {
+    font-family: 'Montserrat', sans-serif;
+    text-align: center;
+    margin-bottom: var(--space-md);
+  }
+
+  .sponsors-lead {
+    color: var(--color-text-secondary);
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto var(--space-lg);
+    line-height: 1.7;
+  }
+
+  .sponsors-property, .sponsors-placements { margin-top: var(--space-2xl); }
+
+  .sponsors-show-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--space-lg);
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .sponsor-show-card { text-align: center; padding: var(--space-lg); }
+  .sponsor-show-card > i { font-size: var(--text-2xl); color: var(--color-gold); margin-bottom: var(--space-sm); display: block; }
+  .sponsor-show-card h3 { font-family: 'Montserrat', sans-serif; font-size: var(--text-lg); margin-bottom: var(--space-xs); }
+  .sponsor-show-card .show-meta { color: var(--color-gold); font-size: var(--text-sm); margin-bottom: var(--space-sm); }
+  .sponsor-show-card .show-meta-sub { color: var(--color-text-muted); font-style: italic; }
+  .sponsor-show-card p { color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.6; }
+
+  .sponsors-honest-note {
+    color: var(--color-text-secondary);
+    max-width: 720px;
+    margin: var(--space-lg) auto 0;
+    text-align: center;
+    line-height: 1.8;
+  }
+  .sponsors-quote { max-width: 720px; margin: var(--space-lg) auto 0; }
+
+  .sponsors-placement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-md);
+  }
+  .placement-card { text-align: center; padding: var(--space-lg) var(--space-md); }
+  .placement-card i { font-size: var(--text-xl); color: var(--color-gold); margin-bottom: var(--space-sm); display: block; }
+  .placement-card h4 { font-family: 'Montserrat', sans-serif; margin-bottom: var(--space-xs); overflow-wrap: break-word; }
+  .placement-card p { color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.6; }
+
+  .sponsors-tailored-note {
+    color: var(--color-text-secondary);
+    text-align: center;
+    max-width: 680px;
+    margin: var(--space-lg) auto 0;
+    line-height: 1.7;
+  }
+
+  .sponsors-why {
+    max-width: 720px;
+    margin: var(--space-2xl) auto 0;
+    padding: var(--space-xl);
+  }
+  .sponsors-why p { color: var(--color-text-secondary); line-height: 1.8; }
+
+  .sponsors-intake {
+    max-width: 720px;
+    margin: var(--space-2xl) auto 0;
+    padding: var(--space-xl);
+  }
+  .sponsors-intake h2 { font-family: 'Montserrat', sans-serif; margin-bottom: var(--space-xs); }
+  .sponsors-intake-sub { color: var(--color-text-muted); font-size: var(--text-sm); margin-bottom: var(--space-lg); }
+
+  .sponsors-crosslinks {
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    margin-top: var(--space-xl);
+  }
+  .sponsors-crosslinks a { color: var(--color-gold); text-decoration: none; }
+  .sponsors-crosslinks a:hover { text-decoration: underline; }
+  .sponsors-crosslinks .crosslink-sep { margin: 0 var(--space-sm); color: var(--color-text-muted); }
+
+  @media (max-width: 480px) {
+    .sponsors-hero { padding: var(--space-sm) 0 var(--space-sm); }
+    .sponsors-hero .page-title { font-size: var(--text-2xl); margin-bottom: var(--space-xs); }
+    .sponsors-hero .page-subtitle { font-size: var(--text-base); margin-bottom: 0; }
+    .sponsors-show-grid { grid-template-columns: 1fr; }
+    /* minmax(0,1fr): plain 1fr = minmax(auto,1fr) — content min-size made the
+       columns unequal (148/240px) and clipped past the 390px viewport. */
+    .sponsors-placement-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    /* "Announcements" is a single long word — keep headings inside the narrow cards */
+    .placement-card { padding: var(--space-md) var(--space-sm); }
+    .placement-card h4 { font-size: var(--text-base); }
+    .sponsors-intake { padding: var(--space-lg); }
+  }
+</style>
+
+<script>
+(function() {
+  'use strict';
+  var form = document.getElementById('sponsor-intake-form');
+  if (!form) return;
+
+  // P8c anti-spam: honeypot + fill-time instrumentation (shared helper)
+  if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
+
+  var submitBtn = document.getElementById('sp-submit-btn');
+  var statusEl = document.getElementById('sp-form-status');
+
+  function showFeedback(msg, isError) {
+    if (typeof Toast !== 'undefined') {
+      isError ? Toast.error(msg) : Toast.success(msg);
+    }
+    statusEl.textContent = msg;
+    statusEl.style.display = 'block';
+    statusEl.style.color = isError ? '#f85149' : '#3fb950';
+    statusEl.style.padding = 'var(--space-sm)';
+    statusEl.style.borderRadius = 'var(--radius-sm)';
+    statusEl.style.marginBottom = 'var(--space-sm)';
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    statusEl.style.display = 'none';
+
+    var name = form.querySelector('[name="name"]').value.trim();
+    var organization = form.querySelector('[name="organization"]').value.trim();
+    var email = form.querySelector('[name="email"]').value.trim();
+    var phone = form.querySelector('[name="phone"]').value.trim();
+    var message = form.querySelector('[name="message"]').value.trim();
+    var budgetRange = form.querySelector('[name="budgetRange"]').value;
+
+    if (!name || name.length < 2) { showFeedback('Please enter your name.', true); return; }
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) { showFeedback('Please enter a valid email address.', true); return; }
+    if (!message) { showFeedback('Please tell us what interests you.', true); return; }
+
+    // Wire discipline (§8.4-2): formType 'entertainment' is the FROZEN contact
+    // wire value → SoR booking_inbox lane "general", same CEO-triage rail as the
+    // contact page. inquiryType 'sponsorship' is a free string riding the
+    // existing inquiry_type column. subject is derived for triage readability.
+    var payload = {
+      formType: 'entertainment',
+      source: 'gbe-public',
+      routeTo: 'ceo',
+      inquiryType: 'sponsorship',
+      name: name,
+      organization: organization,
+      email: email,
+      phone: phone,
+      subject: 'Sponsorship interest' + (organization ? ' — ' + organization : ''),
+      message: message,
+      budgetRange: budgetRange
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
+
+    Forms.submitContact(payload, form)
+      .then(function(result) {
+        // Replace the form card with a confirmation panel (prevents double-submit).
+        // Copy is booking-neutral: this is a partner conversation, not a booking.
+        var card = form.closest('.glass-card');
+        var icon = result.method === 'local' ? 'fa-solid fa-floppy-disk' : 'fa-solid fa-circle-check';
+        var headline = result.method === 'local' ? 'Inquiry Saved' : 'Inquiry Received';
+        var detail = result.method === 'local'
+          ? 'Your inquiry has been saved locally and will be delivered when our server is back online.'
+          : 'Thank you, <strong>' + Utils.escapeHtml(name) + '</strong>! We\'ve received your sponsorship inquiry and will respond within 24 hours.';
+        card.innerHTML =
+          '<div style="text-align:center;padding:40px 20px;">' +
+            '<i class="' + icon + ' text-gold" style="font-size:48px;margin-bottom:16px;"></i>' +
+            '<h2 style="margin-bottom:12px;">' + headline + '</h2>' +
+            '<p style="font-size:15px;line-height:1.6;color:var(--color-text-secondary);margin-bottom:24px;">' + detail + '</p>' +
+            '<a href="#ent-tickets" class="btn btn-primary shimmer-sweep">' +
+              '<i class="fa-solid fa-ticket"></i> See the Show' +
+            '</a>' +
+          '</div>';
+      })
+      .catch(function(err) {
+        console.error('Sponsor form submission error:', err);
+        showFeedback('Unable to send — please try again later, or reach us through the contact page.', true);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Sponsorship Inquiry';
+      });
+  });
+})();
+</script>

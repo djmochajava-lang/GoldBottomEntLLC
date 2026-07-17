@@ -1,6 +1,6 @@
 <!-- pages/entertainment/contact.html — Entertainment Contact (NON-booking door, sizzle S5 §8.3)
      Booking requests live on the quote form (#ent-quote); this page serves everything else:
-     general questions, press, sponsorship (interim until S6), talent submissions, collaborations, vendors. -->
+     general questions, press, sponsorship (valid lane; the Sponsors page #ent-sponsors is the primary door since S6), talent submissions, collaborations, vendors. -->
 <section class="page-section" id="page-ent-contact">
   <div class="container">
     <h1 class="page-title reveal">Contact Us</h1>
@@ -31,6 +31,8 @@
               <option value="collaboration">Collaboration</option>
               <option value="other">Vendor / Other</option>
             </select>
+            <!-- S6 hook (§8.3-5): the Sponsors page is live — point sponsorship interest at the pitch -->
+            <p class="sponsor-hook-line">Sponsorship? <a href="#ent-sponsors">See what we offer partners <i class="fa-solid fa-arrow-right"></i></a></p>
           </div>
           <div class="grid grid-2">
             <div class="form-group">
@@ -133,6 +135,13 @@
     text-decoration: none;
   }
   #page-ent-contact .crosslink-more:hover { color: var(--color-gold); }
+  #page-ent-contact .sponsor-hook-line {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--space-xs);
+  }
+  #page-ent-contact .sponsor-hook-line a { color: var(--color-gold); text-decoration: none; }
+  #page-ent-contact .sponsor-hook-line a:hover { text-decoration: underline; }
   @media (max-width: 480px) {
     #page-ent-contact .page-subtitle { margin-bottom: var(--space-md); }
     #page-ent-contact .contact-booking-crosslink { padding: var(--space-sm); }
@@ -148,7 +157,8 @@
   if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
 
   // ── Inquiry-type pre-select (sizzle S5, §8.3-3b) ──
-  // Serves the interim Sponsors nav entry (#ent-contact?type=sponsorship) and any
+  // Kept post-S6 for legacy links (#ent-contact?type=sponsorship — the S5 interim
+  // Sponsors target anyone may still hold) and any
   // future deep-link lane. Same pattern as quote.html's ?format= carry-through:
   // Router parses the hash query; fall back to a direct hash parse so this works
   // even before Router is ready. Applied ONLY if the value matches a real option;

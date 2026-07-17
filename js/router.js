@@ -33,6 +33,9 @@ const Router = {
     // form folded into the ONE booking intake (quote form). See legacyRedirects below.
     'ent-quote': 'pages/entertainment/quote.html',
     'ent-series': 'pages/entertainment/series.html',
+    // Sponsors — the 5th business-partner lane (sizzle S6, §2h). Shipped with
+    // the nav/chip/contact repoints in the same commit (no dead link, ever).
+    'ent-sponsors': 'pages/entertainment/sponsors.html',
 
     // Enterprise pages (biz-* prefix)
     'biz-home': 'pages/enterprise/home.html',
