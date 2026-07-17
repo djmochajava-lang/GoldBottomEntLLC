@@ -1,12 +1,50 @@
 <!-- pages/entertainment/promoter.html — Promoter Landing Page (FRD6-LANDING-001) -->
+<!-- S1 sizzle pass (story-sizzle-promoter-page, 2026-07-16): hero media + CTA,
+     offer block, media section, Business Partners strip, advance materials,
+     EO polish E1-E6, Marketing tightenings. Spec: DESIGN_sell-the-sizzle-2026-07-16.md §2a -->
 
 <section class="page-section" id="page-ent-promoter">
   <div class="container">
 
-    <!-- Hero Header -->
+    <!-- Hero Header: media + ONE booking CTA, above the fold at 390px -->
     <div class="promoter-hero reveal">
       <h1 class="page-title">Book L.A. Young</h1>
       <p class="page-subtitle">Award-winning soul, jazz &amp; R&amp;B &mdash; book L.A. Young &amp; Soul Society for your next event.</p>
+
+      <div class="promoter-hero-media glass-card">
+        <video controls playsinline preload="metadata"
+               poster="images/artist/LAYoung-Live-CityWinery.jpg"
+               aria-label="L.A. Young performing her Phyllis Hyman tribute live at City Winery DC">
+          <source src="https://layoungbandpage.com/Video/LAYoungWinery.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        <p class="media-caption">L.A. Young performing her Phyllis Hyman tribute at City Winery DC</p>
+      </div>
+
+      <div class="promoter-hero-cta">
+        <a href="#ent-quote" class="btn btn-primary btn-lg shimmer-sweep">
+          <i class="fa-solid fa-calendar-check"></i> Check My Date &mdash; Get a Quote
+        </a>
+        <a href="#" class="promoter-watch-link"
+           onclick="document.getElementById('promoter-media').scrollIntoView({behavior:'smooth'});return false;">
+          Watch &amp; Listen <i class="fa-solid fa-arrow-down"></i>
+        </a>
+      </div>
+    </div>
+
+    <!-- The Offer — the honest forward-sell -->
+    <div class="promoter-offer glass-card reveal">
+      <h2 class="section-heading">You Know This Music</h2>
+      <p>
+        You may not know the band yet &mdash; but your audience knows this music.
+        Phyllis Hyman's catalog fills rooms on the strength of her name, and
+        The Phyllis Hyman Experience brings it to life &mdash; fronted by L.A. Young,
+        named Artist of the Year at the 2018 Maryland Music Awards, with players
+        who've stood on stage with P-Funk and The Temptations. The concept is
+        proven live: performed at City Winery DC and praised on air by WPKN's
+        Jazz and Soul on Ice. We're not asking you to trust an unknown band &mdash;
+        just her music, your own ears, and credits you can check.
+      </p>
     </div>
 
     <!-- Proof Points -->
@@ -14,22 +52,45 @@
       <div class="proof-card glass-card">
         <i class="fa-solid fa-trophy" style="color: var(--color-gold); font-size: var(--text-2xl);"></i>
         <h3>The Phyllis Hyman Experience</h3>
-        <p>Her acclaimed signature tribute production &mdash; a proven draw for theaters and event series.</p>
+        <p>Her signature tribute production &mdash; praised on air by WPKN's Jazz and Soul on Ice &mdash; built on a catalog audiences already love.</p>
       </div>
       <div class="proof-card glass-card">
         <i class="fa-solid fa-music" style="color: var(--color-gold); font-size: var(--text-2xl);"></i>
         <h3>L.A. Young &amp; Soul Society</h3>
-        <p>Her own ensemble &mdash; seasoned players with credits spanning P-Funk, The Temptations, and the MD Entertainment Hall of Fame.</p>
+        <p>Her own ensemble &mdash; credits spanning P-Funk, The Temptations, and the Maryland Entertainment Hall of Fame.</p>
       </div>
       <div class="proof-card glass-card">
         <i class="fa-solid fa-award" style="color: var(--color-gold); font-size: var(--text-2xl);"></i>
-        <h3>MD Artist of the Year 2018</h3>
+        <h3>Maryland Artist of the Year 2018</h3>
         <p>Named Artist of the Year at the 2018 Maryland Music Awards.</p>
       </div>
       <div class="proof-card glass-card">
         <i class="fa-solid fa-calendar-check" style="color: var(--color-gold); font-size: var(--text-2xl);"></i>
         <h3>20+ Years Performing</h3>
         <p>Two decades of captivating audiences, from premier Washington, DC rooms to stages across the country.</p>
+      </div>
+    </div>
+
+    <!-- See & Hear the Show -->
+    <div class="promoter-media-section reveal" id="promoter-media" style="margin-top: var(--space-2xl);">
+      <h2 class="section-heading">See &amp; Hear the Show</h2>
+      <div class="promoter-media-grid">
+        <div class="glass-card media-card">
+          <h4><i class="fa-solid fa-headphones" style="color: var(--color-gold);"></i> Hear Her Signature Recording</h4>
+          <audio controls preload="none" style="width: 100%;"
+                 src="https://layoungbandpage.com/Media/no_one_can_love_you_more.mp3"></audio>
+          <p class="media-caption">L.A. Young &mdash; &ldquo;No One Can Love You More&rdquo; (Skip Scarborough) &mdash; her signature Phyllis Hyman tribute recording</p>
+        </div>
+        <div class="glass-card media-card">
+          <h4><i class="fa-solid fa-clapperboard" style="color: var(--color-gold);"></i> See Her Live</h4>
+          <p style="color: var(--color-text-secondary); font-size: var(--text-sm);">
+            The City Winery DC tribute footage plays at the top of this page.
+            More performance and studio video lives on the band's own site.
+          </p>
+          <a href="https://layoungbandpage.com/#projects" target="_blank" rel="noopener noreferrer" class="media-more-link">
+            More video on the band page <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
       </div>
     </div>
 
@@ -111,25 +172,25 @@
           <i class="fa-solid fa-music" style="font-size: var(--text-xl); color: var(--color-gold);"></i>
           <h4>Eugene Chapman</h4>
           <p class="band-role">Saxophone</p>
-          <p class="band-role" style="color: var(--color-text-muted); font-size: var(--text-sm);">Performed with P-Funk &amp; The Temptations</p>
+          <p class="band-credit">Performed with P-Funk &amp; The Temptations</p>
         </div>
         <div class="band-member glass-card">
           <i class="fa-solid fa-guitar" style="font-size: var(--text-xl); color: var(--color-gold);"></i>
           <h4>Kevin Robinson</h4>
           <p class="band-role">Lead Guitar</p>
-          <p class="band-role" style="color: var(--color-text-muted); font-size: var(--text-sm);">MD Entertainment Hall of Fame 2017</p>
+          <p class="band-credit">Maryland Entertainment Hall of Fame 2017</p>
         </div>
         <div class="band-member glass-card">
           <i class="fa-solid fa-sliders" style="font-size: var(--text-xl); color: var(--color-gold);"></i>
           <h4>DJ Mocha Java</h4>
           <p class="band-role">MC / DJ</p>
-          <p class="band-role" style="color: var(--color-text-muted); font-size: var(--text-sm);">Tracks, production &amp; rap vocals</p>
+          <p class="band-credit">Tracks, production &amp; rap vocals</p>
         </div>
         <div class="band-member glass-card">
           <i class="fa-solid fa-drum" style="font-size: var(--text-xl); color: var(--color-gold);"></i>
           <h4>Rhythm Section</h4>
           <p class="band-role">Keys / Bass / Drums</p>
-          <p class="band-role" style="color: var(--color-text-muted); font-size: var(--text-sm);">Seasoned players bringing this music to life, engaged per show configuration</p>
+          <p class="band-credit">Engaged per show configuration from her trusted circle of working DMV musicians</p>
         </div>
       </div>
     </div>
@@ -137,9 +198,8 @@
     <!-- Press Quotes -->
     <div class="promoter-press reveal" style="margin-top: var(--space-2xl);">
       <h2 class="section-heading">Press</h2>
-      <!-- Fabricated press quotes REMOVED 2026-07-16 (story-shopwindow-truth-cleanup):
-           "Music Industry Review", "Live Music Weekly", and "Event Professionals
-           Magazine" do not exist. Only real, attributable press below. Do not restore. -->
+      <!-- Fabricated press quotes REMOVED 2026-07-16 (story-shopwindow-truth-cleanup).
+           Only real, attributable press below. Do not restore fabricated quotes. -->
       <div class="promoter-quotes-grid">
         <blockquote class="press-quote glass-card">
           <p><i class="fa-solid fa-quote-left" style="color: var(--color-gold); margin-right: var(--space-xs);"></i>
@@ -167,15 +227,56 @@
       </div>
     </div>
 
+    <!-- Business Partners strip -->
+    <div class="promoter-partners reveal" style="margin-top: var(--space-2xl);">
+      <h2 class="section-heading">Business Partners</h2>
+      <p style="color: var(--color-text-secondary); text-align: center; max-width: 640px; margin: 0 auto;">
+        Gold Bottom Entertainment works with venue owners, promoters, corporate clients,
+        wedding planners, and sponsors.
+      </p>
+      <div class="partner-chip-row">
+        <a class="partner-chip" href="#ent-quote"><i class="fa-solid fa-ticket"></i> Venue Owners</a>
+        <a class="partner-chip" href="#ent-quote"><i class="fa-solid fa-tent"></i> Promoters</a>
+        <a class="partner-chip" href="#ent-quote"><i class="fa-solid fa-building"></i> Corporate Clients</a>
+        <a class="partner-chip" href="#ent-quote"><i class="fa-solid fa-champagne-glasses"></i> Wedding Planners</a>
+        <a class="partner-chip" href="#ent-contact"><i class="fa-solid fa-handshake"></i> Sponsors</a>
+      </div>
+      <p class="partner-series-line">
+        Booking multiple dates?
+        <a href="#ent-series">Ask about our multi-show and residency pricing <i class="fa-solid fa-arrow-right"></i></a>
+      </p>
+    </div>
+
+    <!-- Advance materials -->
+    <div class="promoter-advance glass-card reveal" style="margin-top: var(--space-2xl);">
+      <h3><i class="fa-solid fa-file-signature" style="color: var(--color-gold);"></i> Your paper or ours.</h3>
+      <p style="color: var(--color-text-secondary);">
+        We work on your standard venue contract or provide ours &mdash; either way,
+        e-signature and a clean deposit-to-show-day process.
+      </p>
+      <div class="advance-links">
+        <a href="https://layoungbandpage.com/EPK/index.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          <i class="fa-solid fa-folder-open"></i> One-Sheet / EPK (web)
+        </a>
+        <a href="https://layoungbandpage.com/EPK/layoungepk.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          <i class="fa-solid fa-file-lines"></i> EPK on the GO (print/PDF view)
+        </a>
+      </div>
+      <p style="color: var(--color-text-muted); font-size: var(--text-sm); margin-top: var(--space-md);">
+        Full technical rider provided on request &mdash;
+        <a href="mailto:booking@layoungbandpage.com" style="color: var(--color-gold);">booking@layoungbandpage.com</a>
+      </p>
+    </div>
+
     <!-- CTA -->
-    <div class="promoter-cta reveal" style="margin-top: var(--space-3xl); text-align: center; padding: var(--space-2xl); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-secondary);">
+    <div class="promoter-cta reveal" style="margin-top: var(--space-2xl); text-align: center; padding: var(--space-2xl); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-secondary);">
       <h2 style="font-family: 'Montserrat', sans-serif; margin-bottom: var(--space-md);">Ready to Book?</h2>
       <p style="color: var(--color-text-secondary); margin-bottom: var(--space-lg); max-width: 500px; margin-left: auto; margin-right: auto;">
         Contact Gold Bottom Entertainment to discuss availability, pricing, and performance details for your event.
       </p>
       <div style="display: flex; gap: var(--space-md); justify-content: center; flex-wrap: wrap;">
-        <a href="#ent-inquiry" class="btn btn-primary btn-lg shimmer-sweep">
-          <i class="fa-solid fa-envelope"></i> Submit Booking Inquiry
+        <a href="#ent-quote" class="btn btn-primary btn-lg shimmer-sweep">
+          <i class="fa-solid fa-calendar-check"></i> Get a Quote
         </a>
         <a href="mailto:booking@layoungbandpage.com" class="btn btn-secondary btn-lg">
           <i class="fa-solid fa-paper-plane"></i> Email Direct
@@ -193,8 +294,61 @@
 </section>
 
 <style>
-  /* Promoter page styles — FRD6-LANDING-001 */
-  .promoter-hero { text-align: center; padding: var(--space-xl) 0; }
+  /* Promoter page styles — FRD6-LANDING-001 + S1 sizzle pass */
+  .promoter-hero { text-align: center; padding: var(--space-lg) 0 var(--space-md); }
+
+  /* Hero media — the City Winery footage is vertical (1080x1920), so the frame
+     is a height-capped portrait "reel" card that keeps the CTA above the fold. */
+  .promoter-hero-media {
+    margin: var(--space-md) auto 0;
+    padding: var(--space-sm);
+    width: fit-content;
+    max-width: 100%;
+  }
+  .promoter-hero-media video {
+    display: block;
+    height: min(52vh, 480px);
+    aspect-ratio: 9 / 16;
+    max-width: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background: #000;
+    margin: 0 auto;
+  }
+  .media-caption {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-style: italic;
+    text-align: center;
+    margin-top: var(--space-xs);
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .promoter-hero-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+  }
+  .promoter-watch-link {
+    color: var(--color-gold);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+  .promoter-watch-link:hover { text-decoration: underline; }
+
+  .promoter-offer {
+    max-width: 720px;
+    margin: var(--space-2xl) auto 0;
+    padding: var(--space-xl);
+  }
+  .promoter-offer p {
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+  }
 
   .promoter-proof-grid {
     display: grid;
@@ -215,6 +369,28 @@
     color: var(--color-text-muted);
     font-size: var(--text-sm);
   }
+
+  .promoter-media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-lg);
+    margin-top: var(--space-lg);
+    max-width: 840px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .media-card { padding: var(--space-lg); }
+  .media-card h4 {
+    font-family: 'Montserrat', sans-serif;
+    margin-bottom: var(--space-md);
+  }
+  .media-card audio { margin-bottom: var(--space-sm); }
+  .media-more-link {
+    color: var(--color-gold);
+    font-size: var(--text-sm);
+    text-decoration: none;
+  }
+  .media-more-link:hover { text-decoration: underline; }
 
   .promoter-format-grid {
     display: grid;
@@ -242,12 +418,20 @@
   }
   .band-member h4 { font-family: 'Montserrat', sans-serif; margin: var(--space-sm) 0 0; }
   .band-role { color: var(--color-text-muted); font-size: var(--text-sm); }
+  .band-credit {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-style: italic;
+    margin-top: 2px;
+  }
 
   .promoter-quotes-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--space-lg);
     margin-top: var(--space-lg);
+    max-width: 720px;
+    margin-inline: auto;
   }
   .press-quote {
     padding: var(--space-lg);
@@ -266,15 +450,73 @@
     font-style: normal;
   }
 
+  .partner-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    justify-content: center;
+    margin-top: var(--space-lg);
+  }
+  .partner-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    background: var(--color-bg-secondary);
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  .partner-chip i { color: var(--color-gold); }
+  .partner-chip:hover { border-color: var(--color-gold); color: var(--color-gold); }
+  .partner-series-line {
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    margin-top: var(--space-lg);
+  }
+  .partner-series-line a { color: var(--color-gold); text-decoration: none; }
+  .partner-series-line a:hover { text-decoration: underline; }
+
+  .promoter-advance {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: var(--space-xl);
+    text-align: center;
+  }
+  .promoter-advance h3 {
+    font-family: 'Montserrat', sans-serif;
+    margin-bottom: var(--space-sm);
+  }
+  .advance-links {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: var(--space-md);
+  }
+
   @media (max-width: 768px) {
     .promoter-proof-grid { grid-template-columns: repeat(2, 1fr); }
     .promoter-format-grid { grid-template-columns: repeat(2, 1fr); }
     .promoter-band-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 480px) {
+    .promoter-hero { padding: var(--space-sm) 0 var(--space-sm); }
+    .promoter-hero .page-title { font-size: var(--text-2xl); margin-bottom: var(--space-xs); }
+    .promoter-hero .page-subtitle { font-size: var(--text-base); margin-bottom: 0; }
+    .promoter-hero-media { margin-top: var(--space-sm); }
+    .promoter-hero-media video { height: min(38vh, 420px); }
+    .promoter-hero-cta { margin-top: var(--space-sm); }
     .promoter-proof-grid { grid-template-columns: 1fr; }
     .promoter-format-grid { grid-template-columns: 1fr; }
     .promoter-band-grid { grid-template-columns: repeat(2, 1fr); }
+    /* E1: 5 cards in a 2-col grid leave an orphan — span the last (Rhythm Section) card */
+    .promoter-band-grid .band-member:last-child:nth-child(odd) { grid-column: 1 / -1; }
     .promoter-quotes-grid { grid-template-columns: 1fr; }
   }
 </style>
