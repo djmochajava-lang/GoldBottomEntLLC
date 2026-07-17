@@ -2123,14 +2123,30 @@
   }
 
   // Diff payload vs the loaded row for update_show_card (min 1 key server rule)
+  var PAYLOAD_ROW_MAP = {
+    eventName: 'event_name', eventDate: 'event_date', showTime: 'show_time',
+    doorsOpen: 'doors_open', venueName: 'venue_name', venueCity: 'venue_city',
+    venueState: 'venue_state', venueCapacity: 'venue_capacity',
+    description: 'description', ageRestriction: 'age_restriction', ticketRequired: 'ticket_required'
+  };
+
+  // EO W5 D2: after a Details save lands, fold the applied diff back into the
+  // wizard's row — Preview and Publish (steps 4-5) judge wz.row, and without
+  // this they render/gate on PRE-save data until the wizard is reopened.
+  function mergePayloadIntoRow(payload, row) {
+    if (!payload || !row) return;
+    Object.keys(payload).forEach(function(k) {
+      var col = PAYLOAD_ROW_MAP[k];
+      if (!col) return;
+      var v = payload[k];
+      if (k === 'ticketRequired') v = v ? 1 : 0; // readmodel stores 0/1
+      row[col] = v;
+    });
+  }
+
   function diffAgainstRow(payload, row) {
     var out = {};
-    var mapping = {
-      eventName: 'event_name', eventDate: 'event_date', showTime: 'show_time',
-      doorsOpen: 'doors_open', venueName: 'venue_name', venueCity: 'venue_city',
-      venueState: 'venue_state', venueCapacity: 'venue_capacity',
-      description: 'description', ageRestriction: 'age_restriction', ticketRequired: 'ticket_required'
-    };
+    var mapping = PAYLOAD_ROW_MAP;
     Object.keys(payload).forEach(function(k) {
       var current = row[mapping[k]];
       var incoming = payload[k];
@@ -2189,7 +2205,7 @@
           var errBody = await resp.json().catch(function() { return {}; });
           throw new Error(errBody.message || errBody.error || ('Server responded ' + resp.status));
         }
-        await onSaveLanded(isNew, null, wz);
+        await onSaveLanded(isNew, null, wz, payload);
       } else {
         // Remote: booking_actions relay + own-row result poll
         var actionId;
@@ -2220,7 +2236,7 @@
           watchQueuedAction(actionId, isNew ? ('your new draft “' + (payload.eventName || 'show') + '”') : ('the details for “' + (wz.row.event_name || 'this show') + '”'));
           return;
         }
-        await onSaveLanded(isNew, isNew ? wz.corr : null, wz);
+        await onSaveLanded(isNew, isNew ? wz.corr : null, wz, payload);
       }
     } catch (e) {
       if (wzAlive(wz)) {
@@ -2231,11 +2247,12 @@
     }
   }
 
-  async function onSaveLanded(isNew, corr, wz) {
+  async function onSaveLanded(isNew, corr, wz, payload) {
     if (!wzAlive(wz)) return; // stale continuation (EO N-A)
     _saving = false;
     wz.dirty = false;
     setStatusStrip('saved', 'Saved ✓', false);
+    if (!isNew && wz.row) mergePayloadIntoRow(payload, wz.row); // EO W5 D2
     var resolvedName = null;
     if (corr) {
       // Resolve the server-generated event id from the readmodel echo
