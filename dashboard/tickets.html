@@ -1,9 +1,13 @@
-<!-- dashboard/tickets.html — FRD-8 Ticket Sales Dashboard (Hybrid: Firestore + Express) -->
-<!-- DEF-013: Events/Tiers use Firestore (works from any device). Orders/Promos/Door/Analytics use Express (LAN only). -->
+<!-- dashboard/tickets.html — Shows & Tickets (story-show-wizard-w2-wizard-core) -->
+<!-- Shows tab: manager readmodel (Supabase, remote) / Express (LAN). Writes ride the
+     booking_actions relay remotely (create_show_draft / update_show_card /
+     delete_show_draft) with own-row result polling; LAN uses the hardened
+     /api/v1/tickets routes directly. Firestore ticket_events path is DELETED
+     (DEF-013 discharged). Orders/Promos/Door/Analytics stay LAN-only. -->
 <div class="dashboard-page" id="dash-tickets">
   <div class="dashboard-page-header">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
-      <div><h1>Ticket Sales</h1><p class="text-muted">Manage events, ticket tiers, orders, promo codes, and door check-in.</p></div>
+      <div><h1>Shows &amp; Tickets</h1><p class="text-muted">Manage show cards, ticket tiers, orders, promo codes, and door check-in.</p></div>
       <div style="display:flex;gap:var(--space-sm);" id="tix-header-actions"></div>
     </div>
   </div>
@@ -14,7 +18,7 @@
   <!-- Tab Bar -->
   <div id="tix-tabs" style="display:flex;gap:0;margin-bottom:var(--space-lg);border-bottom:2px solid var(--color-border);overflow-x:auto;">
     <button class="tix-tab active" data-tab="events" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text);border-bottom:2px solid var(--color-gold);margin-bottom:-2px;white-space:nowrap;">
-      <i class="fa-solid fa-calendar-star"></i> Events
+      <i class="fa-solid fa-calendar-star"></i> Shows
     </button>
     <button class="tix-tab" data-tab="tiers" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;">
       <i class="fa-solid fa-layer-group"></i> Ticket Tiers
@@ -33,55 +37,27 @@
     </button>
   </div>
 
-  <!-- ==================== EVENTS TAB ==================== -->
+  <!-- ==================== SHOWS TAB (wizard show list) ==================== -->
   <div id="tab-events" class="tix-tab-content">
     <div style="display:flex;justify-content:flex-end;margin-bottom:var(--space-md);">
-      <button class="btn btn-primary" id="tix-create-event-btn"><i class="fa-solid fa-plus"></i> New Event</button>
+      <button class="btn btn-primary" id="swz-create-btn" style="min-height:44px;"><i class="fa-solid fa-plus"></i> Create a Show</button>
     </div>
-    <div class="table-wrapper"><table class="data-table" id="tix-events-table">
-      <thead>
-        <tr>
-          <th>Event</th>
-          <th>Venue</th>
-          <th>Date</th>
-          <th>Status</th>
-          <th>Tiers</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="tix-events-body"></tbody>
-    </table></div>
-    <p id="tix-events-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);display:none;">
-      No events yet. Create your first event to start selling tickets.
-    </p>
+    <div id="swz-show-list"></div>
   </div>
 
-  <!-- ==================== TIERS TAB ==================== -->
+  <!-- ==================== TIERS TAB (read-only until the wizard's Admission & Tiers step ships) ==================== -->
   <div id="tab-tiers" class="tix-tab-content" style="display:none;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);margin-bottom:var(--space-md);">
       <div>
-        <label style="font-size:var(--text-sm);color:var(--color-text-muted);margin-right:var(--space-xs);">Event:</label>
-        <select id="tix-tier-event-select" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">
-          <option value="">-- Select Event --</option>
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);margin-right:var(--space-xs);">Show:</label>
+        <select id="tix-tier-event-select" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);max-width:100%;">
+          <option value="">-- Select Show --</option>
         </select>
       </div>
-      <button class="btn btn-primary btn-sm" id="tix-add-tier-btn" disabled><i class="fa-solid fa-plus"></i> Add Tier</button>
     </div>
-    <div class="table-wrapper"><table class="data-table" id="tix-tiers-table">
-      <thead>
-        <tr>
-          <th>Tier Name</th>
-          <th>Price</th>
-          <th>Qty</th>
-          <th>Sold</th>
-          <th>Description</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="tix-tiers-body"></tbody>
-    </table></div>
-    <p id="tix-tiers-empty" style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">
-      Select an event above to manage its ticket tiers.
+    <div id="tix-tiers-view"></div>
+    <p style="margin-top:var(--space-md);font-size:var(--text-xs);color:var(--color-text-muted);">
+      <i class="fa-solid fa-circle-info"></i> Tier editing moves into the Show Wizard's Admission &amp; Tiers step — coming in the next update.
     </p>
   </div>
 
@@ -241,6 +217,62 @@
     border-radius: var(--radius-md); border: 1px dashed var(--color-border);
   }
   .tix-lan-msg i { font-size: 2rem; opacity: 0.4; display: block; margin-bottom: var(--space-md); }
+
+  /* ── Show mini-cards (wizard list) — 390px-first, cards only (never a calendar) ── */
+  #swz-show-list { display: grid; grid-template-columns: 1fr; gap: var(--space-md); }
+  @media (min-width: 700px) { #swz-show-list { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); } }
+  .swz-card {
+    display: flex; gap: 12px; align-items: stretch; padding: 12px;
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    background: var(--color-bg-secondary); cursor: pointer; transition: border-color 0.15s;
+    min-height: 84px; text-align: left; width: 100%;
+  }
+  .swz-card:hover { border-color: var(--color-gold); }
+  .swz-card-img {
+    flex: 0 0 72px; width: 72px; border-radius: var(--radius-sm); overflow: hidden;
+    background: var(--color-bg-tertiary, rgba(255,255,255,0.05));
+    display: flex; align-items: center; justify-content: center; color: var(--color-text-muted);
+  }
+  .swz-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .swz-card-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .swz-card-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swz-card-meta { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swz-chip {
+    display: inline-block; padding: 2px 8px; border-radius: var(--radius-full);
+    font-size: 0.7rem; font-weight: 600; white-space: nowrap;
+  }
+  .swz-chip-draft { background: rgba(139,148,158,0.18); color: #8b949e; }
+  .swz-chip-live { background: rgba(63,185,80,0.15); color: #3fb950; }
+  .swz-chip-free { background: rgba(88,166,255,0.15); color: #58a6ff; }
+  .swz-chip-paid { background: rgba(212,160,23,0.15); color: #d4a017; }
+  .swz-chip-status { background: rgba(210,153,34,0.15); color: #d29922; }
+  .swz-card-side { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; gap: 6px; }
+  .swz-skel {
+    height: 84px; border-radius: var(--radius-md); border: 1px solid var(--color-border);
+    background: linear-gradient(100deg, var(--color-bg-secondary) 40%, rgba(255,255,255,0.05) 50%, var(--color-bg-secondary) 60%);
+    background-size: 200% 100%; animation: swzShimmer 1.2s linear infinite;
+  }
+  @keyframes swzShimmer { to { background-position: -200% 0; } }
+
+  /* ── Wizard overlay (quote-stepper idiom) ── */
+  #swz-overlay { position: fixed; inset: 0; z-index: 10000; background: var(--color-bg); display: flex; flex-direction: column; overflow: hidden; }
+  .swz-form-label { display: block; font-size: var(--text-sm); font-weight: 600; margin: 14px 0 4px; }
+  .swz-input {
+    width: 100%; min-height: 44px; padding: 8px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border); background: var(--color-bg-secondary);
+    color: var(--color-text); font-size: var(--text-sm);
+  }
+  .swz-input.swz-invalid { border-color: #f85149; }
+  .swz-field-err { color: #f85149; font-size: var(--text-xs); margin-top: 4px; display: none; }
+  .swz-help { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 4px; }
+  .swz-rail-label { font-size: 0.7rem; color: var(--color-text-muted); text-align: center; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swz-status-strip { display: none; align-items: center; gap: 8px; padding: 8px 16px; font-size: var(--text-sm); border-bottom: 1px solid var(--color-border); }
+  .swz-status-strip.saving { display: flex; background: rgba(212,160,23,0.1); color: var(--color-text); }
+  .swz-status-strip.saved { display: flex; background: rgba(63,185,80,0.12); color: #3fb950; }
+  .swz-status-strip.queued { display: flex; background: rgba(210,153,34,0.12); color: #d29922; }
+  .swz-status-strip.failed { display: flex; background: rgba(248,81,73,0.12); color: #f85149; }
+  .swz-tier-card { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-secondary); padding: 12px; margin-bottom: 10px; }
+
   @media (max-width: 768px) {
     #dash-tickets .data-table { display: block; overflow-x: auto; }
     #tix-tabs { -webkit-overflow-scrolling: touch; }
@@ -252,19 +284,8 @@
   function initTickets() {
   // ── Environment Detection ──
   var isLocal = typeof Auth !== 'undefined' && Auth.isLocalDashboard && Auth.isLocalDashboard();
-  var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
 
-  if (!db) {
-    document.getElementById('dash-tickets').innerHTML =
-      '<p style="text-align:center;padding:var(--space-xl);color:var(--color-text-muted);">' +
-      '<i class="fa-solid fa-database" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:var(--space-md);"></i>' +
-      'Firestore not available. Please sign in to manage events.</p>';
-    return;
-  }
-
-  var eventsRef = db.collection('ticket_events');
-
-  // Express API for LAN-only tabs
+  // Express API for LAN paths (shows CRUD parity + LAN-only tabs)
   var API = isLocal ? ('http://' + window.location.hostname + ':3000/api/v1/tickets') : null;
   var token = localStorage.getItem('gbe-session-token') || '';
   var expressHeaders = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
@@ -274,9 +295,17 @@
     opts = opts || {};
     if (!opts.headers) opts.headers = expressHeaders;
     var controller = new AbortController();
-    var timer = setTimeout(function() { controller.abort(); }, 5000);
+    var timer = setTimeout(function() { controller.abort(); }, 8000);
     opts.signal = controller.signal;
     return fetch(API + path, opts).finally(function() { clearTimeout(timer); });
+  }
+
+  function getSb() { return (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase()) || null; }
+  async function getUid() {
+    var sb = getSb();
+    if (!sb) return null;
+    var sessionRes = await sb.auth.getSession();
+    return (sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id) || null;
   }
 
   // ── LAN gate message for Orders/Promos/Door/Analytics tabs ──
@@ -301,11 +330,15 @@
   // ── Helpers ──
   function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function fmtDate(d) {
-    if (!d) return '\u2014';
-    try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(_) { return d; }
+    if (!d) return '—';
+    try {
+      var s = String(d);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s += 'T12:00:00'; // date-only: avoid TZ back-shift
+      return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch(_) { return d; }
   }
   function fmtDateTime(d) {
-    if (!d) return '\u2014';
+    if (!d) return '—';
     try { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch(_) { return d; }
   }
   function statusBadge(status) {
@@ -319,10 +352,17 @@
     return '<span class="tix-status-badge" style="background:' + c + '22;color:' + c + ';">' + (status || 'unknown').replace(/_/g, ' ') + '</span>';
   }
   function escHtml(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-  function genId() { return 'tev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
+  function centsToLabel(c) {
+    var d = Number(c || 0) / 100;
+    return (d === Math.floor(d)) ? ('$' + d) : ('$' + d.toFixed(2));
+  }
+  function corrId() {
+    if (window.crypto && crypto.randomUUID) return 'swz_' + crypto.randomUUID();
+    return 'swz_' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
 
-  // ── Cache ──
-  var eventsCache = [];
+  // ── Show cache (manager readmodel shape — snake_case, tiers embedded) ──
+  var showsCache = [];
 
   // ── Tab Switching ──
   document.querySelectorAll('.tix-tab').forEach(function(tab) {
@@ -336,24 +376,181 @@
     });
   });
 
-  // ══════════════════════════════════════════
-  //  EVENTS TAB (Firestore)
-  // ══════════════════════════════════════════
+  /* ══════════════════════════════════════════════════════════════════
+     SHOWS TAB — manager readmodel list (story-show-wizard-w2)
+     Remote: authenticated Supabase SELECT on ticket_event_manager_readmodel
+             (manager-only RLS; drafts visible to the BM, never to the public).
+     LAN:    Express /api/v1/tickets/events (+ per-event tiers), normalized
+             into the same shape so one renderer serves both.
+     ══════════════════════════════════════════════════════════════════ */
 
-  function loadEvents() {
-    eventsRef.orderBy('eventDate', 'desc').get().then(function(snap) {
-      eventsCache = [];
-      snap.forEach(function(doc) {
-        var d = doc.data();
-        d.id = doc.id;
-        eventsCache.push(d);
-      });
-      populateEventSelects();
-      renderEventsTable();
-      renderStats();
-    }).catch(function(err) {
-      console.error('[Tickets] Firestore events load failed:', err);
+  var TERMINAL = { cancelled: 1, completed: 1 };
+
+  function normalizeLanEvent(evt) {
+    return {
+      id: String(evt.id),
+      correlation_id: null,
+      booking_id: null,
+      event_name: evt.event_name || null,
+      event_date: evt.event_date ? String(evt.event_date).slice(0, 10) : null,
+      doors_open: evt.doors_open || null,
+      show_time: evt.show_time || null,
+      venue_name: evt.venue_name || null,
+      venue_city: evt.venue_city || null,
+      venue_state: evt.venue_state || null,
+      venue_capacity: (evt.venue_capacity != null) ? Number(evt.venue_capacity) : null,
+      description: evt.description || null,
+      image_url: evt.image_url || null,
+      age_restriction: evt.age_restriction || null,
+      status: evt.status || 'draft',
+      is_published: Number(evt.is_published) ? 1 : 0,
+      ticket_required: (evt.ticket_required === undefined || evt.ticket_required === null) ? 1 : (Number(evt.ticket_required) ? 1 : 0),
+      tiers: (evt.tiers || []).map(function(t) {
+        return {
+          id: String(t.id), tier_name: t.tier_name, price_cents: Math.round(Number(t.price || 0) * 100),
+          capacity: Number(t.capacity || 0), sold: Number(t.sold || 0), held: Number(t.held || 0),
+          description: t.description || null
+        };
+      }),
+      total_capacity: Number(evt.total_capacity || 0),
+      total_sold: Number(evt.total_sold || 0)
+    };
+  }
+
+  async function fetchShows() {
+    if (isLocal) {
+      var r = await tFetch('/events?limit=100');
+      if (!r.ok) throw new Error('Server responded ' + r.status);
+      var data = await r.json();
+      var rows = (data.events || []).filter(function(e) { return !TERMINAL[e.status]; });
+      // Attach tiers per event (list endpoint has no tiers; LAN, small set)
+      var full = await Promise.all(rows.map(function(e) {
+        return tFetch('/events/' + encodeURIComponent(e.id))
+          .then(function(res) { return res.ok ? res.json() : e; })
+          .catch(function() { return e; });
+      }));
+      return full.map(normalizeLanEvent);
+    }
+    var sb = getSb();
+    if (!sb) throw new Error('not_signed_in');
+    var res = await sb.from('ticket_event_manager_readmodel')
+      .select('*')
+      .order('event_date', { ascending: true });
+    if (res.error) throw new Error(res.error.message);
+    return (res.data || []).map(function(row) {
+      if (typeof row.tiers === 'string') { try { row.tiers = JSON.parse(row.tiers); } catch (_) { row.tiers = []; } }
+      if (!Array.isArray(row.tiers)) row.tiers = [];
+      return row;
     });
+  }
+
+  function admissionChip(row) {
+    if (!row.ticket_required) return '<span class="swz-chip swz-chip-free">Free</span>';
+    var prices = (row.tiers || []).map(function(t) { return Number(t.price_cents || 0); });
+    if (!prices.length) return '<span class="swz-chip swz-chip-paid">Ticketed</span>';
+    var lo = Math.min.apply(null, prices), hi = Math.max.apply(null, prices);
+    var label = (lo === hi) ? centsToLabel(lo) : (centsToLabel(lo) + '–' + centsToLabel(hi));
+    return '<span class="swz-chip swz-chip-paid">' + label + '</span>';
+  }
+
+  function publishChip(row) {
+    if (Number(row.is_published)) {
+      var extra = '';
+      if (row.status === 'sold_out') extra = ' · SOLD OUT';
+      else if (row.status === 'on_sale') extra = ' · on sale';
+      else if (row.status === 'selling_fast') extra = ' · selling fast';
+      else if (row.status === 'almost_sold_out') extra = ' · almost sold out';
+      return '<span class="swz-chip swz-chip-live">PUBLISHED — live on the sites' + extra + '</span>';
+    }
+    var st = (row.status && row.status !== 'draft')
+      ? ' <span class="swz-chip swz-chip-status">' + escHtml(String(row.status).replace(/_/g, ' ')) + '</span>' : '';
+    return '<span class="swz-chip swz-chip-draft">DRAFT — not visible to the public</span>' + st;
+  }
+
+  function venueLine(row) {
+    var cityState = [row.venue_city, row.venue_state].filter(Boolean).join(', ');
+    if (row.venue_name) return row.venue_name + (cityState ? ' · ' + cityState : '');
+    return 'Venue TBA' + (cityState ? ' — ' + cityState : '');
+  }
+
+  function renderShowList(state, detail) {
+    var el = document.getElementById('swz-show-list');
+    if (!el) return;
+    if (state === 'loading') {
+      el.innerHTML = '<div class="swz-skel"></div><div class="swz-skel"></div><div class="swz-skel"></div>';
+      return;
+    }
+    if (state === 'error') {
+      el.innerHTML = '<div class="tix-lan-msg" style="grid-column:1/-1;">' +
+        '<i class="fa-solid fa-triangle-exclamation"></i>' +
+        '<h3 style="margin-bottom:var(--space-xs);">Can’t reach the show list</h3>' +
+        '<p>' + escHtml(detail || 'Check your connection and try again.') + '</p>' +
+        '<button class="btn btn-primary" id="swz-retry-btn" style="margin-top:var(--space-md);min-height:44px;">Try Again</button></div>';
+      var rb = document.getElementById('swz-retry-btn');
+      if (rb) rb.addEventListener('click', loadShows);
+      return;
+    }
+    if (state === 'signin') {
+      el.innerHTML = '<div class="tix-lan-msg" style="grid-column:1/-1;">' +
+        '<i class="fa-solid fa-user-lock"></i>' +
+        '<h3 style="margin-bottom:var(--space-xs);">Sign in required</h3>' +
+        '<p>Sign in with your manager account to see and edit show cards.</p></div>';
+      return;
+    }
+    if (!showsCache.length) {
+      el.innerHTML = '<div class="tix-lan-msg" style="grid-column:1/-1;">' +
+        '<i class="fa-solid fa-calendar-star"></i>' +
+        '<h3 style="margin-bottom:var(--space-xs);">No shows yet</h3>' +
+        '<p>Create your first show — it stays a private draft until you publish it.</p></div>';
+      return;
+    }
+    el.innerHTML = showsCache.map(function(row) {
+      var isDraft = !Number(row.is_published) && row.status === 'draft';
+      return '<div class="swz-card" data-show-id="' + escHtml(row.id) + '" role="button" tabindex="0" aria-label="Edit ' + escHtml(row.event_name || 'show') + '">' +
+        '<div class="swz-card-img">' + (row.image_url
+          ? '<img src="' + escHtml(row.image_url) + '" alt="" loading="lazy">'
+          : '<i class="fa-solid fa-image" style="font-size:1.3rem;opacity:0.5;"></i>') + '</div>' +
+        '<div class="swz-card-main">' +
+          '<div class="swz-card-name">' + escHtml(row.event_name || '(untitled show)') + '</div>' +
+          '<div class="swz-card-meta">' + fmtDate(row.event_date) + ' · ' + escHtml(venueLine(row)) + '</div>' +
+          '<div>' + publishChip(row) + '</div>' +
+        '</div>' +
+        '<div class="swz-card-side">' + admissionChip(row) +
+          (isDraft ? '<button class="tix-action-btn danger swz-del-btn" data-show-id="' + escHtml(row.id) + '" title="Delete draft" aria-label="Delete draft"><i class="fa-solid fa-trash"></i></button>' : '') +
+        '</div></div>';
+    }).join('');
+    el.querySelectorAll('.swz-card').forEach(function(card) {
+      function open(e) {
+        if (e.target.closest('.swz-del-btn')) return;
+        var row = showsCache.find(function(s) { return s.id === card.dataset.showId; });
+        if (row) openWizard(row);
+      }
+      card.addEventListener('click', open);
+      card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
+    });
+    el.querySelectorAll('.swz-del-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var row = showsCache.find(function(s) { return s.id === btn.dataset.showId; });
+        if (row) deleteDraft(row);
+      });
+    });
+  }
+
+  function renderStats() {
+    var total = showsCache.length;
+    var published = showsCache.filter(function(e) { return Number(e.is_published); }).length;
+    var drafts = total - published;
+    document.getElementById('tix-stats').innerHTML =
+      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">' + total + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Shows</div></div>' +
+      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">' + published + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Published</div></div>' +
+      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-2xl);font-weight:700;color:#8b949e;">' + drafts + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Drafts</div></div>';
   }
 
   function populateEventSelects() {
@@ -367,260 +564,557 @@
       var val = sel.value;
       var first = sel.options[0].outerHTML;
       sel.innerHTML = first;
-      eventsCache.forEach(function(ev) {
+      showsCache.forEach(function(ev) {
         var opt = document.createElement('option');
         opt.value = ev.id;
-        opt.textContent = ev.eventName + ' (' + fmtDate(ev.eventDate) + ')';
+        opt.textContent = (ev.event_name || '(untitled)') + ' (' + fmtDate(ev.event_date) + ')';
         sel.appendChild(opt);
       });
       sel.value = val;
     });
   }
 
-  function renderEventsTable() {
-    var tbody = document.getElementById('tix-events-body');
-    var empty = document.getElementById('tix-events-empty');
-    if (!eventsCache.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    empty.style.display = 'none';
-    tbody.innerHTML = eventsCache.map(function(ev) {
-      var status = ev.status || 'draft';
-      var tierCount = (ev.tiers || []).length;
-      return '<tr>' +
-        '<td><div style="font-weight:600;">' + escHtml(ev.eventName) + '</div></td>' +
-        '<td>' + escHtml(ev.venueName || '\u2014') + '</td>' +
-        '<td>' + fmtDate(ev.eventDate) + '</td>' +
-        '<td>' + statusBadge(status) + '</td>' +
-        '<td>' + tierCount + ' tier' + (tierCount !== 1 ? 's' : '') + '</td>' +
-        '<td style="white-space:nowrap;">' +
-          '<button class="tix-action-btn" onclick="window._tixEditEvent(\'' + ev.id + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button> ' +
-          '<button class="tix-action-btn ' + (status === 'published' ? 'danger' : 'success') + '" onclick="window._tixTogglePublish(\'' + ev.id + '\', \'' + status + '\')" title="' + (status === 'published' ? 'Unpublish' : 'Publish') + '">' +
-            '<i class="fa-solid fa-' + (status === 'published' ? 'eye-slash' : 'eye') + '"></i></button> ' +
-          '<button class="tix-action-btn danger" onclick="window._tixDeleteEvent(\'' + ev.id + '\')" title="Delete"><i class="fa-solid fa-trash"></i></button>' +
-        '</td>' +
-      '</tr>';
-    }).join('');
+  var _loadingShows = false;
+  async function loadShows() {
+    if (_loadingShows) return;
+    _loadingShows = true;
+    renderShowList('loading');
+    try {
+      if (!isLocal && !getSb()) { renderShowList('signin'); return; }
+      showsCache = await fetchShows();
+      renderShowList('ok');
+      renderStats();
+      populateEventSelects();
+      renderTiersView();
+    } catch (e) {
+      console.error('[Shows] load failed:', e);
+      if (e && e.message === 'not_signed_in') renderShowList('signin');
+      else renderShowList('error', e && e.message);
+    } finally {
+      _loadingShows = false;
+    }
   }
 
-  function renderStats() {
-    var total = eventsCache.length;
-    var published = eventsCache.filter(function(e) { return e.status === 'published'; }).length;
-    var totalTiers = eventsCache.reduce(function(sum, e) { return sum + (e.tiers || []).length; }, 0);
-    document.getElementById('tix-stats').innerHTML =
-      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
-        '<div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">' + total + '</div>' +
-        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Events</div></div>' +
-      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
-        '<div style="font-size:var(--text-2xl);font-weight:700;color:#3fb950;">' + published + '</div>' +
-        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Published</div></div>' +
-      '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
-        '<div style="font-size:var(--text-2xl);font-weight:700;color:#58a6ff;">' + totalTiers + '</div>' +
-        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Ticket Tiers</div></div>';
+  /* ══════════════════════════════════════════════════════════════════
+     RELAY WRITES + RESULT POLLING (spec §3.7 — honest pending/failed)
+     Remote: INSERT into booking_actions (own-row RLS, actor pinned to
+     auth.uid), then poll the OWN ROW's `result` column stamped by the
+     reconciler: applied / noop:* / rejected:<reason> / still-null=pending.
+     ══════════════════════════════════════════════════════════════════ */
+
+  async function relayWrite(actionType, targetId, payload) {
+    var sb = getSb();
+    if (!sb) throw new Error('Please sign in to manage shows.');
+    var uid = await getUid();
+    if (!uid) throw new Error('Not signed in.');
+    var res = await sb.from('booking_actions')
+      .insert({ actor_id: uid, target_id: String(targetId), action_type: actionType, payload: payload || {} })
+      .select('id')
+      .single();
+    if (res.error) throw new Error(res.error.message);
+    return res.data.id;
   }
 
-  // Create/Edit Event Modal
-  function showEventModal(eventData) {
-    var isEdit = !!eventData;
-    var ev = eventData || {};
-    var html =
-      '<div style="display:flex;flex-direction:column;gap:var(--space-md);max-height:70vh;overflow-y:auto;padding:var(--space-sm);">' +
-        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Event Name *</label>' +
-        '<input id="ev-name" type="text" value="' + escHtml(ev.eventName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. Jazz Night at The Blue Note"></div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">' +
-          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Date *</label>' +
-          '<input id="ev-date" type="date" value="' + (ev.eventDate || '').split('T')[0] + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);"></div>' +
-          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Capacity</label>' +
-          '<input id="ev-cap" type="number" min="1" value="' + (ev.maxCapacity || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. 200"></div>' +
+  // Poll own action row. Resolves {state:'applied'|'rejected'|'pending', tag}
+  async function pollActionResult(actionId, maxMs) {
+    var sb = getSb();
+    var deadline = Date.now() + (maxMs || 60000);
+    while (Date.now() < deadline) {
+      await new Promise(function(r) { setTimeout(r, 2000); });
+      var res = await sb.from('booking_actions').select('reconciled_at,result').eq('id', actionId).single();
+      if (res.error) continue; // transient read blip — keep polling until budget
+      var row = res.data || {};
+      if (row.result) {
+        if (String(row.result).indexOf('rejected:') === 0) return { state: 'rejected', tag: row.result };
+        return { state: 'applied', tag: row.result }; // applied or noop:*
+      }
+      if (row.reconciled_at) return { state: 'applied', tag: 'applied' }; // legacy stamp without tag
+    }
+    return { state: 'pending', tag: null };
+  }
+
+  // Honest human mapping for rejection tags (surfaced verbatim-ish, never hidden)
+  function rejectionMessage(tag) {
+    var t = String(tag || '').replace(/^rejected:/, '');
+    var map = {
+      'payload': 'The office rejected these details — check the fields and try again.',
+      'no_sor_user': 'Your account isn’t linked to an office user yet — contact the admin.',
+      'event_not_found': 'This show no longer exists — close and refresh the list.',
+      'bad_correlation_id': 'Something went wrong creating this draft — try again.',
+      'not_an_unpublished_draft': 'Only never-published drafts can be deleted.',
+      'tier_has_sales': 'A tier with sales can’t be removed.',
+      'duplicate_tier_name': 'Two tiers have the same name — rename one.'
+    };
+    if (map[t]) return map[t];
+    if (t.indexOf('role_') === 0) return 'Your account doesn’t have manager access for shows.';
+    return 'The office rejected this change: ' + t.replace(/_/g, ' ');
+  }
+
+  // After a create lands, resolve the new tevt_ id via the readmodel's correlation_id echo.
+  async function resolveCreatedEvent(corr, maxMs) {
+    var sb = getSb();
+    if (!sb) return null;
+    var deadline = Date.now() + (maxMs || 20000);
+    while (Date.now() < deadline) {
+      var res = await sb.from('ticket_event_manager_readmodel').select('*').eq('correlation_id', corr).limit(1);
+      if (!res.error && res.data && res.data.length) {
+        var row = res.data[0];
+        if (typeof row.tiers === 'string') { try { row.tiers = JSON.parse(row.tiers); } catch (_) { row.tiers = []; } }
+        if (!Array.isArray(row.tiers)) row.tiers = [];
+        return row;
+      }
+      await new Promise(function(r) { setTimeout(r, 2500); });
+    }
+    return null;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SHOW WIZARD — stepper shell + Step 1 (Details)  [spec §4.2]
+     Steps 2–5 (Image / Admission & Tiers / Preview / Publish) are not
+     built yet — the rail shows them locked; nothing dead is tappable.
+     ══════════════════════════════════════════════════════════════════ */
+
+  var WSTEPS = ['Details', 'Image', 'Tiers', 'Preview', 'Publish'];
+  var _wz = null; // { row (null=new), corr, dirty }
+
+  var AGE_OPTIONS = [
+    { v: '', label: 'Not specified' },
+    { v: 'all_ages', label: 'All ages' },
+    { v: '18_plus', label: '18+' },
+    { v: '21_plus', label: '21+' }
+  ];
+
+  function closeWizard(force) {
+    if (_wz && _wz.dirty && !force) {
+      Modal.confirm('Discard changes to this step?', function() { closeWizard(true); });
+      return;
+    }
+    var ov = document.getElementById('swz-overlay');
+    if (ov) ov.remove();
+    document.body.style.overflow = '';
+    _wz = null;
+  }
+
+  function openWizard(row) {
+    _wz = { row: row || null, corr: row ? null : corrId(), dirty: false };
+    var ov = document.createElement('div');
+    ov.id = 'swz-overlay';
+    document.body.appendChild(ov);
+    document.body.style.overflow = 'hidden';
+    renderWizard();
+  }
+
+  function setStatusStrip(state, msg, withRetry) {
+    var strip = document.getElementById('swz-status');
+    if (!strip) return;
+    strip.className = 'swz-status-strip' + (state ? ' ' + state : '');
+    if (!state) { strip.innerHTML = ''; return; }
+    var icon = { saving: 'fa-spinner fa-spin', saved: 'fa-check', queued: 'fa-clock', failed: 'fa-triangle-exclamation' }[state] || 'fa-circle-info';
+    strip.innerHTML = '<i class="fa-solid ' + icon + '"></i><span style="flex:1;">' + escHtml(msg) + '</span>' +
+      (withRetry ? '<button id="swz-retry-save" class="btn btn-sm" style="min-height:36px;">Retry</button>' : '');
+    if (withRetry) {
+      var rb = document.getElementById('swz-retry-save');
+      if (rb) rb.addEventListener('click', saveDetails);
+    }
+  }
+
+  function renderWizard() {
+    var ov = document.getElementById('swz-overlay');
+    if (!ov || !_wz) return;
+    var row = _wz.row;
+    var isNew = !row;
+    var title = isNew ? 'New Show' : (row.event_name || '(untitled show)');
+
+    // 5-segment rail: step 1 active; 2-5 locked (visual only — not buttons)
+    var rail = '<div style="display:flex;gap:6px;margin-top:10px;">';
+    for (var i = 0; i < WSTEPS.length; i++) {
+      rail += '<div style="flex:1;height:4px;border-radius:2px;background:' + (i === 0 ? 'var(--color-gold)' : 'var(--color-border)') + ';"></div>';
+    }
+    rail += '</div><div style="display:flex;gap:6px;margin-top:4px;">';
+    for (var j = 0; j < WSTEPS.length; j++) {
+      rail += '<div class="swz-rail-label">' + (j === 0 ? '<span style="color:var(--color-gold);font-weight:600;">' + WSTEPS[j] + '</span>' : '<i class="fa-solid fa-lock" style="font-size:0.6rem;"></i> ' + WSTEPS[j]) + '</div>';
+    }
+    rail += '</div>';
+
+    var header =
+      '<div style="flex-shrink:0;padding:14px 16px;border-bottom:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+          '<div style="min-width:0;"><div style="font-weight:700;font-size:var(--text-base);">' + (isNew ? 'Create a Show' : 'Edit Show') + '</div>' +
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Step 1 of 5 · Details · ' + escHtml(title) + '</div></div>' +
+          '<button id="swz-close" aria-label="Close" style="background:none;border:none;color:var(--color-text-muted);font-size:20px;min-width:44px;min-height:44px;cursor:pointer;">&times;</button>' +
+        '</div>' + rail +
+      '</div>' +
+      '<div id="swz-status" class="swz-status-strip"></div>';
+
+    function val(k) { return row ? (row[k] == null ? '' : String(row[k])) : ''; }
+    var tr = row ? Number(row.ticket_required) : 1;
+
+    var ageSel = '<select id="swz-age" class="swz-input">';
+    AGE_OPTIONS.forEach(function(o) {
+      ageSel += '<option value="' + o.v + '"' + (val('age_restriction') === o.v ? ' selected' : '') + '>' + o.label + '</option>';
+    });
+    ageSel += '</select>';
+
+    var body =
+      '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
+        '<p style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm);">The basics of the show. It stays a private draft until you publish it (later step).</p>' +
+
+        '<label class="swz-form-label" for="swz-name">Show name *</label>' +
+        '<input id="swz-name" class="swz-input" type="text" maxlength="256" value="' + escHtml(val('event_name')) + '" placeholder="e.g. An Evening of Soul">' +
+        '<div class="swz-field-err" id="swz-name-err"></div>' +
+
+        '<label class="swz-form-label" for="swz-date">Date *</label>' +
+        '<input id="swz-date" class="swz-input" type="date" value="' + escHtml(val('event_date') ? String(val('event_date')).slice(0, 10) : '') + '">' +
+        '<div class="swz-field-err" id="swz-date-err"></div>' +
+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+          '<div><label class="swz-form-label" for="swz-show-time">Show time</label>' +
+          '<input id="swz-show-time" class="swz-input" type="text" maxlength="20" value="' + escHtml(val('show_time')) + '" placeholder="e.g. 8:00 PM">' +
+          '<div class="swz-field-err" id="swz-show-time-err"></div></div>' +
+          '<div><label class="swz-form-label" for="swz-doors">Doors open</label>' +
+          '<input id="swz-doors" class="swz-input" type="text" maxlength="20" value="' + escHtml(val('doors_open')) + '" placeholder="e.g. 7:00 PM">' +
+          '<div class="swz-field-err" id="swz-doors-err"></div></div>' +
         '</div>' +
-        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Venue Name</label>' +
-        '<input id="ev-venue" type="text" value="' + escHtml(ev.venueName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. The Blue Note"></div>' +
-        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Description</label>' +
-        '<textarea id="ev-desc" rows="3" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);resize:vertical;">' + escHtml(ev.description || '') + '</textarea></div>' +
+
+        '<label class="swz-form-label" for="swz-venue">Venue name</label>' +
+        '<input id="swz-venue" class="swz-input" type="text" maxlength="256" value="' + escHtml(val('venue_name')) + '" placeholder="e.g. The Music Hall">' +
+        '<div class="swz-help">Leave venue blank to show “Venue TBA — City, ST” on the card.</div>' +
+
+        '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">' +
+          '<div><label class="swz-form-label" for="swz-city">City</label>' +
+          '<input id="swz-city" class="swz-input" type="text" maxlength="120" value="' + escHtml(val('venue_city')) + '" placeholder="e.g. Washington"></div>' +
+          '<div><label class="swz-form-label" for="swz-state">State</label>' +
+          '<input id="swz-state" class="swz-input" type="text" maxlength="40" value="' + escHtml(val('venue_state')) + '" placeholder="e.g. DC"></div>' +
+        '</div>' +
+
+        '<label class="swz-form-label" for="swz-cap">Venue capacity</label>' +
+        '<input id="swz-cap" class="swz-input" type="number" inputmode="numeric" min="0" max="20000" step="1" value="' + escHtml(val('venue_capacity')) + '" placeholder="e.g. 200">' +
+        '<div class="swz-field-err" id="swz-cap-err"></div>' +
+
+        '<label class="swz-form-label" for="swz-desc">Description</label>' +
+        '<textarea id="swz-desc" class="swz-input" rows="4" maxlength="2000" style="resize:vertical;" placeholder="What should show-goers know?">' + escHtml(val('description')) + '</textarea>' +
+        '<div class="swz-help"><span id="swz-desc-count">0</span>/2000</div>' +
+
+        '<label class="swz-form-label" for="swz-age">Age restriction</label>' + ageSel +
+
+        '<label class="swz-form-label">Admission</label>' +
+        '<label style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg-secondary);cursor:pointer;min-height:44px;">' +
+          '<input type="checkbox" id="swz-ticketed"' + (tr ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--color-gold);flex-shrink:0;">' +
+          '<div style="flex:1;"><div style="font-weight:600;">Ticketed show</div>' +
+          '<div class="swz-help" style="margin-top:2px;" id="swz-ticketed-help"></div></div>' +
+        '</label>' +
+        '<div class="swz-help">Ticket tiers and pricing are set up in the Admission &amp; Tiers step — coming in the next update.</div>' +
       '</div>';
-    if (typeof Modal !== 'undefined') {
-      Modal.open({
-        title: isEdit ? 'Edit Event' : 'Create Event',
-        content: html,
-        size: 'md',
-        saveText: isEdit ? 'Save' : 'Create',
-        onSave: function() {
-          var data = {
-            eventName: document.getElementById('ev-name').value.trim(),
-            eventDate: document.getElementById('ev-date').value,
-            venueName: document.getElementById('ev-venue').value.trim(),
-            maxCapacity: parseInt(document.getElementById('ev-cap').value) || null,
-            description: document.getElementById('ev-desc').value.trim(),
-            updatedAt: Auth._serverTimestamp()
-          };
-          if (!data.eventName || !data.eventDate) { Toast.error('Name and date are required'); return; }
-          var promise;
-          if (isEdit) {
-            promise = eventsRef.doc(ev.id).update(data);
-          } else {
-            data.status = 'draft';
-            data.tiers = [];
-            data.createdAt = Auth._serverTimestamp();
-            data.createdBy = (typeof Auth !== 'undefined' && Auth._user) ? Auth._user.uid : 'unknown';
-            promise = eventsRef.doc(genId()).set(data);
-          }
-          promise.then(function() {
-            Modal.close();
-            Toast.success(isEdit ? 'Event updated' : 'Event created');
-            loadEvents();
-          }).catch(function(err) { Toast.error(err.message); });
+
+    var footer =
+      '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<button id="swz-save" class="btn btn-primary" style="min-height:48px;flex:1;font-weight:600;font-size:var(--text-base);"><i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details') + '</button>' +
+      '</div>';
+
+    ov.innerHTML = header + body + footer;
+
+    document.getElementById('swz-close').addEventListener('click', function() { closeWizard(false); });
+    document.getElementById('swz-save').addEventListener('click', saveDetails);
+
+    // dirty tracking + description counter + admission helper copy
+    var descEl = document.getElementById('swz-desc');
+    var countEl = document.getElementById('swz-desc-count');
+    function syncCount() { countEl.textContent = String((descEl.value || '').length); }
+    syncCount();
+    function syncTicketHelp() {
+      document.getElementById('swz-ticketed-help').textContent =
+        document.getElementById('swz-ticketed').checked
+          ? 'Tickets required — at least one tier is needed before this show can publish.'
+          : 'Free show — the card announces the show; no ticket needed.';
+    }
+    syncTicketHelp();
+    ov.querySelectorAll('input,textarea,select').forEach(function(inp) {
+      inp.addEventListener('input', function() { if (_wz) _wz.dirty = true; syncCount(); });
+      inp.addEventListener('change', function() { if (_wz) _wz.dirty = true; syncTicketHelp(); });
+    });
+  }
+
+  // Client validation mirroring the server Joi bounds (server stays authoritative)
+  function collectDetails() {
+    var errors = {};
+    function g(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+    var name = g('swz-name').trim();
+    var date = g('swz-date');
+    var showTime = g('swz-show-time').trim();
+    var doors = g('swz-doors').trim();
+    var venue = g('swz-venue').trim();
+    var city = g('swz-city').trim();
+    var state = g('swz-state').trim();
+    var capRaw = g('swz-cap').trim();
+    var desc = g('swz-desc').trim();
+    var age = g('swz-age');
+    var ticketed = document.getElementById('swz-ticketed').checked;
+
+    if (!name) errors['swz-name'] = 'Show name is required.';
+    else if (name.length > 256) errors['swz-name'] = 'Keep the name under 256 characters.';
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) errors['swz-date'] = 'Pick a date.';
+    if (showTime.length > 20) errors['swz-show-time'] = 'Keep this under 20 characters.';
+    if (doors.length > 20) errors['swz-doors'] = 'Keep this under 20 characters.';
+    var cap;
+    if (capRaw !== '') {
+      cap = Number(capRaw);
+      if (!isFinite(cap) || cap !== Math.floor(cap) || cap < 0 || cap > 20000) errors['swz-cap'] = 'Capacity must be a whole number between 0 and 20,000.';
+    }
+    // maxlength attributes already cap venue/city/state/desc; re-checked server-side.
+
+    var payload = {
+      eventName: name,
+      eventDate: date,
+      showTime: showTime,
+      doorsOpen: doors,
+      venueName: venue,
+      venueCity: city,
+      venueState: state,
+      description: desc,
+      ticketRequired: ticketed
+    };
+    if (capRaw !== '') payload.venueCapacity = cap;
+    if (age) payload.ageRestriction = age;
+    return { payload: payload, errors: errors };
+  }
+
+  function showFieldErrors(errors) {
+    ['swz-name', 'swz-date', 'swz-show-time', 'swz-doors', 'swz-cap'].forEach(function(id) {
+      var el = document.getElementById(id);
+      var err = document.getElementById(id + '-err');
+      if (!el) return;
+      if (errors[id]) {
+        el.classList.add('swz-invalid');
+        if (err) { err.textContent = errors[id]; err.style.display = 'block'; }
+      } else {
+        el.classList.remove('swz-invalid');
+        if (err) err.style.display = 'none';
+      }
+    });
+  }
+
+  // Diff payload vs the loaded row for update_show_card (min 1 key server rule)
+  function diffAgainstRow(payload, row) {
+    var out = {};
+    var mapping = {
+      eventName: 'event_name', eventDate: 'event_date', showTime: 'show_time',
+      doorsOpen: 'doors_open', venueName: 'venue_name', venueCity: 'venue_city',
+      venueState: 'venue_state', venueCapacity: 'venue_capacity',
+      description: 'description', ageRestriction: 'age_restriction', ticketRequired: 'ticket_required'
+    };
+    Object.keys(payload).forEach(function(k) {
+      var current = row[mapping[k]];
+      var incoming = payload[k];
+      if (k === 'ticketRequired') { current = !!Number(current); }
+      else if (k === 'venueCapacity') { current = (current == null) ? null : Number(current); }
+      else if (k === 'eventDate') { current = current ? String(current).slice(0, 10) : ''; }
+      else { current = (current == null) ? '' : String(current); }
+      var same = (typeof incoming === 'boolean') ? (incoming === current)
+        : (k === 'venueCapacity') ? (Number(incoming) === current)
+        : (String(incoming) === String(current));
+      if (!same) out[k] = incoming;
+    });
+    // empty-string age means "not specified": server enum has no blank — omit it
+    if (out.ageRestriction === '') delete out.ageRestriction;
+    return out;
+  }
+
+  var _saving = false;
+  async function saveDetails() {
+    if (_saving || !_wz) return;
+    var c = collectDetails();
+    showFieldErrors(c.errors);
+    if (Object.keys(c.errors).length) {
+      setStatusStrip('failed', 'Fix the highlighted fields.', false);
+      return;
+    }
+    var isNew = !_wz.row;
+    var payload = c.payload;
+    if (!isNew) {
+      payload = diffAgainstRow(c.payload, _wz.row);
+      if (!Object.keys(payload).length) {
+        setStatusStrip('saved', 'No changes to save — everything is up to date.', false);
+        return;
+      }
+    } else if (payload.ageRestriction === '') {
+      delete payload.ageRestriction;
+    }
+
+    _saving = true;
+    var btn = document.getElementById('swz-save');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
+    setStatusStrip('saving', isNew ? 'Creating your draft… (reaches the office within a minute)' : 'Saving… (reaches the office within a minute)', false);
+
+    try {
+      if (isLocal) {
+        // LAN: direct Express (Joi-hardened routes, same bounds as the relay)
+        var resp;
+        if (isNew) {
+          resp = await tFetch('/events', { method: 'POST', body: JSON.stringify(payload) });
+        } else {
+          resp = await tFetch('/events/' + encodeURIComponent(_wz.row.id), { method: 'PUT', body: JSON.stringify(payload) });
         }
-      });
+        if (!resp.ok) {
+          var errBody = await resp.json().catch(function() { return {}; });
+          throw new Error(errBody.message || errBody.error || ('Server responded ' + resp.status));
+        }
+        await onSaveLanded(isNew, null);
+      } else {
+        // Remote: booking_actions relay + own-row result poll
+        var actionId;
+        if (isNew) {
+          actionId = await relayWrite('create_show_draft', _wz.corr, payload);
+        } else {
+          actionId = await relayWrite('update_show_card', _wz.row.id, payload);
+        }
+        var result = await pollActionResult(actionId, 60000);
+        if (!_wz) return; // wizard closed mid-wait — change still lands server-side
+        if (result.state === 'rejected') {
+          setStatusStrip('failed', rejectionMessage(result.tag), true);
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details'); }
+          _saving = false;
+          return;
+        }
+        if (result.state === 'pending') {
+          // The S5-gap fix, made visible: honest queued state — never an infinite spinner
+          setStatusStrip('queued', 'Queued — the home office may be offline; this will land automatically when it reconnects.', false);
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details'); }
+          _wz.dirty = false; // inputs are queued server-side (staging row persisted)
+          _saving = false;
+          return;
+        }
+        await onSaveLanded(isNew, isNew ? _wz.corr : null);
+      }
+    } catch (e) {
+      if (_wz) setStatusStrip('failed', 'Could not save: ' + (e && e.message ? e.message : 'unknown error'), true);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> ' + (isNew ? 'Create Draft' : 'Save Details'); }
+      _saving = false;
     }
   }
 
-  document.getElementById('tix-create-event-btn').addEventListener('click', function() { showEventModal(null); });
-
-  window._tixEditEvent = function(id) {
-    var ev = eventsCache.find(function(e) { return e.id === id; });
-    if (ev) showEventModal(ev);
-  };
-
-  window._tixTogglePublish = function(id, currentStatus) {
-    var newStatus = currentStatus === 'published' ? 'draft' : 'published';
-    eventsRef.doc(id).update({
-      status: newStatus,
-      updatedAt: Auth._serverTimestamp()
-    }).then(function() {
-      Toast.success(newStatus === 'published' ? 'Event published' : 'Event unpublished');
-      loadEvents();
-    }).catch(function(err) { Toast.error(err.message); });
-  };
-
-  window._tixDeleteEvent = function(id) {
-    if (typeof Modal !== 'undefined') {
-      Modal.confirm('Delete this event? This cannot be undone.', function() {
-        eventsRef.doc(id).delete().then(function() {
-          Toast.success('Event deleted');
-          loadEvents();
-        }).catch(function(err) { Toast.error(err.message); });
-      });
+  async function onSaveLanded(isNew, corr) {
+    _saving = false;
+    if (!_wz) return;
+    _wz.dirty = false;
+    setStatusStrip('saved', 'Saved ✓', false);
+    var resolvedName = null;
+    if (corr) {
+      // Resolve the server-generated event id from the readmodel echo
+      var newRow = await resolveCreatedEvent(corr, 20000);
+      if (newRow) { _wz.row = newRow; resolvedName = newRow.event_name; }
+      else setStatusStrip('saved', 'Changes saved — refreshing…', false);
     }
-  };
+    renderSavedScreen(isNew, resolvedName);
+    loadShows(); // refresh list + stats in the background
+  }
 
-  // ══════════════════════════════════════════
-  //  TIERS TAB (Firestore — embedded in event doc)
-  // ══════════════════════════════════════════
+  function renderSavedScreen(wasNew, name) {
+    var ov = document.getElementById('swz-overlay');
+    if (!ov || !_wz) return;
+    var canReopen = !!_wz.row;
+    ov.innerHTML =
+      '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;overflow-y:auto;">' +
+        '<div style="width:64px;height:64px;border-radius:50%;background:rgba(63,185,80,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid fa-check" style="color:#3fb950;font-size:28px;"></i></div>' +
+        '<div style="font-weight:700;font-size:var(--text-lg);">' + (wasNew ? 'Draft created' : 'Details saved') + '</div>' +
+        '<div style="color:var(--color-text-muted);margin-top:6px;max-width:340px;">' +
+          (wasNew ? 'Your show is a private draft — it is not visible to the public until you publish it.' : 'Your changes are in.') + '</div>' +
+        '<div style="margin-top:18px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg-secondary);max-width:340px;text-align:left;font-size:var(--text-sm);">' +
+          '<div style="font-weight:600;margin-bottom:8px;"><i class="fa-solid fa-road" style="color:var(--color-gold);"></i> Coming in the next updates</div>' +
+          '<div style="color:var(--color-text-muted);line-height:1.7;">' +
+            '<i class="fa-solid fa-image" style="width:18px;"></i> Card image upload<br>' +
+            '<i class="fa-solid fa-layer-group" style="width:18px;"></i> Admission &amp; ticket tiers<br>' +
+            '<i class="fa-solid fa-eye" style="width:18px;"></i> Live card preview<br>' +
+            '<i class="fa-solid fa-bullhorn" style="width:18px;"></i> Publish / unpublish' +
+          '</div></div>' +
+        '<div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center;">' +
+          (canReopen ? '<button id="swz-again" class="btn" style="min-height:48px;padding:0 20px;">Edit Details Again</button>' : '') +
+          '<button id="swz-done" class="btn btn-primary" style="min-height:48px;padding:0 28px;font-weight:600;">Done</button>' +
+        '</div></div>';
+    var done = document.getElementById('swz-done');
+    if (done) done.addEventListener('click', function() { closeWizard(true); });
+    var again = document.getElementById('swz-again');
+    if (again) again.addEventListener('click', function() { renderWizard(); });
+  }
+
+  /* ── Draft delete (delete_show_draft — never-published drafts only) ── */
+  function deleteDraft(row) {
+    Modal.confirm('Delete the draft “' + (row.event_name || 'untitled') + '”? It was never published; this permanently removes it.', async function() {
+      try {
+        if (isLocal) {
+          var resp = await tFetch('/events/' + encodeURIComponent(row.id), { method: 'DELETE' });
+          if (!resp.ok) {
+            var eb = await resp.json().catch(function() { return {}; });
+            throw new Error(eb.message || eb.error || ('Server responded ' + resp.status));
+          }
+          if (typeof Toast !== 'undefined') Toast.success('Draft deleted');
+          loadShows();
+          return;
+        }
+        if (typeof Toast !== 'undefined') Toast.info('Deleting draft…');
+        var actionId = await relayWrite('delete_show_draft', row.id, {});
+        var result = await pollActionResult(actionId, 60000);
+        if (result.state === 'rejected') {
+          if (typeof Toast !== 'undefined') Toast.error(rejectionMessage(result.tag));
+        } else if (result.state === 'pending') {
+          if (typeof Toast !== 'undefined') Toast.warning ? Toast.warning('Delete queued — the home office may be offline; it will land when it reconnects.') : Toast.info('Delete queued — it will land when the office reconnects.');
+        } else {
+          if (typeof Toast !== 'undefined') Toast.success('Draft deleted');
+        }
+        loadShows();
+      } catch (e) {
+        if (typeof Toast !== 'undefined') Toast.error('Could not delete: ' + e.message);
+      }
+    });
+  }
+
+  document.getElementById('swz-create-btn').addEventListener('click', function() {
+    if (!isLocal && !getSb()) {
+      if (typeof Toast !== 'undefined') Toast.error('Sign in with your manager account to create shows.');
+      return;
+    }
+    openWizard(null);
+  });
+
+  /* ══════════════════════════════════════════════════════════════════
+     TIERS TAB — read-only view from the same show rows (interim; tier
+     EDITING ships with the wizard's Admission & Tiers step)
+     ══════════════════════════════════════════════════════════════════ */
 
   var tierEventSel = document.getElementById('tix-tier-event-select');
-  var addTierBtn = document.getElementById('tix-add-tier-btn');
+  tierEventSel.addEventListener('change', renderTiersView);
 
-  tierEventSel.addEventListener('change', function() {
-    addTierBtn.disabled = !tierEventSel.value;
-    if (tierEventSel.value) renderTiers(tierEventSel.value);
-    else { document.getElementById('tix-tiers-body').innerHTML = ''; document.getElementById('tix-tiers-empty').style.display = 'block'; }
-  });
-
-  function renderTiers(eventId) {
-    var ev = eventsCache.find(function(e) { return e.id === eventId; });
-    var tiers = ev ? (ev.tiers || []) : [];
-    var tbody = document.getElementById('tix-tiers-body');
-    var empty = document.getElementById('tix-tiers-empty');
-    if (!tiers.length) { tbody.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No tiers for this event. Add one to start selling.'; return; }
-    empty.style.display = 'none';
-    tbody.innerHTML = tiers.map(function(t) {
-      return '<tr>' +
-        '<td style="font-weight:600;">' + escHtml(t.tierName) + '</td>' +
-        '<td style="color:var(--color-gold);font-weight:600;">' + fmt(t.price) + '</td>' +
-        '<td>' + (t.quantity || '\u221e') + '</td>' +
-        '<td>' + (t.sold || 0) + '</td>' +
-        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(t.description || '\u2014') + '</td>' +
-        '<td style="white-space:nowrap;">' +
-          '<button class="tix-action-btn" onclick="window._tixEditTier(\'' + t.id + '\', \'' + eventId + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button> ' +
-          '<button class="tix-action-btn danger" onclick="window._tixDeleteTier(\'' + t.id + '\', \'' + eventId + '\')" title="Delete"><i class="fa-solid fa-trash"></i></button>' +
-        '</td>' +
-      '</tr>';
+  function renderTiersView() {
+    var view = document.getElementById('tix-tiers-view');
+    if (!view) return;
+    var id = tierEventSel.value;
+    if (!id) {
+      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Select a show above to see its ticket tiers.</p>';
+      return;
+    }
+    var row = showsCache.find(function(s) { return s.id === id; });
+    var tiers = row ? (row.tiers || []) : [];
+    if (!row) {
+      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Show not found — refresh the list.</p>';
+      return;
+    }
+    if (!Number(row.ticket_required)) {
+      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">This is a free show — no ticket tiers needed.</p>';
+      return;
+    }
+    if (!tiers.length) {
+      view.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">No tiers yet for this show.</p>';
+      return;
+    }
+    view.innerHTML = tiers.map(function(t) {
+      return '<div class="swz-tier-card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">' +
+          '<div style="font-weight:700;">' + escHtml(t.tier_name) + '</div>' +
+          '<div style="color:var(--color-gold);font-weight:700;">' + centsToLabel(t.price_cents) + '</div></div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">' +
+          'Capacity ' + (t.capacity || 0) + ' · Sold ' + (t.sold || 0) +
+          (t.description ? ' · ' + escHtml(t.description) : '') + '</div></div>';
     }).join('');
   }
-
-  function showTierModal(eventId, tierData) {
-    var isEdit = !!tierData;
-    var t = tierData || {};
-    var html =
-      '<div style="display:flex;flex-direction:column;gap:var(--space-md);padding:var(--space-sm);">' +
-        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Tier Name *</label>' +
-        '<input id="tier-name" type="text" value="' + escHtml(t.tierName || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="e.g. VIP, General Admission"></div>' +
-        '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:var(--space-sm);">' +
-          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Price *</label>' +
-          '<input id="tier-price" type="number" min="0" step="0.01" value="' + (t.price != null ? t.price : '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="0.00"></div>' +
-          '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Quantity</label>' +
-          '<input id="tier-qty" type="number" min="1" value="' + (t.quantity || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="Unlimited"></div>' +
-        '</div>' +
-        '<div><label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:4px;">Description</label>' +
-        '<input id="tier-desc" type="text" value="' + escHtml(t.description || '') + '" style="width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);" placeholder="What\'s included"></div>' +
-      '</div>';
-    Modal.open({
-      title: isEdit ? 'Edit Tier' : 'Add Ticket Tier',
-      content: html,
-      size: 'md',
-      buttons: [
-        { text: 'Cancel', class: 'btn btn-outline', action: 'close' },
-        { text: isEdit ? 'Save' : 'Add', class: 'btn btn-primary', action: function() {
-          var tierObj = {
-            id: isEdit ? t.id : ('tier_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
-            tierName: document.getElementById('tier-name').value.trim(),
-            price: parseFloat(document.getElementById('tier-price').value),
-            quantity: parseInt(document.getElementById('tier-qty').value) || null,
-            description: document.getElementById('tier-desc').value.trim(),
-            sold: isEdit ? (t.sold || 0) : 0
-          };
-          if (!tierObj.tierName) { Toast.error('Tier name is required'); return; }
-          if (isNaN(tierObj.price)) { Toast.error('Price is required'); return; }
-
-          var ev = eventsCache.find(function(e) { return e.id === eventId; });
-          var tiers = (ev && ev.tiers) ? ev.tiers.slice() : [];
-
-          if (isEdit) {
-            var idx = tiers.findIndex(function(x) { return x.id === t.id; });
-            if (idx >= 0) tiers[idx] = tierObj;
-          } else {
-            tiers.push(tierObj);
-          }
-
-          eventsRef.doc(eventId).update({
-            tiers: tiers,
-            updatedAt: Auth._serverTimestamp()
-          }).then(function() {
-            Modal.close();
-            Toast.success(isEdit ? 'Tier updated' : 'Tier added');
-            // Update local cache
-            if (ev) ev.tiers = tiers;
-            renderTiers(eventId);
-            renderStats();
-          }).catch(function(err) { Toast.error(err.message); });
-        }}
-      ]
-    });
-  }
-
-  addTierBtn.addEventListener('click', function() {
-    if (tierEventSel.value) showTierModal(tierEventSel.value, null);
-  });
-
-  window._tixEditTier = function(tierId, eventId) {
-    var ev = eventsCache.find(function(e) { return e.id === eventId; });
-    var tier = ev ? (ev.tiers || []).find(function(t) { return t.id === tierId; }) : null;
-    if (tier) showTierModal(eventId, tier);
-  };
-
-  window._tixDeleteTier = function(tierId, eventId) {
-    Modal.confirm('Delete this tier?', function() {
-      var ev = eventsCache.find(function(e) { return e.id === eventId; });
-      var tiers = ev ? (ev.tiers || []).filter(function(t) { return t.id !== tierId; }) : [];
-      eventsRef.doc(eventId).update({
-        tiers: tiers,
-        updatedAt: Auth._serverTimestamp()
-      }).then(function() {
-        Toast.success('Tier deleted');
-        if (ev) ev.tiers = tiers;
-        renderTiers(eventId);
-        renderStats();
-      }).catch(function(err) { Toast.error(err.message); });
-    });
-  };
 
   // ══════════════════════════════════════════
   //  ORDERS TAB (Express — LAN only)
@@ -645,9 +1139,9 @@
         tbody.innerHTML = orders.map(function(o) {
           return '<tr>' +
             '<td style="font-family:monospace;font-size:var(--text-xs);">' + escHtml(o.confirmation_code || o.id.slice(0,12)) + '</td>' +
-            '<td><div style="font-weight:600;">' + escHtml(o.buyer_name || '\u2014') + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + escHtml(o.buyer_email || '') + '</div></td>' +
+            '<td><div style="font-weight:600;">' + escHtml(o.buyer_name || '—') + '</div><div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + escHtml(o.buyer_email || '') + '</div></td>' +
             '<td>' + escHtml(o.event_name || o.event_id) + '</td>' +
-            '<td>' + escHtml(o.tier_name || '\u2014') + '</td>' +
+            '<td>' + escHtml(o.tier_name || '—') + '</td>' +
             '<td>' + o.quantity + '</td>' +
             '<td style="font-weight:600;color:var(--color-gold);">' + fmt(o.total_price) + '</td>' +
             '<td>' + statusBadge(o.status) + '</td>' +
@@ -712,7 +1206,7 @@
             '<td style="font-family:monospace;font-weight:700;letter-spacing:1px;">' + escHtml(p.code) + '</td>' +
             '<td style="color:var(--color-gold);font-weight:600;">' + (p.discount_type === 'percent' ? p.discount_value + '%' : fmt(p.discount_value)) + '</td>' +
             '<td>' + (p.discount_type === 'percent' ? 'Percent' : 'Fixed') + '</td>' +
-            '<td>' + (p.use_count || 0) + ' / ' + (p.max_uses || '\u221e') + '</td>' +
+            '<td>' + (p.use_count || 0) + ' / ' + (p.max_uses || '∞') + '</td>' +
             '<td>' + (p.expires_at ? fmtDate(p.expires_at) : 'Never') + '</td>' +
             '<td>' + statusBadge(pStatus) + '</td></tr>';
         }).join('');
@@ -785,10 +1279,10 @@
         tbody.innerHTML = list.map(function(e) {
           return '<tr>' +
             '<td style="font-weight:600;">' + escHtml(e.guest_name) + '</td>' +
-            '<td>' + escHtml(e.tier_name || '\u2014') + '</td>' +
-            '<td style="font-family:monospace;font-size:var(--text-xs);">' + escHtml(e.ticket_number || e.confirmation_code || '\u2014') + '</td>' +
+            '<td>' + escHtml(e.tier_name || '—') + '</td>' +
+            '<td style="font-family:monospace;font-size:var(--text-xs);">' + escHtml(e.ticket_number || e.confirmation_code || '—') + '</td>' +
             '<td>' + (e.checked_in_at ? statusBadge('checked_in') : statusBadge('confirmed')) + '</td>' +
-            '<td>' + (e.checked_in_at ? fmtDateTime(e.checked_in_at) : '\u2014') + '</td>' +
+            '<td>' + (e.checked_in_at ? fmtDateTime(e.checked_in_at) : '—') + '</td>' +
             '<td>' + (!e.checked_in_at ? '<button class="tix-action-btn success" onclick="window._tixCheckIn(\'' + e.id + '\', \'' + eventId + '\')" title="Check In"><i class="fa-solid fa-check"></i> Check In</button>' : '<span style="color:#3fb950;font-size:var(--text-xs);"><i class="fa-solid fa-circle-check"></i> Done</span>') + '</td></tr>';
         }).join('');
       }).catch(function(err) { console.error('[Tickets] Door list load failed:', err); });
@@ -840,10 +1334,10 @@
         if (!eventBreakdown.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
         empty.style.display = 'none';
         tbody.innerHTML = eventBreakdown.map(function(e) {
-          return '<tr><td style="font-weight:600;">' + escHtml(e.eventName || e.event_name || '\u2014') + '</td>' +
+          return '<tr><td style="font-weight:600;">' + escHtml(e.eventName || e.event_name || '—') + '</td>' +
             '<td>' + fmtDate(e.eventDate || e.event_date) + '</td>' +
             '<td>' + (e.ticketsSold || e.tickets_sold || 0) + '</td>' +
-            '<td>' + (e.capacity || e.max_capacity || '\u221e') + '</td>' +
+            '<td>' + (e.capacity || e.max_capacity || '∞') + '</td>' +
             '<td style="font-weight:600;color:var(--color-gold);">' + fmt(e.revenue || 0) + '</td>' +
             '<td>' + fmt(e.avgPrice || e.avg_price || 0) + '</td></tr>';
         }).join('');
@@ -856,11 +1350,10 @@
     loadAnalytics();
   }
 
-  // ── Initial Load (Firestore events — always) ──
-  loadEvents();
+  // ── Initial Load ──
+  loadShows();
   } // end initTickets
 
-  // Wait for Firestore to be ready
   if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {
     Auth.whenReady(function() { initTickets(); });
   } else {
