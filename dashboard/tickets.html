@@ -255,7 +255,9 @@
   @keyframes swzShimmer { to { background-position: -200% 0; } }
 
   /* ── Wizard overlay (quote-stepper idiom) ── */
-  #swz-overlay { position: fixed; inset: 0; z-index: 10000; background: var(--color-bg); display: flex; flex-direction: column; overflow: hidden; }
+  /* EO W2 D1: keep the wizard BELOW modal.js's injected z-index 9999 so
+     Modal.confirm (dirty-close guard, future W3-W5 dialogs) renders on top. */
+  #swz-overlay { position: fixed; inset: 0; z-index: 9500; background: var(--color-bg); display: flex; flex-direction: column; overflow: hidden; }
   .swz-form-label { display: block; font-size: var(--text-sm); font-weight: 600; margin: 14px 0 4px; }
   .swz-input {
     width: 100%; min-height: 44px; padding: 8px 12px; border-radius: var(--radius-sm);
