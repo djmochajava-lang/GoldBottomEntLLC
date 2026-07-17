@@ -1,12 +1,15 @@
-<!-- dashboard/tickets.html — Shows & Tickets (story-show-wizard-w3-tiers-step) -->
+<!-- dashboard/tickets.html — Shows & Tickets (story-show-wizard-w4-image-step) -->
 <!-- Shows tab: manager readmodel (Supabase, remote) / Express (LAN). Writes ride the
      booking_actions relay remotely (create_show_draft / update_show_card /
-     set_show_tiers / delete_show_draft) with own-row result polling; LAN uses
-     the hardened /api/v1/tickets routes directly. W3: wizard step 2 = Admission
-     & Tiers (replace-set editor); the legacy read-only Tiers tab is DELETED.
-     All saves carry the EO W2 latency package: 120s poll budget, 30s
-     progressive copy, offline message only post-budget, background queued→
-     Saved flip. Orders/Promos/Door/Analytics stay LAN-only. -->
+     set_show_tiers / set_show_image / remove_show_image / delete_show_draft)
+     with own-row result polling; LAN uses the hardened /api/v1/tickets routes
+     directly. W3: wizard step 2 = Admission & Tiers (replace-set editor).
+     W4: wizard step 3 = Card Image — photo staged to the PRIVATE show-intake
+     bucket (own-prefix RLS), server pipeline re-encodes (EXIF stripped,
+     ≤400KB) into band-media/show-cards/ and sets image_url; the client never
+     sets image_url. All saves carry the EO W2 latency package: 120s poll
+     budget, 30s progressive copy, offline message only post-budget,
+     background queued→Saved flip. Orders/Promos/Door/Analytics stay LAN-only. -->
 <div class="dashboard-page" id="dash-tickets">
   <div class="dashboard-page-header">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
@@ -277,6 +280,37 @@
   .swz-tier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   @media (max-width: 480px) { .swz-tier-grid { grid-template-columns: 1fr; } }
   .swz-input[readonly] { opacity: 0.6; cursor: not-allowed; }
+
+  /* ── Step 3 · Card Image (W4) ── */
+  .swz-img-frame {
+    width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    background: var(--color-bg-secondary);
+  }
+  .swz-img-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .swz-img-empty {
+    margin-top: 12px; padding: 36px 16px; text-align: center;
+    border: 1px dashed var(--color-border); border-radius: var(--radius-md);
+    color: var(--color-text-muted); background: var(--color-bg-secondary);
+  }
+  .swz-img-empty i { font-size: 2rem; opacity: 0.4; display: block; margin-bottom: 8px; }
+  .swz-img-bar {
+    width: 100%; height: 6px; margin-top: 16px; border-radius: 3px;
+    background: var(--color-bg-secondary); border: 1px solid var(--color-border);
+    overflow: hidden; position: relative;
+  }
+  .swz-img-bar-fill {
+    position: absolute; top: 0; left: 0; height: 100%; width: 40%;
+    border-radius: 3px; background: var(--color-gold);
+    animation: swzImgSlide 1.2s ease-in-out infinite;
+  }
+  @keyframes swzImgSlide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(260%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .swz-img-bar-fill { animation: none; width: 100%; opacity: 0.5; }
+  }
 
   @media (max-width: 768px) {
     #dash-tickets .data-table { display: block; overflow-x: auto; }
@@ -710,10 +744,21 @@
       'not_an_unpublished_draft': 'Only never-published drafts can be deleted.',
       'tier_has_sales': 'A tier with sales can’t be removed — keep its row (capacity can still grow).',
       'duplicate_tier_name': 'Two tiers have the same name — rename one.',
-      'min_per_order_gt_max': 'A tier’s minimum per order is higher than its maximum — fix the range.'
+      'min_per_order_gt_max': 'A tier’s minimum per order is higher than its maximum — fix the range.',
+      'foreign_staging_path': 'That upload doesn’t belong to this show — try uploading the photo again.',
+      'image_banned_type': 'That file isn’t a photo the card can use — upload a JPEG, PNG, or WebP image.',
+      'image_bad_type': 'That file isn’t a photo the card can use — upload a JPEG, PNG, or WebP image.',
+      'image_type_mismatch': 'That file isn’t what it claims to be — upload a JPEG, PNG, or WebP photo.',
+      'image_too_large': 'That photo is over the 8MB limit — choose a smaller one.',
+      'image_too_small': 'That photo is too small for the card — use one at least 400px on its short side.',
+      'image_too_many_pixels': 'That photo’s dimensions are too large to process — export a smaller copy.',
+      'image_cannot_fit': 'That photo couldn’t be compressed for the card — try a different one.',
+      'image_unreadable': 'That photo couldn’t be read — try exporting it again or use a different one.',
+      'image_no_image': 'This show has no image to remove.'
     };
     if (map[t]) return map[t];
     if (t.indexOf('role_') === 0) return 'Your account doesn’t have manager access for shows.';
+    if (t.indexOf('image_') === 0) return 'The office couldn’t process that photo: ' + t.slice(6).replace(/_/g, ' ') + '.';
     return 'The office rejected this change: ' + t.replace(/_/g, ' ');
   }
 
@@ -736,19 +781,22 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
-     SHOW WIZARD — Step 1 (Details) + Step 2 (Admission & Tiers) [spec §4.2/§W3]
-     Steps 3–5 (Image / Preview / Publish) are not built yet — the rail
-     shows them locked; nothing dead is tappable.
-     NOTE (W3 sequencing deviation from spec §4.2's ordering): the spec lists
-     Image as step 2 and Tiers as step 3, but W4 (image leg) ships after W3
-     under the strict-sequential build rule — so Admission & Tiers is step 2
-     and Image is the next locked step. EO design-QA may re-order in W4/W5.
+     SHOW WIZARD — Step 1 (Details) + Step 2 (Admission & Tiers) + Step 3
+     (Card Image) [spec §4.2 / §W3 / §W4]. Steps 4–5 (Preview / Publish)
+     are not built yet — the rail shows them locked; nothing dead is tappable.
+     Rail order Details → Tiers → Image is the EO-ruled PERMANENT rail
+     (W3 audit: "step order Tiers=2 APPROVED PERMANENT"; Image = step 3).
+     W4 image leg: photo staged to the PRIVATE show-intake bucket under the
+     caller's own prefix <uid>/<eventId>/<uuid>.<ext> (RLS-pinned), then the
+     set_show_image relay verb — the SERVER downloads, validates magic bytes,
+     re-encodes (EXIF/GPS stripped, ≤400KB), publishes to band-media and sets
+     image_url. The client NEVER sets image_url directly.
      ══════════════════════════════════════════════════════════════════ */
 
   var WSTEPS = ['Details', 'Tiers', 'Image', 'Preview', 'Publish'];       // rail labels
-  var STEP_TITLES = ['Details', 'Admission & Tiers', 'Image', 'Preview', 'Publish'];
-  var UNLOCKED_STEPS = 2; // steps 1-2 live; 3-5 locked honestly
-  var _wz = null; // { row (null=new), corr, dirty, step (1-based), tiers (step-2 working copy) }
+  var STEP_TITLES = ['Details', 'Admission & Tiers', 'Card Image', 'Preview', 'Publish'];
+  var UNLOCKED_STEPS = 3; // steps 1-3 live; 4-5 locked honestly
+  var _wz = null; // { row (null=new), corr, dirty, step (1-based), tiers (step-2 working copy), img (step-3 state) }
 
   var AGE_OPTIONS = [
     { v: '', label: 'Not specified' },
@@ -762,6 +810,7 @@
       Modal.confirm('Discard changes to this step?', function() { closeWizard(true); });
       return;
     }
+    clearImgState();
     var ov = document.getElementById('swz-overlay');
     if (ov) ov.remove();
     document.body.style.overflow = '';
@@ -790,7 +839,7 @@
     if (withRetry) {
       var rb = document.getElementById('swz-retry-save');
       var fn = (typeof withRetry === 'function') ? withRetry
-        : ((_wz && _wz.step === 2) ? saveTiers : saveDetails);
+        : ((_wz && _wz.step === 3) ? saveImage : (_wz && _wz.step === 2) ? saveTiers : saveDetails);
       if (rb) rb.addEventListener('click', fn);
     }
   }
@@ -801,7 +850,16 @@
     _wz.step = n;
     _wz.dirty = false;
     if (n === 2) _wz.tiers = null; // rebuild the working copy from the row
+    if (n === 3) clearImgState();  // fresh image-step state from the row
     renderWizard();
+  }
+
+  // Release a chosen-photo preview URL + reset the step-3 working state.
+  function clearImgState() {
+    if (_wz && _wz.img && _wz.img.previewUrl) {
+      try { URL.revokeObjectURL(_wz.img.previewUrl); } catch (_) {}
+    }
+    if (_wz) _wz.img = null;
   }
 
   // Shared stepper chrome: header + 5-segment rail + status strip mount.
@@ -831,7 +889,8 @@
 
   function renderWizard() {
     if (!_wz) return;
-    if (_wz.step === 2) renderTiersStep();
+    if (_wz.step === 3) renderImageStep();
+    else if (_wz.step === 2) renderTiersStep();
     else renderDetailsStep();
   }
 
@@ -1086,11 +1145,13 @@
         '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
           '<button id="swz-back-details" class="btn" style="min-height:48px;padding:0 16px;"><i class="fa-solid fa-arrow-left"></i> Details</button>' +
           '<div style="flex:1;"></div>' +
+          '<button id="swz-next-image" class="btn" style="min-height:48px;padding:0 16px;">Image <i class="fa-solid fa-arrow-right"></i></button>' +
         '</div>';
       ov.innerHTML = header + body + footer;
       document.getElementById('swz-close').addEventListener('click', function() { closeWizard(false); });
       document.getElementById('swz-back-details').addEventListener('click', function() { gotoStep(1); });
       document.getElementById('swz-free-to-details').addEventListener('click', function() { gotoStep(1); });
+      document.getElementById('swz-next-image').addEventListener('click', function() { gotoStep(3); });
       return;
     }
 
@@ -1120,8 +1181,9 @@
 
     footer =
       '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
-        '<button id="swz-back-details" class="btn" style="min-height:48px;padding:0 16px;"><i class="fa-solid fa-arrow-left"></i> Details</button>' +
+        '<button id="swz-back-details" class="btn" style="min-height:48px;padding:0 16px;" aria-label="Back to Details"><i class="fa-solid fa-arrow-left"></i> Details</button>' +
         '<button id="swz-save-tiers" class="btn btn-primary" style="min-height:48px;flex:1;font-weight:600;font-size:var(--text-base);"><i class="fa-solid fa-floppy-disk"></i> Save Tiers</button>' +
+        '<button id="swz-next-image" class="btn" style="min-height:48px;padding:0 16px;" aria-label="Next: Card Image">Image <i class="fa-solid fa-arrow-right"></i></button>' +
       '</div>';
 
     ov.innerHTML = header + body + footer;
@@ -1130,6 +1192,10 @@
     document.getElementById('swz-back-details').addEventListener('click', function() {
       if (_wz && _wz.dirty) { Modal.confirm('Discard changes to this step?', function() { gotoStep(1); }); return; }
       gotoStep(1);
+    });
+    document.getElementById('swz-next-image').addEventListener('click', function() {
+      if (_wz && _wz.dirty) { Modal.confirm('Discard changes to this step?', function() { gotoStep(3); }); return; }
+      gotoStep(3);
     });
     document.getElementById('swz-save-tiers').addEventListener('click', saveTiers);
 
@@ -1265,6 +1331,284 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     STEP 3 — CARD IMAGE (story-show-wizard-w4-image-step, spec §3.6/§4.2)
+     Choose → client pre-checks (jpeg/png/webp, ≤8MB, ≥400px short side) →
+     preview → stage to the PRIVATE show-intake bucket under the caller's
+     OWN prefix <uid>/<eventId>/<uuid>.<ext> (RLS-pinned; server re-derives
+     + re-validates EVERYTHING at landing) → set_show_image relay verb →
+     the office re-encodes (EXIF/GPS stripped, ≤400KB) and sets image_url →
+     the processed public URL renders here and on the card. The client can
+     never set image_url itself — only a staging_key rides the verb.
+     ══════════════════════════════════════════════════════════════════ */
+
+  var IMG_ALLOWED = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  var IMG_MAX_BYTES = 8 * 1024 * 1024;   // mirrors the bucket cap + server pipeline input cap
+  var IMG_MIN_SHORT_SIDE = 400;          // mirrors the server pipeline floor
+
+  function fmtBytes(n) {
+    if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(n / 1024)) + ' KB';
+  }
+
+  function imgUuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(16) + '-' + Math.random().toString(16).slice(2);
+  }
+
+  // Stage the chosen photo into show-intake under the caller's own prefix.
+  // (ecStageFile precedent — booking.html contract-intake leg.)
+  async function stageShowImage(eventId, file) {
+    var sb = getSb();
+    if (!sb) throw new Error('Not signed in');
+    var uid = await getUid();
+    if (!uid) throw new Error('Not signed in');
+    var ext = IMG_ALLOWED[file.type];
+    if (!ext) throw new Error('Use a JPEG, PNG, or WebP photo.');
+    var key = uid + '/' + String(eventId) + '/' + imgUuid() + '.' + ext;
+    var up = await sb.storage.from('show-intake').upload(key, file, {
+      contentType: file.type, upsert: false
+    });
+    if (up.error) throw new Error('Upload failed: ' + up.error.message);
+    return key;
+  }
+
+  function renderImageStep() {
+    var ov = document.getElementById('swz-overlay');
+    if (!ov || !_wz) return;
+    var row = _wz.row;
+    if (!row) { gotoStep(1); return; } // image needs a landed draft
+    var title = row.event_name || '(untitled show)';
+    var header = wizChrome(2, 'Card Image', title);
+    var img = _wz.img; // null | { file, previewUrl, phase: 'chosen'|'uploading'|'processing'|'queued' }
+    var busy = img && (img.phase === 'uploading' || img.phase === 'processing');
+    var body;
+
+    if (!getSb()) {
+      // Honest no-session state (image uploads ride the secure staged pipeline —
+      // there is deliberately NO other write path; nothing dead is tappable).
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">' +
+          '<div style="width:64px;height:64px;border-radius:50%;background:rgba(139,148,158,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid fa-user-lock" style="color:#8b949e;font-size:26px;"></i></div>' +
+          '<div style="font-weight:700;font-size:var(--text-lg);">Manager sign-in needed</div>' +
+          '<div style="color:var(--color-text-muted);margin-top:8px;max-width:340px;">Card images upload through the secure remote pipeline, which needs your manager account. Sign in with your manager account to set this show’s image.</div>' +
+        '</div>';
+    } else if (busy) {
+      var busyLine = img.phase === 'uploading'
+        ? 'Uploading your image…'
+        : 'Optimizing your image…';
+      var busySub = img.phase === 'uploading'
+        ? 'Sending the photo to secure staging.'
+        : 'The office is re-encoding the photo for the card (metadata is stripped, size is optimized).';
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">' +
+          (img.previewUrl ? '<div class="swz-img-frame" style="max-width:340px;"><img src="' + escHtml(img.previewUrl) + '" alt=""></div>' : '') +
+          '<div class="swz-img-bar" style="max-width:340px;"><div class="swz-img-bar-fill"></div></div>' +
+          '<div style="font-weight:700;margin-top:14px;">' + busyLine + '</div>' +
+          '<div style="color:var(--color-text-muted);margin-top:6px;max-width:340px;font-size:var(--text-sm);">' + busySub + '</div>' +
+        '</div>';
+    } else if (img && img.phase === 'chosen') {
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
+          '<p style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm);">Preview of your chosen photo (' + escHtml(fmtBytes(img.file.size)) + '). The public card crops it to roughly 16:9 — the office optimizes it automatically.</p>' +
+          '<div class="swz-img-frame" style="margin-top:12px;"><img src="' + escHtml(img.previewUrl) + '" alt="Chosen photo preview"></div>' +
+          '<button id="swz-img-upload" class="btn btn-primary" style="margin-top:14px;min-height:48px;width:100%;font-weight:600;"><i class="fa-solid fa-cloud-arrow-up"></i> Upload This Photo</button>' +
+          '<button id="swz-img-repick" class="btn" style="margin-top:10px;min-height:48px;width:100%;"><i class="fa-solid fa-images"></i> Choose a Different Photo</button>' +
+        '</div>';
+    } else if (img && img.phase === 'queued') {
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">' +
+          '<div style="width:64px;height:64px;border-radius:50%;background:rgba(210,153,34,0.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid fa-clock" style="color:#d29922;font-size:26px;"></i></div>' +
+          '<div style="font-weight:700;font-size:var(--text-lg);">Image queued</div>' +
+          '<div style="color:var(--color-text-muted);margin-top:8px;max-width:340px;">Your photo is safely staged. The card will pick it up automatically when the home office reconnects — you can close this and carry on.</div>' +
+        '</div>';
+    } else if (row.image_url) {
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
+          '<p style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm);">This is the show’s current card image — already optimized by the office (metadata stripped). The public card crops it to roughly 16:9.</p>' +
+          '<div class="swz-img-frame" style="margin-top:12px;"><img src="' + escHtml(row.image_url) + '" alt="Current show card image"></div>' +
+          '<button id="swz-img-pick" class="btn btn-primary" style="margin-top:14px;min-height:48px;width:100%;font-weight:600;"><i class="fa-solid fa-arrows-rotate"></i> Replace Photo</button>' +
+          '<button id="swz-img-remove" class="btn" style="margin-top:10px;min-height:48px;width:100%;color:#f85149;"><i class="fa-solid fa-trash"></i> Remove Image</button>' +
+        '</div>';
+    } else {
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
+          '<p style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm);">The photo at the top of the public show card. A clear landscape photo works best — the card crops it to roughly 16:9. Without one, the card shows its standard artwork placeholder.</p>' +
+          '<div class="swz-img-empty"><i class="fa-solid fa-image"></i><div>No image yet</div></div>' +
+          '<button id="swz-img-pick" class="btn btn-primary" style="margin-top:14px;min-height:48px;width:100%;font-weight:600;"><i class="fa-solid fa-camera"></i> Upload From Phone</button>' +
+          '<div class="swz-help" style="text-align:center;">JPEG, PNG, or WebP · up to 8MB · at least 400px on the short side</div>' +
+        '</div>';
+    }
+
+    var footer =
+      '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<button id="swz-back-tiers" class="btn" style="min-height:48px;padding:0 16px;"' + (busy ? ' disabled' : '') + ' aria-label="Back to Admission and Tiers"><i class="fa-solid fa-arrow-left"></i> Tiers</button>' +
+        '<div style="flex:1;"></div>' +
+      '</div>' +
+      '<input type="file" id="swz-img-file" accept="image/*" style="display:none;">';
+
+    ov.innerHTML = header + body + footer;
+
+    document.getElementById('swz-close').addEventListener('click', function() { closeWizard(false); });
+    var backBtn = document.getElementById('swz-back-tiers');
+    if (backBtn) backBtn.addEventListener('click', function() {
+      if (busy) return;
+      if (_wz && _wz.dirty) { Modal.confirm('Discard changes to this step?', function() { clearImgState(); gotoStep(2); }); return; }
+      clearImgState();
+      gotoStep(2);
+    });
+
+    var fileInput = document.getElementById('swz-img-file');
+    if (fileInput) fileInput.addEventListener('change', function() {
+      var f = fileInput.files && fileInput.files[0];
+      if (f) onImageChosen(f);
+      fileInput.value = ''; // allow re-choosing the same file
+    });
+    function openPicker() { if (fileInput) fileInput.click(); }
+    var pick = document.getElementById('swz-img-pick');
+    if (pick) pick.addEventListener('click', openPicker);
+    var repick = document.getElementById('swz-img-repick');
+    if (repick) repick.addEventListener('click', openPicker);
+    var upBtn = document.getElementById('swz-img-upload');
+    if (upBtn) upBtn.addEventListener('click', saveImage);
+    var rmBtn = document.getElementById('swz-img-remove');
+    if (rmBtn) rmBtn.addEventListener('click', removeImage);
+  }
+
+  // Client pre-checks mirror the server pipeline (server stays authoritative):
+  // type allowlist, ≤8MB, ≥400px short side (probed from the local preview).
+  function onImageChosen(file) {
+    if (!_wz) return;
+    if (!IMG_ALLOWED[file.type]) {
+      setStatusStrip('failed', 'Use a JPEG, PNG, or WebP photo — iPhone photos convert automatically when picked from your library.', false);
+      return;
+    }
+    if (file.size > IMG_MAX_BYTES) {
+      setStatusStrip('failed', 'That photo is ' + fmtBytes(file.size) + ' — over the 8MB limit. Choose a smaller one.', false);
+      return;
+    }
+    var url = URL.createObjectURL(file);
+    var probe = new Image();
+    probe.onload = function() {
+      if (!_wz || _wz.step !== 3) { try { URL.revokeObjectURL(url); } catch (_) {} return; }
+      if (Math.min(probe.naturalWidth, probe.naturalHeight) < IMG_MIN_SHORT_SIDE) {
+        try { URL.revokeObjectURL(url); } catch (_) {}
+        setStatusStrip('failed', 'That photo is ' + probe.naturalWidth + '×' + probe.naturalHeight + ' — too small for the card. Use one at least ' + IMG_MIN_SHORT_SIDE + 'px on its short side.', false);
+        return;
+      }
+      clearImgState();
+      _wz.img = { file: file, previewUrl: url, phase: 'chosen' };
+      _wz.dirty = true; // chosen but not yet uploaded
+      renderImageStep();
+      setStatusStrip(null);
+    };
+    probe.onerror = function() {
+      try { URL.revokeObjectURL(url); } catch (_) {}
+      setStatusStrip('failed', 'That photo couldn’t be read — try a different one.', false);
+    };
+    probe.src = url;
+  }
+
+  async function saveImage() {
+    if (_saving || !_wz || !_wz.row || !_wz.img || !_wz.img.file) return;
+    var row = _wz.row;
+    var file = _wz.img.file;
+    var oldUrl = row.image_url || null;
+    _saving = true;
+    _wz.img.phase = 'uploading';
+    renderImageStep();
+    setStatusStrip('saving', 'Uploading your image…', false);
+
+    try {
+      var key = await stageShowImage(row.id, file);
+      if (!_wz) { _saving = false; return; }
+      _wz.img.phase = 'processing';
+      renderImageStep();
+      setStatusStrip('saving', 'Optimizing your image… (may take up to 2 minutes to reach the office)', false);
+
+      var actionId = await relayWrite('set_show_image', row.id, {
+        staging_key: key, filename: String(file.name || '').slice(0, 300)
+      });
+      // Same EO 120s latency budget as every wizard save.
+      var result = await pollActionResult(actionId, {
+        onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
+      });
+      if (!_wz) { watchQueuedAction(actionId, 'the card image'); return; } // closed mid-wait
+      if (result.state === 'rejected') {
+        _wz.img.phase = 'chosen'; // keep the file so Retry re-stages it
+        _wz.dirty = true;
+        renderImageStep();
+        setStatusStrip('failed', rejectionMessage(result.tag), saveImage);
+        _saving = false;
+        return;
+      }
+      if (result.state === 'pending') {
+        // Full 120s budget exhausted — ONLY NOW may the offline copy appear.
+        _wz.img.phase = 'queued';
+        _wz.dirty = false; // staged object + relay row persisted server-side
+        renderImageStep();
+        setStatusStrip('queued', QUEUED_COPY, false);
+        _saving = false;
+        watchQueuedAction(actionId, 'the card image for “' + (row.event_name || 'this show') + '”');
+        return;
+      }
+      // applied — pick up the processed URL from the manager readmodel echo
+      _saving = false;
+      _wz.dirty = false;
+      var freshRow = await refreshRowRemote(row.id, function(r) { return r.image_url && r.image_url !== oldUrl; }, 20000);
+      if (!_wz) { loadShows(); return; }
+      var lagged = !(freshRow && freshRow.image_url && freshRow.image_url !== oldUrl);
+      if (freshRow) _wz.row = freshRow;
+      clearImgState();
+      renderImageStep();
+      setStatusStrip('saved', lagged ? 'Image saved — refreshing…' : 'Image set ✓ — this is the photo the public card will use.', false);
+      loadShows();
+    } catch (e) {
+      if (_wz && _wz.img) { _wz.img.phase = 'chosen'; renderImageStep(); }
+      if (_wz) setStatusStrip('failed', 'Could not upload: ' + (e && e.message ? e.message : 'unknown error'), saveImage);
+      _saving = false;
+    }
+  }
+
+  function removeImage() {
+    if (_saving || !_wz || !_wz.row) return;
+    var row = _wz.row;
+    Modal.confirm('Remove this show’s card image? The card will show its standard artwork placeholder instead.', async function() {
+      if (_saving || !_wz) return;
+      _saving = true;
+      setStatusStrip('saving', 'Removing image… (may take up to 2 minutes to reach the office)', false);
+      try {
+        var actionId = await relayWrite('remove_show_image', row.id, {});
+        var result = await pollActionResult(actionId, {
+          onSlow: function() { if (_wz) setStatusStrip('saving', SLOW_COPY, false); }
+        });
+        if (!_wz) { watchQueuedAction(actionId, 'the image removal'); return; }
+        if (result.state === 'rejected') {
+          setStatusStrip('failed', rejectionMessage(result.tag), removeImage);
+          _saving = false;
+          return;
+        }
+        if (result.state === 'pending') {
+          setStatusStrip('queued', QUEUED_COPY, false);
+          _saving = false;
+          watchQueuedAction(actionId, 'the image removal for “' + (row.event_name || 'this show') + '”');
+          return;
+        }
+        _saving = false;
+        var freshRow = await refreshRowRemote(row.id, function(r) { return !r.image_url; }, 20000);
+        if (!_wz) { loadShows(); return; }
+        if (freshRow) _wz.row = freshRow; else _wz.row.image_url = null; // echo lag cover — server confirmed applied
+        clearImgState();
+        renderImageStep();
+        setStatusStrip('saved', 'Image removed ✓', false);
+        loadShows();
+      } catch (e) {
+        if (_wz) setStatusStrip('failed', 'Could not remove: ' + (e && e.message ? e.message : 'unknown error'), removeImage);
+        _saving = false;
+      }
+    });
+  }
+
   // Signature check so the readmodel echo can be recognized post-save
   // (capacity deliberately NOT compared — the server clamps it to sold+held).
   function tiersEcho(row, sentTiers) {
@@ -1306,7 +1650,7 @@
     _saving = true;
     var btn = document.getElementById('swz-save-tiers');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
-    setStatusStrip('saving', 'Saving tiers… (reaches the office within a minute)', false);
+    setStatusStrip('saving', 'Saving tiers… (may take up to 2 minutes to reach the office)', false);
 
     function restoreBtn() {
       var b = document.getElementById('swz-save-tiers');
@@ -1443,7 +1787,7 @@
     _saving = true;
     var btn = document.getElementById('swz-save');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…'; }
-    setStatusStrip('saving', isNew ? 'Creating your draft… (reaches the office within a minute)' : 'Saving… (reaches the office within a minute)', false);
+    setStatusStrip('saving', isNew ? 'Creating your draft… (may take up to 2 minutes to reach the office)' : 'Saving… (may take up to 2 minutes to reach the office)', false);
 
     try {
       if (isLocal) {
@@ -1527,13 +1871,13 @@
         '<div style="margin-top:18px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg-secondary);max-width:340px;text-align:left;font-size:var(--text-sm);">' +
           '<div style="font-weight:600;margin-bottom:8px;"><i class="fa-solid fa-road" style="color:var(--color-gold);"></i> Coming in the next updates</div>' +
           '<div style="color:var(--color-text-muted);line-height:1.7;">' +
-            '<i class="fa-solid fa-image" style="width:18px;"></i> Card image upload<br>' +
             '<i class="fa-solid fa-eye" style="width:18px;"></i> Live card preview<br>' +
             '<i class="fa-solid fa-bullhorn" style="width:18px;"></i> Publish / unpublish' +
           '</div></div>' +
         '<div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center;">' +
           (canReopen ? '<button id="swz-again" class="btn" style="min-height:48px;padding:0 20px;">Edit Details Again</button>' : '') +
           (canReopen ? '<button id="swz-go-tiers" class="btn" style="min-height:48px;padding:0 20px;"><i class="fa-solid fa-layer-group"></i> Admission &amp; Tiers</button>' : '') +
+          (canReopen ? '<button id="swz-go-image" class="btn" style="min-height:48px;padding:0 20px;"><i class="fa-solid fa-image"></i> Card Image</button>' : '') +
           '<button id="swz-done" class="btn btn-primary" style="min-height:48px;padding:0 28px;font-weight:600;">Done</button>' +
         '</div></div>';
     var done = document.getElementById('swz-done');
@@ -1542,6 +1886,8 @@
     if (again) again.addEventListener('click', function() { renderWizard(); });
     var goTiers = document.getElementById('swz-go-tiers');
     if (goTiers) goTiers.addEventListener('click', function() { gotoStep(2); });
+    var goImage = document.getElementById('swz-go-image');
+    if (goImage) goImage.addEventListener('click', function() { gotoStep(3); });
   }
 
   /* ── Draft delete (delete_show_draft — never-published drafts only) ── */
@@ -1558,7 +1904,7 @@
           loadShows();
           return;
         }
-        if (typeof Toast !== 'undefined') Toast.info('Deleting draft… (reaches the office within a minute)');
+        if (typeof Toast !== 'undefined') Toast.info('Deleting draft… (may take up to 2 minutes to reach the office)');
         var actionId = await relayWrite('delete_show_draft', row.id, {});
         // Same EO 120s latency budget as the wizard saves — no false offline messages.
         var result = await pollActionResult(actionId, {
