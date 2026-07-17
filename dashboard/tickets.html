@@ -2,8 +2,8 @@
 <!-- Shows tab: manager readmodel (Supabase, remote) / Express (LAN). Writes ride the
      booking_actions relay remotely (create_show_draft / update_show_card /
      delete_show_draft) with own-row result polling; LAN uses the hardened
-     /api/v1/tickets routes directly. Firestore ticket_events path is DELETED
-     (DEF-013 discharged). Orders/Promos/Door/Analytics stay LAN-only. -->
+     /api/v1/tickets routes directly. The retired legacy events store path is
+     DELETED (DEF-013 discharged). Orders/Promos/Door/Analytics stay LAN-only. -->
 <div class="dashboard-page" id="dash-tickets">
   <div class="dashboard-page-header">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-sm);">
