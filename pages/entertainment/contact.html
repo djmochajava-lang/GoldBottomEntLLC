@@ -1,8 +1,20 @@
-<!-- pages/entertainment/contact.html — Entertainment Contact / Booking -->
+<!-- pages/entertainment/contact.html — Entertainment Contact (NON-booking door, sizzle S5 §8.3)
+     Booking requests live on the quote form (#ent-quote); this page serves everything else:
+     general questions, press, sponsorship (interim until S6), talent submissions, collaborations, vendors. -->
 <section class="page-section" id="page-ent-contact">
   <div class="container">
-    <h1 class="page-title reveal">Book Our Talent</h1>
-    <p class="page-subtitle reveal">Interested in booking, collaboration, or talent submission? Let's talk.</p>
+    <h1 class="page-title reveal">Contact Us</h1>
+    <p class="page-subtitle reveal">Questions, press, partnerships, or anything that isn't a booking request &mdash; send us a message and we'll respond within 24 hours.</p>
+
+    <!-- Booking crosslink (§8.3-2) — compact, above the form, NOT a hero -->
+    <div class="glass-card contact-booking-crosslink reveal">
+      <span class="crosslink-lead"><i class="fa-solid fa-star text-gold"></i> <strong>Looking to book L.A. Young &amp; Soul Society?</strong></span>
+      <span class="crosslink-actions">
+        <a href="#ent-quote" class="btn btn-primary btn-sm shimmer-sweep"><i class="fa-solid fa-file-invoice-dollar"></i> Get a Quote</a>
+        <a href="#ent-promoter" class="crosslink-more">or see the full booking page <i class="fa-solid fa-arrow-right"></i></a>
+      </span>
+    </div>
+
     <div class="grid grid-2 contact-grid">
       <!-- Contact Form -->
       <div class="glass-card reveal">
@@ -12,10 +24,12 @@
             <label class="form-label" for="ent-inquiry-type">Inquiry Type</label>
             <select class="form-select" id="ent-inquiry-type" name="inquiryType" required>
               <option value="">Select inquiry type...</option>
-              <option value="booking">Booking Request</option>
+              <option value="general">General Question</option>
+              <option value="press">Press / Media</option>
+              <option value="sponsorship">Sponsorship</option>
               <option value="talent-submission">Talent Submission</option>
               <option value="collaboration">Collaboration</option>
-              <option value="general">General Inquiry</option>
+              <option value="other">Vendor / Other</option>
             </select>
           </div>
           <div class="grid grid-2">
@@ -28,15 +42,9 @@
               <input type="email" class="form-input" id="ent-contact-email" name="email" required placeholder="you@example.com" />
             </div>
           </div>
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label class="form-label" for="ent-contact-phone">Phone</label>
-              <input type="tel" class="form-input" id="ent-contact-phone" name="phone" placeholder="(555) 123-4567" />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ent-contact-date">Event Date (if booking)</label>
-              <input type="date" class="form-input" id="ent-contact-date" name="eventDate" />
-            </div>
+          <div class="form-group">
+            <label class="form-label" for="ent-contact-phone">Phone</label>
+            <input type="tel" class="form-input" id="ent-contact-phone" name="phone" placeholder="(555) 123-4567" />
           </div>
           <div class="form-group">
             <label class="form-label" for="ent-contact-subject">Subject *</label>
@@ -44,7 +52,7 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="ent-contact-message">Message *</label>
-            <textarea class="form-textarea" id="ent-contact-message" name="message" rows="6" required placeholder="Tell us about your event, venue, or project..."></textarea>
+            <textarea class="form-textarea" id="ent-contact-message" name="message" rows="6" required placeholder="How can we help?"></textarea>
           </div>
           <button type="submit" class="btn btn-primary btn-lg btn-block shimmer-sweep">
             <i class="fa-solid fa-paper-plane"></i> Send Message
@@ -90,6 +98,7 @@
         <div class="glass-card reveal">
           <h3>Quick Links</h3>
           <ul class="quick-links">
+            <li><a href="#ent-promoter"><i class="fa-solid fa-arrow-right"></i> Book L.A. Young</a></li>
             <li><a href="#ent-roster"><i class="fa-solid fa-arrow-right"></i> Featured Artist</a></li>
             <li><a href="#ent-services"><i class="fa-solid fa-arrow-right"></i> Our Services</a></li>
             <li><a href="#ent-about"><i class="fa-solid fa-arrow-right"></i> About Us</a></li>
@@ -99,6 +108,36 @@
     </div>
   </div>
 </section>
+<style>
+  /* Booking crosslink card — compact so card + first form field share the 390px fold (§8.3-2) */
+  #page-ent-contact .contact-booking-crosslink {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-lg);
+    border: 1px solid rgba(212, 160, 23, 0.45);
+  }
+  #page-ent-contact .crosslink-lead { font-size: var(--text-sm); }
+  #page-ent-contact .crosslink-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+  #page-ent-contact .crosslink-more {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+  }
+  #page-ent-contact .crosslink-more:hover { color: var(--color-gold); }
+  @media (max-width: 480px) {
+    #page-ent-contact .page-subtitle { margin-bottom: var(--space-md); }
+    #page-ent-contact .contact-booking-crosslink { padding: var(--space-sm); }
+  }
+</style>
 <script>
 (function() {
   'use strict';
@@ -108,16 +147,29 @@
   // P8c anti-spam: honeypot + fill-time instrumentation (shared helper)
   if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
 
-  var BOOKING_EMAIL = 'booking@layoungbandpage.com';
-
-  function isBookingInquiry() {
-    return form.querySelector('[name="inquiryType"]').value === 'booking';
+  // ── Inquiry-type pre-select (sizzle S5, §8.3-3b) ──
+  // Serves the interim Sponsors nav entry (#ent-contact?type=sponsorship) and any
+  // future deep-link lane. Same pattern as quote.html's ?format= carry-through:
+  // Router parses the hash query; fall back to a direct hash parse so this works
+  // even before Router is ready. Applied ONLY if the value matches a real option;
+  // plain #ent-contact loads with the default empty selection, exactly as before.
+  function getPreselectedType() {
+    try {
+      if (typeof Router !== 'undefined' && Router.getQueryParams) {
+        var v = Router.getQueryParams().get('type');
+        if (v) return v;
+      }
+    } catch (e) {}
+    var h = window.location.hash || '';
+    var qi = h.indexOf('?');
+    if (qi === -1) return '';
+    return new URLSearchParams(h.substring(qi + 1)).get('type') || '';
   }
-
-  function getFallbackMsg() {
-    return isBookingInquiry()
-      ? 'Unable to send \u2014 please try again or email us at ' + BOOKING_EMAIL
-      : 'Unable to send \u2014 please try again later.';
+  var typeSelect = form.querySelector('[name="inquiryType"]');
+  var presetType = getPreselectedType();
+  if (typeSelect && presetType) {
+    var hasOption = Array.prototype.some.call(typeSelect.options, function (o) { return o.value === presetType; });
+    if (hasOption) typeSelect.value = presetType;
   }
 
   function showFeedback(msg, isError) {
@@ -152,19 +204,18 @@
       return;
     }
 
-    // Route booking inquiries to artist brand, everything else to CEO
-    var routeTo = (inquiryType === 'booking') ? 'booking' : 'ceo';
-
-    // Collect all form fields
+    // Collect all form fields. Contact is the NON-booking door (S5): the booking
+    // inquiry-type is gone, so everything routes to CEO triage. formType stays
+    // 'entertainment' verbatim (FROZEN wire value → SoR lane "general"); the new
+    // inquiryType values are free strings and ride the existing column unchanged.
     var data = {
       formType: 'entertainment',
       source: 'gbe-public',
-      routeTo: routeTo,
+      routeTo: 'ceo',
       inquiryType: inquiryType,
       name: name,
       email: email,
       phone: form.querySelector('[name="phone"]').value.trim() || '',
-      eventDate: form.querySelector('[name="eventDate"]').value || '',
       subject: subject,
       message: message
     };
@@ -173,7 +224,7 @@
     var btn = form.querySelector('[type="submit"]');
     var origHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending\u2026';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
 
     // Submit via multi-strategy (server → Supabase staging → legacy Firestore)
     Forms.submitContact(data, form)
@@ -185,12 +236,11 @@
           : 'fa-solid fa-circle-check';
         var headline = result.method === 'local'
           ? 'Message Saved'
-          : 'Inquiry Received';
+          : 'Message Received';
         var detail = result.method === 'local'
           ? 'Your message has been saved locally and will be delivered when our server is back online.'
-          : 'Thank you, <strong>' + Utils.escapeHtml(name) + '</strong>! We\'ve received your '
-            + (isBookingInquiry() ? 'booking' : '') + ' inquiry and will respond within 24 hours.';
-        var emailNote = "We've received your inquiry — we'll get back to you within 24 hours.";
+          : 'Thank you, <strong>' + Utils.escapeHtml(name) + '</strong>! We\'ve received your message and will respond within 24 hours.';
+        var emailNote = "We've received your message — we'll get back to you within 24 hours.";
 
         card.innerHTML =
           '<div style="text-align:center;padding:40px 20px;">' +
@@ -204,7 +254,7 @@
           '</div>';
       })
       .catch(function() {
-        showFeedback(getFallbackMsg(), true);
+        showFeedback('Unable to send — please try again later.', true);
         btn.disabled = false;
         btn.innerHTML = origHTML;
       });

@@ -99,11 +99,11 @@
 
   <!-- Preload critical CSS -->
   <link rel="preload" href="css/base.css?v=2" as="style" />
-  <link rel="preload" href="css/layout.css?v=2" as="style" />
+  <link rel="preload" href="css/layout.css?v=3" as="style" />
 
   <!-- Stylesheets (load order matters) -->
   <link rel="stylesheet" href="css/base.css?v=2" />
-  <link rel="stylesheet" href="css/layout.css?v=2" />
+  <link rel="stylesheet" href="css/layout.css?v=3" />
   <link rel="stylesheet" href="css/components.css" />
   <link rel="stylesheet" href="css/sections.css" />
   <link rel="stylesheet" href="css/pages.css" />
@@ -199,13 +199,15 @@
           <a href="#ent-home" class="nav-link" data-page="ent-home">Home</a>
           <a href="#ent-roster" class="nav-link" data-page="ent-roster">Featured Artist</a>
           <a href="#ent-promoter" class="nav-link" data-page="ent-promoter">Book L.A. Young</a>
-          <a href="#ent-services" class="nav-link" data-page="ent-services">Services</a>
+          <!-- Services removed from nav (sizzle S5, §8.1) — page lives on at #ent-services via hub line-link, footer, and contact quick-links -->
           <!-- <a href="#ent-events" class="nav-link" data-page="ent-events">Events</a> -->
           <a href="#ent-tickets" class="nav-link" data-page="ent-tickets">Tickets</a>
           <!-- <a href="#ent-shop" class="nav-link" data-page="ent-shop">Shop</a> -->
+          <!-- Sponsors interim target (sizzle S5, §8.1): contact page w/ Sponsorship pre-selected. S6 repoints this entry to the sponsors route in the same commit that ships the page. -->
+          <a href="#ent-contact?type=sponsorship" class="nav-link">Sponsors</a>
           <a href="#ent-about" class="nav-link" data-page="ent-about">About</a>
           <a href="#ent-contact" class="nav-link" data-page="ent-contact">Contact</a>
-          <a href="#ent-quote" class="nav-link" data-page="ent-quote">Get a Quote</a>
+          <a href="#ent-quote" class="nav-link nav-cta" data-page="ent-quote">Get a Quote</a>
         </nav>
 
         <!-- Desktop Nav — Enterprise -->
@@ -250,10 +252,12 @@
         <a href="#ent-home" class="mobile-nav-link" data-page="ent-home"><i class="fa-solid fa-house"></i> Home</a>
         <a href="#ent-roster" class="mobile-nav-link" data-page="ent-roster"><i class="fa-solid fa-star"></i> Featured Artist</a>
         <a href="#ent-promoter" class="mobile-nav-link" data-page="ent-promoter"><i class="fa-solid fa-calendar-check"></i> Book L.A. Young</a>
-        <a href="#ent-services" class="mobile-nav-link" data-page="ent-services"><i class="fa-solid fa-briefcase"></i> Services</a>
+        <!-- Services removed from nav (sizzle S5, §8.1) — page lives on at #ent-services via hub line-link, footer, and contact quick-links -->
         <!-- <a href="#ent-events" class="mobile-nav-link" data-page="ent-events"><i class="fa-solid fa-calendar-star"></i> Events</a> -->
         <a href="#ent-tickets" class="mobile-nav-link" data-page="ent-tickets"><i class="fa-solid fa-ticket"></i> Tickets</a>
         <!-- <a href="#ent-shop" class="mobile-nav-link" data-page="ent-shop"><i class="fa-solid fa-bag-shopping"></i> Shop</a> -->
+        <!-- Sponsors interim target (sizzle S5, §8.1): contact page w/ Sponsorship pre-selected. S6 repoints this entry to the sponsors route in the same commit that ships the page. -->
+        <a href="#ent-contact?type=sponsorship" class="mobile-nav-link"><i class="fa-solid fa-handshake"></i> Sponsors</a>
         <a href="#ent-about" class="mobile-nav-link" data-page="ent-about"><i class="fa-solid fa-info-circle"></i> About</a>
         <a href="#ent-contact" class="mobile-nav-link" data-page="ent-contact"><i class="fa-solid fa-envelope"></i> Contact</a>
         <a href="#ent-quote" class="mobile-nav-link" data-page="ent-quote"><i class="fa-solid fa-file-invoice-dollar"></i> Get a Quote</a>
@@ -323,6 +327,7 @@
           <a href="#home">Home</a>
           <!-- Enterprise vertical HIDDEN 2026-06-27 — uncomment to reactivate: <a href="#biz-home">Enterprise</a> -->
           <a href="#ent-home">Entertainment</a>
+          <a href="#ent-services">Services</a>
           <a href="#legal">Legal</a>
           <a href="#contact">Contact</a>
         </div>

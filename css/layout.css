@@ -110,6 +110,40 @@
   color: var(--color-gold);
 }
 
+/* Nav CTA — "Get a Quote" is the nav's visually distinct action (sizzle S5, §8.1) */
+.public-nav .nav-link.nav-cta {
+  margin-left: var(--space-xs);
+  padding: 6px var(--space-md);
+  border: 1px solid var(--color-gold);
+  border-radius: var(--radius-full);
+  color: var(--color-gold);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.public-nav .nav-link.nav-cta::after {
+  display: none; /* pill border replaces the underline affordance */
+}
+.public-nav .nav-link.nav-cta:hover,
+.public-nav .nav-link.nav-cta.active {
+  background: var(--color-gold);
+  color: #0d1117;
+}
+
+/* Desktop ≥1200px: the 8-item ent nav must read as one clean line (AC-S5-2 "no
+   crowding at 1280px") — tighter link padding + no intra-link text wrapping.
+   Below 1200px the long-standing squeeze behavior is unchanged; ≤768px is the
+   mobile overlay. */
+@media (min-width: 1200px) {
+  .public-nav .nav-link {
+    white-space: nowrap;
+    padding: var(--space-sm) 10px;
+  }
+  .public-nav .nav-link::after {
+    left: 10px;
+    right: 10px;
+  }
+}
+
 /* --- Header Actions --- */
 .header-actions {
   display: flex;

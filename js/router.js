@@ -29,7 +29,8 @@ const Router = {
     'ent-about': 'pages/entertainment/about.html',
     'ent-contact': 'pages/entertainment/contact.html',
     'ent-promoter': 'pages/entertainment/promoter.html',
-    'ent-inquiry': 'pages/entertainment/inquiry.html',
+    // Inquiry route RETIRED (sizzle S5, §8.2 funnel consolidation) — parallel long
+    // form folded into the ONE booking intake (quote form). See legacyRedirects below.
     'ent-quote': 'pages/entertainment/quote.html',
     'ent-series': 'pages/entertainment/series.html',
 
@@ -160,6 +161,12 @@ const Router = {
     // straight at dashboard-my-portal, so this is a belt-and-suspenders net.
     'dashboard-musician-home': 'dashboard-my-portal',
     'dashboard-musician': 'dashboard-my-portal',
+    // sizzle S5 (2026-07-17, DESIGN_sell-the-sizzle §8.2): #ent-quote is THE
+    // booking intake. The parallel inquiry long form is retired; inquiry.html
+    // deleted in the same commit (inbound links were already zero). Old links/
+    // bookmarks land on the quote form. Server FORM_TYPE_LANES keeps the
+    // 'booking_inquiry' token (IMAP + historical rows) — no server change.
+    'ent-inquiry': 'ent-quote',
   },
 
   /**
