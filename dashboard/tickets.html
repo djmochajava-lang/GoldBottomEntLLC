@@ -673,6 +673,45 @@
     }
   }
 
+  /* N1 (W5 audit carryover, EO W6 checklist item 6): after an APPLIED
+     delete/publish/unpublish, the immediate loadShows() can race the
+     readmodel eviction/upsert (the post-delete stale row reproduced in both
+     EO passes). Refresh now AND re-poll once ~3s later so the list settles
+     on the landed truth without user action. */
+  function loadShowsRepoll() {
+    loadShows();
+    setTimeout(loadShows, 3000);
+  }
+
+  /* ── W6: deep-link open from the booking page ──────────────────────────
+     booking.html's "Create show card" / "Open show card" stores the target
+     event id in sessionStorage and navigates here; consume it once, wait for
+     the list (readmodel echo can lag a freshly created draft a few seconds),
+     then open the wizard on that draft — list → details → preview all show
+     the booking-seeded values (EO W6 checklist item 5). Honest expiry: if
+     the row never appears within ~24s, say so instead of spinning forever. */
+  var DEEPLINK_KEY = 'swz-open-show';
+  function consumeDeepLink() {
+    var target = null;
+    try { target = sessionStorage.getItem(DEEPLINK_KEY); } catch (_) { return; }
+    if (!target) return;
+    try { sessionStorage.removeItem(DEEPLINK_KEY); } catch (_) {}
+    var tries = 0;
+    (function attempt() {
+      var row = showsCache.find(function(s) { return String(s.id) === String(target); });
+      if (row) { openWizard(row); return; }
+      tries++;
+      if (tries > 8) {
+        if (typeof Toast !== 'undefined') Toast.info('The new show card is still syncing — it will appear in this list within a couple of minutes.');
+        return;
+      }
+      setTimeout(function() {
+        if (_loadingShows) { attempt(); return; }
+        loadShows().then(attempt).catch(attempt);
+      }, 3000);
+    })();
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      RELAY WRITES + RESULT POLLING (spec §3.7 — honest pending/failed)
      Remote: INSERT into booking_actions (own-row RLS, actor pinned to
@@ -763,7 +802,7 @@
             if (strip) setStatusStrip('failed', rejectionMessage(out.tag), false);
             else if (typeof Toast !== 'undefined') Toast.error(rejectionMessage(out.tag));
           }
-          loadShows(); // refresh the list row
+          loadShowsRepoll(); // refresh the list row (+N1 settle re-poll)
         }).catch(function() { tick(); });
       }, BG_WATCH_INTERVAL_MS);
     }
@@ -1494,7 +1533,7 @@
     } else {
       body =
         '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
-          '<p style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm);">The photo at the top of the public show card. A clear landscape photo works best — the card crops it to roughly 16:9. Without one, the card shows its standard artwork placeholder.</p>' +
+          '<p style="margin:0;color:var(--color-text-muted);font-size:var(--text-sm);">The photo at the top of the public show card. A clear landscape photo works best — the card crops it to roughly 16:9. Without one, the card shows the standard GBE brand card until you add a unique image.</p>' +
           '<div class="swz-img-empty"><i class="fa-solid fa-image"></i><div>No image yet</div></div>' +
           '<button id="swz-img-pick" class="btn btn-primary" style="margin-top:14px;min-height:48px;width:100%;font-weight:600;"><i class="fa-solid fa-camera"></i> Upload From Phone</button>' +
           '<div class="swz-help" style="text-align:center;">JPEG, PNG, or WebP · up to 8MB · at least 400px on the short side</div>' +
@@ -1721,7 +1760,7 @@
       // Per-field completeness nudges (EO: honest + actionable, jump CTAs).
       var nudges = '';
       if (!row.image_url) {
-        nudges += '<div class="swz-note"><i class="fa-solid fa-image"></i><span style="flex:1;">No photo yet — the card is showing its standard artwork placeholder. You can add one in the Image step.</span>' +
+        nudges += '<div class="swz-note"><i class="fa-solid fa-image"></i><span style="flex:1;">No photo yet — the card is showing the standard GBE brand card. You can add a unique image in the Image step.</span>' +
           '<button id="swz-nudge-image" class="btn btn-sm" style="min-height:36px;white-space:nowrap;">Add Image</button></div>';
       }
       if (blocked) {
@@ -1918,7 +1957,7 @@
           if (fresh) wz.row = fresh; else { wz.row.is_published = 1; if (wz.row.status === 'draft') wz.row.status = 'announced'; }
           renderPublishStep();
           setStatusStrip('saved', 'Published ✓ — the card is on its way to the public pages (can take about 2 minutes to appear).', false);
-          loadShows();
+          loadShowsRepoll(); // N1: applied publish — settle past the readmodel race
         } catch (e) {
           if (wzAlive(wz)) {
             _saving = false;
@@ -1974,7 +2013,7 @@
           if (fresh) wz.row = fresh; else wz.row.is_published = 0;
           renderPublishStep();
           setStatusStrip('saved', 'Unpublished ✓ — the card is coming off the public pages (removal can take about 2 minutes).', false);
-          loadShows();
+          loadShowsRepoll(); // N1: applied unpublish — settle past the readmodel race
         } catch (e) {
           if (wzAlive(wz)) {
             _saving = false;
@@ -2332,6 +2371,8 @@
         } else {
           if (typeof Toast !== 'undefined') Toast.success('Draft deleted');
           if (typeof onApplied === 'function') onApplied();
+          loadShowsRepoll(); // N1: applied delete — the reproduced stale-row race
+          return;
         }
         loadShows();
       } catch (e) {
@@ -2588,7 +2629,7 @@
   }
 
   // ── Initial Load ──
-  loadShows();
+  loadShows().then(consumeDeepLink).catch(consumeDeepLink); // W6: booking-page deep link
   } // end initTickets
 
   if (typeof Auth !== 'undefined' && typeof Auth.whenReady === 'function') {

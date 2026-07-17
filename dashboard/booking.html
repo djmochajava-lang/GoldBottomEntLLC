@@ -1525,6 +1525,283 @@
     }
   }
 
+  /* ==================================================================
+     SHOW CARD SECTION — story-show-wizard-w6-booking-hook
+     (DESIGN_show-card-wizard-2026-07-17 §5, EO W6 checklist 3+4)
+     For bookings at confirmed+ : the explicit "Public show" opt-in flag
+     (default OFF — private bookings NEVER auto-card) and the one-tap
+     "Create show card" (server-side seeded draft, deduped one-per-booking,
+     flips to "Open show card" once one exists). NOTHING here publishes —
+     a card is always a private DRAFT until the BM publishes it from the
+     wizard's own Publish step.
+     ================================================================== */
+
+  // Confirmed-and-above vocabulary as this page's stage selects emit it
+  // (kanban keys contract/deposit are this UI's contracted-milestone labels)
+  // plus the canonical + legacy-synonym forms the SoR may hold.
+  var SWZ_STAGES = { confirmed: 1, contract: 1, deposit: 1, contracted: 1, advancing: 1, signed: 1, active: 1 };
+  var SWZ_FLAG_HELP = 'Public show? — creates a show card (a private draft) when this booking is contracted. Nothing goes public until you publish the card yourself.';
+
+  function swzCorrId() {
+    if (window.crypto && crypto.randomUUID) return 'swz_' + crypto.randomUUID();
+    return 'swz_' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  // Relay insert that returns the staged action's row id (so we can poll the
+  // reconciler's result stamp — same booking_actions own-row RLS as ecQueueAction).
+  async function swzRelayWithId(bookingOrCorrId, actionType, payload) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) throw new Error('Not signed in');
+    var sessionRes = await sb.auth.getSession();
+    var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
+    if (!uid) throw new Error('Not signed in');
+    var row = { actor_id: uid, target_id: String(bookingOrCorrId), action_type: actionType };
+    if (payload) row.payload = payload;
+    var res = await sb.from('booking_actions').insert(row).select('id').single();
+    if (res.error) throw new Error(res.error.message);
+    return { actionId: res.data.id, uid: uid };
+  }
+
+  // Poll the own action row's result stamp: applied / rejected:<why> / pending.
+  // Same honest-latency budget the wizard uses (reconciler cadence ≤ ~5min;
+  // 120s budget before the queued/offline copy may appear).
+  async function swzPollResult(actionId, budgetMs) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) return { state: 'pending', tag: null };
+    var deadline = Date.now() + (budgetMs || 120000);
+    while (Date.now() < deadline) {
+      await new Promise(function(r) { setTimeout(r, 2000); });
+      var res = await sb.from('booking_actions').select('reconciled_at,result').eq('id', actionId).single();
+      if (res.error) continue; // transient read blip — keep polling
+      var row = res.data || {};
+      if (row.result) {
+        if (String(row.result).indexOf('rejected:') === 0) return { state: 'rejected', tag: row.result };
+        return { state: 'applied', tag: row.result }; // applied or noop:*
+      }
+      if (row.reconciled_at) return { state: 'applied', tag: 'applied' };
+    }
+    return { state: 'pending', tag: null };
+  }
+
+  // Resolve the show card linked to a booking from the manager read-model
+  // (manager-only RLS — drafts visible to the BM, never the public).
+  async function swzFindCardForBooking(bookingId) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) return null;
+    var res = await sb.from('ticket_event_manager_readmodel')
+      .select('id,event_name,is_published')
+      .eq('booking_id', String(bookingId))
+      .limit(1);
+    if (res.error || !res.data || !res.data.length) return null;
+    return res.data[0];
+  }
+
+  // Remote flag state: derived from the BM's OWN latest set_public_event
+  // action row (own-row RLS SELECT). Honest limitation: another manager's
+  // flag change isn't visible remotely until it lands and this BM re-sets it —
+  // the SoR blob (LAN view) is always the canonical truth.
+  async function swzOwnFlagState(bookingId) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) return null;
+    var sessionRes = await sb.auth.getSession();
+    var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
+    if (!uid) return null;
+    var res = await sb.from('booking_actions')
+      .select('payload,result,created_at')
+      .eq('actor_id', uid)
+      .eq('target_id', String(bookingId))
+      .eq('action_type', 'set_public_event')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (res.error || !res.data || !res.data.length) return null;
+    var row = res.data[0];
+    if (row.result && String(row.result).indexOf('rejected:') === 0) return null;
+    var payload = row.payload;
+    if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch (e) { payload = {}; } }
+    return { publicEvent: !!(payload && payload.publicEvent === true), landed: !!row.result };
+  }
+
+  function swzHumanReject(tag) {
+    var t = String(tag || '').replace(/^rejected:/, '');
+    if (t === 'card_exists_for_booking') return 'A show card already exists for this booking — opening it instead.';
+    if (t === 'booking_not_found') return 'The office doesn’t have this booking yet — try again in a couple of minutes.';
+    if (t.indexOf('role_') === 0 || t === 'no_sor_user') return 'Your account doesn’t have manager access for shows.';
+    if (t === 'payload') return 'The office rejected this request — refresh and try again.';
+    return 'The office rejected this: ' + t.replace(/_/g, ' ');
+  }
+
+  /** Render the Show Card section into #bk-showcard-section (async, fail-soft). */
+  async function renderShowCardSection(b) {
+    var host = document.getElementById('bk-showcard-section');
+    if (!host) return;
+    var stage = String(b.stage || '').toLowerCase();
+    if (!SWZ_STAGES[stage]) { host.innerHTML = ''; return; }
+    var bookingId = b.id;
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+
+    host.innerHTML = '<div style="padding:var(--space-sm);color:var(--color-text-muted);font-size:var(--text-sm);"><i class="fa-solid fa-spinner fa-spin"></i> Loading show card state…</div>';
+
+    // Resolve current truth: linked card + publicEvent flag.
+    var linkedCard = null;
+    var flagChecked = false;
+    var flagPendingNote = '';
+    try {
+      if (isLocal) {
+        // LAN: the blob IS the truth (full booking fetched by openBookingDetail).
+        flagChecked = b.publicEvent === true;
+        if (b.ticketEventId) linkedCard = { id: b.ticketEventId, event_name: null };
+        if (!linkedCard && sb) linkedCard = await swzFindCardForBooking(bookingId);
+      } else {
+        linkedCard = await swzFindCardForBooking(bookingId);
+        var own = await swzOwnFlagState(bookingId);
+        if (own) {
+          flagChecked = own.publicEvent;
+          if (!own.landed) flagPendingNote = 'Syncing to the office…';
+        }
+      }
+    } catch (e) {
+      console.warn('[Booking] show-card state load failed (rendering defaults):', e);
+    }
+
+    var canRelay = !!sb;
+    var html =
+      '<div class="card" style="padding:var(--space-sm) var(--space-md);border:1px solid var(--color-border);border-radius:var(--radius-md);">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-xs);">' +
+          '<i class="fa-solid fa-ticket" style="color:var(--color-gold);"></i>' +
+          '<span style="font-weight:600;font-size:var(--text-sm);">Show card</span>' +
+        '</div>' +
+        // The opt-in flag (checklist-4 copy: "creates a show card" — a draft; never implies publishing)
+        '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:6px 0;">' +
+          '<input type="checkbox" id="bk-public-event-cb" style="margin-top:3px;min-width:18px;min-height:18px;"' + (flagChecked ? ' checked' : '') + (canRelay || isLocal ? '' : ' disabled') + '>' +
+          '<span style="font-size:var(--text-sm);">' + esc(SWZ_FLAG_HELP) + '</span>' +
+        '</label>' +
+        '<div id="bk-public-event-status" style="font-size:var(--text-xs);color:var(--color-text-muted);min-height:16px;margin-left:28px;">' + esc(flagPendingNote) + '</div>' +
+        '<div id="bk-showcard-cta" style="margin-top:var(--space-xs);"></div>' +
+      '</div>';
+    host.innerHTML = html;
+
+    // ── CTA: Create show card ⇄ Open show card (dedupe flip, checklist 3) ──
+    var ctaHost = document.getElementById('bk-showcard-cta');
+    function goToWizard(eventId) {
+      try { sessionStorage.setItem('swz-open-show', String(eventId)); } catch (e) {}
+      window.location.hash = '#dashboard-tickets';
+    }
+    function renderCta() {
+      if (linkedCard) {
+        ctaHost.innerHTML =
+          '<button id="bk-open-card-btn" class="btn" style="' + EC_BTN + 'background:rgba(212,160,23,0.1);color:var(--color-gold);border:1px solid rgba(212,160,23,0.3);"><i class="fa-solid fa-pen-to-square"></i> Open show card</button>' +
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">This booking already has its show card' + (linkedCard.event_name ? ' — “' + esc(linkedCard.event_name) + '”' : '') + '. One card per booking.</div>';
+        document.getElementById('bk-open-card-btn').addEventListener('click', function() { goToWizard(linkedCard.id); });
+        return;
+      }
+      if (!canRelay) {
+        // Honest console gap (LAN-without-session) — same convention as the
+        // W5 unpublish note: creating rides the secure remote relay.
+        ctaHost.innerHTML = '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">To create the show card, open the dashboard at goldbottoment-llc.com and sign in with your manager account.</div>';
+        return;
+      }
+      ctaHost.innerHTML =
+        '<button id="bk-create-card-btn" class="btn" style="' + EC_BTN + 'background:rgba(212,160,23,0.1);color:var(--color-gold);border:1px solid rgba(212,160,23,0.3);"><i class="fa-solid fa-wand-magic-sparkles"></i> Create show card</button>' +
+        '<div id="bk-create-card-status" style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">Starts a private draft seeded from this booking — you edit and publish it from the Shows wizard.</div>';
+      document.getElementById('bk-create-card-btn').addEventListener('click', createCardTap);
+    }
+
+    async function createCardTap() {
+      var btn = document.getElementById('bk-create-card-btn');
+      var status = document.getElementById('bk-create-card-status');
+      if (!btn) return;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating draft…';
+      function say(msg) { if (status) status.textContent = msg; }
+      try {
+        // Minimal intent payload: the LANDER re-reads the booking blob
+        // server-side and seeds name/date/venue from it (client prefill for
+        // the link fields is ignored by design — spec §5.1). eventName and
+        // eventDate are Joi-required, so we send our best-known values as
+        // the fallback for a booking whose blob lacks them.
+        var payload = {
+          eventName: String(b.name || b.contactName || b.eventType || 'L.A. Young & Soul Society').slice(0, 256),
+          eventDate: (b.eventDate ? String(b.eventDate).slice(0, 10) : new Date().toISOString().slice(0, 10)),
+          bookingId: String(bookingId)
+        };
+        var ins = await swzRelayWithId(swzCorrId(), 'create_show_draft', payload);
+        say('Syncing to the office… (usually under 2 minutes)');
+        var result = await swzPollResult(ins.actionId);
+        if (result.state === 'rejected') {
+          if (String(result.tag).indexOf('card_exists_for_booking') !== -1) {
+            // Dedupe flip: someone (or an earlier tap / the auto-hook) already
+            // made the card — resolve it and open it instead. Humanized.
+            say(swzHumanReject(result.tag));
+            var existing = await swzFindCardForBooking(bookingId);
+            if (existing) { linkedCard = existing; renderCta(); goToWizard(existing.id); return; }
+            renderCta(); return;
+          }
+          say(swzHumanReject(result.tag));
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Create show card';
+          return;
+        }
+        if (result.state === 'pending') {
+          say('Queued — the home office may be offline; the draft will be created automatically when it reconnects. Check the Shows page later.');
+          return;
+        }
+        // applied — resolve the new draft via the readmodel's booking link echo
+        say('Draft created ✓ — opening the wizard…');
+        var deadline = Date.now() + 24000;
+        var fresh = null;
+        while (!fresh && Date.now() < deadline) {
+          fresh = await swzFindCardForBooking(bookingId);
+          if (!fresh) await new Promise(function(r) { setTimeout(r, 3000); });
+        }
+        if (fresh) { linkedCard = fresh; renderCta(); goToWizard(fresh.id); }
+        else say('Draft created ✓ — it will appear on the Shows page within a couple of minutes.');
+      } catch (e) {
+        say('Could not create the card: ' + (e && e.message ? e.message : 'unknown error'));
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Create show card';
+      }
+    }
+
+    renderCta();
+
+    // ── The publicEvent flag toggle ──
+    var cb = document.getElementById('bk-public-event-cb');
+    var flagStatus = document.getElementById('bk-public-event-status');
+    if (cb) cb.addEventListener('change', async function() {
+      var want = cb.checked;
+      cb.disabled = true;
+      function fsay(msg) { if (flagStatus) flagStatus.textContent = msg; }
+      try {
+        if (isLocal && !sb) {
+          // LAN: direct SoR merge through the server API (blob is canonical).
+          await apiFetch('/bookings/' + encodeURIComponent(bookingId), {
+            method: 'PUT', body: JSON.stringify({ publicEvent: want })
+          });
+          b.publicEvent = want;
+          fsay(want ? 'Saved ✓ — a show card draft will be created when this booking is contracted.' : 'Saved ✓ — private booking; no show card will be created.');
+          cb.disabled = false;
+          return;
+        }
+        var ins = await swzRelayWithId(bookingId, 'set_public_event', { publicEvent: want });
+        fsay('Syncing to the office…');
+        var result = await swzPollResult(ins.actionId);
+        if (result.state === 'rejected') {
+          cb.checked = !want; // revert honestly
+          fsay(swzHumanReject(result.tag));
+        } else if (result.state === 'pending') {
+          fsay('Queued — the home office may be offline; this will land automatically when it reconnects.');
+        } else {
+          fsay(want ? 'Saved ✓ — a show card draft will be created when this booking is contracted.' : 'Saved ✓ — private booking; no show card will be created.');
+        }
+      } catch (e) {
+        cb.checked = !want;
+        fsay('Could not save: ' + (e && e.message ? e.message : 'unknown error'));
+      } finally {
+        cb.disabled = false;
+      }
+    });
+  }
+
   /* ---- Booking Detail Modal ---- */
   async function openBookingDetail(id) {
     try {
@@ -1550,6 +1827,11 @@
       // Rendered async after the modal opens (LAN fetches the full view;
       // remote renders from the readmodel tracking fields).
       html += '<div id="bk-contract-section" data-testid="contract-section" style="margin-bottom:var(--space-md);"></div>';
+
+      // Show-card section (story-show-wizard-w6): publicEvent opt-in flag +
+      // one-tap "Create show card" / "Open show card" for confirmed+ bookings.
+      // Rendered async after the modal opens, like the contract section.
+      html += '<div id="bk-showcard-section" data-testid="showcard-section" style="margin-bottom:var(--space-md);"></div>';
 
       // Booking form
       html += '<form id="bk-form">';
@@ -1620,6 +1902,9 @@
 
       // Contract section (async render — never blocks the modal open)
       renderContractSection(b);
+
+      // Show-card section (W6, async render — never blocks the modal open)
+      renderShowCardSection(b);
 
       // Remote: Generate Quote button handler
       var genQuoteBtn = document.getElementById('bk-gen-quote-btn');

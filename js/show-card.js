@@ -19,7 +19,8 @@
    - Readmodel prices are integer CENTS (price_cents) — the publisher ends
      the dollars/cents ambiguity at the boundary (D-52 §ii.2).
    - NULL venue_name ⇒ "Venue TBA — City, ST" (TBA convention).
-   - No image_url ⇒ the standard artwork placeholder icon.
+   - No image_url ⇒ the standard GBE brand card (images/show-card-default.jpg,
+     owner directive 2026-07-17) until a unique image replaces it.
    - 'YYYY-MM-DD' is a CALENDAR date — parsed as local, never UTC midnight.
    - Card CSS is injected once (#gbe-show-card-styles, modal.js precedent)
      so both consumers render pixel-identically from the same rules.
@@ -102,9 +103,14 @@
     var admissionHtml = isFree
       ? '<span class="tix-free-chip">Free — no ticket needed</span>'
       : '<span class="tix-event-price">Tickets — ' + priceStr + '</span>';
+    // No unique image yet ⇒ the standard GBE brand card (owner directive
+    // 2026-07-17: the brand card is the standing default "until replaced by a
+    // unique image"). Same markup shape as the real-image branch, so both
+    // consumers (public page + wizard preview) stay byte-identical. The path
+    // is root-relative — the SPA serves all pages from the origin root.
     var imgHtml = ev.image_url
       ? '<img src="' + escHtml(ev.image_url) + '" alt="' + escHtml(ev.event_name) + '">'
-      : '<i class="fa-solid fa-music"></i>';
+      : '<img src="images/show-card-default.jpg" alt="' + escHtml(ev.event_name) + '">';
 
     return '<div class="tix-event-card' + (opts.extraClass ? ' ' + opts.extraClass : '') + '" data-event-id="' + escHtml(ev.id) + '">' +
       '<div class="tix-event-card-img">' + imgHtml + '</div>' +
