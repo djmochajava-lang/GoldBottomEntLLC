@@ -68,7 +68,7 @@
           <a href="#ent-contact" class="btn btn-outline" style="width:100%;text-align:center;display:block;">
             Questions? Contact us
           </a>
-          <p style="color:var(--color-text-muted);font-size:var(--text-xs);line-height:1.5;margin-top:var(--space-md);margin-bottom:0;">
+          <p id="tix-detail-passes-note" style="color:var(--color-text-muted);font-size:var(--text-xs);line-height:1.5;margin-top:var(--space-md);margin-bottom:0;">
             Promoters &amp; venue owners: complimentary industry passes are available — email
             <a href="mailto:booking@goldbottoment-llc.com">booking@goldbottoment-llc.com</a>.
           </p>
@@ -223,12 +223,13 @@
           return '<div class="tix-event-card reveal" data-event-id="' + escHtml(ev.id) + '">' +
             '<div class="tix-event-card-img">' + imgHtml + '</div>' +
             '<div class="tix-event-card-body">' +
-              '<div class="tix-event-card-kicker">' + escHtml(KICKER) + '</div>' +
+              (String(ev.event_name || '').indexOf('L.A. Young & Soul Society') === 0 ? '' :
+                '<div class="tix-event-card-kicker">' + escHtml(KICKER) + '</div>') +
               '<h3>' + escHtml(ev.event_name) + '</h3>' +
               '<div class="tix-event-card-meta">' +
                 '<span><i class="fa-solid fa-calendar"></i> ' + fmtDate(ev.event_date) + '</span>' +
                 '<span><i class="fa-solid fa-location-dot"></i> ' + escHtml(venueLine(ev)) + '</span>' +
-                '<span><span class="tix-status-chip">' + escHtml(statusChip(ev.status)) + '</span></span>' +
+                (isFree ? '' : '<span><span class="tix-status-chip">' + escHtml(statusChip(ev.status)) + '</span></span>') +
               '</div>' +
               '<div class="tix-event-card-footer">' +
                 admissionHtml +
@@ -256,7 +257,8 @@
 
     var tiers = currentEvent.tiers || [];
 
-    document.getElementById('tix-detail-kicker').textContent = KICKER;
+    document.getElementById('tix-detail-kicker').textContent =
+      String(currentEvent.event_name || '').indexOf('L.A. Young & Soul Society') === 0 ? '' : KICKER;
     document.getElementById('tix-detail-name').textContent = currentEvent.event_name;
     document.getElementById('tix-detail-date').innerHTML = '<i class="fa-solid fa-calendar"></i> ' + fmtDate(currentEvent.event_date);
     document.getElementById('tix-detail-venue').innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + escHtml(venueLine(currentEvent));
@@ -275,8 +277,10 @@
     var checkoutTitle = document.getElementById('tix-detail-checkout-title');
     var checkoutCopy = document.getElementById('tix-detail-checkout-copy');
     var bandpageCta = document.getElementById('tix-detail-bandpage-cta');
+    var passesNote = document.getElementById('tix-detail-passes-note');
     if (tiersHeading) tiersHeading.style.display = isFree ? 'none' : '';
     if (bandpageCta) bandpageCta.style.display = isFree ? 'none' : 'block';
+    if (passesNote) passesNote.style.display = isFree ? 'none' : '';
     if (checkoutTitle) checkoutTitle.innerHTML = isFree
       ? '<i class="fa-solid fa-champagne-glasses"></i> Free Show'
       : '<i class="fa-solid fa-ticket"></i> Get Tickets';
