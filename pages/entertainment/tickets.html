@@ -47,18 +47,22 @@
           </div>
           <div id="tix-detail-desc" style="color:var(--color-text-secondary);line-height:1.6;margin-bottom:var(--space-lg);"></div>
 
-          <!-- Tiers (display-only listing — purchase happens on the band page) -->
-          <h3 style="margin-bottom:var(--space-sm);">Ticket Tiers</h3>
+          <!-- Tiers (display-only listing — purchase happens on the band page).
+               Hidden for FREE shows (ticket_required=0, S2 owner A2): a free
+               announcement has no tiers and no checkout. -->
+          <h3 id="tix-detail-tiers-heading" style="margin-bottom:var(--space-sm);">Ticket Tiers</h3>
           <div id="tix-detail-tiers" style="display:flex;flex-direction:column;gap:var(--space-sm);"></div>
         </div>
 
-        <!-- Get Tickets — the band page is the ONE checkout surface -->
+        <!-- Get Tickets — the band page is the ONE checkout surface.
+             FREE shows (ticket_required=0) swap this card to the no-ticket
+             message: no checkout CTA anywhere for a free announcement. -->
         <div class="glass-card" style="padding:var(--space-lg);" id="tix-pub-checkout">
-          <h3 style="margin-top:0;margin-bottom:var(--space-md);color:var(--color-gold);"><i class="fa-solid fa-ticket"></i> Get Tickets</h3>
-          <p style="color:var(--color-text-secondary);font-size:var(--text-sm);line-height:1.6;margin-bottom:var(--space-md);">
+          <h3 id="tix-detail-checkout-title" style="margin-top:0;margin-bottom:var(--space-md);color:var(--color-gold);"><i class="fa-solid fa-ticket"></i> Get Tickets</h3>
+          <p id="tix-detail-checkout-copy" style="color:var(--color-text-secondary);font-size:var(--text-sm);line-height:1.6;margin-bottom:var(--space-md);">
             Ticketing for this show runs on the artist's official page — one box office, one line.
           </p>
-          <a href="https://layoungbandpage.com/#shows" target="_blank" rel="noopener" class="btn btn-primary shimmer-sweep" style="width:100%;text-align:center;display:block;margin-bottom:var(--space-sm);">
+          <a id="tix-detail-bandpage-cta" href="https://layoungbandpage.com/#shows" target="_blank" rel="noopener" class="btn btn-primary shimmer-sweep" style="width:100%;text-align:center;display:block;margin-bottom:var(--space-sm);">
             Get Tickets on the Band Page <i class="fa-solid fa-arrow-right"></i>
           </a>
           <a href="#ent-contact" class="btn btn-outline" style="width:100%;text-align:center;display:block;">
@@ -106,6 +110,13 @@
     display: inline-block; font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.04em; padding: 2px 10px; border-radius: 20px;
     background: rgba(212,160,23,0.12); color: var(--color-gold); border: 1px solid rgba(212,160,23,0.25);
+  }
+  /* FREE show admission chip (ticket_required=0, S2 owner A2): the card's
+     admission model when there is no price row and no checkout. */
+  .tix-free-chip {
+    display: inline-block; font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 10px; border-radius: 20px;
+    background: rgba(63,185,80,0.12); color: #3fb950; border: 1px solid rgba(63,185,80,0.3);
   }
   /* Tier rows are DISPLAY-ONLY on this page (checkout lives on the band page) */
   .tix-tier-option {
@@ -192,6 +203,9 @@
         if (!events.length) { emptyEl.style.display = 'block'; return; }
 
         eventsContainer.innerHTML = events.map(function(ev) {
+          // Admission model (S2, owner A2): every card states it. Missing flag
+          // (stale cache row) ⇒ ticketed, so a paywall is never hidden.
+          var isFree = ev.ticket_required != null && Number(ev.ticket_required) === 0;
           var tiers = ev.tiers || [];
           var prices = tiers.map(function(t) { return t.price_cents; }).filter(function(p) { return p != null; });
           var minPrice = prices.length ? Math.min.apply(null, prices) : 0;
@@ -199,6 +213,9 @@
           var priceStr = minPrice === maxPrice
             ? (minPrice === 0 ? 'Free' : fmtCents(minPrice))
             : fmtCents(minPrice) + ' – ' + fmtCents(maxPrice);
+          var admissionHtml = isFree
+            ? '<span class="tix-free-chip">Free — no ticket needed</span>'
+            : '<span class="tix-event-price">Tickets — ' + priceStr + '</span>';
           var imgHtml = ev.image_url
             ? '<img src="' + escHtml(ev.image_url) + '" alt="' + escHtml(ev.event_name) + '">'
             : '<i class="fa-solid fa-music"></i>';
@@ -214,8 +231,8 @@
                 '<span><span class="tix-status-chip">' + escHtml(statusChip(ev.status)) + '</span></span>' +
               '</div>' +
               '<div class="tix-event-card-footer">' +
-                '<span class="tix-event-price">' + priceStr + '</span>' +
-                '<button class="btn btn-primary btn-sm shimmer-sweep">Details &amp; Tickets</button>' +
+                admissionHtml +
+                '<button class="btn btn-primary btn-sm shimmer-sweep">' + (isFree ? 'Details' : 'Details &amp; Tickets') + '</button>' +
               '</div>' +
             '</div></div>';
         }).join('');
@@ -250,8 +267,27 @@
     document.getElementById('tix-detail-desc').innerHTML = String(currentEvent.description || '')
       .split(/\n\s*\n/).map(function(p) { return '<p style="margin:0 0 var(--space-sm);">' + escHtml(p) + '</p>'; }).join('');
 
+    // Admission model (S2, owner A2): FREE shows render the announcement view —
+    // no tier list, no checkout CTA; the checkout card becomes the no-ticket
+    // message. Ticketed shows restore the full view (back/forward safe).
+    var isFree = currentEvent.ticket_required != null && Number(currentEvent.ticket_required) === 0;
+    var tiersHeading = document.getElementById('tix-detail-tiers-heading');
+    var checkoutTitle = document.getElementById('tix-detail-checkout-title');
+    var checkoutCopy = document.getElementById('tix-detail-checkout-copy');
+    var bandpageCta = document.getElementById('tix-detail-bandpage-cta');
+    if (tiersHeading) tiersHeading.style.display = isFree ? 'none' : '';
+    if (bandpageCta) bandpageCta.style.display = isFree ? 'none' : 'block';
+    if (checkoutTitle) checkoutTitle.innerHTML = isFree
+      ? '<i class="fa-solid fa-champagne-glasses"></i> Free Show'
+      : '<i class="fa-solid fa-ticket"></i> Get Tickets';
+    if (checkoutCopy) checkoutCopy.textContent = isFree
+      ? 'This is a free show — no ticket needed. Just come out.'
+      : "Ticketing for this show runs on the artist's official page — one box office, one line.";
+
     var tiersEl = document.getElementById('tix-detail-tiers');
-    if (!tiers.length) {
+    if (isFree) {
+      tiersEl.innerHTML = '<span class="tix-free-chip">Free — no ticket needed</span>';
+    } else if (!tiers.length) {
       tiersEl.innerHTML = '<p style="color:var(--color-text-muted);">Tier details coming soon.</p>';
     } else {
       tiersEl.innerHTML = tiers.map(function(t) {
