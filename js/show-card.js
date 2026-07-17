@@ -30,7 +30,13 @@
 
   var KICKER = 'L.A. Young & Soul Society present';
 
-  function escHtml(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  // Quote-escaping matters here: some fields land inside quoted HTML attributes
+  // (img alt/src, data-event-id), where textContent→innerHTML alone is not enough.
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
   // Readmodel prices are integer CENTS (price_cents).
   function fmtCents(c) {

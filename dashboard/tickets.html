@@ -2321,7 +2321,7 @@
         if (typeof Toast !== 'undefined') Toast.error('Could not delete: ' + e.message);
       }
     };
-    Modal.confirm('Delete the draft “' + (row.event_name || 'untitled') + '”? It was never published; this permanently removes it.',
+    Modal.confirm('Delete the draft “' + escHtml(row.event_name || 'untitled') + '”? It was never published; this permanently removes it.',
       function() { runDelete(); });
   }
 
