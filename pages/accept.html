@@ -71,7 +71,8 @@
     .offer-chips { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin: var(--space-sm) 0 var(--space-md); }
     .offer-chip { padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-full); border: 1px solid var(--color-border); background: var(--color-bg-tertiary); color: var(--color-text-secondary); font-size: var(--text-sm); font-weight: var(--fw-medium); cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s, border-color 0.15s; }
     .offer-chip:hover { border-color: var(--color-gold); }
-    .offer-chip[aria-pressed="true"] { background: var(--color-gold); color: #000; border-color: var(--color-gold); }
+    .offer-chip[aria-pressed="true"], .offer-chip[aria-checked="true"] { background: var(--color-gold); color: #000; border-color: var(--color-gold); }
+    .offer-chip:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
     .offer-banner-counter { background: var(--color-info-muted); border: 1px solid var(--color-info); color: var(--color-text); }
 
     .offer-banner { border-radius: var(--radius-md); padding: var(--space-md) var(--space-lg); margin-bottom: var(--space-lg); font-size: var(--text-sm); line-height: 1.5; }
@@ -172,11 +173,14 @@
         <h3>Request a change to this quote</h3>
         <p style="color:var(--color-text-secondary); font-size:var(--text-sm);">Tell us what you&rsquo;d like adjusted. We&rsquo;ll review and send you an updated quote &mdash; nothing is charged now.</p>
         <p style="color:var(--color-text-muted); font-size:var(--text-xs); margin:0 0 var(--space-xs);">What would you like to change?</p>
-        <div class="offer-chips" id="counter-reason-chips" role="group" aria-label="What to change">
-          <button type="button" class="offer-chip" data-reason="price" data-testid="chip-price" aria-pressed="false">Price</button>
-          <button type="button" class="offer-chip" data-reason="date" data-testid="chip-date" aria-pressed="false">Date</button>
-          <button type="button" class="offer-chip" data-reason="scope" data-testid="chip-scope" aria-pressed="false">Scope</button>
-          <button type="button" class="offer-chip" data-reason="other" data-testid="chip-other" aria-pressed="false">Other</button>
+        <!-- EO N3 (a11y): single-select reason = radiogroup/radio (not toggle
+             buttons). Roving tabindex + arrow-key navigation; aria-checked reflects
+             the one selected reason to assistive tech. -->
+        <div class="offer-chips" id="counter-reason-chips" role="radiogroup" aria-label="What would you like to change?">
+          <button type="button" class="offer-chip" data-reason="price" data-testid="chip-price" role="radio" aria-checked="false" tabindex="0">Price</button>
+          <button type="button" class="offer-chip" data-reason="date" data-testid="chip-date" role="radio" aria-checked="false" tabindex="-1">Date</button>
+          <button type="button" class="offer-chip" data-reason="scope" data-testid="chip-scope" role="radio" aria-checked="false" tabindex="-1">Scope</button>
+          <button type="button" class="offer-chip" data-reason="other" data-testid="chip-other" role="radio" aria-checked="false" tabindex="-1">Other</button>
         </div>
         <textarea class="offer-textarea" id="input-counter-note" data-testid="input-counter-note" maxlength="2000" placeholder="Describe what you'd like changed — for example, &ldquo;Could we start at 8pm instead?&rdquo; or &ldquo;Is there any flexibility on the total?&rdquo;"></textarea>
         <div class="offer-actions">
@@ -1167,13 +1171,27 @@
       var chipWrap = $('counter-reason-chips');
       if (chipWrap) {
         var chips = chipWrap.querySelectorAll('.offer-chip');
+        // EO N3: select a radio — set aria-checked on the chosen chip, roving
+        // tabindex (only the selected radio is tab-reachable), and move focus.
+        var selectChip = function (chip) {
+          selectedCounterReason = chip.getAttribute('data-reason');
+          for (var k = 0; k < chips.length; k++) {
+            var on = chips[k] === chip;
+            chips[k].setAttribute('aria-checked', on ? 'true' : 'false');
+            chips[k].setAttribute('tabindex', on ? '0' : '-1');
+          }
+          updateCounterControls();
+        };
         for (var ci = 0; ci < chips.length; ci++) {
-          chips[ci].addEventListener('click', function () {
-            selectedCounterReason = this.getAttribute('data-reason');
-            for (var k = 0; k < chips.length; k++) {
-              chips[k].setAttribute('aria-pressed', chips[k] === this ? 'true' : 'false');
-            }
-            updateCounterControls();
+          chips[ci].addEventListener('click', function () { selectChip(this); }.bind(chips[ci]));
+          // Arrow-key navigation within the radiogroup (WAI-ARIA radio pattern).
+          chips[ci].addEventListener('keydown', function (ev) {
+            var idx = Array.prototype.indexOf.call(chips, this);
+            var next = null;
+            if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') next = chips[(idx + 1) % chips.length];
+            else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') next = chips[(idx - 1 + chips.length) % chips.length];
+            else if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); selectChip(this); return; }
+            if (next) { ev.preventDefault(); selectChip(next); next.focus(); }
           }.bind(chips[ci]));
         }
       }

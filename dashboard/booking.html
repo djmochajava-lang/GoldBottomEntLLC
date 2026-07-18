@@ -619,6 +619,36 @@
       }
       html += '</div>';
 
+      // ── Buyer counter (change-request) card — story-quote-revision-and-bm-surface (EO N1).
+      // When a buyer clicks "Request a change" on their quote, the counter lands on the
+      // deal and surfaces HERE (the manager-only inquiry read-model carries reason + note;
+      // never the anon booking cache). The BM reads what to change and revises the quote
+      // from the same detail — the "Revise quote" CTA drives the re-quote (create_quote →
+      // approve_quote), which supersedes the buyer's prior (stale-price) quote link.
+      if (r.counter_pending) {
+        var crReasonLabel = { price: 'Price', date: 'Date', scope: 'Scope', other: 'Other' }[r.counter_reason] || (r.counter_reason || 'Change');
+        var crWhen = r.counter_requested_at ? new Date(r.counter_requested_at).toLocaleString() : '';
+        html += '<div id="inq-counter-card" data-testid="inq-counter-card" ' +
+          'style="margin-bottom:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);' +
+          'background:rgba(240,136,0,0.08);border:1px solid rgba(240,136,0,0.35);">';
+        html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-xs);">' +
+          '<i class="fa-solid fa-comment-dots" style="color:#f08800;"></i>' +
+          '<strong style="font-size:var(--text-base);">Buyer requested a change</strong></div>';
+        html += '<div style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-sm);">';
+        html += pill('rgba(240,136,0,0.15)', '#f08800', 'Wants changed: ' + esc(crReasonLabel));
+        if (crWhen) html += pill('rgba(139,148,158,0.15)', '#8b949e', crWhen);
+        html += '</div>';
+        if (r.counter_note) {
+          html += '<div style="padding:var(--space-sm) var(--space-md);background:var(--color-bg);border-left:3px solid #f08800;' +
+            'border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--color-text-secondary);white-space:pre-wrap;' +
+            'line-height:1.55;max-height:220px;overflow-y:auto;margin-bottom:var(--space-sm);">' + esc(r.counter_note) + '</div>';
+        }
+        html += '<button id="inq-revise-btn" data-id="' + esc(String(r.id)) + '" class="btn btn-primary" ' +
+          'style="width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:var(--text-base);font-weight:600;">' +
+          '<i class="fa-solid fa-pen-to-square"></i> Revise quote</button>';
+        html += '</div>';
+      }
+
       // ── Create a Quote — PRIMARY action on a booking inquiry (story-bm-guided-quote-authoring).
       // Obvious affordance at the top of the detail (AC-1). A "Quote in progress" chip replaces
       // it when a pending_approval draft already exists (resumable, non-destructive).
@@ -711,6 +741,14 @@
       if (_cqBtn) {
         _cqBtn.addEventListener('click', function() { openQuoteStepper(r); });
         _refreshQuoteInProgress(r);
+      }
+
+      // Wire the "Revise quote" CTA on the buyer counter card (EO N1) — drives the
+      // SAME guided stepper; Send re-quotes (v+1) on the one deal and supersedes the
+      // buyer's prior quote link server-side.
+      var _reviseBtn = document.getElementById('inq-revise-btn');
+      if (_reviseBtn) {
+        _reviseBtn.addEventListener('click', function() { openQuoteStepper(r); });
       }
 
       // Shared post-action handling: optimistic local patch + re-render + toast.
