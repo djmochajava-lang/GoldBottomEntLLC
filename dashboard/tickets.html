@@ -829,6 +829,7 @@
       'bad_correlation_id': 'Something went wrong creating this draft — try again.',
       'not_an_unpublished_draft': 'Only never-published drafts can be deleted.',
       'tier_has_sales': 'A tier with sales can’t be removed — keep its row (capacity can still grow).',
+      'tier_price_locked': 'A tier with sales has a locked price — add a new tier to change pricing.',
       'duplicate_tier_name': 'Two tiers have the same name — rename one.',
       'min_per_order_gt_max': 'A tier’s minimum per order is higher than its maximum — fix the range.',
       'foreign_staging_path': 'That upload doesn’t belong to this show — try uploading the photo again.',
@@ -1208,15 +1209,15 @@
           '<button class="swz-tier-remove" data-remove-idx="' + idx + '" title="Remove tier" aria-label="Remove tier ' + (idx + 1) + '"><i class="fa-solid fa-trash"></i></button>') +
       '</div>' +
       (hasSales ?
-        '<div class="swz-tier-lock"><i class="fa-solid fa-lock"></i><span>Has sales (' + t.sold + ' sold · ' + t.held + ' held) — capacity can grow, but this tier can’t be removed or renamed.</span></div>' : '') +
+        '<div class="swz-tier-lock"><i class="fa-solid fa-lock"></i><span>Has sales (' + t.sold + ' sold · ' + t.held + ' held) — capacity can grow, but the tier name and price are locked and this tier can’t be removed. Add a new tier to change pricing.</span></div>' : '') +
       '<label class="swz-form-label" for="' + p + 'name">Tier name *</label>' +
       '<input id="' + p + 'name" class="swz-input" type="text" maxlength="120" value="' + escHtml(t.name) + '" placeholder="e.g. General Admission"' + (hasSales ? ' readonly' : '') + '>' +
       '<div class="swz-field-err" id="' + p + 'name-err"></div>' +
       '<div class="swz-tier-grid">' +
         '<div><label class="swz-form-label" for="' + p + 'price">Price (dollars) *</label>' +
-        '<input id="' + p + 'price" class="swz-input" type="number" inputmode="decimal" min="0" max="1000" step="0.01" value="' + escHtml(t.priceStr) + '" placeholder="e.g. 25">' +
+        '<input id="' + p + 'price" class="swz-input" type="number" inputmode="decimal" min="0" max="1000" step="0.01" value="' + escHtml(t.priceStr) + '" placeholder="e.g. 25"' + (hasSales ? ' readonly' : '') + '>' +
         '<div class="swz-field-err" id="' + p + 'price-err"></div>' +
-        '<div class="swz-help">$0–$1,000 · $0 = free ticket (RSVP)</div></div>' +
+        '<div class="swz-help">' + (hasSales ? 'Price locked — this tier has sales. Add a new tier to change pricing.' : '$0–$1,000 · $0 = free ticket (RSVP)') + '</div></div>' +
         '<div><label class="swz-form-label" for="' + p + 'cap">Capacity *</label>' +
         '<input id="' + p + 'cap" class="swz-input" type="number" inputmode="numeric" min="0" max="5000" step="1" value="' + escHtml(t.capacityStr) + '" placeholder="e.g. 100">' +
         '<div class="swz-field-err" id="' + p + 'cap-err"></div></div>' +
