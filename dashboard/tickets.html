@@ -842,7 +842,11 @@
       'image_too_many_pixels': 'That photo’s dimensions are too large to process — export a smaller copy.',
       'image_cannot_fit': 'That photo couldn’t be compressed for the card — try a different one.',
       'image_unreadable': 'That photo couldn’t be read — try exporting it again or use a different one.',
-      'image_no_image': 'This show has no image to remove.'
+      'image_no_image': 'This show has no image to remove.',
+      // story-show-open-ticket-sales-remote
+      'not_sellable': 'Sales can’t open yet — the show must be published, ticketed, and have at least one tier with capacity.',
+      'not_closable': 'Sales aren’t open on this show, so there’s nothing to pause.',
+      'has_sales': 'Tickets have already sold — sales can’t be paused. Unpublish the show if you need it off the public pages.'
     };
     if (map[t]) return map[t];
     // W5 publish/unpublish — the lander relays ticketSales' reason verbatim
@@ -1987,6 +1991,59 @@
           '<button id="swz-unpublish" class="btn" style="margin-top:22px;min-height:48px;width:100%;max-width:390px;color:#f85149;"><i class="fa-solid fa-eye-slash"></i> Unpublish This Show</button>' +
           '<div class="swz-help" style="max-width:390px;text-align:center;">Takes the card off the public pages — removal can take about 2 minutes. Nothing is deleted; you can publish again anytime.</div>';
       }
+      /* ── story-show-open-ticket-sales-remote: the OPEN SALES control ──
+         A published ticketed card lands at status 'announced', which the fan
+         page renders as disabled "Coming Soon" tiers — nothing is buyable
+         until status is 'on_sale'. Before this control that flip was LAN-only
+         (a defect under feedback_everything_works_on_public_site). The state
+         is reflected HONESTLY: no tiers / free / external ⇒ no button and a
+         reason, never a dead control. */
+      var salesHtml = '';
+      var SELLING = { on_sale: 1, selling_fast: 1, almost_sold_out: 1, sold_out: 1 };
+      var stat = String(row.status || '');
+      var hasSellableTier = (row.tiers || []).some(function(t) {
+        return Number(t.is_active) !== 0 && Number(t.capacity || 0) > 0;
+      });
+      var noRelay = isLocal && !getSb(); // same honest console gap as unpublish
+      if (isExternal) {
+        salesHtml =
+          '<div class="swz-note" style="margin-top:18px;max-width:390px;"><i class="fa-solid fa-arrow-up-right-from-square"></i>' +
+          '<span style="flex:1;">Tickets for this show are sold on the venue’s own site, so there’s nothing to open here.</span></div>';
+      } else if (isFree) {
+        salesHtml =
+          '<div class="swz-note" style="margin-top:18px;max-width:390px;"><i class="fa-solid fa-circle-info"></i>' +
+          '<span style="flex:1;">This is a free show — no tickets to sell, so the public card just says “Free — no ticket needed”.</span></div>';
+      } else if (SELLING[stat]) {
+        var canPause = stat === 'on_sale' && Number(row.total_sold || 0) === 0;
+        salesHtml =
+          '<div class="swz-sales-state" style="margin-top:18px;width:100%;max-width:390px;text-align:center;">' +
+            '<span class="swz-pub-badge live"><i class="fa-solid fa-ticket"></i> ON SALE — fans can buy now</span>' +
+            '<div class="swz-help" style="text-align:center;">Ticket buttons are live on the public pages.</div>' +
+            (canPause
+              ? '<button id="swz-close-sales" class="btn" style="margin-top:12px;min-height:48px;width:100%;">' +
+                '<i class="fa-solid fa-pause"></i> Pause Ticket Sales</button>' +
+                '<div class="swz-help" style="text-align:center;">Puts the tiers back to “Coming Soon”. The show stays published and nothing is deleted.</div>'
+              : '') +
+          '</div>';
+      } else if (noRelay) {
+        salesHtml =
+          '<div class="swz-note warn" style="margin-top:18px;max-width:390px;"><i class="fa-solid fa-circle-info"></i>' +
+          '<span style="flex:1;">Opening ticket sales from the home console isn’t wired yet — open the dashboard at goldbottoment-llc.com and sign in with your manager account.</span></div>';
+      } else {
+        salesHtml =
+          '<div class="swz-sales-state" style="margin-top:18px;width:100%;max-width:390px;text-align:center;">' +
+            '<span class="swz-pub-badge draft"><i class="fa-solid fa-hourglass-half"></i> ANNOUNCED — not yet on sale</span>' +
+            '<div class="swz-help" style="text-align:center;">The card is live, but every ticket button reads “Coming Soon” until you open sales.</div>' +
+            (hasSellableTier
+              ? '<button id="swz-open-sales" class="btn btn-primary" style="margin-top:12px;min-height:52px;width:100%;font-weight:700;">' +
+                '<i class="fa-solid fa-ticket"></i> Open Ticket Sales</button>' +
+                '<div class="swz-help" style="text-align:center;">Fans can buy immediately — it can take about 2 minutes to appear on the public pages.</div>'
+              : '<button class="btn btn-primary" style="margin-top:12px;min-height:52px;width:100%;font-weight:700;" disabled>' +
+                '<i class="fa-solid fa-ticket"></i> Open Ticket Sales</button>' +
+                '<div class="swz-help" style="text-align:center;">Add at least one tier with capacity before sales can open.</div>') +
+          '</div>';
+      }
+
       body =
         '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;align-items:center;">' +
           '<span class="swz-pub-badge live" style="margin-top:8px;"><i class="fa-solid fa-circle-check"></i> PUBLISHED — live on the sites</span>' +
@@ -1995,6 +2052,7 @@
             '<a class="swz-pub-link" href="https://goldbottoment-llc.com/#ent-tickets" target="_blank" rel="noopener"><i class="fa-solid fa-ticket" style="color:var(--color-gold);"></i> See the live tickets page <i class="fa-solid fa-arrow-up-right-from-square"></i></a>' +
             '<a class="swz-pub-link" href="https://layoungbandpage.com/#shows" target="_blank" rel="noopener"><i class="fa-solid fa-music" style="color:var(--color-gold);"></i> See the band site shows page <i class="fa-solid fa-arrow-up-right-from-square"></i></a>' +
           '</div>' +
+          salesHtml +
           unpubHtml +
         '</div>';
     } else {
@@ -2029,6 +2087,10 @@
     if (pubBtn) pubBtn.addEventListener('click', publishShow);
     var unpubBtn = document.getElementById('swz-unpublish');
     if (unpubBtn) unpubBtn.addEventListener('click', unpublishShow);
+    var openSalesBtn = document.getElementById('swz-open-sales');
+    if (openSalesBtn) openSalesBtn.addEventListener('click', function() { runSalesVerb(true); });
+    var closeSalesBtn = document.getElementById('swz-close-sales');
+    if (closeSalesBtn) closeSalesBtn.addEventListener('click', function() { runSalesVerb(false); });
     var blockerBtn = document.getElementById('swz-blocker-tiers');
     if (blockerBtn) blockerBtn.addEventListener('click', function() { gotoStep(2); });
     var delBtn = document.getElementById('swz-delete-draft');
@@ -2183,6 +2245,82 @@
       function() { runUnpublish(); },
       null,
       { confirmText: 'Unpublish', cancelText: 'Keep live' } // EO checklist item 5
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     story-show-open-ticket-sales-remote — OPEN / PAUSE ticket sales.
+     Mirrors publishShow exactly (confirm → relay verb → poll own action row
+     → readmodel echo → honest status strip). The payload is EMPTY: the VERB
+     carries the intent and the SERVER writes the status, so `status` stays a
+     key the relay can never carry (FOREVER_FORBIDDEN, untouched).
+     ══════════════════════════════════════════════════════════════════ */
+  function runSalesVerb(opening) {
+    if (_saving || !_wz || !_wz.row) return;
+    var wz = _wz;
+    var row = wz.row;
+    var verb = opening ? 'open_ticket_sales' : 'close_ticket_sales';
+    var btnId = opening ? 'swz-open-sales' : 'swz-close-sales';
+    var name = escHtml(row.event_name || 'this show');
+    var wantStatus = opening
+      ? function(r) { return String(r.status || '') !== 'announced'; }
+      : function(r) { return String(r.status || '') === 'announced'; };
+
+    var run = async function() {
+        if (_saving || !wzAlive(wz)) return;
+        _saving = true;
+        setPublishBusy(btnId, '<i class="fa-solid fa-spinner fa-spin"></i> ' + (opening ? 'Opening…' : 'Pausing…'));
+        setStatusStrip('saving', (opening ? 'Opening ticket sales…' : 'Pausing ticket sales…') +
+          ' it can take about 2 minutes to show on the public pages.', false);
+        try {
+          var actionId = await relayWrite(verb, row.id, {});
+          var result = await pollActionResult(actionId, {
+            onSlow: function() { if (wzAlive(wz)) setStatusStrip('saving', SLOW_COPY, false); }
+          });
+          var label = (opening ? 'opening sales for “' : 'pausing sales for “') + (row.event_name || 'this show') + '”';
+          if (!wzAlive(wz)) { watchQueuedAction(actionId, label); return; }
+          if (result.state === 'rejected') {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('failed', rejectionMessage(result.tag), function() { runSalesVerb(opening); });
+            return;
+          }
+          if (result.state === 'pending') {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('queued', 'Queued — the home office may be offline; this will apply automatically when it reconnects.', false);
+            watchQueuedAction(actionId, label);
+            return;
+          }
+          // applied (or an honest noop — the state is already what was asked for)
+          _saving = false;
+          var fresh = await refreshRowRemote(row.id, wantStatus, 20000);
+          if (!wzAlive(wz)) { loadShows(); return; }
+          if (fresh) wz.row = fresh; else wz.row.status = opening ? 'on_sale' : 'announced';
+          renderPublishStep();
+          setStatusStrip('saved', opening
+            ? 'Ticket sales are open ✓ — fans can buy now (can take about 2 minutes to appear on the public pages).'
+            : 'Ticket sales paused ✓ — the tiers read “Coming Soon” again (can take about 2 minutes to update).', false);
+          loadShowsRepoll();
+        } catch (e) {
+          if (wzAlive(wz)) {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('failed', (opening ? 'Could not open ticket sales: ' : 'Could not pause ticket sales: ') +
+              (e && e.message ? e.message : 'unknown error'), function() { runSalesVerb(opening); });
+          }
+        }
+    };
+
+    Modal.confirm(
+      opening
+        ? 'Open ticket sales for “' + name + '”? Fans will be able to buy tickets right away.'
+        : 'Pause ticket sales for “' + name + '”? The ticket buttons go back to “Coming Soon”. The show stays published and nothing is deleted.',
+      function() { run(); },
+      null,
+      opening
+        ? { confirmText: 'Open sales', cancelText: 'Not yet' }
+        : { confirmText: 'Pause sales', cancelText: 'Keep selling' }
     );
   }
 
