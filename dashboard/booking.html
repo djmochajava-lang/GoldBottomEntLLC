@@ -1014,6 +1014,28 @@
 
   var EC_BTN = 'min-height:44px;display:inline-flex;align-items:center;gap:8px;padding:0 var(--space-md);font-size:var(--text-sm);';
 
+  // Legal Part-B acceptance checklist (story-client-contract-upload-gate).
+  // The SERVER (external-contract.js) is the authority on the "cleared" verdict
+  // and executeContract re-checks the persisted marker — this catalog mirrors
+  // Part B (PROPOSAL_legal_contract_terms) for the on-phone gate UX only.
+  var EC_CHECKLIST_ITEMS = [
+    { id: 'b0_provenance', label: 'Final, fully-executed version — no drafts, redlines, tracked changes, or blank fields; who signed it, when, and where it came from is recorded.' },
+    { id: 'b1_party', label: 'GBE named as Gold Bottom Ent LLC (the Maryland LLC), signed by Jeffery Ponder as Authorized Signatory; client signatory + title present; all signatures and dates complete both sides.' },
+    { id: 'b2_economics', label: 'Total fee, deposit/retainer, and balance reconcile to the accepted quote; travel/lodging consistent with the quote; remit-to is the LLC account.' },
+    { id: 'b3_performance', label: 'Date, load-in, set times, duration, venue, and lineup correct; public performer identity is Phyllis only; overtime terms defined.' },
+    { id: 'b4_protective', label: 'Cancellation reasonable both ways; force-majeure / weather present; indemnity mutual and capped; recording / IP / likeness limited to this engagement; governing law acceptable; late fees not usurious.' },
+    { id: 'b5_reconcile', label: 'Fee, date, venue, and parties all reconcile to the booking record; verifier name + date recorded.' }
+  ];
+  var EC_CHECKLIST_REDFLAGS = [
+    { id: 'rf_indemnity', label: 'Uncapped or one-sided indemnity against GBE' },
+    { id: 'rf_ip_buyout', label: 'IP buyout / work-for-hire of the performance or recordings' },
+    { id: 'rf_guaranty', label: 'Personal guaranty of the owner or any member' },
+    { id: 'rf_radius', label: 'Unbounded exclusivity / radius / non-compete' },
+    { id: 'rf_forum', label: 'Foreign or distant governing law / forum' },
+    { id: 'rf_remit_personal', label: 'Payment directed to a personal (non-LLC) instrument' },
+    { id: 'rf_convenience', label: 'Client may terminate for convenience with little/no payment to GBE' }
+  ];
+
   // LAN multipart helper (apiFetch is JSON-only; FormData must set its own
   // boundary). The global CSRF interceptor in utils.js still applies.
   async function ecApiUpload(path, formData, method) {
@@ -1113,6 +1135,7 @@
   /** Build the section HTML (shared LAN/remote; `full` = LAN). */
   function ecSectionHtml(bookingId, view, full) {
     var pathIsExt = view.contractPath === 'external';
+    var clMarker = view.checklist || null; // persisted Part-B checklist marker (LAN)
     var h = '<div style="padding:var(--space-md);background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);">';
     h += '<div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-sm);">';
     h += '<h3 style="font-size:0.9rem;margin:0;"><i class="fa-solid fa-file-contract" style="color:var(--color-gold);margin-right:4px;"></i> Contract</h3>';
@@ -1204,11 +1227,12 @@
     h += '<input type="file" id="ec-file-input" accept=".pdf,.docx" style="display:none;">';
     h += '<div id="ec-upload-note" style="display:none;font-size:var(--text-sm);color:var(--color-text-muted);margin-bottom:var(--space-sm);"></div>';
 
-    // ── Execute sheet (AC-X8: ONE guided action — file REQUIRED + the
-    //    deposit question, our-link default) ──
+    // ── Execute sheet (AC-X8: ONE guided action — Part-B checklist gate +
+    //    file REQUIRED + the deposit question, our-link default) ──
     h += '<div id="ec-execute-sheet" data-testid="ec-execute-sheet" style="display:none;margin-bottom:var(--space-sm);padding:var(--space-md);border:1px solid rgba(63,185,80,0.4);border-radius:var(--radius-sm);background:rgba(63,185,80,0.05);">';
     h += '<h4 style="margin:0 0 var(--space-xs) 0;font-size:0.85rem;">Mark fully executed</h4>';
-    h += '<p style="margin:0 0 var(--space-sm) 0;font-size:0.78rem;color:var(--color-text-muted);">Attach the fully-executed contract (required) and choose how the deposit is handled.</p>';
+    h += '<p style="margin:0 0 var(--space-sm) 0;font-size:0.78rem;color:var(--color-text-muted);">Work the acceptance checklist, attach the fully-executed contract (required), and choose how the deposit is handled.</p>';
+    h += ecChecklistHtml(clMarker);
     h += '<button type="button" id="ec-exec-attach" data-testid="ec-exec-attach" class="btn" style="' + EC_BTN + 'margin-bottom:var(--space-sm);"><i class="fa-solid fa-paperclip"></i> Attach executed contract</button>';
     h += '<span id="ec-exec-filename" style="font-size:0.78rem;color:#3fb950;margin-left:8px;"></span>';
     h += '<label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--text-sm);margin:var(--space-xs) 0;cursor:pointer;"><input type="radio" name="ec-payvia" value="gbe_link" checked style="margin-top:3px;"> <span>Deposit: send our secure Square link <span style="color:var(--color-text-muted);">(default — buyer gets the deposit email and the booking page shows the deposit step)</span></span></label>';
@@ -1232,6 +1256,82 @@
 
   function ecUploadBtn(label, direction) {
     return '<button type="button" class="btn ec-upload-btn" data-testid="ec-upload-btn" data-direction="' + direction + '" style="' + EC_BTN + '"><i class="fa-solid fa-file-arrow-up"></i> ' + esc(label) + '</button>';
+  }
+
+  /** Legal Part-B acceptance checklist gate (story-client-contract-upload-gate).
+      Rendered inside the execute sheet; a hard blocker disables execute and
+      offers "escalate to Legal", a COI requirement is an owner-action pause. */
+  function ecChecklistHtml(marker) {
+    var confirmed = (marker && Array.isArray(marker.itemsConfirmed)) ? marker.itemsConfirmed : [];
+    var rfPresent = (marker && Array.isArray(marker.redFlagsPresent)) ? marker.redFlagsPresent : [];
+    var coiReq = marker ? marker.coiRequired === true : false;
+    var coiObt = marker ? marker.coiObtained === true : false;
+    var verifier = (marker && marker.verifier) ? marker.verifier : '';
+    var CL_ROW = 'display:flex;align-items:flex-start;gap:8px;font-size:0.76rem;line-height:1.45;margin:6px 0;cursor:pointer;';
+
+    var h = '<div id="ec-checklist" data-testid="ec-checklist" style="border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-bg);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-sm);">';
+    h += '<div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;"><i class="fa-solid fa-scale-balanced" style="color:var(--color-gold);"></i> Legal acceptance checklist (Part B)</div>';
+    h += '<p style="margin:0 0 var(--space-xs) 0;font-size:0.72rem;color:var(--color-text-muted);">Confirm every item before executing the client’s contract. This is the only record of who checked what — it binds GBE to their terms.</p>';
+
+    // Affirmative items — must all be checked.
+    EC_CHECKLIST_ITEMS.forEach(function(it) {
+      var on = confirmed.indexOf(it.id) !== -1;
+      h += '<label style="' + CL_ROW + '"><input type="checkbox" class="ec-cl-item" data-id="' + it.id + '"' + (on ? ' checked' : '') + ' style="margin-top:3px;min-width:16px;"> <span>' + esc(it.label) + '</span></label>';
+    });
+
+    // Red-flag hard blockers — any present ⇒ escalate to Legal.
+    h += '<div style="margin-top:var(--space-sm);padding-top:var(--space-xs);border-top:1px solid var(--color-border);font-size:0.74rem;font-weight:700;color:#f85149;">Any of these present? If so, do NOT execute — escalate to Legal.</div>';
+    EC_CHECKLIST_REDFLAGS.forEach(function(f) {
+      var on = rfPresent.indexOf(f.id) !== -1;
+      h += '<label style="' + CL_ROW + '"><input type="checkbox" class="ec-cl-rf" data-id="' + f.id + '"' + (on ? ' checked' : '') + ' style="margin-top:3px;min-width:16px;"> <span>' + esc(f.label) + '</span></label>';
+    });
+
+    // COI — D-55 owner-action gate (NOT an auto-reject red flag).
+    h += '<div style="margin-top:var(--space-sm);padding-top:var(--space-xs);border-top:1px solid var(--color-border);font-size:0.74rem;font-weight:700;">Certificate of Insurance</div>';
+    h += '<label style="' + CL_ROW + '"><input type="checkbox" id="ec-coi-required"' + (coiReq ? ' checked' : '') + ' style="margin-top:3px;min-width:16px;"> <span>The contract requires a Certificate of Insurance / additional-insured endorsement.</span></label>';
+    h += '<div id="ec-coi-obtained-wrap" style="display:' + (coiReq ? 'block' : 'none') + ';margin-left:24px;">';
+    h += '<label style="' + CL_ROW + '"><input type="checkbox" id="ec-coi-obtained"' + (coiObt ? ' checked' : '') + ' style="margin-top:3px;min-width:16px;"> <span>The owner has obtained the CGL policy / COI for this event (GBE carries no standing policy — this is an owner action).</span></label>';
+    h += '</div>';
+
+    // Verifier + running status.
+    h += '<input type="text" id="ec-cl-verifier" maxlength="160" placeholder="Who verified this checklist (name)" value="' + esc(verifier) + '" style="width:100%;box-sizing:border-box;margin-top:var(--space-xs);padding:var(--space-sm);border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);font-size:var(--text-sm);">';
+    h += '<div id="ec-cl-status" data-testid="ec-cl-status" style="margin-top:var(--space-xs);font-size:0.76rem;"></div>';
+    h += '</div>';
+    return h;
+  }
+
+  /** Read the checklist DOM → the same verdict shape the server computes.
+      Returns { payload, cleared, blocked }. Mirror of external-contract.evaluateChecklist. */
+  function ecEvalChecklist() {
+    var items = {}, redFlags = {};
+    var missing = 0;
+    EC_CHECKLIST_ITEMS.forEach(function(it) {
+      var el = document.querySelector('.ec-cl-item[data-id="' + it.id + '"]');
+      var on = !!(el && el.checked);
+      items[it.id] = on;
+      if (!on) missing++;
+    });
+    var rfCount = 0;
+    EC_CHECKLIST_REDFLAGS.forEach(function(f) {
+      var el = document.querySelector('.ec-cl-rf[data-id="' + f.id + '"]');
+      var on = !!(el && el.checked);
+      redFlags[f.id] = on;
+      if (on) rfCount++;
+    });
+    var coiRequired = !!(document.getElementById('ec-coi-required') || {}).checked;
+    var coiObtained = !!(document.getElementById('ec-coi-obtained') || {}).checked;
+    var verifierEl = document.getElementById('ec-cl-verifier');
+    var verifier = verifierEl ? verifierEl.value.trim().slice(0, 160) : '';
+
+    var blocked = null;
+    if (rfCount) blocked = 'red_flags';
+    else if (coiRequired && !coiObtained) blocked = 'coi_pending';
+    else if (missing) blocked = 'items_incomplete';
+    return {
+      payload: { items: items, redFlags: redFlags, coiRequired: coiRequired, coiObtained: coiObtained, verifier: verifier },
+      cleared: blocked === null,
+      blocked: blocked
+    };
   }
 
   /** Legal flag cards (LAN full text) / counts (remote). AC-X5. */
@@ -1416,6 +1516,7 @@
     var uploadDirection = 'inbound';
     var execMode = false;
     var execFile = null;
+    var ecRefreshExecGate = function() {}; // assigned when the execute sheet is present
     document.querySelectorAll('.ec-upload-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         uploadDirection = btn.dataset.direction || 'inbound';
@@ -1425,11 +1526,33 @@
       });
     });
 
-    // Execute sheet (AC-X8)
+    // Execute sheet (AC-X8 + Part-B acceptance checklist gate)
     var execBtn = document.getElementById('ec-execute-btn');
     if (execBtn) {
+      // The gate: execute enabled only when the checklist CLEARS *and* a file
+      // is attached. A hard blocker → escalate to Legal; a COI requirement →
+      // owner-action pause (D-55). Status line explains WHY it is blocked.
+      ecRefreshExecGate = function() {
+        var ev = ecEvalChecklist();
+        var statusEl = document.getElementById('ec-cl-status');
+        var confirmEl = document.getElementById('ec-exec-confirm');
+        if (statusEl) {
+          if (ev.cleared) {
+            statusEl.innerHTML = '<span style="color:#3fb950;"><i class="fa-solid fa-circle-check"></i> Checklist clear' + (ev.payload.coiRequired ? ' — COI obtained' : '') + '. Attach the executed contract to finish.</span>';
+          } else if (ev.blocked === 'red_flags') {
+            statusEl.innerHTML = '<span style="color:#f85149;"><i class="fa-solid fa-triangle-exclamation"></i> Red-flag term present — do NOT execute. Escalate to Legal before continuing.</span>';
+          } else if (ev.blocked === 'coi_pending') {
+            statusEl.innerHTML = '<span style="color:#d29922;"><i class="fa-solid fa-shield-halved"></i> This contract needs a Certificate of Insurance. Obtain the COI first (owner action), then check the box — this is a pause, not a rejection.</span>';
+          } else {
+            statusEl.innerHTML = '<span style="color:var(--color-text-muted);"><i class="fa-solid fa-list-check"></i> Confirm every acceptance item to enable execute.</span>';
+          }
+        }
+        if (confirmEl) confirmEl.disabled = !(ev.cleared && !!execFile);
+        return ev;
+      }
       execBtn.addEventListener('click', function() {
         document.getElementById('ec-execute-sheet').style.display = '';
+        ecRefreshExecGate();
       });
       document.getElementById('ec-exec-cancel').addEventListener('click', function() {
         document.getElementById('ec-execute-sheet').style.display = 'none';
@@ -1442,14 +1565,38 @@
         fileInput.value = '';
         fileInput.click();
       });
+      // Re-evaluate the gate whenever any checklist input changes.
+      var coiReqEl = document.getElementById('ec-coi-required');
+      if (coiReqEl) {
+        coiReqEl.addEventListener('change', function() {
+          var wrap = document.getElementById('ec-coi-obtained-wrap');
+          if (wrap) wrap.style.display = coiReqEl.checked ? 'block' : 'none';
+          ecRefreshExecGate();
+        });
+      }
+      Array.prototype.forEach.call(
+        document.querySelectorAll('.ec-cl-item, .ec-cl-rf, #ec-coi-obtained'),
+        function(el) { el.addEventListener('change', ecRefreshExecGate); }
+      );
+      var verifierEl2 = document.getElementById('ec-cl-verifier');
+      if (verifierEl2) verifierEl2.addEventListener('input', ecRefreshExecGate);
+
       document.getElementById('ec-exec-confirm').addEventListener('click', async function() {
-        if (!execFile) return; // impossible to execute without the artifact
+        var ev = ecEvalChecklist();
+        if (!ev.cleared) { toast(false, ev.blocked === 'red_flags' ? 'Escalate to Legal — this contract cannot be executed as-is.' : (ev.blocked === 'coi_pending' ? 'Obtain the Certificate of Insurance before executing.' : 'Confirm every acceptance-checklist item first.')); return; }
+        if (!execFile) { toast(false, 'Attach the fully-executed contract first.'); return; }
         var btn = this;
         var payVia = (document.querySelector('input[name="ec-payvia"]:checked') || {}).value || 'gbe_link';
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Marking executed…';
         try {
           if (full) {
+            // 1) Persist the checklist marker (server re-evaluates + records it);
+            //    executeContract re-checks the marker, so this MUST land first.
+            await apiFetch('/bookings/' + encodeURIComponent(bookingId) + '/external-contract/checklist', {
+              method: 'PUT', body: JSON.stringify(ev.payload)
+            });
+            // 2) Execute (server enforces the cleared marker for this version).
             var fd = new FormData();
             fd.append('file', execFile);
             fd.append('payment_via', payVia);
@@ -1458,13 +1605,16 @@
               ? 'Fully executed — buyer receives the executed copy and our secure deposit link.'
               : 'Fully executed — buyer receives the executed copy; booking confirmed (deposit per their contract).');
           } else {
+            // Remote: queue the checklist first, then execute. The reconciler
+            // applies actions in order — the marker lands before execute reads it.
+            await ecQueueAction(bookingId, 'external_contract_checklist', ev.payload);
             var staged = await ecStageFile(bookingId, execFile);
             await ecQueueAction(bookingId, 'external_contract_execute', {
               staging_key: staged.key, filename: execFile.name, payment_via: payVia
             });
             var row = pipelineData.find(function(x) { return String(x.id) === String(bookingId); });
             if (row) { row.external_contract_status = 'fully_executed'; row.external_status_changed_at = new Date().toISOString(); }
-            toast(true, 'Executed copy uploaded — syncing shortly. The buyer will see ' + (payVia === 'gbe_link' ? 'the deposit step next.' : '“Confirmed” next.'));
+            toast(true, 'Checklist + executed copy uploaded — syncing shortly. The buyer will see ' + (payVia === 'gbe_link' ? 'the deposit step next.' : '“Confirmed” next.'));
           }
           closeModal();
           loadPipeline();
@@ -1493,7 +1643,9 @@
         if (execMode) {
           execFile = file;
           document.getElementById('ec-exec-filename').textContent = file.name;
-          document.getElementById('ec-exec-confirm').disabled = false;
+          // Attaching a file does NOT bypass the checklist — re-run the gate so
+          // execute stays disabled until the Part-B checklist also clears.
+          ecRefreshExecGate();
           return;
         }
         var noteEl = document.getElementById('ec-upload-note');
