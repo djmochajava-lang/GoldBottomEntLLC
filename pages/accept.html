@@ -122,6 +122,7 @@
       <div class="offer-step" data-testid="step-accept" id="step-accept"><span>Accept</span></div>
       <div class="offer-step" data-testid="step-sign" id="step-sign"><span>Sign</span></div>
       <div class="offer-step" data-testid="step-deposit" id="step-deposit"><span>Deposit</span></div>
+      <div class="offer-step" data-testid="step-balance" id="step-balance"><span>Balance</span></div>
       <div class="offer-step" data-testid="step-complete" id="step-complete"><span>Confirmed</span></div>
     </div>
 
@@ -280,6 +281,33 @@
       </div>
     </div>
 
+    <!-- Phase: balance_due (deposit paid, final balance due) -->
+    <div id="state-balance" data-testid="state-balance" style="display:none;">
+      <div id="banner-balance-testmode" class="offer-banner offer-banner-testmode" data-testid="banner-balance-testmode" style="display:none;">TEST MODE &mdash; this is a test checkout. No real payment will be collected.</div>
+      <div class="offer-card">
+        <h2>Final Balance Payment</h2>
+        <p style="color:var(--color-text-secondary); font-size:var(--text-sm); line-height:1.6;">
+          Your deposit is in and your date is reserved. This is your remaining balance &mdash; due no later than 14 days before your event, per your signed agreement.
+        </p>
+        <div id="balance-figures"></div>
+        <!-- SHARED mock-payment screen (story-balance-final-payment): reuses the
+             SAME window.GBEMockPay component the deposit + ticket paths use, in
+             its 'balance' mode. Real money is OFF (D-50) — mock only; the button
+             stages a pay_balance intent that the HomeOffice reconciler settles
+             SERVER-SIDE (mockpay_*, is_test, real revenue $0). The mock link is
+             non-routable (.example), so no dead outbound link is shown. -->
+        <div id="balance-mockpay" class="balance-mockpay" style="display:none;"></div>
+        <p id="balance-square-note" style="color:var(--color-text-secondary); font-size:var(--text-sm); line-height:1.6;">
+          Payment is handled securely by <strong>Square</strong> on their hosted checkout page &mdash;
+          we never see or store your card details. The button below opens Square in a new tab.
+        </p>
+        <a class="offer-btn offer-btn-primary offer-btn-block" id="link-balance" data-testid="link-balance" href="#" target="_blank" rel="noopener noreferrer">Pay Balance Securely</a>
+        <p class="offer-field-note" style="text-align:center; margin-top:var(--space-md);">
+          After you pay, payment confirmation may take a couple of minutes to appear here.
+        </p>
+      </div>
+    </div>
+
     <!-- Complete -->
     <div id="state-complete" class="offer-center" data-testid="state-complete" style="display:none;">
       <div class="offer-glyph">&#127881;</div>
@@ -288,7 +316,7 @@
            when the deposit ran on the mock driver, so the receipt carries the
            same honest label as the payment screen did. -->
       <div id="complete-testmode-note" class="offer-banner offer-banner-testmode" data-testid="complete-testmode-note" style="display:none;">TEST MODE &mdash; no real payment was processed and this is not a valid booking.</div>
-      <p>Your deposit has been received and your booking is confirmed. A confirmation email with your executed agreement and receipt details is on its way.</p>
+      <p id="complete-body">Your payment has been received and your booking is confirmed. A confirmation email with your receipt details is on its way.</p>
       <p>We&rsquo;ll be in touch ahead of your event with logistics and next steps. Thank you for booking with Gold Bottom Entertainment!</p>
     </div>
 
@@ -352,6 +380,9 @@
     var depositWasTest = false; // true once the mock (TEST) deposit screen rendered — drives the receipt test-mode note
     var depositMockController = null; // GBEMockPay.mount() controller for the deposit screen
     var depositSettling = false;      // true while a buyer pay_deposit is in flight (guards re-mount)
+    var balanceWasTest = false;       // true once the mock (TEST) balance screen rendered
+    var balanceMockController = null; // GBEMockPay.mount() controller for the balance screen
+    var balanceSettling = false;      // true while a buyer pay_balance is in flight (guards re-mount)
     var pollTimer = null;
     var pollCount = 0;
     var pollStopped = false;
@@ -398,7 +429,7 @@
 
     var ALL_STATES = ['state-loading', 'state-error', 'state-offered', 'state-sign',
       'state-sign-pending', 'state-ext-send', 'state-ext-review', 'state-signed-wait',
-      'state-deposit', 'state-complete', 'state-declined', 'state-expired'];
+      'state-deposit', 'state-balance', 'state-complete', 'state-declined', 'state-expired'];
     function announce(msg) {
       var live = $('offer-live');
       if (live) live.textContent = msg || '';
@@ -443,21 +474,25 @@
     // "Contract" instead of "Sign" — one-word swap, progress semantics
     // unchanged. The buyer NEVER sees a "sign" label on external paper (AC-X6).
     function updateStepper(phase, isExternal) {
-      var ids = ['step-accept', 'step-sign', 'step-deposit', 'step-complete'];
+      // story-balance-final-payment: 5-step model — Accept · Sign · Deposit ·
+      // Balance · Confirmed. 'balance_due' activates the Balance step; 'complete'
+      // (paid in full) marks every step done.
+      var ids = ['step-accept', 'step-sign', 'step-deposit', 'step-balance', 'step-complete'];
       var signLabelEl = $('step-sign') && $('step-sign').querySelector('span');
       if (signLabelEl) signLabelEl.textContent = isExternal ? 'Contract' : 'Sign';
       var activeIdx;
       if (phase === 'offered') activeIdx = 0;
       else if (phase === 'accepted') activeIdx = 1;
       else if (phase === 'signed' || phase === 'deposit') activeIdx = 2;
-      else if (phase === 'complete') activeIdx = 3;
+      else if (phase === 'balance_due') activeIdx = 3;
+      else if (phase === 'complete') activeIdx = 4;
       else { hide('offer-stepper'); return; }
       show('offer-stepper');
       for (var i = 0; i < ids.length; i++) {
         var el = $(ids[i]);
         el.className = 'offer-step' + (i < activeIdx ? ' done' : (i === activeIdx ? ' active' : ''));
       }
-      if (phase === 'complete') $(ids[3]).className = 'offer-step done';
+      if (phase === 'complete') $(ids[4]).className = 'offer-step done';
     }
 
     /* ── Polling (C12: only while awaiting a transition; backoff + cap) ── */
@@ -539,9 +574,12 @@
       if (pendingAction === 'decline' || knownPhase === 'declined') {
         updateStepper('declined');
         showState('state-declined');
-      } else if (knownPhase === 'signed' || knownPhase === 'deposit' || knownPhase === 'complete') {
+      } else if (knownPhase === 'signed' || knownPhase === 'deposit' ||
+                 knownPhase === 'balance_due' || knownPhase === 'complete') {
         // task-tka-e contract: the row is EVICTED at completion — an emptying
-        // RPC after the deposit phase means the deal closed successfully.
+        // RPC after the deposit/balance phase means the deal closed successfully.
+        // story-balance-final-payment: an evicted row seen at 'balance_due' means
+        // the final balance was paid (offer → complete, paid in full).
         updateStepper('complete', wasExternal);
         showState('state-complete');
       } else if (wasExternal && knownPhase === 'accepted') {
@@ -605,6 +643,9 @@
       } else if (phase === 'deposit') {
         renderDeposit(p);
         showState('state-deposit');
+      } else if (phase === 'balance_due') {
+        renderBalance(p);
+        showState('state-balance');
       } else if (phase === 'complete') {
         showState('state-complete');
       } else if (phase === 'declined') {
@@ -791,11 +832,19 @@
             payLabel: 'Pay deposit ' + fmtMoney(dep.amount) + ' (Test)',
             onPay: settleMockDeposit,
             onReceipt: function () {
-              // The shared screen showed its honest TEST receipt; land the buyer
-              // on the canonical Booking Confirmed page (aria announce + TEST
-              // note carried by depositWasTest).
-              updateStepper('complete', !!(knownPayload && knownPayload.externalContract));
-              showState('state-complete');
+              // The shared screen showed its honest deposit receipt. story-balance-
+              // final-payment: if a balance is now due, hand off to the balance
+              // screen; otherwise (no balance) land on Booking Confirmed. knownPhase
+              // was updated by the settle poll before this resolved.
+              if (knownPhase === 'balance_due') {
+                renderBalance(knownPayload || {});
+                updateStepper('balance_due', !!(knownPayload && knownPayload.externalContract));
+                showState('state-balance');
+                schedulePoll();
+              } else {
+                updateStepper('complete', !!(knownPayload && knownPayload.externalContract));
+                showState('state-complete');
+              }
             }
           });
           mockHost.style.display = '';
@@ -862,7 +911,10 @@
               }
               var ph = rows[0].phase;
               knownPhase = ph; knownPayload = rows[0].payload || {};
-              if (ph === 'complete') { depositSettling = false; resolve({}); return; }
+              // story-balance-final-payment: the deposit now lands into
+              // 'balance_due' (a balance remains) OR 'complete' (no balance) —
+              // either is a SUCCESSFUL deposit settlement for this promise.
+              if (ph === 'complete' || ph === 'balance_due') { depositSettling = false; resolve({}); return; }
               if (ph === 'declined' || ph === 'expired') {
                 depositSettling = false; pendingAction = null;
                 var e1 = new Error('phase');
@@ -891,6 +943,153 @@
         }).catch(function (err) {
           console.warn('[offer] pay_deposit submit failed:', err && err.message ? err.message : err);
           depositSettling = false; pendingAction = null;
+          var ei = new Error('insert');
+          ei.friendly = 'We couldn’t submit that just now — please try again in a moment, or reply to your quote email.';
+          reject(ei);
+        });
+      });
+    }
+
+    /* ── Balance-due phase (story-balance-final-payment) ───────────────────
+       Mirrors renderDeposit: mounts the SHARED GBEMockPay screen in 'balance'
+       mode. In TEST/mock mode the buyer taps Pay balance → we stage a pay_balance
+       intent → the HomeOffice reconciler settles the mock balance SERVER-SIDE
+       (mockpay_*, is_test, real revenue $0) → offer → complete (paid in full) →
+       the page lands on Booking Confirmed. The balance amount is server-frozen
+       (bkpay_<id>_balance intent) — the client never sends it. */
+    function renderBalance(p) {
+      var bal = p.balance || {};
+      var figHtml = '';
+      figHtml += kv('Balance due', fmtMoney(bal.amount));
+      if (bal.currency) figHtml += kv('Currency', bal.currency);
+      if (p.total != null) figHtml += kv('Booking total', fmtMoney(p.total));
+      if (p.depositAmount != null) figHtml += kv('Deposit paid', fmtMoney(p.depositAmount));
+      $('balance-figures').innerHTML = figHtml;
+
+      var link = $('link-balance');
+      var squareNote = $('balance-square-note');
+      var mockHost = $('balance-mockpay');
+
+      // Mock driver deliberately uses the non-routable .example TLD.
+      var isTest = false;
+      try { isTest = /\.example(\/|$)/.test(new URL(bal.checkoutUrl || '', location.href).hostname + '/'); }
+      catch (e) { isTest = /squareup\.example/.test(String(bal.checkoutUrl || '')); }
+      balanceWasTest = isTest;
+
+      if (isTest && mockHost && window.GBEMockPay) {
+        hide('banner-balance-testmode');
+        if (squareNote) squareNote.style.display = 'none';
+        if (link) link.style.display = 'none';
+        if (balanceMockController && balanceSettling) { mockHost.style.display = ''; return; }
+        var balCents = (bal.amount != null && !isNaN(Number(bal.amount)))
+          ? Math.round(Number(bal.amount) * 100) : 0;
+        try {
+          if (balanceMockController && balanceMockController.destroy) balanceMockController.destroy();
+          mockHost.innerHTML = '';
+          balanceMockController = window.GBEMockPay.mount(mockHost, {
+            testMode: true,
+            purpose: 'balance',
+            currency: bal.currency || 'USD',
+            lineItems: [{ label: 'Final balance', amount: balCents }],
+            totalCents: balCents,
+            totalLabel: 'Balance due',
+            payLabel: 'Pay balance ' + fmtMoney(bal.amount) + ' (Test)',
+            receiptTitle: 'Balance paid',
+            onPay: settleMockBalance,
+            onReceipt: function () {
+              // Balance paid in full → land on the canonical Booking Confirmed page.
+              var body = $('complete-body');
+              if (body) body.textContent = 'Your final balance has been received — your booking is now paid in full. A confirmation email with your receipt details is on its way.';
+              updateStepper('complete', !!(knownPayload && knownPayload.externalContract));
+              showState('state-complete');
+            }
+          });
+          mockHost.style.display = '';
+        } catch (e) {
+          mockHost.style.display = 'none';
+          show('banner-balance-testmode');
+        }
+      } else {
+        // REAL Square driver (future cutover): hosted balance link (no mock screen).
+        if (mockHost) mockHost.style.display = 'none';
+        if (squareNote) squareNote.style.display = '';
+        if (link) {
+          if (bal.checkoutUrl && /^https:\/\//i.test(String(bal.checkoutUrl))) {
+            link.href = bal.checkoutUrl; link.style.display = '';
+          } else {
+            link.style.display = 'none';
+          }
+        }
+        hide('banner-balance-testmode');
+      }
+    }
+
+    /* Buyer taps "Pay balance" on the shared mock screen. Stage a pay_balance
+       intent into the anon write-mailbox, then poll the offer RPC until the deal
+       closes (phase 'complete', or the row evicts — an empty RPC after the
+       balance phase means paid in full). Server settlement is idempotent on a
+       retry (same processor_ref). Mirrors settleMockDeposit exactly. */
+    function settleMockBalance() {
+      return new Promise(function (resolve, reject) {
+        var sb = getClient();
+        if (!sb) {
+          var e0 = new Error('conn');
+          e0.friendly = 'Connection unavailable — please try again, or reply to your quote email.';
+          reject(e0); return;
+        }
+        var hp = $('hp-field');
+        var row = {
+          action_type: 'pay_balance',
+          token: token,
+          payload: {},                       // NO amount — server settles the frozen figure
+          honeypot: hp ? String(hp.value || '') : ''
+        };
+        balanceSettling = true;
+        pendingAction = 'pay-balance';
+        stopPolling();                        // this promise owns polling until it settles
+        clearWriteError();
+        sb.from(STAGING_TABLE).insert(row).then(function (res) {
+          if (res && res.error) throw res.error;
+          var tries = 0, MAX = 40;
+          (function pollSettle() {
+            tries++;
+            sb.rpc(RPC_NAME, { p_token: token }).then(function (r) {
+              if (r && r.error) throw r.error;
+              var rows = r ? r.data : null;
+              if (!rows || !rows.length) {           // evicted after balance ⇒ paid in full
+                knownPhase = 'complete'; balanceSettling = false; resolve({}); return;
+              }
+              var ph = rows[0].phase;
+              knownPhase = ph; knownPayload = rows[0].payload || {};
+              if (ph === 'complete') { balanceSettling = false; resolve({}); return; }
+              if (ph === 'declined' || ph === 'expired') {
+                balanceSettling = false; pendingAction = null;
+                var e1 = new Error('phase');
+                e1.friendly = 'This booking is no longer payable — please reply to your quote email.';
+                reject(e1); return;
+              }
+              if (tries >= MAX) {
+                balanceSettling = false;
+                schedulePoll();
+                var e2 = new Error('timeout');
+                e2.friendly = 'Still recording your balance — this can take a minute. Check your email for confirmation, or tap Refresh Status.';
+                reject(e2); return;
+              }
+              var delay = tries < 10 ? POLL_EARLY_MS : (tries < 20 ? POLL_MID_MS : POLL_LATE_MS);
+              pollTimer = setTimeout(pollSettle, delay);
+            }).catch(function () {
+              if (tries >= MAX) {
+                balanceSettling = false; schedulePoll();
+                var e3 = new Error('net');
+                e3.friendly = 'Connection problem confirming your balance — check your email, or tap Refresh Status.';
+                reject(e3); return;
+              }
+              pollTimer = setTimeout(pollSettle, POLL_MID_MS);
+            });
+          })();
+        }).catch(function (err) {
+          console.warn('[offer] pay_balance submit failed:', err && err.message ? err.message : err);
+          balanceSettling = false; pendingAction = null;
           var ei = new Error('insert');
           ei.friendly = 'We couldn’t submit that just now — please try again in a moment, or reply to your quote email.';
           reject(ei);

@@ -39,7 +39,7 @@
  *
  * API — window.GBEMockPay.mount(container, opts):
  *   opts.testMode      {boolean}  show TEST-MODE labelling (default true)
- *   opts.purpose       {string}   'ticket' | 'deposit' (drives copy only)
+ *   opts.purpose       {string}   'ticket' | 'deposit' | 'balance' (drives copy only)
  *   opts.heading       {string}   e.g. event / booking name
  *   opts.subheading    {string}   e.g. date · venue
  *   opts.currency      {string}   ISO 4217, default 'USD'
@@ -218,13 +218,16 @@
   }
 
   function testBanner(purpose) {
+    var isBooking = (purpose === 'deposit' || purpose === 'balance');
     var what = (purpose === 'deposit')
       ? 'This is a live preview of the deposit payment screen. No real payment is collected and no card details are requested.'
+      : (purpose === 'balance')
+      ? 'This is a live preview of the balance payment screen. No real payment is collected and no card details are requested.'
       : 'This checkout is a live preview of our ticketing. No real payment is processed and no card is required.';
     return '<div class="gbemp-testbanner" role="note">' +
       '<span class="gbemp-dot" aria-hidden="true">&#9888;&#65039;</span>' +
       '<span><strong>Test mode</strong> &mdash; ' + what +
-      ' Test orders are not valid ' + (purpose === 'deposit' ? 'bookings' : 'tickets') + '.</span></div>';
+      ' Test orders are not valid ' + (isBooking ? 'bookings' : 'tickets') + '.</span></div>';
   }
 
   /* ── Mount ─────────────────────────────────────────────────────────────── */
@@ -237,7 +240,8 @@
     var testMode = !!opts.testMode;
     var purpose = opts.purpose || 'ticket';
     var payLabel = opts.payLabel ||
-      ((purpose === 'deposit' ? 'Pay deposit ' : 'Pay ') + fmtMoney(opts.totalCents, opts.currency) +
+      ((purpose === 'deposit' ? 'Pay deposit ' : purpose === 'balance' ? 'Pay balance ' : 'Pay ') +
+       fmtMoney(opts.totalCents, opts.currency) +
        (testMode ? ' (Test)' : ''));
 
     var root = document.createElement('div');
@@ -270,6 +274,8 @@
       var msg = testMode
         ? (purpose === 'deposit'
             ? 'Recording your TEST deposit &mdash; no real payment is processed&hellip;'
+            : purpose === 'balance'
+            ? 'Recording your TEST balance payment &mdash; no real payment is processed&hellip;'
             : 'Confirming your TEST order &mdash; no real payment is processed&hellip;')
         : 'Processing payment&hellip;';
       view(
@@ -289,8 +295,8 @@
         '<div class="gbemp-receipt">' +
           (testMode ? testBanner(purpose) : '') +
           '<div class="gbemp-receipt-icon" aria-hidden="true">' +
-            (purpose === 'deposit' ? '&#127881;' : '&#127915;') + '</div>' +
-          '<h3>' + esc(opts.receiptTitle || (purpose === 'deposit' ? 'Deposit received' : "You're in!")) + '</h3>' +
+            ((purpose === 'deposit' || purpose === 'balance') ? '&#127881;' : '&#127915;') + '</div>' +
+          '<h3>' + esc(opts.receiptTitle || (purpose === 'deposit' ? 'Deposit received' : purpose === 'balance' ? 'Balance paid' : "You're in!")) + '</h3>' +
           (opts.receiptNote ? '<p class="gbemp-receipt-note">' + esc(opts.receiptNote) + '</p>' : '') +
           (code ? '<div class="gbemp-receipt-code">' + esc(code) + '</div>' : '') +
           '<div class="gbemp-receipt-slot"></div>' +
@@ -367,7 +373,7 @@
     mount: mount,
     renderScreen: renderScreen,
     fmtMoney: fmtMoney,
-    version: '1.0.0'
+    version: '1.1.0'
   };
 
 })(typeof window !== 'undefined' ? window : this);
