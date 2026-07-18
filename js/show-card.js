@@ -45,6 +45,17 @@
     return '$' + (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  // story-external-ticketing-override (slice 4): the readmodel's external_ticket_url
+  // (https, validated server-side) — the honest "Tickets via {host}" cue + the
+  // external CTA target. hostOf strips the scheme/path for the display cue.
+  function hostOf(url) {
+    try { return new URL(String(url)).hostname.replace(/^www\./, ''); }
+    catch (_) {
+      var m = String(url || '').replace(/^https?:\/\//i, '').split(/[\/?#]/)[0];
+      return m.replace(/^www\./, '') || 'the venue';
+    }
+  }
+
   function fmtDate(d) {
     if (!d) return '';
     try {
@@ -91,18 +102,29 @@
     if (typeof tiers === 'string') { try { tiers = JSON.parse(tiers); } catch (_) { tiers = []; } }
     if (!Array.isArray(tiers)) tiers = [];
 
+    // story-external-ticketing-override (slice 4): an external ticketing URL
+    // OVERRIDES internal ticketing. The card's CTA sends buyers to the venue's
+    // own link (new tab) and ALL internal admission UI (price/tier chips,
+    // status chip, internal checkout) is suppressed — the SoR also rejects
+    // internal checkout/scan for this event server-side. An honest
+    // "Tickets via {host}" cue replaces the price row.
+    var extUrl = (ev.external_ticket_url != null && String(ev.external_ticket_url).trim() !== '') ? String(ev.external_ticket_url).trim() : '';
+    var isExternal = extUrl !== '';
+
     // Admission model (S2, owner A2): every card states it. Missing flag
     // (stale cache row) ⇒ ticketed, so a paywall is never hidden.
-    var isFree = ev.ticket_required != null && Number(ev.ticket_required) === 0;
+    var isFree = !isExternal && ev.ticket_required != null && Number(ev.ticket_required) === 0;
     var prices = tiers.map(function(t) { return t.price_cents; }).filter(function(p) { return p != null; });
     var minPrice = prices.length ? Math.min.apply(null, prices) : 0;
     var maxPrice = prices.length ? Math.max.apply(null, prices) : 0;
     var priceStr = minPrice === maxPrice
       ? (minPrice === 0 ? 'Free' : fmtCents(minPrice))
       : fmtCents(minPrice) + ' – ' + fmtCents(maxPrice);
-    var admissionHtml = isFree
-      ? '<span class="tix-free-chip">Free — no ticket needed</span>'
-      : '<span class="tix-event-price">Tickets — ' + priceStr + '</span>';
+    var admissionHtml = isExternal
+      ? '<span class="tix-ext-cue"><i class="fa-solid fa-arrow-up-right-from-square"></i> Tickets via ' + escHtml(hostOf(extUrl)) + '</span>'
+      : isFree
+        ? '<span class="tix-free-chip">Free — no ticket needed</span>'
+        : '<span class="tix-event-price">Tickets — ' + priceStr + '</span>';
     // No unique image yet ⇒ the standard GBE brand card (owner directive
     // 2026-07-17: the brand card is the standing default "until replaced by a
     // unique image"). Same markup shape as the real-image branch, so both
@@ -112,7 +134,16 @@
       ? '<img src="' + escHtml(ev.image_url) + '" alt="' + escHtml(ev.event_name) + '">'
       : '<img src="images/show-card-default.jpg" alt="' + escHtml(ev.event_name) + '">';
 
-    return '<div class="tix-event-card' + (opts.extraClass ? ' ' + opts.extraClass : '') + '" data-event-id="' + escHtml(ev.id) + '">' +
+    // External CTA is a real anchor (accessible, works without JS) → new tab,
+    // rel="noopener". Internal cards keep the button (the page's delegated
+    // handler opens the internal detail/checkout). data-external-url lets the
+    // page handler route a whole-card tap to the external link too.
+    var ctaHtml = isExternal
+      ? '<a class="btn btn-primary btn-sm shimmer-sweep" href="' + escHtml(extUrl) + '" target="_blank" rel="noopener">Details &amp; Tickets</a>'
+      : '<button class="btn btn-primary btn-sm shimmer-sweep">' + (isFree ? 'Details' : 'Details &amp; Tickets') + '</button>';
+
+    return '<div class="tix-event-card' + (opts.extraClass ? ' ' + opts.extraClass : '') + '" data-event-id="' + escHtml(ev.id) + '"' +
+        (isExternal ? ' data-external-url="' + escHtml(extUrl) + '"' : '') + '>' +
       '<div class="tix-event-card-img">' + imgHtml + '</div>' +
       '<div class="tix-event-card-body">' +
         (String(ev.event_name || '').indexOf('L.A. Young & Soul Society') === 0 ? '' :
@@ -121,11 +152,11 @@
         '<div class="tix-event-card-meta">' +
           '<span><i class="fa-solid fa-calendar"></i> ' + fmtDate(ev.event_date) + '</span>' +
           '<span><i class="fa-solid fa-location-dot"></i> ' + escHtml(venueLine(ev)) + '</span>' +
-          (isFree ? '' : '<span><span class="tix-status-chip">' + escHtml(statusChip(ev.status)) + '</span></span>') +
+          (isFree || isExternal ? '' : '<span><span class="tix-status-chip">' + escHtml(statusChip(ev.status)) + '</span></span>') +
         '</div>' +
         '<div class="tix-event-card-footer">' +
           admissionHtml +
-          '<button class="btn btn-primary btn-sm shimmer-sweep">' + (isFree ? 'Details' : 'Details &amp; Tickets') + '</button>' +
+          ctaHtml +
         '</div>' +
       '</div></div>';
   }
@@ -176,6 +207,13 @@
       '  letter-spacing: 0.04em; padding: 2px 10px; border-radius: 20px;' +
       '  background: rgba(63,185,80,0.12); color: #3fb950; border: 1px solid rgba(63,185,80,0.3);' +
       '}' +
+      /* EXTERNAL ticketing cue (slice 4): the card's admission model when
+         ticketing is via the venue's own service — "Tickets via {host}". */
+      '.tix-ext-cue {' +
+      '  display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 700;' +
+      '  color: var(--color-gold); max-width: 60%;' +
+      '}' +
+      '.tix-ext-cue i { font-size: 0.85em; opacity: 0.85; }' +
       '@media (max-width: 768px) {' +
       '  .tix-event-card-img { height: 140px; }' +
       '}';

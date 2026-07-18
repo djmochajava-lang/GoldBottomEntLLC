@@ -238,7 +238,13 @@
   .swz-chip-live { background: rgba(63,185,80,0.15); color: #3fb950; }
   .swz-chip-free { background: rgba(88,166,255,0.15); color: #58a6ff; }
   .swz-chip-paid { background: rgba(212,160,23,0.15); color: #d4a017; }
+  .swz-chip-ext { background: rgba(163,113,247,0.16); color: #a371f7; }
   .swz-chip-status { background: rgba(210,153,34,0.15); color: #d29922; }
+  /* slice 4 — external ticketing UI */
+  .swz-ext-state { border: 1px solid rgba(163,113,247,0.35); background: rgba(163,113,247,0.08); border-radius: var(--radius-md); padding: 16px; }
+  .swz-ext-title { font-weight: 700; font-size: var(--text-lg); color: #a371f7; display: flex; align-items: center; gap: 8px; }
+  .swz-ext-current { display: block; margin: 12px 0; word-break: break-all; color: var(--color-gold); font-weight: 600; }
+  .swz-ext-aff { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--color-border); }
   .swz-card-side { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; gap: 6px; }
   .swz-skel {
     height: 84px; border-radius: var(--radius-md); border: 1px solid var(--color-border);
@@ -481,6 +487,8 @@
       status: evt.status || 'draft',
       is_published: Number(evt.is_published) ? 1 : 0,
       ticket_required: (evt.ticket_required === undefined || evt.ticket_required === null) ? 1 : (Number(evt.ticket_required) ? 1 : 0),
+      // slice 4 (external ticketing override): NULL/'' = internal ticketing.
+      external_ticket_url: (evt.external_ticket_url != null && String(evt.external_ticket_url).trim() !== '') ? String(evt.external_ticket_url).trim() : null,
       tiers: (evt.tiers || []).map(function(t) {
         return {
           id: String(t.id), tier_name: t.tier_name, price_cents: Math.round(Number(t.price || 0) * 100),
@@ -524,6 +532,8 @@
   }
 
   function admissionChip(row) {
+    // slice 4: external ticketing overrides internal — show it explicitly.
+    if (row.external_ticket_url) return '<span class="swz-chip swz-chip-ext">External</span>';
     if (!row.ticket_required) return '<span class="swz-chip swz-chip-free">Free</span>';
     var prices = (row.tiers || []).map(function(t) { return Number(t.price_cents || 0); });
     if (!prices.length) return '<span class="swz-chip swz-chip-paid">Ticketed</span>';
@@ -822,6 +832,7 @@
       'duplicate_tier_name': 'Two tiers have the same name — rename one.',
       'min_per_order_gt_max': 'A tier’s minimum per order is higher than its maximum — fix the range.',
       'foreign_staging_path': 'That upload doesn’t belong to this show — try uploading the photo again.',
+      'bad_external_url': 'That isn’t a valid https:// link — check the URL and try again.',
       'image_banned_type': 'That file isn’t a photo the card can use — upload a JPEG, PNG, or WebP image.',
       'image_bad_type': 'That file isn’t a photo the card can use — upload a JPEG, PNG, or WebP image.',
       'image_type_mismatch': 'That file isn’t what it claims to be — upload a JPEG, PNG, or WebP photo.',
@@ -1223,6 +1234,97 @@
     '</div>';
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     slice 4 — EXTERNAL TICKETING affordance (shown in the internal/free
+     states so the BM can switch this show to the venue's own ticketing
+     service). Reveals a URL field + save; saveExternalTicketing rides the
+     set_external_ticketing relay verb (remote) or the LAN PUT (local).
+     ══════════════════════════════════════════════════════════════════ */
+  function extAffordanceHtml() {
+    return '<div class="swz-ext-aff" id="swz-ext-aff">' +
+      '<button id="swz-ext-enable" class="btn btn-sm" style="min-height:44px;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Use external ticketing (venue’s own link)</button>' +
+      '<div id="swz-ext-enable-form" style="display:none;margin-top:10px;">' +
+        '<label class="swz-form-label" for="swz-ext-url">Ticketing URL (https)</label>' +
+        '<input id="swz-ext-url" class="swz-input" type="url" inputmode="url" maxlength="500" placeholder="https://venue.example.com/tickets/…">' +
+        '<div class="swz-field-err" id="swz-ext-url-err"></div>' +
+        '<div class="swz-help">Overrides internal ticketing — the card sends buyers to this link; internal tiers, checkout &amp; scanning turn off for this show.</div>' +
+        '<button id="swz-save-ext" class="btn btn-primary btn-sm" style="margin-top:8px;min-height:44px;"><i class="fa-solid fa-floppy-disk"></i> Save external link</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function wireExternalAffordance() {
+    var enable = document.getElementById('swz-ext-enable');
+    var form = document.getElementById('swz-ext-enable-form');
+    if (enable && form) {
+      enable.addEventListener('click', function() {
+        form.style.display = 'block';
+        enable.style.display = 'none';
+        var inp = document.getElementById('swz-ext-url');
+        if (inp) inp.focus();
+      });
+    }
+    var save = document.getElementById('swz-save-ext');
+    if (save) save.addEventListener('click', function() {
+      var v = (document.getElementById('swz-ext-url').value || '').trim();
+      saveExternalTicketing(v);
+    });
+  }
+
+  // Client-side https/length check mirroring show-card-schemas externalTicketUrl
+  // (server stays authoritative). Empty string is valid = CLEAR the override.
+  function validExternalUrl(url) {
+    if (url === '' || url == null) return true;
+    return url.length <= 500 && /^https:\/\/[^\s]+$/i.test(url);
+  }
+
+  // Save (or clear, url='') the external ticketing URL for the open show.
+  async function saveExternalTicketing(url) {
+    if (!_wz || !_wz.row) return;
+    var wz = _wz;
+    var row = _wz.row;
+    var clearing = (url === '' || url == null);
+    var errEl = document.getElementById('swz-ext-url-err');
+    if (!clearing && !validExternalUrl(url)) {
+      if (errEl) { errEl.textContent = 'Enter a valid https:// link (max 500 characters).'; errEl.style.display = 'block'; }
+      var inp = document.getElementById('swz-ext-url');
+      if (inp) inp.classList.add('swz-invalid');
+      return;
+    }
+    if (errEl) errEl.style.display = 'none';
+    setStatusStrip('saving', clearing ? 'Turning off external ticketing…' : 'Saving external link…', false);
+    try {
+      if (isLocal) {
+        var r = await tFetch('/events/' + encodeURIComponent(row.id), {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ externalTicketUrl: clearing ? '' : url })
+        });
+        if (!r.ok) throw new Error('Server responded ' + r.status);
+        row.external_ticket_url = clearing ? null : url;
+        setStatusStrip('saved', clearing ? 'External ticketing turned off ✓' : 'External link saved ✓', false);
+        renderTiersStep();
+        loadShowsRepoll();
+        return;
+      }
+      var actionId = await relayWrite('set_external_ticketing', row.id, { externalTicketUrl: clearing ? '' : url });
+      var out = await pollActionResult(actionId, { onSlow: function() { setStatusStrip('saving', SLOW_COPY, false); } });
+      if (wz !== _wz) return; // wizard session moved on
+      if (out.state === 'applied') {
+        row.external_ticket_url = clearing ? null : url;
+        setStatusStrip('saved', clearing ? 'External ticketing turned off ✓' : 'External link saved ✓', false);
+        renderTiersStep();
+        loadShowsRepoll();
+      } else if (out.state === 'rejected') {
+        setStatusStrip('failed', rejectionMessage(out.tag), false);
+      } else {
+        setStatusStrip('queued', QUEUED_COPY, false);
+        watchQueuedAction(actionId, clearing ? 'external ticketing off' : 'external ticketing link');
+      }
+    } catch (e) {
+      setStatusStrip('failed', (e && e.message) || 'Could not save the external link.', false);
+    }
+  }
+
   function renderTiersStep() {
     var ov = document.getElementById('swz-overlay');
     if (!ov || !_wz) return;
@@ -1232,6 +1334,48 @@
     var header = wizChrome(1, 'Admission & Tiers', title);
     var body, footer;
 
+    // ── slice 4: EXTERNAL ticketing state (overrides internal AND free) ──
+    // When an external ticketing URL is set, the show's card sends buyers to the
+    // venue's own link and internal tiers/checkout/scan are OFF (SoR-enforced).
+    // The tier editor is suppressed; the BM edits or clears the link here.
+    if (row.external_ticket_url) {
+      var extUrl = String(row.external_ticket_url);
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
+          '<div class="swz-ext-state">' +
+            '<div class="swz-ext-title"><i class="fa-solid fa-arrow-up-right-from-square"></i> External ticketing is ON</div>' +
+            '<p style="margin:8px 0 0;color:var(--color-text-muted);font-size:var(--text-sm);">Buyers who tap “Details &amp; Tickets” on this show’s card go to the venue’s ticketing link. Internal tiers, checkout, and scanning are turned off for this show.</p>' +
+            '<a class="swz-ext-current" href="' + escHtml(extUrl) + '" target="_blank" rel="noopener">' + escHtml(extUrl) + ' <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:0.8em;"></i></a>' +
+            '<label class="swz-form-label" for="swz-ext-url">Ticketing URL (https)</label>' +
+            '<input id="swz-ext-url" class="swz-input" type="url" inputmode="url" maxlength="500" value="' + escHtml(extUrl) + '" placeholder="https://venue.example.com/tickets/…">' +
+            '<div class="swz-field-err" id="swz-ext-url-err"></div>' +
+            '<div class="swz-help">Must start with https://. Changing this updates the link buyers are sent to.</div>' +
+            '<button id="swz-ext-off" class="btn btn-sm" style="margin-top:14px;min-height:44px;"><i class="fa-solid fa-rotate-left"></i> Turn off external ticketing (use internal)</button>' +
+            '<div class="swz-help">Turning it off returns this show to internal ticketing; its tiers (if any) are untouched.</div>' +
+          '</div>' +
+        '</div>';
+      footer =
+        '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+          '<button id="swz-back-details" class="btn" style="min-height:48px;padding:0 16px;"><i class="fa-solid fa-arrow-left"></i> Details</button>' +
+          '<button id="swz-save-ext" class="btn btn-primary" style="min-height:48px;flex:1;font-weight:600;"><i class="fa-solid fa-floppy-disk"></i> Save link</button>' +
+          '<button id="swz-next-image" class="btn" style="min-height:48px;padding:0 16px;">Image <i class="fa-solid fa-arrow-right"></i></button>' +
+        '</div>';
+      ov.innerHTML = header + body + footer;
+      document.getElementById('swz-close').addEventListener('click', function() { closeWizard(false); });
+      document.getElementById('swz-back-details').addEventListener('click', function() { gotoStep(1); });
+      document.getElementById('swz-next-image').addEventListener('click', function() { gotoStep(3); });
+      document.getElementById('swz-save-ext').addEventListener('click', function() {
+        var v = (document.getElementById('swz-ext-url').value || '').trim();
+        saveExternalTicketing(v);
+      });
+      document.getElementById('swz-ext-off').addEventListener('click', function() {
+        Modal.confirm('Turn off external ticketing and return this show to internal ticketing?', function() {
+          saveExternalTicketing('');
+        });
+      });
+      return;
+    }
+
     if (!Number(row.ticket_required)) {
       // ── Honest FREE state (ticketRequired reflected from Details) ──
       body =
@@ -1240,6 +1384,7 @@
           '<div style="font-weight:700;font-size:var(--text-lg);">Free show — no tiers needed</div>' +
           '<div style="color:var(--color-text-muted);margin-top:8px;max-width:340px;">This show is set to Free admission. The card announces the show; guests don’t need tickets. Want to sell tickets instead? Switch the show to Ticketed in the Details step.</div>' +
           '<button id="swz-free-to-details" class="btn" style="margin-top:20px;min-height:48px;padding:0 20px;"><i class="fa-solid fa-arrow-left"></i> Change Admission in Details</button>' +
+          extAffordanceHtml() +
         '</div>';
       footer =
         '<div style="flex-shrink:0;display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
@@ -1252,6 +1397,7 @@
       document.getElementById('swz-back-details').addEventListener('click', function() { gotoStep(1); });
       document.getElementById('swz-free-to-details').addEventListener('click', function() { gotoStep(1); });
       document.getElementById('swz-next-image').addEventListener('click', function() { gotoStep(3); });
+      wireExternalAffordance();
       return;
     }
 
@@ -1277,6 +1423,7 @@
         listHtml +
         '<button id="swz-add-tier" class="btn" style="margin-top:12px;min-height:48px;width:100%;"' + (atCap ? ' disabled' : '') + '><i class="fa-solid fa-plus"></i> Add Tier</button>' +
         (atCap ? '<div class="swz-help" style="text-align:center;">Up to 6 tiers per show.</div>' : '') +
+        extAffordanceHtml() +
       '</div>';
 
     footer =
@@ -1298,6 +1445,7 @@
       gotoStep(3);
     });
     document.getElementById('swz-save-tiers').addEventListener('click', saveTiers);
+    wireExternalAffordance();
 
     var addBtn = document.getElementById('swz-add-tier');
     if (addBtn) addBtn.addEventListener('click', function() {
@@ -1743,9 +1891,11 @@
     if (!row) { gotoStep(1); return; } // preview needs a landed draft
     var title = row.event_name || '(untitled show)';
     var header = wizChrome(3, 'Preview', title);
-    var isFree = !Number(row.ticket_required);
+    var isExternal = !!row.external_ticket_url;
+    var isFree = !isExternal && !Number(row.ticket_required);
     var tierCount = (row.tiers || []).length;
-    var blocked = !isFree && tierCount === 0;
+    // slice 4: external shows carry no internal tiers — never tier-blocked.
+    var blocked = !isFree && !isExternal && tierCount === 0;
     var body;
 
     if (typeof GBEShowCard === 'undefined') {
@@ -1769,6 +1919,9 @@
       }
       if (isFree) {
         nudges += '<div class="swz-note"><i class="fa-solid fa-champagne-glasses"></i><span style="flex:1;">Free show — the card announces the show; no checkout appears on the public pages.</span></div>';
+      }
+      if (isExternal) {
+        nudges += '<div class="swz-note"><i class="fa-solid fa-arrow-up-right-from-square"></i><span style="flex:1;">External ticketing — the card’s “Details &amp; Tickets” button sends buyers to the venue’s link (new tab). Internal tiers, checkout &amp; scanning are off for this show.</span></div>';
       }
       body =
         '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;">' +
@@ -1813,8 +1966,10 @@
     var title = row.event_name || '(untitled show)';
     var header = wizChrome(4, 'Publish', title);
     var pub = Number(row.is_published) === 1;
-    var isFree = !Number(row.ticket_required);
-    var blocked = !isFree && (row.tiers || []).length === 0;
+    var isExternal = !!row.external_ticket_url;
+    var isFree = !isExternal && !Number(row.ticket_required);
+    // slice 4: external shows carry no internal tiers — never tier-blocked.
+    var blocked = !isFree && !isExternal && (row.tiers || []).length === 0;
     var deletable = !pub && row.status === 'draft'; // never-published drafts only
     var body;
 

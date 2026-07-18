@@ -161,7 +161,19 @@
         }).join('');
 
         eventsContainer.querySelectorAll('.tix-event-card').forEach(function(card) {
-          card.addEventListener('click', function() { showEventDetail(card.dataset.eventId, events); });
+          card.addEventListener('click', function(e) {
+            // story-external-ticketing-override (slice 4): an external-ticketed
+            // show sends buyers to the venue's own link — never the internal
+            // detail/checkout. The card's CTA is a real anchor (handles its own
+            // click); a tap elsewhere on the card opens the same link in a new
+            // tab. No internal detail modal for external shows.
+            var extUrl = card.dataset.externalUrl;
+            if (extUrl) {
+              if (!e.target.closest('a')) window.open(extUrl, '_blank', 'noopener');
+              return;
+            }
+            showEventDetail(card.dataset.eventId, events);
+          });
         });
       })
       .catch(function(err) {
