@@ -2724,6 +2724,11 @@
       eventType: (rd && rd.event_type) || (inq.event_type || null),
       eventDate: (rd && rd.event_date) || '',
       depositPercent: (rd && rd.deposit_percent != null) ? Number(rd.deposit_percent) : 50,
+      // D-54 travel/lodging estimate inputs. Blank = local show / no estimate (finalized in
+      // contract). The read-model redacts these (server-only), so a resumed draft — which
+      // Sends the already-priced draft as-is — leaves them blank; they only drive a fresh Build.
+      oneWayMiles: '',
+      nights: '',
       note: '',
       draftId: rd ? rd.id : null,
       figures: rd
@@ -2811,7 +2816,16 @@
     h += '<input type="date" id="q-date" class="form-input" min="' + new Date().toISOString().slice(0, 10) + '" value="' + esc(_qState.eventDate || '') + '" style="width:100%;min-height:44px;margin-bottom:16px;">';
     h += '<label class="form-label" style="font-weight:600;">Deposit to secure the date (%)</label>';
     h += '<input type="number" id="q-deposit" inputmode="numeric" pattern="[0-9]*" min="0" max="100" step="5" value="' + (_qState.depositPercent != null ? _qState.depositPercent : 50) + '" class="form-input" style="width:100%;min-height:44px;">';
-    h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-lock" style="margin-right:4px;"></i> The quote total is calculated by GBE from your package + event type — you\'ll see the exact figure on the next review screen.</p>';
+    // D-54 travel/lodging estimate inputs (optional). A distance over the free radius adds a
+    // clearly-labeled ESTIMATE to the quote; blank = local show, no estimate line.
+    h += '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--color-border);">';
+    h += '<label class="form-label" style="font-weight:600;">Travel distance to venue — one-way miles <span style="color:var(--color-text-muted);font-weight:400;">(optional)</span></label>';
+    h += '<input type="number" id="q-miles" inputmode="numeric" pattern="[0-9]*" min="0" max="5000" step="1" value="' + (_qState.oneWayMiles !== '' && _qState.oneWayMiles != null ? esc(String(_qState.oneWayMiles)) : '') + '" placeholder="e.g. 200 — leave blank for a local show" class="form-input" style="width:100%;min-height:44px;margin-bottom:12px;">';
+    h += '<label class="form-label" style="font-weight:600;">Overnight nights <span style="color:var(--color-text-muted);font-weight:400;">(optional)</span></label>';
+    h += '<input type="number" id="q-nights" inputmode="numeric" pattern="[0-9]*" min="0" max="30" step="1" value="' + (_qState.nights !== '' && _qState.nights != null ? esc(String(_qState.nights)) : '') + '" placeholder="e.g. 1 — blank = no overnight" class="form-input" style="width:100%;min-height:44px;">';
+    h += '<p style="margin:8px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-route" style="margin-right:4px;"></i> Travel over 50 mi and overnights add a labeled ESTIMATE to the quote; actuals are finalized in the contract. Leave blank for a local show.</p>';
+    h += '</div>';
+    h += '<p style="margin:14px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-lock" style="margin-right:4px;"></i> The quote total is calculated by GBE from your package, event type, and any travel — you\'ll see the exact figure on the next review screen.</p>';
     return h;
   }
 
@@ -2852,6 +2866,14 @@
         '<div style="display:flex;justify-content:space-between;color:var(--color-text-muted);font-size:var(--text-sm);margin-top:4px;">' +
           '<span>Deposit to secure' + (f.deposit_percent != null ? ' (' + f.deposit_percent + '%)' : '') + '</span><span>' + _money(f.deposit_amount) + '</span></div>' +
       '</div></div>';
+    // D-54 — when this build carried a qualifying distance/overnight, the total above already
+    // includes a labeled travel/lodging ESTIMATE (itemized on the buyer's emailed quote).
+    if ((_qState.oneWayMiles !== '' && _qState.oneWayMiles != null && Number(_qState.oneWayMiles) > 50) ||
+        (_qState.nights !== '' && _qState.nights != null && Number(_qState.nights) > 0)) {
+      h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-route" style="margin-right:4px;"></i> This total includes a labeled travel/lodging <strong>estimate</strong>' +
+        (_qState.oneWayMiles !== '' && _qState.oneWayMiles != null && Number(_qState.oneWayMiles) > 0 ? ' (' + esc(String(_qState.oneWayMiles)) + ' mi each way' + (_qState.nights ? ', ' + esc(String(_qState.nights)) + ' night' + (Number(_qState.nights) > 1 ? 's' : '') : '') + ')' : '') +
+        ' — itemized on the buyer\'s quote and finalized as actuals in the contract.</p>';
+    }
     h += '<p style="margin:12px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);">Send delivers this quote by email to ' + esc(_qState.inq.from_addr || 'the client') + ' and moves the deal forward. If sending fails, your draft is saved and you can resume it.</p>';
     return h;
   }
@@ -2873,6 +2895,12 @@
       if (dt) _qState.eventDate = dt.value;
       var dp = document.getElementById('q-deposit');
       if (dp) { var v = parseInt(dp.value, 10); if (!isNaN(v)) _qState.depositPercent = Math.max(0, Math.min(100, v)); }
+      // D-54 travel/lodging — optional; blank stays blank (no estimate). Bounded to match
+      // the server Joi (miles 0..5000, nights 0..30). Non-financial factual inputs.
+      var mi = document.getElementById('q-miles');
+      if (mi) { var mv = mi.value.trim(); _qState.oneWayMiles = (mv === '') ? '' : Math.max(0, Math.min(5000, parseInt(mv, 10) || 0)); }
+      var ng = document.getElementById('q-nights');
+      if (ng) { var nv = ng.value.trim(); _qState.nights = (nv === '') ? '' : Math.max(0, Math.min(30, parseInt(nv, 10) || 0)); }
     } else if (s === 2) {
       var nt = document.getElementById('q-note');
       if (nt) _qState.note = nt.value;
@@ -2914,6 +2942,10 @@
         packageKey: _qState.packageKey,
         eventType: _qState.eventType,
         eventDate: _qState.eventDate || undefined,
+        // D-54 — send DISTANCE + overnight COUNT only (never a price). Omit when blank so a
+        // local show gets no estimate line. The server computes the labeled travel/lodging $.
+        oneWayMiles: (_qState.oneWayMiles === '' || _qState.oneWayMiles == null) ? undefined : _qState.oneWayMiles,
+        nights: (_qState.nights === '' || _qState.nights == null) ? undefined : _qState.nights,
         depositPercentOverride: _qState.depositPercent,
         note: _qState.note || undefined
       });
