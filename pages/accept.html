@@ -67,6 +67,13 @@
     .offer-btn-danger { background: transparent; color: var(--color-danger); border: 1px solid var(--color-danger); }
     .offer-btn-block { width: 100%; }
 
+    /* story-quote-negotiation-loop — reason chips + change-requested banner */
+    .offer-chips { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin: var(--space-sm) 0 var(--space-md); }
+    .offer-chip { padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-full); border: 1px solid var(--color-border); background: var(--color-bg-tertiary); color: var(--color-text-secondary); font-size: var(--text-sm); font-weight: var(--fw-medium); cursor: pointer; font-family: inherit; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+    .offer-chip:hover { border-color: var(--color-gold); }
+    .offer-chip[aria-pressed="true"] { background: var(--color-gold); color: #000; border-color: var(--color-gold); }
+    .offer-banner-counter { background: var(--color-info-muted); border: 1px solid var(--color-info); color: var(--color-text); }
+
     .offer-banner { border-radius: var(--radius-md); padding: var(--space-md) var(--space-lg); margin-bottom: var(--space-lg); font-size: var(--text-sm); line-height: 1.5; }
     .offer-banner-processing { background: var(--color-info-muted); border: 1px solid var(--color-info); color: var(--color-text); }
     .offer-banner-watermark { background: var(--color-warning-muted); border: 1px dashed var(--color-warning); color: var(--color-warning); font-weight: var(--fw-semibold); text-align: center; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -152,9 +159,29 @@
         <div id="offered-figures"></div>
         <p class="offer-field-note" id="offered-expiry"></p>
       </div>
+      <div class="offer-banner offer-banner-counter" id="counter-pending-banner" data-testid="counter-pending-banner" style="display:none;">
+        <strong>Change requested.</strong> <span id="counter-pending-text">We&rsquo;re reviewing your request and will email you an updated quote shortly.</span> You can still accept the current quote below.
+      </div>
       <div class="offer-actions">
         <button type="button" class="offer-btn offer-btn-primary" id="btn-accept" data-testid="btn-accept">Accept Quote</button>
+        <button type="button" class="offer-btn offer-btn-secondary" id="btn-counter" data-testid="btn-counter">Request a change</button>
         <button type="button" class="offer-btn offer-btn-danger" id="btn-decline" data-testid="btn-decline">Decline</button>
+      </div>
+      <div class="offer-card" id="counter-form" data-testid="counter-form" style="display:none; margin-top: var(--space-lg);">
+        <h3>Request a change to this quote</h3>
+        <p style="color:var(--color-text-secondary); font-size:var(--text-sm);">Tell us what you&rsquo;d like adjusted. We&rsquo;ll review and send you an updated quote &mdash; nothing is charged now.</p>
+        <p style="color:var(--color-text-muted); font-size:var(--text-xs); margin:0 0 var(--space-xs);">What would you like to change?</p>
+        <div class="offer-chips" id="counter-reason-chips" role="group" aria-label="What to change">
+          <button type="button" class="offer-chip" data-reason="price" data-testid="chip-price" aria-pressed="false">Price</button>
+          <button type="button" class="offer-chip" data-reason="date" data-testid="chip-date" aria-pressed="false">Date</button>
+          <button type="button" class="offer-chip" data-reason="scope" data-testid="chip-scope" aria-pressed="false">Scope</button>
+          <button type="button" class="offer-chip" data-reason="other" data-testid="chip-other" aria-pressed="false">Other</button>
+        </div>
+        <textarea class="offer-textarea" id="input-counter-note" data-testid="input-counter-note" maxlength="2000" placeholder="Describe what you'd like changed — for example, &ldquo;Could we start at 8pm instead?&rdquo; or &ldquo;Is there any flexibility on the total?&rdquo;"></textarea>
+        <div class="offer-actions">
+          <button type="button" class="offer-btn offer-btn-primary" id="btn-counter-submit" data-testid="btn-counter-submit" disabled>Send request</button>
+          <button type="button" class="offer-btn offer-btn-secondary" id="btn-counter-cancel" data-testid="btn-counter-cancel">Cancel</button>
+        </div>
       </div>
       <div class="offer-card" id="decline-confirm" data-testid="decline-confirm" style="display:none; margin-top: var(--space-lg);">
         <h3>Decline this quote?</h3>
@@ -320,7 +347,8 @@
     var sbClient = null;
     var knownPhase = null;      // last phase seen from the RPC
     var knownPayload = null;
-    var pendingAction = null;   // 'accept' | 'decline' | 'sign' — staged, awaiting landing
+    var pendingAction = null;   // 'accept' | 'decline' | 'counter' | 'sign' — staged, awaiting landing
+    var selectedCounterReason = null; // story-quote-negotiation-loop: chosen reason chip
     var depositWasTest = false; // true once the mock (TEST) deposit screen rendered — drives the receipt test-mode note
     var depositMockController = null; // GBEMockPay.mount() controller for the deposit screen
     var depositSettling = false;      // true while a buyer pay_deposit is in flight (guards re-mount)
@@ -492,7 +520,10 @@
       // A landed action advances the phase — clear the pending flag
       if (pendingAction === 'accept' && knownPhase !== 'offered') pendingAction = null;
       if (pendingAction === 'sign' && knownPhase !== 'accepted') pendingAction = null;
-      if (pendingAction && prevPhase !== knownPhase) pendingAction = null;
+      // A counter keeps phase='offered' (the quote stays live); it lands when the
+      // republished payload carries counter.pending — clear the spinner then.
+      if (pendingAction === 'counter' && knownPayload && knownPayload.counter && knownPayload.counter.pending) pendingAction = null;
+      if (pendingAction && pendingAction !== 'counter' && prevPhase !== knownPhase) pendingAction = null;
 
       renderPhase(row);
       schedulePoll();
@@ -549,6 +580,7 @@
         showState('state-offered');
         var busy = !!pendingAction;
         $('btn-accept').disabled = busy;
+        $('btn-counter').disabled = busy;
         $('btn-decline').disabled = busy;
       } else if (phase === 'accepted' && isExternal) {
         // External paper (story-external-contract-path §v): the e-sign step is
@@ -628,6 +660,23 @@
 
       var exp = p.expiresAt || row.expires_at;
       $('offered-expiry').textContent = exp ? ('This quote is valid until ' + fmtDate(exp) + '.') : '';
+
+      // story-quote-negotiation-loop: honest "change requested" banner while a
+      // revision is pending. Server-published counter block: { pending, reason }.
+      var counter = p.counter;
+      var cBanner = $('counter-pending-banner');
+      if (cBanner) {
+        if (counter && counter.pending) {
+          var reasonTxt = counter.reason
+            ? ('We&rsquo;re reviewing your requested change to the <strong>' + escapeHtml(fmtEnum(counter.reason)) + '</strong> and will email you an updated quote shortly.')
+            : 'We&rsquo;re reviewing your request and will email you an updated quote shortly.';
+          var ctEl = $('counter-pending-text');
+          if (ctEl) ctEl.innerHTML = reasonTxt;
+          cBanner.style.display = '';
+        } else {
+          cBanner.style.display = 'none';
+        }
+      }
     }
     function kv(k, v) {
       return '<div class="offer-kv"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>';
@@ -682,6 +731,15 @@
       nameInput.disabled = !consented;
       var nameOk = nameInput.value.trim().length >= 2;
       btn.disabled = !(consented && nameOk);
+    }
+
+    /* story-quote-negotiation-loop: enable "Send request" only when a reason
+       chip is selected AND a non-empty note is written. */
+    function updateCounterControls() {
+      var btn = $('btn-counter-submit');
+      var note = $('input-counter-note');
+      if (!btn || !note) return;
+      btn.disabled = !(selectedCounterReason && note.value.trim().length >= 1);
     }
 
     function renderDeposit(p) {
@@ -858,12 +916,16 @@
       sb.from(STAGING_TABLE).insert(row).then(function (res) {
         if (res && res.error) throw res.error;
         pendingAction = actionType === 'accept_quote' ? 'accept'
-          : actionType === 'decline_quote' ? 'decline' : 'sign';
+          : actionType === 'decline_quote' ? 'decline'
+          : actionType === 'counter_offer' ? 'counter' : 'sign';
         pollCount = 0; pollStopped = false;
         show('banner-processing');
         if (pendingAction === 'decline') {
           hide('decline-confirm');
           $('banner-processing-text').textContent = 'Recording your response — this takes about a minute.';
+        } else if (pendingAction === 'counter') {
+          hide('counter-form');
+          $('banner-processing-text').textContent = 'Sending your change request — this takes about a minute. This page will update automatically.';
         } else if (pendingAction === 'sign') {
           showState('state-sign-pending');
           $('banner-processing-text').textContent = 'Recording your signature — this takes about a minute. This page will update automatically.';
@@ -893,6 +955,38 @@
         var note = $('input-decline-note').value.trim().slice(0, 2000);
         var payload = note ? { note: note } : {};
         stageAction('decline_quote', payload, [$('btn-decline-confirm'), $('btn-accept'), $('btn-decline')]);
+      });
+
+      // story-quote-negotiation-loop — the buyer's "Request a change" counter.
+      $('btn-counter').addEventListener('click', function () {
+        hide('decline-confirm');
+        show('counter-form');
+      });
+      $('btn-counter-cancel').addEventListener('click', function () {
+        hide('counter-form');
+      });
+      var chipWrap = $('counter-reason-chips');
+      if (chipWrap) {
+        var chips = chipWrap.querySelectorAll('.offer-chip');
+        for (var ci = 0; ci < chips.length; ci++) {
+          chips[ci].addEventListener('click', function () {
+            selectedCounterReason = this.getAttribute('data-reason');
+            for (var k = 0; k < chips.length; k++) {
+              chips[k].setAttribute('aria-pressed', chips[k] === this ? 'true' : 'false');
+            }
+            updateCounterControls();
+          }.bind(chips[ci]));
+        }
+      }
+      $('input-counter-note').addEventListener('input', updateCounterControls);
+      $('btn-counter-submit').addEventListener('click', function () {
+        var note = $('input-counter-note').value.trim().slice(0, 2000);
+        if (!selectedCounterReason || note.length < 1) return;
+        // Contract: booking-public-reconcile counter_offer Joi schema —
+        // FREE-TEXT ONLY. No price/amount ever leaves the client (the server
+        // strips every money key and the BM re-quotes server-side).
+        stageAction('counter_offer', { reason: selectedCounterReason, note: note },
+          [$('btn-counter-submit'), $('btn-accept'), $('btn-counter'), $('btn-decline')]);
       });
       $('consent-checkbox').addEventListener('change', updateSignControls);
       $('input-typed-name').addEventListener('input', function () {
