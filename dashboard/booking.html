@@ -2604,7 +2604,19 @@
     { key: 'full-show',      label: 'Full Show / Tribute',        desc: '2 × 45-min sets' },
     { key: 'la-with-dj',     label: 'L.A. with DJ',               desc: '2 × 45-min sets' },
     { key: 'hosting-mc',     label: 'Hosting & MC',               desc: 'Event duration' },
-    { key: 'studio-session', label: 'Studio Recording Session',   desc: 'Per 4-hour session' }
+    { key: 'studio-session', label: 'Studio Recording Session',   desc: 'Per 4-hour session' },
+    // Event-native tiers (story-package-dropdown-native-tiers). label + desc verbatim
+    // from pricing-config SHOW_PACKAGES .label / .setDescription. These carry
+    // eventNative:true → the server forces event-multiplier & guest-factor to 1.0 and
+    // bundles sound at $0; the picker only makes the tier reachable.
+    { key: 'wedding-ceremony',      label: 'L.A. Young — Ceremony & Celebration',                    desc: 'Ceremony, cocktail hour, dinner & reception' },
+    { key: 'wedding-reception',     label: 'L.A. Young & Soul Society — Reception',                   desc: 'Ceremony, cocktail hour, dinner & reception' },
+    { key: 'wedding-ultimate',      label: 'L.A. Young & Soul Society — Ultimate Wedding Experience', desc: 'Ceremony, cocktail hour, dinner & reception' },
+    { key: 'gala-cocktail-dinner',  label: 'L.A. Young — Gala Cocktail & Dinner Pack',               desc: 'Cocktail reception & dinner service' },
+    { key: 'gala-showcase',         label: 'L.A. Young & Soul Society — Gala Showcase',               desc: 'Cocktail reception, dinner, program & dance sets' },
+    { key: 'gala-ultimate',         label: 'L.A. Young & Soul Society — Ultimate Gala Experience',    desc: 'Cocktail reception, dinner, program & dance sets' },
+    { key: 'tribute-phyllis-hyman', label: 'L.A. Young — The Phyllis Hyman Experience Tribute',       desc: 'Act I 75 min · Intermission 20 min · Act II 75 min' },
+    { key: 'tribute-phyllis-sade',  label: 'L.A. Young — The Phyllis Hyman / Sade Tribute',           desc: 'Act I 75 min · Intermission 20 min · Act II 75 min' }
   ];
   var QUOTE_EVENT_TYPES = [
     'wedding', 'corporate', 'gala', 'festival', 'tribute', 'fundraiser',
