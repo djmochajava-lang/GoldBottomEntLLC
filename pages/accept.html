@@ -87,6 +87,19 @@
     .offer-clause pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.6; color: var(--color-text-secondary); }
 
     .offer-disclosures { margin: 0 0 var(--space-md); padding-left: 1.2em; color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.6; }
+
+    /* Quote-time disclosures (story-quote-time-disclosures / D-56 AC-8):
+       a DASHED-border card sitting OUTSIDE the solid-bordered Quote Summary —
+       visually "rates, not charges", never a priced line item with an amount.
+       Matches the quote email's dashed card (border:1px dashed #6e7681). */
+    .offer-disclosure-card { border: 1px dashed #6e7681; border-radius: var(--radius-lg); padding: var(--space-lg); margin-bottom: var(--space-lg); background: transparent; }
+    .offer-disclosure-card h3 { margin: 0 0 var(--space-sm); font-family: var(--font-heading); font-size: var(--text-md); color: var(--color-text); }
+    .offer-disclosure-intro { margin: 0 0 var(--space-md); color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.6; }
+    .offer-disclosure-item { padding: var(--space-md) 0; border-top: 1px solid var(--color-border); }
+    .offer-disclosure-item:first-of-type { border-top: none; padding-top: 0; }
+    .offer-disclosure-item:last-child { padding-bottom: 0; }
+    .offer-disclosure-item .d-title { margin: 0 0 var(--space-xs); font-weight: var(--fw-semibold); font-size: var(--text-sm); color: var(--color-text); overflow-wrap: anywhere; }
+    .offer-disclosure-item .d-body { margin: 0; color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.6; }
     .offer-consent-label { display: flex; align-items: flex-start; gap: var(--space-sm); font-size: var(--text-base); line-height: 1.5; cursor: pointer; margin: var(--space-md) 0; }
     .offer-consent-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-gold); margin-top: 2px; flex-shrink: 0; }
 
@@ -161,6 +174,12 @@
         <div id="offered-figures"></div>
         <p class="offer-field-note" id="offered-expiry"></p>
       </div>
+      <!-- Quote-time disclosures (D-56 / story-quote-time-disclosures). Rendered
+           BELOW the priced Quote Summary card and OUTSIDE it — a dashed-border
+           "rates, not charges" card that must never read as a priced line item.
+           Populated by renderDisclosures() from payload.disclosures; nothing here
+           is summable and it contributes $0 to the total (AC-8). -->
+      <div id="offered-disclosures" data-testid="offered-disclosures" style="display:none;"></div>
       <div class="offer-banner offer-banner-counter" id="counter-pending-banner" data-testid="counter-pending-banner" style="display:none;">
         <strong>Change requested.</strong> <span id="counter-pending-text">We&rsquo;re reviewing your request and will email you an updated quote shortly.</span> You can still accept the current quote below.
       </div>
@@ -706,6 +725,10 @@
       var exp = p.expiresAt || row.expires_at;
       $('offered-expiry').textContent = exp ? ('This quote is valid until ' + fmtDate(exp) + '.') : '';
 
+      // Quote-time disclosures (D-56) — rendered as a separate dashed card BELOW
+      // the priced figures, never a summed line item (AC-8).
+      renderDisclosures(p);
+
       // story-quote-negotiation-loop: honest "change requested" banner while a
       // revision is pending. Server-published counter block: { pending, reason }.
       var counter = p.counter;
@@ -725,6 +748,33 @@
     }
     function kv(k, v) {
       return '<div class="offer-kv"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>';
+    }
+
+    /* Quote-time disclosures (story-quote-time-disclosures / D-56). The server
+       publishes payload.disclosures = { heading, intro, items:[{key,title,body}] }
+       (quote-disclosures.js build()). This is DISPLAY-ONLY rate copy — "rates,
+       not charges" (AC-8): it is NOT a line item, contributes $0 to the total,
+       and never touches offered-lines/offered-figures. Absent block or empty
+       items => render nothing. Every string is escaped at THIS injection site
+       via escapeHtml() (matches offered-lines) — no raw innerHTML of server copy. */
+    function renderDisclosures(p) {
+      var host = $('offered-disclosures');
+      if (!host) return;
+      var d = p && p.disclosures;
+      var items = (d && Array.isArray(d.items)) ? d.items : [];
+      if (!d || !items.length) { host.innerHTML = ''; host.style.display = 'none'; return; }
+      var html = '<div class="offer-disclosure-card" data-testid="offered-disclosures-card">';
+      html += '<h3>' + escapeHtml(d.heading || 'Good to Know') + '</h3>';
+      if (d.intro) html += '<p class="offer-disclosure-intro">' + escapeHtml(d.intro) + '</p>';
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i] || {};
+        html += '<div class="offer-disclosure-item">' +
+          '<p class="d-title">' + escapeHtml(it.title || '') + '</p>' +
+          '<p class="d-body">' + escapeHtml(it.body || '') + '</p></div>';
+      }
+      html += '</div>';
+      host.innerHTML = html;
+      host.style.display = '';
     }
 
     function renderSign(p) {
