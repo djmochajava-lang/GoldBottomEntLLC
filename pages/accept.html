@@ -705,9 +705,21 @@
         linesHtml = '<table class="offer-lines"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead><tbody>';
         for (var j = 0; j < items.length; j++) {
           var it = items[j] || {};
-          linesHtml += '<tr><td>' + escapeHtml(it.label || 'Item') + '</td>' +
-            '<td class="num">' + escapeHtml(it.quantity != null ? it.quantity : 1) + '</td>' +
-            '<td class="num">' + escapeHtml(fmtMoney(it.amount)) + '</td></tr>';
+          /* EO D1 (Ruling C, story-native-wedding-gala-packages): a bundled
+             package renders as ONE line at ONE price carrying the detailed
+             description of everything included — the buyer understands the
+             price by READING it. The server publishes it as lineItems[j]
+             .description (booking-offer-publish safeItems allowlist).
+             Escaped at THIS injection site via escapeHtml (matches every
+             other render here); newlines preserved with white-space:pre-line.
+             Display-only — never an amount, never summed. */
+          var descHtml = (it.description && typeof it.description === 'string')
+            ? '<div class="line-desc" style="margin-top:6px;font-size:0.85em;color:var(--color-text-muted);font-weight:400;line-height:1.5;white-space:pre-line;">' +
+              escapeHtml(it.description) + '</div>'
+            : '';
+          linesHtml += '<tr><td>' + escapeHtml(it.label || 'Item') + descHtml + '</td>' +
+            '<td class="num" style="vertical-align:top;">' + escapeHtml(it.quantity != null ? it.quantity : 1) + '</td>' +
+            '<td class="num" style="vertical-align:top;">' + escapeHtml(fmtMoney(it.amount)) + '</td></tr>';
         }
         linesHtml += '</tbody></table>';
       }
