@@ -240,6 +240,12 @@
   .swz-chip-paid { background: rgba(212,160,23,0.15); color: #d4a017; }
   .swz-chip-ext { background: rgba(163,113,247,0.16); color: #a371f7; }
   .swz-chip-status { background: rgba(210,153,34,0.15); color: #d29922; }
+  /* story-show-lifecycle-archive-history: a past ("Ended") show — muted, not "live". */
+  .swz-chip-ended { background: rgba(139,148,158,0.14); color: #8b949e; }
+  .swz-card-ended { opacity: 0.72; }
+  .swz-past-header { grid-column: 1/-1; margin: var(--space-md) 0 2px; padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border); font-size: var(--text-xs); font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-muted); }
   /* slice 4 — external ticketing UI */
   .swz-ext-state { border: 1px solid rgba(163,113,247,0.35); background: rgba(163,113,247,0.08); border-radius: var(--radius-md); padding: 16px; }
   .swz-ext-title { font-weight: 700; font-size: var(--text-lg); color: #a371f7; display: flex; align-items: center; gap: 8px; }
@@ -543,6 +549,10 @@
   }
 
   function publishChip(row) {
+    // story-show-lifecycle-archive-history: an Ended (completed) show reads as a
+    // muted "past show" chip regardless of its is_published flag (eviction from
+    // the public list is by status, so an Ended show is off the public pages).
+    if (row.status === 'completed') return '<span class="swz-chip swz-chip-ended">ENDED — a past show</span>';
     if (Number(row.is_published)) {
       var extra = '';
       if (row.status === 'sold_out') extra = ' · SOLD OUT';
@@ -593,9 +603,14 @@
         '<p>Create your first show — it stays a private draft until you publish it.</p></div>';
       return;
     }
-    el.innerHTML = showsCache.map(function(row) {
-      var isDraft = !Number(row.is_published) && row.status === 'draft';
-      return '<div class="swz-card" data-show-id="' + escHtml(row.id) + '" role="button" tabindex="0" aria-label="Edit ' + escHtml(row.event_name || 'show') + '">' +
+    // story-show-lifecycle-archive-history §B.3: partition into the active
+    // working set and a muted "Past Shows" subsection (Ended = status
+    // 'completed'). Active cards render exactly as before; past cards are muted,
+    // carry the ENDED chip (via publishChip), and have no Delete button. A past
+    // card opens the wizard → step 5 ENDED state → Reopen.
+    function cardHtml(row, ended) {
+      var isDraft = !ended && !Number(row.is_published) && row.status === 'draft';
+      return '<div class="swz-card' + (ended ? ' swz-card-ended' : '') + '" data-show-id="' + escHtml(row.id) + '" role="button" tabindex="0" aria-label="' + (ended ? 'Open past show ' : 'Edit ') + escHtml(row.event_name || 'show') + '">' +
         '<div class="swz-card-img">' + (row.image_url
           ? '<img src="' + escHtml(row.image_url) + '" alt="" loading="lazy">'
           : '<i class="fa-solid fa-image" style="font-size:1.3rem;opacity:0.5;"></i>') + '</div>' +
@@ -607,7 +622,15 @@
         '<div class="swz-card-side">' + admissionChip(row) +
           (isDraft ? '<button class="tix-action-btn danger swz-del-btn" data-show-id="' + escHtml(row.id) + '" title="Delete draft" aria-label="Delete draft"><i class="fa-solid fa-trash"></i></button>' : '') +
         '</div></div>';
-    }).join('');
+    }
+    var activeRows = showsCache.filter(function(r) { return r.status !== 'completed'; });
+    var pastRows = showsCache.filter(function(r) { return r.status === 'completed'; });
+    var html = activeRows.map(function(row) { return cardHtml(row, false); }).join('');
+    if (pastRows.length) {
+      html += '<div class="swz-past-header"><i class="fa-solid fa-flag-checkered"></i> Past Shows</div>' +
+        pastRows.map(function(row) { return cardHtml(row, true); }).join('');
+    }
+    el.innerHTML = html;
     el.querySelectorAll('.swz-card').forEach(function(card) {
       function open(e) {
         if (e.target.closest('.swz-del-btn')) return;
@@ -627,10 +650,15 @@
   }
 
   function renderStats() {
-    var total = showsCache.length;
-    var published = showsCache.filter(function(e) { return Number(e.is_published); }).length;
+    // story-show-lifecycle-archive-history §B.3: the top-line tiles describe the
+    // ACTIVE working set (Ended shows are excluded so they never inflate
+    // Shows/Published); a muted "Past" tile appears only when there are any.
+    var active = showsCache.filter(function(e) { return e.status !== 'completed'; });
+    var past = showsCache.length - active.length;
+    var total = active.length;
+    var published = active.filter(function(e) { return Number(e.is_published); }).length;
     var drafts = total - published;
-    document.getElementById('tix-stats').innerHTML =
+    var html =
       '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
         '<div style="font-size:var(--text-2xl);font-weight:700;color:var(--color-gold);">' + total + '</div>' +
         '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Shows</div></div>' +
@@ -639,7 +667,11 @@
         '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Published</div></div>' +
       '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
         '<div style="font-size:var(--text-2xl);font-weight:700;color:#8b949e;">' + drafts + '</div>' +
-        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Drafts</div></div>';
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Drafts</div></div>' +
+      (past ? '<div class="glass-card" style="padding:var(--space-md);text-align:center;">' +
+        '<div style="font-size:var(--text-2xl);font-weight:700;color:#8b949e;">' + past + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Past</div></div>' : '');
+    document.getElementById('tix-stats').innerHTML = html;
   }
 
   function populateEventSelects() {
@@ -846,7 +878,10 @@
       // story-show-open-ticket-sales-remote
       'not_sellable': 'Sales can’t open yet — the show must be published, ticketed, and have at least one tier with capacity.',
       'not_closable': 'Sales aren’t open on this show, so there’s nothing to pause.',
-      'has_sales': 'Tickets have already sold — sales can’t be paused. Unpublish the show if you need it off the public pages.'
+      'has_sales': 'Tickets have already sold — sales can’t be paused. Unpublish the show if you need it off the public pages.',
+      // story-show-lifecycle-archive-history
+      'not_endable': 'This show can’t be marked ended — only a published, live show can. Drafts use Delete Draft.',
+      'not_ended': 'This show isn’t ended, so there’s nothing to reopen.'
     };
     if (map[t]) return map[t];
     // W5 publish/unpublish — the lander relays ticketSales' reason verbatim
@@ -1976,9 +2011,29 @@
     // slice 4: external shows carry no internal tiers — never tier-blocked.
     var blocked = !isFree && !isExternal && (row.tiers || []).length === 0;
     var deletable = !pub && row.status === 'draft'; // never-published drafts only
+    var isEnded = String(row.status) === 'completed'; // story-show-lifecycle-archive-history
     var body;
 
-    if (pub) {
+    if (isEnded) {
+      // ── ENDED state (story-show-lifecycle-archive-history §B.2): a past show.
+      //    Takes precedence over the published branch. Reopen rides the remote
+      //    relay only (no LAN reopen route) — same honest console gap as unpublish. ──
+      var reopenHtml;
+      if (isLocal && !getSb()) {
+        reopenHtml =
+          '<div class="swz-note warn" style="margin-top:22px;max-width:390px;"><i class="fa-solid fa-circle-info"></i><span style="flex:1;">Reopening from the home console isn’t wired yet — open the dashboard at goldbottoment-llc.com and sign in with your manager account to reopen this show.</span></div>';
+      } else {
+        reopenHtml =
+          '<button id="swz-reopen" class="btn btn-primary" style="margin-top:22px;min-height:52px;width:100%;max-width:390px;font-weight:700;"><i class="fa-solid fa-rotate-left"></i> Reopen Show</button>' +
+          '<div class="swz-help" style="max-width:390px;text-align:center;">Puts the show back on the public Tickets page as “Coming Soon.” Re-open ticket sales when you’re ready.</div>';
+      }
+      body =
+        '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;align-items:center;">' +
+          '<span class="swz-pub-badge draft" style="margin-top:8px;"><i class="fa-solid fa-flag-checkered"></i> ENDED — a past show</span>' +
+          '<p style="margin:12px 0 0;color:var(--color-text-muted);font-size:var(--text-sm);max-width:390px;text-align:center;">This show has ended. It’s off the public Tickets page and kept in your Past Shows for your records. Everything about it is saved.</p>' +
+          reopenHtml +
+        '</div>';
+    } else if (pub) {
       // ── PUBLISHED state: badge + live links + unpublish ──
       var unpubHtml;
       if (isLocal && !getSb()) {
@@ -2044,6 +2099,26 @@
           '</div>';
       }
 
+      /* ── story-show-lifecycle-archive-history §B.1: "Mark Show as Ended" ──
+         Below Unpublish, its OWN visually-separated group. Reversible + preserves
+         data ⇒ NOT red/destructive (red is reserved for Delete Draft). Only for a
+         published, live (non-terminal) show; end rides the remote relay, so the
+         LAN-without-session case shows the honest note (same gap as unpublish). */
+      var END_ELIGIBLE = { announced: 1, on_sale: 1, selling_fast: 1, almost_sold_out: 1, sold_out: 1 };
+      var endHtml = '';
+      if (END_ELIGIBLE[String(row.status || '')]) {
+        if (noRelay) {
+          endHtml =
+            '<div class="swz-note warn" style="margin-top:26px;max-width:390px;"><i class="fa-solid fa-circle-info"></i><span style="flex:1;">Ending a show from the home console isn’t wired yet — open the dashboard at goldbottoment-llc.com and sign in with your manager account to mark it ended.</span></div>';
+        } else {
+          endHtml =
+            '<div style="width:100%;max-width:390px;margin-top:26px;padding-top:18px;border-top:1px solid var(--color-border);display:flex;flex-direction:column;align-items:center;">' +
+              '<button id="swz-end-show" class="btn" style="min-height:48px;width:100%;"><i class="fa-solid fa-flag-checkered"></i> Mark Show as Ended</button>' +
+              '<div class="swz-help" style="text-align:center;">Moves this show to your Past Shows and takes it off the public Tickets page. Ticket sales close. Nothing is deleted — you can reopen it anytime.</div>' +
+            '</div>';
+        }
+      }
+
       body =
         '<div id="swz-body" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;align-items:center;">' +
           '<span class="swz-pub-badge live" style="margin-top:8px;"><i class="fa-solid fa-circle-check"></i> PUBLISHED — live on the sites</span>' +
@@ -2054,6 +2129,7 @@
           '</div>' +
           salesHtml +
           unpubHtml +
+          endHtml +
         '</div>';
     } else {
       // ── DRAFT / unpublished state: the owner's "we are happy" switch ──
@@ -2091,6 +2167,11 @@
     if (openSalesBtn) openSalesBtn.addEventListener('click', function() { runSalesVerb(true); });
     var closeSalesBtn = document.getElementById('swz-close-sales');
     if (closeSalesBtn) closeSalesBtn.addEventListener('click', function() { runSalesVerb(false); });
+    // story-show-lifecycle-archive-history: end / reopen controls
+    var endShowBtn = document.getElementById('swz-end-show');
+    if (endShowBtn) endShowBtn.addEventListener('click', runEndShow);
+    var reopenBtn = document.getElementById('swz-reopen');
+    if (reopenBtn) reopenBtn.addEventListener('click', runReopenShow);
     var blockerBtn = document.getElementById('swz-blocker-tiers');
     if (blockerBtn) blockerBtn.addEventListener('click', function() { gotoStep(2); });
     var delBtn = document.getElementById('swz-delete-draft');
@@ -2321,6 +2402,126 @@
       opening
         ? { confirmText: 'Open sales', cancelText: 'Not yet' }
         : { confirmText: 'Pause sales', cancelText: 'Keep selling' }
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     story-show-lifecycle-archive-history — END / REOPEN a show.
+     Mirrors unpublishShow / runSalesVerb exactly (confirm → empty-payload
+     relay verb → poll own action row → readmodel echo → honest status strip).
+     The payload is EMPTY: the VERB carries the intent and the SERVER writes
+     the status ('completed' for end, 'announced' for reopen), so `status`
+     stays a key the relay can never carry (FOREVER_FORBIDDEN, untouched).
+     BM vocabulary is LOCKED: "Mark Show as Ended" / "Ended" / "Reopen Show";
+     the enum word "completed" is never surfaced to the BM.
+     ══════════════════════════════════════════════════════════════════ */
+  function runEndShow() {
+    if (_saving || !_wz || !_wz.row) return;
+    var wz = _wz;
+    var row = wz.row;
+    var name = escHtml(row.event_name || 'this show');
+    var run = async function() {
+        if (_saving || !wzAlive(wz)) return;
+        _saving = true;
+        setPublishBusy('swz-end-show', '<i class="fa-solid fa-spinner fa-spin"></i> Marking ended…');
+        setStatusStrip('saving', 'Marking the show ended… it can take about 2 minutes to update on the public pages.', false);
+        try {
+          // Remote relay only (there is no LAN end route; the LAN-without-session
+          // case renders the honest note instead of the button).
+          var actionId = await relayWrite('end_show', row.id, {});
+          var result = await pollActionResult(actionId, {
+            onSlow: function() { if (wzAlive(wz)) setStatusStrip('saving', SLOW_COPY, false); }
+          });
+          var label = 'ending “' + (row.event_name || 'this show') + '”';
+          if (!wzAlive(wz)) { watchQueuedAction(actionId, label); return; }
+          if (result.state === 'rejected') {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('failed', rejectionMessage(result.tag), runEndShow);
+            return;
+          }
+          if (result.state === 'pending') {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('queued', 'Queued — the home office may be offline; the show will end automatically when it reconnects.', false);
+            watchQueuedAction(actionId, label);
+            return;
+          }
+          // applied (or noop:already_ended — already a past show)
+          _saving = false;
+          var fresh = await refreshRowRemote(row.id, function(r) { return String(r.status) === 'completed'; }, 20000);
+          if (!wzAlive(wz)) { loadShows(); return; }
+          if (fresh) wz.row = fresh; else wz.row.status = 'completed';
+          renderPublishStep();
+          setStatusStrip('saved', 'Show marked ended ✓ — it’s off the public Tickets page and in your Past Shows (can take about 2 minutes to update).', false);
+          loadShowsRepoll();
+        } catch (e) {
+          if (wzAlive(wz)) {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('failed', 'Could not mark the show ended: ' + (e && e.message ? e.message : 'unknown error'), runEndShow);
+          }
+        }
+    };
+    Modal.confirm(
+      'Mark “' + name + '” as ended? It comes off the public Tickets page and moves to your Past Shows list. Ticket sales close. Nothing is deleted — you can reopen it anytime.',
+      function() { run(); },
+      null,
+      { confirmText: 'Mark as ended', cancelText: 'Not yet' }
+    );
+  }
+
+  function runReopenShow() {
+    if (_saving || !_wz || !_wz.row) return;
+    var wz = _wz;
+    var row = wz.row;
+    var name = escHtml(row.event_name || 'this show');
+    var run = async function() {
+        if (_saving || !wzAlive(wz)) return;
+        _saving = true;
+        setPublishBusy('swz-reopen', '<i class="fa-solid fa-spinner fa-spin"></i> Reopening…');
+        setStatusStrip('saving', 'Reopening the show… it can take about 2 minutes to appear on the public pages.', false);
+        try {
+          var actionId = await relayWrite('reopen_show', row.id, {});
+          var result = await pollActionResult(actionId, {
+            onSlow: function() { if (wzAlive(wz)) setStatusStrip('saving', SLOW_COPY, false); }
+          });
+          var label = 'reopening “' + (row.event_name || 'this show') + '”';
+          if (!wzAlive(wz)) { watchQueuedAction(actionId, label); return; }
+          if (result.state === 'rejected') {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('failed', rejectionMessage(result.tag), runReopenShow);
+            return;
+          }
+          if (result.state === 'pending') {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('queued', 'Queued — the home office may be offline; the show will reopen automatically when it reconnects.', false);
+            watchQueuedAction(actionId, label);
+            return;
+          }
+          // applied (or noop:not_ended) — restore lands 'announced' (never auto-sells)
+          _saving = false;
+          var fresh = await refreshRowRemote(row.id, function(r) { return String(r.status) === 'announced'; }, 20000);
+          if (!wzAlive(wz)) { loadShows(); return; }
+          if (fresh) wz.row = fresh; else wz.row.status = 'announced';
+          renderPublishStep();
+          setStatusStrip('saved', 'Reopened ✓ — the card is going back on the public Tickets page as “Coming Soon” (can take about 2 minutes).', false);
+          loadShowsRepoll();
+        } catch (e) {
+          if (wzAlive(wz)) {
+            _saving = false;
+            renderPublishStep();
+            setStatusStrip('failed', 'Could not reopen the show: ' + (e && e.message ? e.message : 'unknown error'), runReopenShow);
+          }
+        }
+    };
+    Modal.confirm(
+      'Reopen “' + name + '”? It goes back on the public Tickets page as “Coming Soon.” You’ll re-open ticket sales when you’re ready.',
+      function() { run(); },
+      null,
+      { confirmText: 'Reopen show', cancelText: 'Keep it ended' }
     );
   }
 
