@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.21-0709.a3f0bfb';
+var GBE_BUILD = '2026.07.21-0842.193c19e';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': '8fcda4a8cfbff5da7a66f651eeb6846eb8c4cf23058006c3ff06dd3e99789e54',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': 'c70fe8411bbcce30dcfd574301e7423f21113174f99c56fa3d3eb9863f9ca033',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': 'bee3150eedac7fbb0a0910c42682f196dee864c7da6dfeea0f29110ea3b8bbe7',
-  './js/build.js': '35fa8be7c04c6ebeee320197689b2f54692f17fabe272b4a175a0c161f041e21',
+  './js/build.js': '2c224290f02c01883d3db77e055e71a3f1a0b6ead4244f02eb0149702ad8853c',
   './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
   './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -40,7 +40,7 @@ var ASSET_HASHES = {
   './js/auth-cache.js': '6042f6a875e3d6846be70e3b733b6398e680ec1a1448a6e64efd983bb87de5f6',
   './js/sidebar-v2.js': '822146e4ef9d261bc58bf0de5f51121d14541dc4adb85e4b67ca295e2e947e21',
   './js/data-store.js': '476e1650d601e4987624a2528c7c967341ef906a37dc9cd0f3c4d5b9576f6889',
-  './js/forms.js': '0e786e040d4bb8ebf53525ace5854fa3d0074e6322288408bcbd0a5b3bd3a9cc',
+  './js/forms.js': '8f7e8303d873734db662a8d532163eeffe649528186877dc90b92f71f8841750',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',
   './js/calendar.js': 'ccd8b682e0714c56ff0e5e9bc9f4e880a5b58fb973b765e260c79fffd34b1ac5',

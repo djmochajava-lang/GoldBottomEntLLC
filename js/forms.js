@@ -427,7 +427,12 @@ const Forms = {
     performanceFormat: 'performanceFormat', indoorOutdoor: 'indoorOutdoor',
     soundSystem: 'soundSystem', budgetRange: 'budgetRange',
     referralSource: 'referralSource', additionalNotes: 'additionalNotes',
-    productionNeeds: 'productionNeeds', loadInDetails: 'loadInDetails'
+    productionNeeds: 'productionNeeds', loadInDetails: 'loadInDetails',
+    // story-buyer-gate-s3: the Buyer-Pass rides as a FIRST-CLASS column so it
+    // survives the SoR pull (supabase-pull drops raw_doc); the server
+    // shadow-consumes it at the intake choke point. Payload plumbing only —
+    // no client gating (EO ruling: hard-gate + copy belong to golive-ops).
+    buyerPass: 'buyerPass'
   },
 
   /**

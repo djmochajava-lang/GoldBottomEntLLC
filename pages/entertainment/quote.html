@@ -444,9 +444,10 @@
     // story-buyer-gate-s2: ride the Buyer-Pass on the quote payload ONLY if
     // one is held AND it was minted for the email currently in #quote-email
     // (getPass() enforces the match internally — never a stale cross-email
-    // pass). Harmless no-op today: buyerPass is not in the _CS_COLUMNS
-    // allowlist, so it never becomes a column (archived in raw_doc only)
-    // until S3 consumes it.
+    // pass). Since S3, buyerPass IS in the _CS_COLUMNS allowlist: it rides
+    // as a first-class contact_submissions column, survives the SoR pull,
+    // and the server shadow-consumes it at the intake choke point
+    // (enforcement stays dark until golive-ops flips the server flag).
     var buyerPass = quoteGateCtrl ? quoteGateCtrl.getPass() : null;
     if (buyerPass) payload.buyerPass = buyerPass;
 
