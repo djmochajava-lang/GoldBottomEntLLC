@@ -244,7 +244,8 @@
     invalid: 'Verification code didn’t match or expired',
     error:   'Verification couldn’t complete (technical issue)'
   };
-  var _qhRows = [];        // held rows in render order (button data-idx indexes this)
+  var _qhRows = [];        // held rows; every lookup keys on the STABLE row id (B2.2 —
+                           // never by render index, which drifts after a mid-list release)
   var _qhInFlight = 0;     // releases mid-flight — refresh must not clobber their DOM
 
   function _qhFirstName(row) {
@@ -279,12 +280,15 @@
           '<span id="bm-qh-badge" style="font-size:var(--text-xs);padding:2px 10px;border-radius:var(--radius-full);background:#f85149;color:#fff;font-weight:700;">' + _qhRows.length + '</span>' +
         '</h3>' +
         '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
-    _qhRows.forEach(function(r, idx) {
+    _qhRows.forEach(function(r) {
       var first  = _qhFirstName(r);
       var age    = _triageAge(r && r.received_at);
       var reason = QH_HOLD_REASONS[r && r.hold_reason] || QH_HOLD_REASONS.error;  // AC-6 fixed buckets only
+      /* B2.2 (EO Gate-2 fix): every per-row hook keys on the STABLE row id —
+         a render index goes stale the moment an earlier row is released. */
+      var ridAttr = Utils.escapeHtml(String(r && r.id));
       html +=
-        '<div id="bm-qh-row-' + idx + '" style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid #d29922;">' +
+        '<div class="bm-qh-row" data-row-id="' + ridAttr + '" style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid #d29922;">' +
           '<div style="display:flex;align-items:center;gap:var(--space-sm);">' +
             '<div style="flex:1;min-width:0;">' +
               '<div style="font-weight:600;color:var(--color-text);">' + Utils.escapeHtml(first) + '</div>' +
@@ -294,8 +298,8 @@
             '<span style="flex-shrink:0;font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba(210,153,34,0.15);color:#d29922;font-weight:600;white-space:nowrap;">Verification Hold</span>' +
           '</div>' +
           '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);">' + reason + '</div>' +
-          '<div id="bm-qh-msg-' + idx + '"></div>' +
-          '<button class="bm-qh-release" data-idx="' + idx + '" style="width:100%;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-arrow-up-from-bracket"></i> Release to Pipeline</button>' +
+          '<div class="bm-qh-msg"></div>' +
+          '<button class="bm-qh-release" data-row-id="' + ridAttr + '" style="width:100%;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-arrow-up-from-bracket"></i> Release to Pipeline</button>' +
         '</div>';
     });
     html += '</div></div>';
@@ -350,10 +354,26 @@
     return 'The office rejected this request — refresh and try again';
   }
 
+  /* B2.2 — per-row DOM lookups keyed on the stable row id (attribute compared
+     in JS, never interpolated into a selector). */
+  function _qhRowEl(rowId) {
+    var el = document.getElementById('bm-quarantine-holds');
+    if (!el) return null;
+    var nodes = el.querySelectorAll('.bm-qh-row');
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute('data-row-id') === String(rowId)) return nodes[i];
+    }
+    return null;
+  }
+  function _qhMsgEl(rowId) {
+    var rowEl = _qhRowEl(rowId);
+    return rowEl ? rowEl.querySelector('.bm-qh-msg') : null;
+  }
+
   async function _qhRelease(btn) {
     if (btn.disabled) return;
-    var idx = parseInt(btn.getAttribute('data-idx'), 10);
-    var row = _qhRows[idx];
+    var rowId = btn.getAttribute('data-row-id');
+    var row = _qhRows.find(function(r){ return String(r && r.id) === String(rowId); });
     if (!row) return;
     var first = _qhFirstName(row);
     /* AC-10 — disable + spinner + "Releasing…" synchronously, BEFORE any await. */
@@ -361,33 +381,32 @@
     btn.style.opacity = '0.7';
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Releasing…';
     _qhInFlight++;
-    var msg = document.getElementById('bm-qh-msg-' + idx);
+    var msg = _qhMsgEl(rowId);
     if (msg) msg.innerHTML = '';
     try {
       var ins = await _qhRelayRelease(row.id);
       /* AC-11 — honest async copy while the reconciler applies it. */
       if (msg) msg.innerHTML = '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);"><i class="fa-solid fa-spinner fa-spin"></i> Syncing to the office… (usually under a minute)</div>';
       var result = await _qhPollResult(ins.actionId);
-      if (result.state === 'applied')       { _qhSuccess(idx, row, first); }
-      else if (result.state === 'rejected') { _qhFail(btn, idx, _qhHumanReject(result.tag)); }
-      else                                  { _qhQueued(btn, idx); }
+      if (result.state === 'applied')       { _qhSuccess(rowId, first); }
+      else if (result.state === 'rejected') { _qhFail(btn, rowId, _qhHumanReject(result.tag)); }
+      else                                  { _qhQueued(btn, rowId); }
     } catch (err) {
       console.warn('[Manager] quarantine release failed:', err && err.message);
       var em = String((err && err.message) || '').toLowerCase();
       var human = (em.indexOf('row-level security') !== -1 || em.indexOf('policy') !== -1 || em.indexOf('signed in') !== -1)
         ? 'Your account doesn’t have manager access for this'
         : 'Couldn’t reach the office — check your connection and try again';
-      _qhFail(btn, idx, human);
+      _qhFail(btn, rowId, human);
     }
   }
 
   /* AC-12/AC-13 — applied AND noop:already_released render the IDENTICAL
      green success state: border amber→green, verbatim copy, Toast, ~2s fade,
      badge decrement; full collapse when the last row leaves. */
-  function _qhSuccess(idx, row, first) {
-    var rowId = row && row.id;
-    var rowEl = document.getElementById('bm-qh-row-' + idx);
-    var msg   = document.getElementById('bm-qh-msg-' + idx);
+  function _qhSuccess(rowId, first) {
+    var rowEl = _qhRowEl(rowId);
+    var msg   = _qhMsgEl(rowId);
     var btn   = rowEl && rowEl.querySelector('.bm-qh-release');
     if (rowEl) { rowEl.style.borderColor = 'rgba(63,185,80,0.5)'; rowEl.style.borderLeft = '3px solid #3fb950'; }
     if (btn) btn.style.display = 'none';
@@ -408,8 +427,8 @@
 
   /* AC-14 — genuine refusal: inline red humanized message, Retry re-enabled,
      row stays visible. */
-  function _qhFail(btn, idx, human) {
-    var msg = document.getElementById('bm-qh-msg-' + idx);
+  function _qhFail(btn, rowId, human) {
+    var msg = _qhMsgEl(rowId);
     if (msg) msg.innerHTML = '<div style="font-size:var(--text-sm);color:#f85149;">' + human + '</div>';
     btn.disabled = false;
     btn.style.opacity = '1';
@@ -419,8 +438,8 @@
 
   /* AC-15 — no result inside the poll budget: honest amber queued copy,
      row visible, neither success nor failure. Next reload reflects truth. */
-  function _qhQueued(btn, idx) {
-    var msg = document.getElementById('bm-qh-msg-' + idx);
+  function _qhQueued(btn, rowId) {
+    var msg = _qhMsgEl(rowId);
     if (msg) msg.innerHTML = '<div style="font-size:var(--text-sm);color:#d29922;">Queued — will finish automatically when the office reconnects. Check back shortly.</div>';
     btn.innerHTML = '<i class="fa-solid fa-clock"></i> Queued';
     btn.style.opacity = '0.7';
