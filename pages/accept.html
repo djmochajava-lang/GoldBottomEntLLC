@@ -180,6 +180,13 @@
            Populated by renderDisclosures() from payload.disclosures; nothing here
            is summable and it contributes $0 to the total (AC-8). -->
       <div id="offered-disclosures" data-testid="offered-disclosures" style="display:none;"></div>
+      <!-- story-buyer-gate-s2: invited email verification, between the
+           disclosures and the offer actions. The offer payload is the C2
+           redacted allowlist and deliberately carries NO buyer email today,
+           so this renders NOTHING (the EO-mandated absence behavior) until a
+           future story publishes payload.buyerEmail. Accept/Counter/Decline
+           stay fully enabled regardless of verification state. -->
+      <div id="offered-buyer-gate" data-testid="offered-buyer-gate" style="display:none;"></div>
       <div class="offer-banner offer-banner-counter" id="counter-pending-banner" data-testid="counter-pending-banner" style="display:none;">
         <strong>Change requested.</strong> <span id="counter-pending-text">We&rsquo;re reviewing your request and will email you an updated quote shortly.</span> You can still accept the current quote below.
       </div>
@@ -377,6 +384,10 @@
        (story-supabase-js-sri-pin). No auth.js / router.js / utils.js. -->
   <script src="../js/config.js"></script>
   <script src="../js/gbe-mock-payment.js"></script>
+  <!-- story-buyer-gate-s2: shared buyer-gate component (same owned-copy
+       regime as gbe-mock-payment.js). Renders NOTHING until its reachability
+       probe confirms the endpoint is live (pre-golive: page unchanged). -->
+  <script src="../js/gbe-buyer-gate.js?v=1"></script>
   <script src="../js/vendor/supabase-js-2.110.2.umd.js"></script>
   <script>
   (function () {
@@ -406,6 +417,8 @@
     var balanceWasTest = false;       // true once the mock (TEST) balance screen rendered
     var balanceMockController = null; // GBEMockPay.mount() controller for the balance screen
     var balanceSettling = false;      // true while a buyer pay_balance is in flight (guards re-mount)
+    var offerGateCtrl = null;         // GBEBuyerGate.mount() controller (story-buyer-gate-s2)
+    var offerGateEmail = null;        // email the buyer-gate was mounted for (poll re-render guard)
     var pollTimer = null;
     var pollCount = 0;
     var pollStopped = false;
@@ -741,6 +754,9 @@
       // the priced figures, never a summed line item (AC-8).
       renderDisclosures(p);
 
+      // story-buyer-gate-s2: invited email verification (known-email surface).
+      renderBuyerGate(p);
+
       // story-quote-negotiation-loop: honest "change requested" banner while a
       // revision is pending. Server-published counter block: { pending, reason }.
       var counter = p.counter;
@@ -787,6 +803,38 @@
       html += '</div>';
       host.innerHTML = html;
       host.style.display = '';
+    }
+
+    /* story-buyer-gate-s2: mount the shared buyer-gate inside state-offered,
+       between the disclosures and the offer actions. The buyer's email on
+       this surface is KNOWN (never buyer-typed): it must come from the
+       published payload. The C2 redaction allowlist (booking-offer-publish)
+       deliberately publishes NO buyer email today, so p.buyerEmail is absent
+       on current offers and this renders NOTHING — never a broken
+       "verify undefined" state (EO absence rule). If a future story adds
+       payload.buyerEmail, the widget mounts with the email as read-only TEXT
+       (emailEditable:false — never an input) and auto-activates behind the
+       component's own reachability gate. Poll re-renders keep the existing
+       widget (same email ⇒ no re-mount, no state loss). */
+    function renderBuyerGate(p) {
+      var host = $('offered-buyer-gate');
+      if (!host || typeof GBEBuyerGate === 'undefined') return;
+      var em = (p && typeof p.buyerEmail === 'string') ? p.buyerEmail.trim() : '';
+      var shaped = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em);
+      if (!shaped) {
+        if (offerGateCtrl) { offerGateCtrl.destroy(); offerGateCtrl = null; }
+        offerGateEmail = null;
+        host.style.display = 'none';
+        return;
+      }
+      if (offerGateCtrl && offerGateEmail === em) return; // same offer email — keep state
+      if (offerGateCtrl) offerGateCtrl.destroy();
+      offerGateEmail = em;
+      offerGateCtrl = GBEBuyerGate.mount(host, {
+        purpose: 'booking',
+        emailEditable: false,
+        getEmail: function () { return offerGateEmail || ''; }
+      });
     }
 
     function renderSign(p) {
@@ -1176,6 +1224,16 @@
         payload: payloadObj || {},
         honeypot: hp ? String(hp.value || '') : ''
       };
+      // story-buyer-gate-s2: ride the Buyer-Pass on Accept/Counter/Decline.
+      // booking_public_actions.payload is a freeform jsonb blob and the
+      // reconcile Joi runs stripUnknown:true, so an unknown buyerPass key is
+      // silently dropped server-side until S5 consumes it — harmless no-op
+      // today, never a submit failure.
+      if ((actionType === 'accept_quote' || actionType === 'decline_quote' ||
+           actionType === 'counter_offer') && offerGateCtrl) {
+        var bgPass = offerGateCtrl.getPass();
+        if (bgPass) row.payload.buyerPass = bgPass;
+      }
       // insert() without .select() -> Prefer: return=minimal (no read-back;
       // the staging table has no SELECT grant for clients by design)
       sb.from(STAGING_TABLE).insert(row).then(function (res) {

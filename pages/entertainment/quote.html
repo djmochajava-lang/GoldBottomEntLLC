@@ -29,6 +29,14 @@
               <label class="form-label" for="quote-phone">Phone *</label>
               <input type="tel" class="form-input" id="quote-phone" name="phone" required placeholder="(555) 123-4567" />
             </div>
+            <!-- story-buyer-gate-s2: invited buyer email verification
+                 (window.GBEBuyerGate). grid-column 1/-1 breaks it out to its
+                 own FULL-WIDTH row directly below #quote-email so it never
+                 squeezes at 390px. display:none until the component's
+                 reachability probe confirms the endpoint is live — pre-golive
+                 it renders NOTHING and the page is identical to pre-S2.
+                 #quote-submit-btn is NEVER gated on this widget's state. -->
+            <div id="quote-buyer-gate" data-testid="quote-buyer-gate" style="grid-column: 1 / -1; display:none;"></div>
           </div>
         </div>
 
@@ -216,6 +224,10 @@
   </div>
 </section>
 
+<!-- story-buyer-gate-s2: shared buyer-gate component, loaded at PAGE-FRAGMENT
+     level (never in the SPA index shells). The file itself is idempotent under
+     PageLoader's re-execution of fragment scripts on SPA navigation. -->
+<script src="js/gbe-buyer-gate.js?v=1"></script>
 <script>
 (function() {
   var form = document.getElementById('quote-request-form');
@@ -223,6 +235,32 @@
 
   // P8c anti-spam: honeypot + fill-time instrumentation (shared helper)
   if (typeof Forms !== 'undefined' && Forms.armAntiSpam) Forms.armAntiSpam(form);
+
+  // ── Buyer-gate (story-buyer-gate-s2): invited email verification ──
+  // Auto-activates on blur/change of #quote-email once the value is email-
+  // shaped. The real submit button is NEVER disabled or gated on this widget
+  // (S2 scope fence — zero server enforcement). Mount is deferred until the
+  // first trigger because this external script loads async under PageLoader.
+  var quoteEmailInput = form.querySelector('[name="email"]');
+  var quoteGateCtrl = null;
+  function ensureQuoteGate() {
+    if (quoteGateCtrl || typeof GBEBuyerGate === 'undefined') return;
+    var host = document.getElementById('quote-buyer-gate');
+    if (!host) return;
+    quoteGateCtrl = GBEBuyerGate.mount(host, {
+      purpose: 'quote',
+      emailEditable: true,
+      getEmail: function () { return quoteEmailInput ? quoteEmailInput.value.trim() : ''; }
+    });
+  }
+  if (quoteEmailInput) {
+    ['blur', 'change'].forEach(function (evt) {
+      quoteEmailInput.addEventListener(evt, function () {
+        ensureQuoteGate();
+        if (quoteGateCtrl) quoteGateCtrl.emailChanged();
+      });
+    });
+  }
 
   var submitBtn = document.getElementById('quote-submit-btn');
   var statusEl = document.getElementById('quote-form-status');
@@ -403,6 +441,15 @@
       notes: notes
     };
 
+    // story-buyer-gate-s2: ride the Buyer-Pass on the quote payload ONLY if
+    // one is held AND it was minted for the email currently in #quote-email
+    // (getPass() enforces the match internally — never a stale cross-email
+    // pass). Harmless no-op today: buyerPass is not in the _CS_COLUMNS
+    // allowlist, so it never becomes a column (archived in raw_doc only)
+    // until S3 consumes it.
+    var buyerPass = quoteGateCtrl ? quoteGateCtrl.getPass() : null;
+    if (buyerPass) payload.buyerPass = buyerPass;
+
     // Submit via multi-strategy (server → Supabase staging → legacy Firestore)
     Forms.submitContact(payload, form)
       .then(function(result) {
@@ -416,6 +463,9 @@
         if (dateInput) dateInput.setAttribute('min', new Date().toISOString().split('T')[0]);
         // reset() clears the select without firing 'change' — hide the card.
         renderPackageCard();
+        // Buyer-gate: the email field was just cleared — discard any held
+        // pass and hide until a fresh email re-activates it.
+        if (quoteGateCtrl) quoteGateCtrl.reset();
       })
       .catch(function(err) {
         console.error('Quote form submission error:', err);
