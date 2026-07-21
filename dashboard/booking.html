@@ -463,7 +463,17 @@
           }
         }
       }
-      inquiriesData = rawRows;
+      /* story-buyer-gate-quarantine-release-public B2.1 (PM ruling): gate-HELD
+         rows (hold_state==='quarantine') are partitioned OUT of this page
+         entirely — a held row is status-'rejected' in the SoR, its server
+         subject can embed the submitter email (InfoSec flag), and inquiry
+         actions must never target it. The ONLY surface for held rows is the
+         Quote Verification Holds card on manager.html; a released row rejoins
+         this feed naturally when hold_state clears to NULL on the next publish
+         cycle. LAN rows carry no hold_state column, so the filter is a no-op
+         on the local branch. This single point feeds every consumer on the
+         page (kanban, stats, awaiting count, tab count, detail, actions). */
+      inquiriesData = (rawRows || []).filter(function(r) { return !(r && r.hold_state === 'quarantine'); });
       refreshInquiriesView(isLocal && data && data.total ? data.total : null);
     } catch (e) {
       console.error('[Booking] Inquiries load error:', e);
