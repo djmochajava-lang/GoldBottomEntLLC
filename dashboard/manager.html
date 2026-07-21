@@ -15,6 +15,11 @@
        skeleton reserves a stable slot so the header never jumps (no CLS). -->
   <div id="bm-triage-cta" style="margin-bottom:var(--space-lg);"></div>
 
+  <!-- Quote Verification Holds — gate-quarantined quote requests awaiting a one-tap
+       BM release (story-buyer-gate-quarantine-release-public B2, EO AC-1/AC-2).
+       FULL COLLAPSE when empty: renders nothing, reserves no height or margin. -->
+  <div id="bm-quarantine-holds" style="margin-bottom:0;"></div>
+
   <div class="dashboard-page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--space-sm);">
     <div>
       <h1>Dashboard</h1>
@@ -217,6 +222,211 @@
       '</a>';
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     QUOTE VERIFICATION HOLDS (story-buyer-gate-quarantine-release-public B2)
+     Gate-quarantined quote requests partitioned from the SAME
+     booking_inquiry_readmodel read the triage loader already makes
+     (hold_state==='quarantine' — the server stamps it ONLY on gate-only
+     holds, never security quarantines: EO AC-8). One-tap release rides the
+     established BM-authenticated booking_actions relay (action_type
+     'release_quarantine', pipeline derived server-side) with the same
+     result-stamp poll booking.html uses — read stays the readmodel cache,
+     write stays the relay, no HomeOffice call, no secret beyond the BM's
+     own session (InfoSec C9).
+     DISPLAY CONTRACT (EO AC-4/5/6 + InfoSec out-of-lane flag): first name /
+     relative age / event type+date if the row carries them / humanized
+     3-bucket hold reason / amber chip. NEVER from_addr and NEVER the raw
+     subject (the server-generated subject can embed the submitter email as
+     a fallback). Nothing renders as undefined/null/blank.
+     ═══════════════════════════════════════════════════════════════════════ */
+  var QH_HOLD_REASONS = {
+    absent:  'No verification code entered',
+    invalid: 'Verification code didn’t match or expired',
+    error:   'Verification couldn’t complete (technical issue)'
+  };
+  var _qhRows = [];        // held rows in render order (button data-idx indexes this)
+  var _qhInFlight = 0;     // releases mid-flight — refresh must not clobber their DOM
+
+  function _qhFirstName(row) {
+    var n = (row && row.from_name != null) ? String(row.from_name).trim() : '';
+    return n ? n.split(/\s+/)[0] : 'New request';
+  }
+  /* Event type + date IF the readmodel row carries them — today's projection
+     does not, so this gracefully renders nothing (AC-5: never undefined/null/blank). */
+  function _qhEventLine(row) {
+    var type = null, date = null;
+    ['event_type', 'eventType'].forEach(function(k){ if (!type && row && row[k] != null && String(row[k]).trim() !== '') type = String(row[k]).trim(); });
+    ['event_date', 'eventDate'].forEach(function(k){ if (!date && row && row[k] != null && String(row[k]).trim() !== '') date = String(row[k]).trim(); });
+    if (!type && !date) return '';
+    var txt = (type && date) ? (type + ' — ' + date) : (type || date);
+    return '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + Utils.escapeHtml(txt) + '</div>';
+  }
+  function _qhCollapse(el) { el.innerHTML = ''; el.style.marginBottom = '0'; }
+
+  function _renderQuarantineHolds(rows) {
+    var el = document.getElementById('bm-quarantine-holds');
+    if (!el) return;
+    if (_qhInFlight > 0) return;                              // keep in-flight release states on screen
+    if (!_bmCanApproveAccess()) { _qhCollapse(el); return; }  // AC-7 role gate
+    _qhRows = rows || [];
+    if (!_qhRows.length) { _qhCollapse(el); return; }         // AC-2 full collapse
+    el.style.marginBottom = 'var(--space-lg)';
+    var html =
+      '<div class="card" style="background:var(--color-bg-secondary);border:1px solid var(--color-border);border-left:3px solid #d29922;border-radius:var(--radius-lg);padding:var(--space-lg);">' +
+        '<h3 style="margin-bottom:var(--space-md);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+          '<i class="fa-solid fa-shield-halved" style="color:#d29922;"></i>' +
+          '<span>Quote Verification Holds</span>' +
+          '<span id="bm-qh-badge" style="font-size:var(--text-xs);padding:2px 10px;border-radius:var(--radius-full);background:#f85149;color:#fff;font-weight:700;">' + _qhRows.length + '</span>' +
+        '</h3>' +
+        '<div style="display:flex;flex-direction:column;gap:var(--space-sm);">';
+    _qhRows.forEach(function(r, idx) {
+      var first  = _qhFirstName(r);
+      var age    = _triageAge(r && r.received_at);
+      var reason = QH_HOLD_REASONS[r && r.hold_reason] || QH_HOLD_REASONS.error;  // AC-6 fixed buckets only
+      html +=
+        '<div id="bm-qh-row-' + idx + '" style="display:flex;flex-direction:column;gap:var(--space-sm);padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);border-left:3px solid #d29922;">' +
+          '<div style="display:flex;align-items:center;gap:var(--space-sm);">' +
+            '<div style="flex:1;min-width:0;">' +
+              '<div style="font-weight:600;color:var(--color-text);">' + Utils.escapeHtml(first) + '</div>' +
+              (age ? '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + Utils.escapeHtml(age) + '</div>' : '') +
+              _qhEventLine(r) +
+            '</div>' +
+            '<span style="flex-shrink:0;font-size:var(--text-xs);padding:3px 10px;border-radius:var(--radius-full);background:rgba(210,153,34,0.15);color:#d29922;font-weight:600;white-space:nowrap;">Verification Hold</span>' +
+          '</div>' +
+          '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);">' + reason + '</div>' +
+          '<div id="bm-qh-msg-' + idx + '"></div>' +
+          '<button class="bm-qh-release" data-idx="' + idx + '" style="width:100%;min-height:44px;padding:10px 16px;border-radius:var(--radius-md);background:rgba(63,185,80,0.15);color:#3fb950;border:1px solid rgba(63,185,80,0.3);font-weight:600;font-size:var(--text-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-arrow-up-from-bracket"></i> Release to Pipeline</button>' +
+        '</div>';
+    });
+    html += '</div></div>';
+    el.innerHTML = html;
+    Array.prototype.forEach.call(el.querySelectorAll('.bm-qh-release'), function(btn) {
+      btn.addEventListener('click', function(){ _qhRelease(btn); });
+    });
+  }
+
+  /* Relay insert — the established BM booking_actions writer pattern
+     (booking.html performInboxAction / swzRelayWithId): actor_id MUST equal
+     the caller's own auth.uid() (RLS WITH CHECK); the role is re-resolved
+     server-side by the reconciler — never trusted from this client. */
+  async function _qhRelayRelease(inboxId) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) throw new Error('Not signed in');
+    var sessionRes = await sb.auth.getSession();
+    var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
+    if (!uid) throw new Error('Not signed in');
+    var row = { actor_id: uid, target_id: String(inboxId), action_type: 'release_quarantine', payload: {} };
+    var res = await sb.from('booking_actions').insert(row).select('id').single();
+    if (res.error) throw new Error(res.error.message);
+    return { actionId: res.data.id };
+  }
+
+  /* Poll the own action row's result stamp (booking.html swzPollResult pattern):
+     applied|noop:* → applied (noop:already_released is a SUCCESS, AC-13),
+     rejected:* → rejected, silence past the budget → pending (AC-15). */
+  async function _qhPollResult(actionId, budgetMs) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) return { state: 'pending', tag: null };
+    var deadline = Date.now() + (budgetMs || 120000);
+    while (Date.now() < deadline) {
+      await new Promise(function(r){ setTimeout(r, 2000); });
+      var res = await sb.from('booking_actions').select('reconciled_at,result').eq('id', actionId).single();
+      if (res.error) continue; // transient read blip — keep polling
+      var row = res.data || {};
+      if (row.result) {
+        if (String(row.result).indexOf('rejected:') === 0) return { state: 'rejected', tag: row.result };
+        return { state: 'applied', tag: row.result };
+      }
+      if (row.reconciled_at) return { state: 'applied', tag: 'applied' };
+    }
+    return { state: 'pending', tag: null };
+  }
+
+  function _qhHumanReject(tag) {
+    var t = String(tag || '').replace(/^rejected:/, '');
+    if (t.indexOf('role_') === 0 || t === 'no_sor_user') return 'Your account doesn’t have manager access for this';
+    if (t === 'not_gate_scope') return 'This request can’t be released from here';
+    if (t === 'not_found') return 'The office couldn’t find this request — refresh and try again';
+    return 'The office rejected this request — refresh and try again';
+  }
+
+  async function _qhRelease(btn) {
+    if (btn.disabled) return;
+    var idx = parseInt(btn.getAttribute('data-idx'), 10);
+    var row = _qhRows[idx];
+    if (!row) return;
+    var first = _qhFirstName(row);
+    /* AC-10 — disable + spinner + "Releasing…" synchronously, BEFORE any await. */
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Releasing…';
+    _qhInFlight++;
+    var msg = document.getElementById('bm-qh-msg-' + idx);
+    if (msg) msg.innerHTML = '';
+    try {
+      var ins = await _qhRelayRelease(row.id);
+      /* AC-11 — honest async copy while the reconciler applies it. */
+      if (msg) msg.innerHTML = '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);"><i class="fa-solid fa-spinner fa-spin"></i> Syncing to the office… (usually under a minute)</div>';
+      var result = await _qhPollResult(ins.actionId);
+      if (result.state === 'applied')       { _qhSuccess(idx, row, first); }
+      else if (result.state === 'rejected') { _qhFail(btn, idx, _qhHumanReject(result.tag)); }
+      else                                  { _qhQueued(btn, idx); }
+    } catch (err) {
+      console.warn('[Manager] quarantine release failed:', err && err.message);
+      var em = String((err && err.message) || '').toLowerCase();
+      var human = (em.indexOf('row-level security') !== -1 || em.indexOf('policy') !== -1 || em.indexOf('signed in') !== -1)
+        ? 'Your account doesn’t have manager access for this'
+        : 'Couldn’t reach the office — check your connection and try again';
+      _qhFail(btn, idx, human);
+    }
+  }
+
+  /* AC-12/AC-13 — applied AND noop:already_released render the IDENTICAL
+     green success state: border amber→green, verbatim copy, Toast, ~2s fade,
+     badge decrement; full collapse when the last row leaves. */
+  function _qhSuccess(idx, row, first) {
+    var rowId = row && row.id;
+    var rowEl = document.getElementById('bm-qh-row-' + idx);
+    var msg   = document.getElementById('bm-qh-msg-' + idx);
+    var btn   = rowEl && rowEl.querySelector('.bm-qh-release');
+    if (rowEl) { rowEl.style.borderColor = 'rgba(63,185,80,0.5)'; rowEl.style.borderLeft = '3px solid #3fb950'; }
+    if (btn) btn.style.display = 'none';
+    if (msg) msg.innerHTML = '<div style="font-size:var(--text-sm);color:#3fb950;font-weight:600;">Released ✓ — now in the normal pipeline</div>';
+    if (typeof Toast !== 'undefined') Toast.success('Released — ' + first + '’s quote is back in the pipeline');
+    var badge = document.getElementById('bm-qh-badge');
+    if (badge) badge.textContent = String(Math.max(0, _qhRows.length - 1));
+    _qhInFlight = Math.max(0, _qhInFlight - 1);
+    if (rowEl) { rowEl.style.transition = 'opacity 2s ease'; rowEl.style.opacity = '0'; }
+    setTimeout(function() {
+      _qhRows = _qhRows.filter(function(r){ return String(r && r.id) !== String(rowId); });
+      if (rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl);
+      var b = document.getElementById('bm-qh-badge');
+      if (b) b.textContent = String(_qhRows.length);
+      if (!_qhRows.length && _qhInFlight === 0) _renderQuarantineHolds([]);
+    }, 2100);
+  }
+
+  /* AC-14 — genuine refusal: inline red humanized message, Retry re-enabled,
+     row stays visible. */
+  function _qhFail(btn, idx, human) {
+    var msg = document.getElementById('bm-qh-msg-' + idx);
+    if (msg) msg.innerHTML = '<div style="font-size:var(--text-sm);color:#f85149;">' + human + '</div>';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Retry';
+    _qhInFlight = Math.max(0, _qhInFlight - 1);
+  }
+
+  /* AC-15 — no result inside the poll budget: honest amber queued copy,
+     row visible, neither success nor failure. Next reload reflects truth. */
+  function _qhQueued(btn, idx) {
+    var msg = document.getElementById('bm-qh-msg-' + idx);
+    if (msg) msg.innerHTML = '<div style="font-size:var(--text-sm);color:#d29922;">Queued — will finish automatically when the office reconnects. Check back shortly.</div>';
+    btn.innerHTML = '<i class="fa-solid fa-clock"></i> Queued';
+    btn.style.opacity = '0.7';
+    _qhInFlight = Math.max(0, _qhInFlight - 1);
+  }
+
   /* The unified action list. `items` = normalized rows sorted for display. */
   function _renderActionList(items) {
     var bmp = document.getElementById('bm-pipeline');
@@ -339,7 +549,14 @@
         sb.from('booking_inquiry_readmodel').select('*').order('created_at', { ascending:false }).limit(200)
           .then(function(res){
             if (res.error) { console.warn('[Manager] triage inquiries fetch failed:', res.error.message); _triageRender(); return; }
-            _triageSet('quote_request', _quoteRequestRows(res.data || []));
+            /* Partition the ONE result set (CTO section 7): gate-held rows feed
+               the Quote Verification Holds card (the server stamps hold_state
+               ONLY on gate-only holds — AC-8); everything else feeds the live
+               triage list unchanged. No extra read, no new endpoint. */
+            var all = res.data || [], held = [], live = [];
+            all.forEach(function(r){ (r && r.hold_state === 'quarantine' ? held : live).push(r); });
+            _renderQuarantineHolds(held);
+            _triageSet('quote_request', _quoteRequestRows(live));
           });
       }
     }
