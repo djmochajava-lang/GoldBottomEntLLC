@@ -1246,7 +1246,7 @@
     var st = ext.status;
     if (st === 'awaiting_their_draft') {
       h += ecUploadBtn('Upload contract', 'inbound');
-      h += '<span style="font-size:0.72rem;color:var(--color-text-muted);align-self:center;">They can email it to booking@layoungbandpage.com or reply to the quote email.</span>';
+      h += '<span style="font-size:0.72rem;color:var(--color-text-muted);align-self:center;">They can email it to ' + SiteConfig.company.email + ' or reply to the quote email.</span>';
     } else if (st === 'under_review') {
       h += '<button type="button" class="btn ec-status-btn" data-testid="ec-mark-redlines" data-to="redlines_sent" style="' + EC_BTN + '"><i class="fa-solid fa-pen"></i> Mark redlines sent</button>';
       h += '<button type="button" class="btn btn-primary ec-status-btn" data-testid="ec-accept-final" data-to="final_received" style="' + EC_BTN + '"><i class="fa-solid fa-check"></i> Accept as final</button>';

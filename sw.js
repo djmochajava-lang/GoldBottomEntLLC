@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.07.21-1523.7103f9d';
+var GBE_BUILD = '2026.07.22-0514.c388833';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': '8fcda4a8cfbff5da7a66f651eeb6846eb8c4cf23058006c3ff06dd3e99789e54',
@@ -25,21 +25,21 @@ var ASSET_HASHES = {
   './css/dashboard.css': 'c70fe8411bbcce30dcfd574301e7423f21113174f99c56fa3d3eb9863f9ca033',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': 'bee3150eedac7fbb0a0910c42682f196dee864c7da6dfeea0f29110ea3b8bbe7',
-  './js/build.js': '63b5cc7730909ff2d4e8ae9640ec09df32c37d03adb6db00c9ff6ad3f4a568b5',
-  './js/config.js': '2f48708d4cc450e9ddf1aac7362f52f4971343e95c8eee2135916dcf858f5d72',
-  './js/utils.js': '66fb16aef97d5ec7ba6dcbae1e72aa1777e65e797b4a5ec1a1f68fc660a0c796',
+  './js/build.js': '98dcd5e6714ff38ee61358459a7164baa3805c7ebaef1135bdfc619ef70322ef',
+  './js/config.js': '0449b8929e2ee28af3be3abb3be5ed5cb6cf1b2b3efb63527ec8799312c4a53c',
+  './js/utils.js': 'b191763dee0a96ba11848ae5840f329a75a0aeccc7d8e43e51ca175b83db41da',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
   './js/toast.js': '74bfec8e52dbd0cc437b09851756f642d268ba21c2b28cd3563c3ca703f146f4',
   './js/modal.js': '0954ed6565e7e66c7b4bd2999106986eb2856efe63f1f8c199c2c4212f48361a',
   './js/auth.js': 'fff9722c052c1bbbb4404299b68c236a17035fa3c745c5b3bbdf6fc20b732c2f',
-  './js/page-loader.js': '4dbe80f06bed8021ffd1da9d21f5d51925fce5d4557c721e658ff6f9e7795bac',
+  './js/page-loader.js': '4148f5c97d106c034f9524723b5838342c028fc6eceff6b76f9cf34ecc34330a',
   './js/scroll-animations.js': '8432cbd23b9bd38d07f0a081a1cafc8cdc30ef55f9f6b2c7a4cca4db6cc9cef1',
   './js/router.js': 'f8cfee182628ff87003e568a953d9a3e4fb021b0580b83208112b296efac801c',
   './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
   './js/auth-cache.js': '6042f6a875e3d6846be70e3b733b6398e680ec1a1448a6e64efd983bb87de5f6',
   './js/sidebar-v2.js': '822146e4ef9d261bc58bf0de5f51121d14541dc4adb85e4b67ca295e2e947e21',
-  './js/data-store.js': '476e1650d601e4987624a2528c7c967341ef906a37dc9cd0f3c4d5b9576f6889',
+  './js/data-store.js': 'c677aa4a3f4fd618d133313057505f1254526fd43c58c18e1b8450582f3e5aba',
   './js/forms.js': '8f7e8303d873734db662a8d532163eeffe649528186877dc90b92f71f8841750',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',

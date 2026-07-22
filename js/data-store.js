@@ -771,7 +771,8 @@ const DataStore = {
         category: 'artist',
         genre: 'Soul / Jazz / Blues / R&B',
         status: 'active',
-        email: 'booking@layoungbandpage.com',
+        // Contact Registry (CEO rule 2026-07-22): booking contact from SiteConfig — never hardcode.
+        email: (typeof SiteConfig !== 'undefined' ? SiteConfig.company.email : ''),
         phone: '[PHONE]',
         bio: 'Soul, jazz & R&B vocalist; fronts L.A. Young & Soul Society. Opened for Freddie Jackson; recorded with Pieces of A Dream; signature show The Phyllis Hyman Experience.',
         website: '../LAYoungBandPage/index.html',

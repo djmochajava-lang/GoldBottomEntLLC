@@ -83,6 +83,10 @@ const PageLoader = {
       // Insert new content
       container.innerHTML = content;
 
+      // Contact Registry hydration (CEO rule 2026-07-22) — fill [data-gbe-email]
+      // from SiteConfig BEFORE inline scripts run, so scripts see final DOM.
+      if (typeof Utils !== 'undefined' && Utils.hydrateContacts) Utils.hydrateContacts(container);
+
       // Execute any inline scripts (innerHTML doesn't run them)
       this.executeInlineScripts(container);
 

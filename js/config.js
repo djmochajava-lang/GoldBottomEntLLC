@@ -12,7 +12,10 @@ const SiteConfig = {
     tagline: 'Elevating Talent. Building Brands. Creating Legacy.',
     description: 'Talent Management, Creative Services & Enterprise Solutions',
     year: 2026,
-    email: 'booking@layoungbandpage.com',
+    // Contact Registry (CEO rule 2026-07-22): THE single source for the public booking
+    // contact. Pages hydrate [data-gbe-email] from this — never hardcode an address.
+    // (booking.agent@ is a real provisioned Zoho alias — D-60; distinct from the dead booking@goldbottoment addresses.)
+    email: 'booking.agent@goldbottoment-llc.com',
     phone: '(202) 557-8664',
     address: '5000 Thayer Ctr, Oakland, MD 21550',
     state: 'Maryland',

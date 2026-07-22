@@ -459,7 +459,7 @@
             var msg;
             if (resendTaps <= 1) msg = 'Code sent — check your inbox (it can take a minute).';
             else if (resendTaps === 2) msg = 'Code sent. Still not seeing it? Check your spam folder.';
-            else msg = 'Code sent. If it doesn’t arrive in a few minutes, email booking@layoungbandpage.com and we’ll help you complete ' + PURPOSE_PHRASE[purpose] + '.';
+            else msg = 'Code sent. If it doesn’t arrive in a few minutes, email ' + ((typeof SiteConfig !== 'undefined' && SiteConfig.company) ? SiteConfig.company.email : 'us') + ' and we’ll help you complete ' + PURPOSE_PHRASE[purpose] + '.';
             setStatus(msg, false);
             announce(msg);
           } else {

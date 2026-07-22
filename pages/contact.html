@@ -55,7 +55,7 @@
               <i class="fa-solid fa-envelope text-gold"></i>
               <div>
                 <span class="text-muted">Email</span>
-                <a href="mailto:booking@layoungbandpage.com">booking@layoungbandpage.com</a>
+                <a data-gbe-email href="#"></a>
               </div>
             </div>
             <div class="contact-info-item">
@@ -202,7 +202,7 @@
       })
       .catch(function(err) {
         console.error('Contact form submission error:', err);
-        showFeedback('Unable to send — please try again or email us at booking@layoungbandpage.com', true);
+        showFeedback('Unable to send — please try again or email us at ' + SiteConfig.company.email, true);
       })
       .finally(function() {
         submitBtn.disabled = false;

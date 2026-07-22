@@ -470,7 +470,7 @@
       })
       .catch(function(err) {
         console.error('Quote form submission error:', err);
-        showFeedback('Unable to submit — please try again or email booking@layoungbandpage.com', true);
+        showFeedback('Unable to submit — please try again or email ' + SiteConfig.company.email, true);
       })
       .finally(function() {
         submitBtn.disabled = false;

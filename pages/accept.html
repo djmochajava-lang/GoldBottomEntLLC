@@ -264,7 +264,7 @@
         <h2>Quote Accepted &mdash; Next: Your Contract</h2>
         <p style="color:var(--color-text-secondary); line-height:1.6;">
           Your team indicated you&rsquo;ll use your own agreement. Send it to
-          <a href="mailto:booking@layoungbandpage.com" style="color:var(--color-gold);">booking@layoungbandpage.com</a>
+          <a data-gbe-email href="#" style="color:var(--color-gold);"></a>
           (or just reply to your quote email) and we&rsquo;ll take it from there.
         </p>
         <p style="color:var(--color-text-muted); font-size:var(--text-sm); line-height:1.6;">
@@ -374,7 +374,7 @@
     </div>
 
     <div class="offer-support">
-      <p>Questions? Email <a href="mailto:booking@layoungbandpage.com">booking@layoungbandpage.com</a></p>
+      <p>Questions? Email <a data-gbe-email href="#"></a></p>
     </div>
   </div>
 
@@ -1375,5 +1375,19 @@
     }
   })();
   </script>
+<script>
+  // Contact Registry hydration (CEO rule 2026-07-22) — STANDALONE page (no utils.js),
+  // so hydrate [data-gbe-email] directly from SiteConfig (config.js is loaded above).
+  (function () {
+    'use strict';
+    if (typeof SiteConfig === 'undefined' || !SiteConfig.company || !SiteConfig.company.email) return;
+    var email = SiteConfig.company.email;
+    var nodes = document.querySelectorAll('[data-gbe-email]');
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].tagName === 'A') nodes[i].setAttribute('href', 'mailto:' + email);
+      if (!nodes[i].hasAttribute('data-email-href-only')) nodes[i].textContent = email;
+    }
+  })();
+</script>
 </body>
 </html>

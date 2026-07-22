@@ -429,6 +429,29 @@ const Utils = {
       }
       return originalFetch.call(window, url, opts);
     };
+  },
+
+  /**
+   * Contact Registry hydration (CEO rule 2026-07-22).
+   * Fills every [data-gbe-email] element inside `root` from SiteConfig.company.email —
+   * the single source of truth for the public booking contact. Pages must NEVER
+   * hardcode an address; markup uses:
+   *   <a data-gbe-email></a>                 → href=mailto:X, text=X
+   *   <a data-gbe-email data-email-href-only></a> → href only (keeps custom label/HTML)
+   * Called by PageLoader after each fragment injection. Safe to call repeatedly.
+   * @param {Element} root - container to hydrate (defaults to document)
+   */
+  hydrateContacts: function(root) {
+    if (typeof SiteConfig === 'undefined' || !SiteConfig.company || !SiteConfig.company.email) return;
+    var email = SiteConfig.company.email;
+    var scope = root || document;
+    var nodes = scope.querySelectorAll('[data-gbe-email]');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (el.tagName === 'A') el.setAttribute('href', 'mailto:' + email);
+      if (el.tagName === 'INPUT') { el.setAttribute('placeholder', email); continue; }
+      if (!el.hasAttribute('data-email-href-only')) el.textContent = email;
+    }
   }
 };
 
