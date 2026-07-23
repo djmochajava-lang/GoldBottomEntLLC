@@ -85,6 +85,51 @@
     return map[status] || 'Announced';
   }
 
+  // ── Restacked two-button footer for INTERNAL ticketed shows ──────────────
+  // story-tour-notify (owner-decided 2026-07-22): every internal ticketed card
+  // ALWAYS carries BOTH a state-driven Tickets button AND a Notify Me button
+  // that NEVER disappears. Only the Tickets button's label/enabled-state
+  // changes by ev.status. The footer restacks: price + status on one row, a
+  // full-width ~50/50 two-button row beneath.
+  //
+  // This renderer stays PURE MARKUP — it emits data-gbe-notify attributes but
+  // wires NO behavior. The public tickets page (pages/entertainment/tickets.html)
+  // is the ONLY consumer that wires the modal capture; the BM wizard preview
+  // (dashboard/tickets.html) renders the identical card but never wires an
+  // opt-in, so the button is inert there by construction (see spec §3).
+  //
+  // Per-state matrix (owner-locked):
+  //   announced          → Tickets DISABLED "On sale soon" + Notify "Notify Me"   (wants=onsale)
+  //   on_sale/selling_   → Tickets ENABLED  "Get Tickets"   + Notify "Remind Me"  (wants=reminder)
+  //     fast/almost_
+  //   sold_out           → Tickets DISABLED "Sold Out"      + Notify "Join Waitlist" (wants=waitlist)
+  function ticketedFooter(ev, admissionHtml) {
+    var status = ev.status || 'announced';
+    var ticketsBtn, notifyLabel, wants;
+    if (status === 'sold_out') {
+      ticketsBtn = '<button type="button" class="btn btn-sm tix-cta tix-cta-off" disabled aria-disabled="true">Sold Out</button>';
+      notifyLabel = 'Join Waitlist'; wants = 'waitlist';
+    } else if (status === 'on_sale' || status === 'selling_fast' || status === 'almost_sold_out') {
+      ticketsBtn = '<button type="button" class="btn btn-primary btn-sm shimmer-sweep tix-cta">Get Tickets</button>';
+      notifyLabel = 'Remind Me'; wants = 'reminder';
+    } else { // announced — and ANY unknown status ⇒ safest "not yet on sale"
+      ticketsBtn = '<button type="button" class="btn btn-sm tix-cta tix-cta-off" disabled aria-disabled="true">On sale soon</button>';
+      notifyLabel = 'Notify Me'; wants = 'onsale';
+    }
+    var notifyBtn = '<button type="button" class="btn btn-outline btn-sm tix-cta tix-notify-btn"' +
+      ' data-gbe-notify="1"' +
+      ' data-notify-id="' + escHtml(ev.id) + '"' +
+      ' data-notify-name="' + escHtml(ev.event_name) + '"' +
+      ' data-notify-state="' + escHtml(status) + '"' +
+      ' data-notify-wants="' + wants + '">' + escHtml(notifyLabel) + '</button>';
+    return '<div class="tix-event-card-footer tix-footer-stacked">' +
+        '<div class="tix-footer-info">' + admissionHtml +
+          '<span class="tix-status-chip">' + escHtml(statusChip(status)) + '</span>' +
+        '</div>' +
+        '<div class="tix-footer-actions">' + ticketsBtn + notifyBtn + '</div>' +
+      '</div>';
+  }
+
   /**
    * Render ONE public show card from a readmodel-shaped row.
    * @param {object} ev   readmodel row: id, event_name, event_date, venue_name,
@@ -152,12 +197,17 @@
         '<div class="tix-event-card-meta">' +
           '<span><i class="fa-solid fa-calendar"></i> ' + fmtDate(ev.event_date) + '</span>' +
           '<span><i class="fa-solid fa-location-dot"></i> ' + escHtml(venueLine(ev)) + '</span>' +
-          (isFree || isExternal ? '' : '<span><span class="tix-status-chip">' + escHtml(statusChip(ev.status)) + '</span></span>') +
+          // status chip relocated to the footer info row for internal ticketed
+          // cards (story-tour-notify "price/status on its own row"); free /
+          // external cards never showed it here.
         '</div>' +
-        '<div class="tix-event-card-footer">' +
-          admissionHtml +
-          ctaHtml +
-        '</div>' +
+        // Internal ticketed shows get the restacked two-button footer (Tickets +
+        // Notify Me). Free / external shows keep their single-button footer
+        // UNCHANGED (no Notify Me — a free announcement has nothing to notify,
+        // and an external show's checkout is off-site).
+        ((!isFree && !isExternal)
+          ? ticketedFooter(ev, admissionHtml)
+          : ('<div class="tix-event-card-footer">' + admissionHtml + ctaHtml + '</div>')) +
       '</div></div>';
   }
 
@@ -199,6 +249,38 @@
       '  display: inline-block; font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;' +
       '  letter-spacing: 0.04em; padding: 2px 10px; border-radius: 20px;' +
       '  background: rgba(212,160,23,0.12); color: var(--color-gold); border: 1px solid rgba(212,160,23,0.25);' +
+      '}' +
+      /* story-tour-notify: restacked two-button footer for internal ticketed
+         cards. Row 1 = price + status; Row 2 = Tickets | Notify Me (~50/50). */
+      '.tix-footer-stacked {' +
+      '  flex-direction: column; align-items: stretch; justify-content: flex-start;' +
+      '  gap: var(--space-sm);' +
+      '}' +
+      '.tix-footer-info {' +
+      '  display: flex; align-items: center; justify-content: space-between;' +
+      '  gap: var(--space-xs); flex-wrap: wrap;' +
+      '}' +
+      '.tix-footer-actions { display: flex; gap: var(--space-sm); align-items: stretch; }' +
+      /* 50/50 split; min-width:0 lets flex items shrink so two buttons never
+         clip or overflow the ~297px card footer at a 390px viewport. */
+      '.tix-footer-actions .tix-cta { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; }' +
+      '.tix-cta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }' +
+      /* Legible disabled Tickets CTA — NOT opacity-only (owner: a real text
+         label must stay readable). Overrides .btn:disabled { opacity:.5 }. */
+      '.btn.tix-cta-off, .btn.tix-cta-off:disabled, .btn.tix-cta-off[disabled] {' +
+      '  opacity: 1; color: var(--color-text-secondary);' +
+      '  background: var(--color-bg-tertiary); border-color: var(--color-border);' +
+      '  cursor: default; box-shadow: none; transform: none; pointer-events: none;' +
+      '}' +
+      /* Per-event confirmed pill (localStorage keyed by event id) — swaps in for
+         the Notify Me button on the ONE card the fan signed up for. */
+      '.tix-notify-confirmed {' +
+      '  flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center;' +
+      '  justify-content: center; gap: 6px; min-height: 30px; padding: 6px 8px;' +
+      '  font-size: var(--text-xs); font-weight: 700; color: #3fb950;' +
+      '  border: 1px solid rgba(63,185,80,0.3); border-radius: var(--radius-sm);' +
+      '  background: rgba(63,185,80,0.10); white-space: nowrap; overflow: hidden;' +
+      '  text-overflow: ellipsis;' +
       '}' +
       /* FREE show admission chip (ticket_required=0, S2 owner A2): the card's
          admission model when there is no price row and no checkout. */

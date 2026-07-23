@@ -162,6 +162,10 @@
 
         eventsContainer.querySelectorAll('.tix-event-card').forEach(function(card) {
           card.addEventListener('click', function(e) {
+            // story-tour-notify: a tap on the per-show Notify Me button is
+            // handled by its own listener (opens the capture sheet) — never
+            // treat it as a card tap into the detail view.
+            if (e.target.closest('[data-gbe-notify]')) return;
             // story-external-ticketing-override (slice 4): an external-ticketed
             // show sends buyers to the venue's own link — never the internal
             // detail/checkout. The card's CTA is a real anchor (handles its own
@@ -175,6 +179,14 @@
             showEventDetail(card.dataset.eventId, events);
           });
         });
+
+        // story-tour-notify (Phase 1): restore any per-event confirmed pills
+        // (localStorage keyed by event id) and wire the Notify Me capture sheet.
+        // Wiring lives ONLY here on the public page — the BM wizard preview
+        // renders the same buttons but never calls this, so opt-in is inert
+        // in the admin preview (spec §3).
+        Notify.applyConfirmed(eventsContainer);
+        Notify.wire(eventsContainer);
       })
       .catch(function(err) {
         // Cache unreachable — quiet fallback to the empty state (warn, not error).
@@ -255,6 +267,288 @@
     detailEl.style.display = 'none';
     eventsContainer.style.display = 'grid';
   });
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     story-tour-notify — PER-SHOW "Notify Me" capture (Phase 1: buttons +
+     capture only; the on-sale fanout emailer is Phase 2, InfoSec-gated).
+
+     Owner-locked behavior (project_tour_page_show_cards_2026-07-22):
+       • Per-SHOW opt-in, scoped to the clicked show's event id — NOT a
+         page-level blanket signup. The show-card renderer stamps each Notify
+         Me button with data-notify-id / -name / -state / -wants.
+       • Lightweight bottom-sheet (NOT an inline card expand — never reflow the
+         sibling cards). State-aware copy. Single email + honeypot + Cloudflare
+         Turnstile. NO OTP / no email verification (house rule scopes
+         verification to ticket CHECKOUT only).
+       • Confirmed state stored per event in localStorage keyed by event id, so
+         a fan who signed up for Show A still sees an ACTIVE Notify Me on Show B.
+       • Anon INSERT to the existing Supabase contact_submissions (same path the
+         LAY page uses), free-tier, email-only. raw_doc carries the per-show
+         fields so the Phase-2 emailer can tailor or stay generic.
+     ═══════════════════════════════════════════════════════════════════════ */
+  var Notify = (function() {
+    var KEY_PREFIX = 'gbe-notify-';
+    var TURNSTILE_SITEKEY = '1x00000000000000000000AA';           // Cloudflare test key (always-pass; real key = golive-ops)
+    var TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    var TURNSTILE_SCRIPT_ID = 'gbe-turnstile-api';
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    var COPY = {
+      onsale:   { title: 'Get on-sale alerts', body: 'Get notified the moment tickets for this show go on sale.', cta: 'Notify me' },
+      reminder: { title: 'Set a reminder',     body: 'Remind me before this show — and alert me if tickets start running low.', cta: 'Remind me' },
+      waitlist: { title: 'Join the waitlist',  body: "Join the waitlist — we'll email you if tickets open up for this show.", cta: 'Join waitlist' }
+    };
+    var CONSENT = "We'll only email you about L.A. Young shows. Unsubscribe anytime.";
+
+    var sheet = null, tsWidgetId = null, tsPromise = null;
+
+    function lsKey(id) { return KEY_PREFIX + String(id); }
+    function isConfirmed(id) { try { return !!localStorage.getItem(lsKey(id)); } catch (e) { return false; } }
+    function markConfirmed(id) { try { localStorage.setItem(lsKey(id), '1'); } catch (e) {} }
+
+    function supa() {
+      var sb = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations && SiteConfig.integrations.supabase)
+        ? SiteConfig.integrations.supabase : null;
+      return (sb && sb.url && sb.anonKey) ? sb : null;
+    }
+
+    // Lazy, idempotent Turnstile loader (mirrors js/gbe-buyer-gate.js §3).
+    function ensureTurnstile() {
+      if (window.turnstile) return Promise.resolve(window.turnstile);
+      if (tsPromise) return tsPromise;
+      tsPromise = new Promise(function(resolve, reject) {
+        var script = document.getElementById(TURNSTILE_SCRIPT_ID);
+        if (!script) {
+          script = document.createElement('script');
+          script.id = TURNSTILE_SCRIPT_ID; script.src = TURNSTILE_SRC;
+          script.async = true; script.defer = true;
+          document.head.appendChild(script);
+        }
+        var settled = false, tries = 0;
+        (function poll() {
+          if (settled) return;
+          if (window.turnstile) { settled = true; resolve(window.turnstile); return; }
+          if (++tries > 100) { settled = true; tsPromise = null; reject(new Error('turnstile unavailable')); return; }
+          setTimeout(poll, 100);
+        })();
+        script.addEventListener('error', function() { if (!settled) { settled = true; tsPromise = null; reject(new Error('turnstile load failed')); } });
+      });
+      return tsPromise;
+    }
+
+    function ensureStyles() {
+      if (document.getElementById('gbe-notify-styles')) return;
+      var css =
+        '.gbe-notify-backdrop{position:fixed;inset:0;z-index:10000;display:flex;align-items:flex-end;justify-content:center;' +
+          'background:rgba(0,0,0,0.6);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:gbeNotifyFade .18s ease;}' +
+        '@keyframes gbeNotifyFade{from{opacity:0}to{opacity:1}}' +
+        '@keyframes gbeNotifyUp{from{transform:translateY(28px)}to{transform:translateY(0)}}' +
+        '.gbe-notify-sheet{position:relative;width:100%;max-width:460px;background:var(--color-bg-secondary,#161b22);' +
+          'border:1px solid var(--color-border,#30363d);border-bottom:0;border-radius:16px 16px 0 0;' +
+          'padding:22px 18px calc(18px + env(safe-area-inset-bottom));color:var(--color-text,#f4f4f4);' +
+          'box-shadow:0 -12px 40px rgba(0,0,0,0.45);animation:gbeNotifyUp .2s ease;}' +
+        '@media(min-width:600px){.gbe-notify-backdrop{align-items:center}.gbe-notify-sheet{border-radius:16px;border-bottom:1px solid var(--color-border,#30363d)}}' +
+        '.gbe-notify-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;border-radius:50%;' +
+          'background:transparent;color:var(--color-text-muted,#8b949e);font-size:22px;line-height:1;cursor:pointer;}' +
+        '.gbe-notify-x:hover{color:var(--color-text,#fff);}' +
+        '.gbe-notify-eyebrow{font-size:var(--text-xs,.72rem);letter-spacing:.1em;text-transform:uppercase;' +
+          'color:var(--color-gold,#d4a017);font-weight:700;margin-bottom:4px;padding-right:36px;overflow-wrap:anywhere;}' +
+        '.gbe-notify-sheet h3{margin:0 0 6px;font-size:var(--text-lg,1.1rem);padding-right:36px;}' +
+        '.gbe-notify-body{margin:0 0 14px;color:var(--color-text-secondary,#c9d1d9);font-size:var(--text-sm,.9rem);line-height:1.5;}' +
+        '.gbe-notify-email{width:100%;min-height:46px;padding:.6rem .8rem;font-size:16px;' +
+          'background:rgba(0,0,0,.25);border:1px solid var(--color-border,#30363d);border-radius:8px;' +
+          'color:var(--color-text,#fff);font-family:inherit;}' +
+        '.gbe-notify-email:focus{outline:2px solid var(--color-gold,#d4a017);outline-offset:1px;}' +
+        // Honeypot: off-screen, never focusable, never announced — a bot that
+        // fills it gets a silent no-op (no POST, no localStorage).
+        '.gbe-notify-hp{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;}' +
+        '.gbe-notify-turnstile{margin:12px 0 4px;min-height:0;}' +
+        '.gbe-notify-consent{margin:10px 0 0;color:var(--color-text-muted,#8b949e);font-size:var(--text-xs,.75rem);line-height:1.45;}' +
+        '.gbe-notify-status{margin:10px 0 0;min-height:1.1em;font-size:var(--text-sm,.85rem);color:var(--color-text-secondary,#c9d1d9);}' +
+        '.gbe-notify-status.err{color:#ff9d9d;}' +
+        '.gbe-notify-status.ok{color:#7ee2a0;}' +
+        '.gbe-notify-submit{width:100%;margin-top:14px;min-height:48px;}' +
+        '.gbe-notify-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}';
+      var st = document.createElement('style');
+      st.id = 'gbe-notify-styles'; st.textContent = css;
+      document.head.appendChild(st);
+    }
+
+    function teardownTurnstile() {
+      if (tsWidgetId !== null && window.turnstile && typeof window.turnstile.remove === 'function') {
+        try { window.turnstile.remove(tsWidgetId); } catch (e) {}
+      }
+      tsWidgetId = null;
+    }
+
+    function close() {
+      teardownTurnstile();
+      if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet);
+      sheet = null;
+      document.removeEventListener('keydown', onKeydown);
+    }
+
+    function onKeydown(e) { if (e.key === 'Escape') close(); }
+
+    function open(ds) {
+      // ds: { notifyId, notifyName, notifyState, notifyWants }
+      if (!ds || !ds.notifyId) return;                     // guard: no event id ⇒ nothing to scope to
+      if (isConfirmed(ds.notifyId)) return;                // already signed up for THIS show
+      if (sheet) close();                                  // one sheet at a time
+      ensureStyles();
+      var wants = ds.notifyWants || 'onsale';
+      var copy = COPY[wants] || COPY.onsale;
+      var titleId = 'gbe-notify-title';
+
+      sheet = document.createElement('div');
+      sheet.className = 'gbe-notify-backdrop';
+      sheet.innerHTML =
+        '<div class="gbe-notify-sheet" role="dialog" aria-modal="true" aria-labelledby="' + titleId + '">' +
+          '<button type="button" class="gbe-notify-x" data-notify-close aria-label="Close">&times;</button>' +
+          '<div class="gbe-notify-eyebrow">' + escHtml(ds.notifyName || 'This show') + '</div>' +
+          '<h3 id="' + titleId + '">' + escHtml(copy.title) + '</h3>' +
+          '<p class="gbe-notify-body">' + escHtml(copy.body) + '</p>' +
+          '<form class="gbe-notify-form" novalidate>' +
+            '<label class="gbe-notify-sr" for="gbe-notify-email">Email address</label>' +
+            '<input class="gbe-notify-email" id="gbe-notify-email" type="email" inputmode="email" ' +
+              'autocomplete="email" placeholder="you@email.com" required>' +
+            '<div class="gbe-notify-hp" aria-hidden="true">' +
+              '<label>Company (leave blank)<input type="text" name="company" tabindex="-1" autocomplete="off"></label>' +
+            '</div>' +
+            '<div class="gbe-notify-turnstile"></div>' +
+            '<p class="gbe-notify-consent">' + escHtml(CONSENT) + '</p>' +
+            '<p class="gbe-notify-status" role="status" aria-live="polite"></p>' +
+            '<button type="submit" class="btn btn-primary gbe-notify-submit shimmer-sweep">' + escHtml(copy.cta) + '</button>' +
+          '</form>' +
+        '</div>';
+      document.body.appendChild(sheet);
+      document.addEventListener('keydown', onKeydown);
+
+      var sheetEl = sheet.querySelector('.gbe-notify-sheet');
+      var form = sheet.querySelector('.gbe-notify-form');
+      var emailInput = sheet.querySelector('.gbe-notify-email');
+      var hp = sheet.querySelector('input[name="company"]');
+      var tsHost = sheet.querySelector('.gbe-notify-turnstile');
+      var statusEl = sheet.querySelector('.gbe-notify-status');
+
+      // Backdrop tap closes; sheet tap does not.
+      sheet.addEventListener('click', function(e) { if (e.target === sheet) close(); });
+      sheet.querySelector('[data-notify-close]').addEventListener('click', close);
+
+      // Explicit Turnstile render (token freshest at submit time).
+      ensureTurnstile().then(function(ts) {
+        if (!sheet || !tsHost.isConnected) return;
+        try {
+          tsWidgetId = ts.render(tsHost, {
+            sitekey: TURNSTILE_SITEKEY,
+            size: 'flexible',
+            'error-callback': function() { setStatus(statusEl, 'Having trouble with the human-check — please try again.', 'err'); },
+            'expired-callback': function() { if (window.turnstile) { try { window.turnstile.reset(tsWidgetId); } catch (e) {} } }
+          });
+        } catch (e) { /* render failed ⇒ submit will show the neutral human-check message */ }
+      }).catch(function() { /* library unreachable ⇒ same posture */ });
+
+      setTimeout(function() { if (emailInput) emailInput.focus(); }, 50);
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var email = String(emailInput.value || '').trim();
+        if (!EMAIL_RE.test(email)) { setStatus(statusEl, 'Please enter a valid email address.', 'err'); emailInput.focus(); return; }
+        // Honeypot tripped ⇒ silent success, no POST, no localStorage.
+        if (hp && hp.value) { setStatus(statusEl, "You're on the list.", 'ok'); setTimeout(close, 900); return; }
+        var token = '';
+        try { if (tsWidgetId !== null && window.turnstile) token = window.turnstile.getResponse(tsWidgetId) || ''; } catch (e) { token = ''; }
+        if (!token) { setStatus(statusEl, 'Please complete the human-check below, then tap again.', 'err'); return; }
+
+        var sb = supa();
+        if (!sb) { setStatus(statusEl, 'Unable to sign you up right now — please try again later.', 'err'); return; }
+
+        var submitBtn = form.querySelector('.gbe-notify-submit');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Signing you up…'; }
+        setStatus(statusEl, '', '');
+
+        var iso = new Date().toISOString();
+        var row = {
+          id: 'cs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10),
+          form_type: 'ticket-notify',
+          source: 'gbe-tour-notify',
+          email: email,
+          submitted_at: iso,
+          raw_doc: {
+            formType: 'ticket-notify',
+            source: 'gbe-tour-notify',
+            eventId: ds.notifyId,
+            eventName: ds.notifyName || '',
+            email: email,
+            cardState: ds.notifyState || '',
+            wants: wants,
+            // Turnstile token is a client-side submit gate only (single-use, ~5min TTL) —
+            // deliberately NOT persisted (InfoSec + Data Steward: dead-on-arrival at send time,
+            // and a single-use token must never sit at rest). Phase-2 sender gates on a
+            // one-click confirm link instead.
+            optOut: false,
+            submittedAt: iso
+          }
+        };
+
+        fetch(sb.url + '/rest/v1/contact_submissions', {
+          method: 'POST',
+          headers: {
+            'apikey': sb.anonKey,
+            'Authorization': 'Bearer ' + sb.anonKey,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(row)
+        }).then(function(res) {
+          if (!res.ok) throw new Error('Supabase returned ' + res.status);
+          markConfirmed(ds.notifyId);
+          swapToConfirmed(ds.notifyId);
+          setStatus(statusEl, "You're all set — we'll email you.", 'ok');
+          setTimeout(close, 1100);
+        }).catch(function(err) {
+          console.warn('[Notify] signup failed:', err && err.message);
+          setStatus(statusEl, 'Something went wrong — please try again.', 'err');
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = copy.cta; }
+          if (window.turnstile && tsWidgetId !== null) { try { window.turnstile.reset(tsWidgetId); } catch (e) {} }
+        });
+      });
+    }
+
+    function setStatus(el, msg, cls) { if (el) { el.textContent = msg || ''; el.className = 'gbe-notify-status' + (cls ? ' ' + cls : ''); } }
+
+    // Replace the Notify Me button for ONE event id with the confirmed pill,
+    // leaving that card's Tickets button (and every other card) untouched.
+    function swapToConfirmed(id) {
+      var btns = eventsContainer.querySelectorAll('[data-gbe-notify][data-notify-id="' + (window.CSS && CSS.escape ? CSS.escape(String(id)) : String(id)) + '"]');
+      btns.forEach(function(btn) {
+        var pill = document.createElement('span');
+        pill.className = 'tix-cta tix-notify-confirmed';
+        pill.setAttribute('data-notify-id', String(id));
+        pill.innerHTML = '<i class="fa-solid fa-check"></i> You’ll be notified';
+        if (btn.parentNode) btn.parentNode.replaceChild(pill, btn);
+      });
+    }
+
+    return {
+      // Restore confirmed pills for cards the fan already signed up for (per event).
+      applyConfirmed: function(container) {
+        (container || document).querySelectorAll('[data-gbe-notify]').forEach(function(btn) {
+          if (isConfirmed(btn.getAttribute('data-notify-id'))) swapToConfirmed(btn.getAttribute('data-notify-id'));
+        });
+      },
+      // Attach per-button click handling scoped to the public listing container.
+      wire: function(container) {
+        (container || document).querySelectorAll('[data-gbe-notify]').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();       // never bubble into the card's detail-open handler
+            open(btn.dataset);
+          });
+        });
+      }
+    };
+  })();
 
   // ── Init ──
   loadEvents();
