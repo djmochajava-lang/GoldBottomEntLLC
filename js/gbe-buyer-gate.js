@@ -39,9 +39,13 @@
  *   opts.purpose       {string}   'quote' | 'ticket' | 'booking' (drives copy +
  *                                 the server purpose binding sent in the body)
  *   opts.verifyUrl     {string}   POST target for the verify-link request
+ *   opts.verifyHeaders {object}   extra request headers merged onto the POST
+ *                                 (e.g. a Supabase anon apikey + Authorization)
  *   opts.getEmail      {Function} () => string — read the buyer email LIVE
  *   opts.getContext    {Function} () => object — extra body fields merged into
- *                                 the verify-link POST (undefined values dropped)
+ *                                 the verify-link POST (undefined values dropped;
+ *                                 the host owns every surface-specific field —
+ *                                 eventId, buyerName, fanOptIn, …)
  *   opts.onStateChange {Function} (state) => void — optional host hook
  *                                 ('idle' | 'sending' | 'sent')
  * Returns a controller: { getPass, reset, destroy, emailChanged, refresh }.
@@ -203,6 +207,7 @@
 
     var purpose = PURPOSE_PHRASE[opts.purpose] ? opts.purpose : 'ticket';
     var verifyUrl = opts.verifyUrl;
+    var verifyHeaders = (opts.verifyHeaders && typeof opts.verifyHeaders === 'object') ? opts.verifyHeaders : null;
     var getEmail = (typeof opts.getEmail === 'function') ? opts.getEmail : function () { return ''; };
     var getContext = (typeof opts.getContext === 'function') ? opts.getContext : function () { return {}; };
     var onStateChange = (typeof opts.onStateChange === 'function') ? opts.onStateChange : function () {};
@@ -247,9 +252,15 @@
     }
 
     function post(bodyObj) {
+      var headers = { 'Content-Type': 'application/json' };
+      if (verifyHeaders) {
+        for (var h in verifyHeaders) {
+          if (Object.prototype.hasOwnProperty.call(verifyHeaders, h)) headers[h] = verifyHeaders[h];
+        }
+      }
       return fetchWithTimeout(verifyUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(bodyObj)
       }, REQUEST_TIMEOUT_MS).then(function (res) {
         return res.text().then(function (txt) {
@@ -371,7 +382,9 @@
       var token = readToken();
       if (!token) { setStatus('Please complete the human-check above, then tap again.', true); return; }
 
-      var body = { email: String(getEmail() || '').trim(), purpose: purpose, turnstileToken: token };
+      // Widget owns email + token; the host's getContext() owns every surface-
+      // specific field (eventId, buyerName, fanOptIn — NOT purpose, NOT phone).
+      var body = { email: String(getEmail() || '').trim(), turnstileToken: token };
       var ctx = getContext() || {};
       for (var k in ctx) {
         if (Object.prototype.hasOwnProperty.call(ctx, k) && ctx[k] !== undefined && ctx[k] !== null) {
