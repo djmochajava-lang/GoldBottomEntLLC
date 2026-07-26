@@ -72,7 +72,7 @@
   /* ── Named constants ───────────────────────────────────────────────────── */
   // Cloudflare's documented ALWAYS-PASS TEST sitekey — the ONLY sitekey allowed
   // in shipped client code (the real key swap is an owner-gated golive action).
-  var TURNSTILE_SITEKEY = '1x00000000000000000000AA';
+  var TURNSTILE_SITEKEY = '0x4AAAAAAD-aQ_y9La1yK1HJ';
   var TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
   var TURNSTILE_SCRIPT_ID = 'gbe-turnstile-api';
   var REQUEST_TIMEOUT_MS = 12000; // verify-link call
