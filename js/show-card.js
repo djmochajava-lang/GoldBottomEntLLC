@@ -56,9 +56,20 @@
     }
   }
 
+  /* story-date-tbd-convention (owner 2026-07-26): the publisher emits an
+   * ISO-8601 REDUCED-PRECISION date — 'YYYY-MM' — for any show whose MONTH is
+   * booked but whose DAY is not (the date sibling of NULL venue_name →
+   * "Venue TBA"). Render month + year + an explicit TBD marker; never invent a
+   * weekday/day. Without this branch new Date('2026-12') is UTC midnight and
+   * would print the PREVIOUS month's last day in US timezones. */
   function fmtDate(d) {
     if (!d) return '';
     try {
+      var mo = String(d).match(/^(\d{4})-(\d{2})$/);
+      if (mo) {
+        return new Date(+mo[1], +mo[2] - 1, 1)
+          .toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + ' · Date TBD';
+      }
       // 'YYYY-MM-DD' is a CALENDAR date — parse as local, not UTC midnight
       // (which renders the previous day in US timezones).
       var m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})$/);
