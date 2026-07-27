@@ -89,6 +89,27 @@
   var COPY_TURNSTILE_TROUBLE = 'Having trouble with the human-check — please try again.';
   var COPY_INFO_FIRST = 'Enter your name and email above, then complete the check.';
 
+  /* Escape hatch (owner ruling 2026-07-26). The human-check library is hosted by
+     Cloudflare; some networks (ad-blockers, venue wifi, corporate firewalls) never
+     let it load at all. That path used to end in a permanently disabled button with
+     no explanation — the buyer just left. The hatch routes them to a HUMAN instead.
+     It is NOT a bypass: the verify button stays disabled, no link can be sent
+     without a real token, and enforcement remains server-side. */
+  var HATCH_TAIL = {
+    ticket: 'and we’ll get your tickets sorted.',
+    quote: 'and we’ll pick it up from there.',
+    booking: 'and we’ll pick it up from there.'
+  };
+  var HATCH_SUBJECT = {
+    ticket: 'Help with my ticket order',
+    quote: 'Help with my quote request',
+    booking: 'Help with my booking'
+  };
+  // Which contact-registry key each purpose routes to. Tickets are fan support;
+  // quote/booking are agency business. Never hardcode an address here.
+  var HATCH_CONTACT_KEY = { ticket: 'tickets', quote: 'booking', booking: 'booking' };
+  var COPY_HATCH_STATUS = 'We couldn’t load the human-check on this network.';
+
   /* ── Small helpers ─────────────────────────────────────────────────────── */
   function esc(s) {
     if (s == null) return '';
@@ -96,6 +117,20 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function emailShaped(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim()); }
+
+  /* Contact registry lookup — business addresses are config variables, never
+     literals. This file is a byte-identical twin across LAY and GBE, and the two
+     sites expose different config shapes, so read both and fall back safely.
+     Returns '' when nothing resolves; callers must degrade without a mailto. */
+  function supportEmail(purpose) {
+    var contacts = (global.SITE_CONFIG && global.SITE_CONFIG.contacts) || {};
+    var key = HATCH_CONTACT_KEY[purpose] || 'booking';
+    var addr = contacts[key] || contacts.booking || contacts.tickets || '';
+    if (!addr && global.SiteConfig && global.SiteConfig.company) {
+      addr = global.SiteConfig.company.email || '';
+    }
+    return String(addr || '').trim();
+  }
 
   function fetchWithTimeout(url, opts, ms) {
     var ctrl = new AbortController();
@@ -171,6 +206,12 @@
       'min-height:1.2em;overflow-wrap:anywhere;}' +
     '.gbebg-status.gbebg-err{color:#ff9d9d;}' +
     '.gbebg-turnstile{margin:.6rem 0 0;min-height:1px;}' +
+    '.gbebg-hatch{margin:.6rem 0 0;padding:.7rem .8rem;border-radius:8px;' +
+      'border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);}' +
+    '.gbebg-hatch-copy{margin:0;color:rgba(255,255,255,.78);font-size:.84rem;line-height:1.45;}' +
+    '.gbebg-hatch-link{display:inline-flex;align-items:center;min-height:44px;' +
+      'margin:.2rem 0 0;color:var(--gbebg-accent);font-weight:700;font-size:.88rem;' +
+      'text-decoration:underline;overflow-wrap:anywhere;}' +
     '.gbebg-sent{display:flex;align-items:center;gap:.5rem;' +
       'color:#7ee2a0;font-weight:700;font-size:.95rem;}' +
     '.gbebg-sent .gbebg-tick{font-size:1.1rem;}' +
@@ -343,9 +384,36 @@
               updateBtn();
             }
           });
-        } catch (e) { /* render failure → button stays disabled, no send possible */ }
-      }).catch(function () { /* library unreachable → same posture */ });
+        } catch (e) { renderHatch(); }
+      }).catch(renderHatch);
 
+      updateBtn();
+    }
+
+    /* The human-check could not be reached or rendered. The button stays
+       disabled — this is a route to a human, never a bypass. */
+    function renderHatch() {
+      if (state !== 'idle') return;
+      var host = container.querySelector('.gbebg-turnstile');
+      if (!host || !host.isConnected) return;
+
+      var addr = supportEmail(purpose);
+      var tail = HATCH_TAIL[purpose] || HATCH_TAIL.ticket;
+      var subject = HATCH_SUBJECT[purpose] || HATCH_SUBJECT.ticket;
+
+      host.innerHTML = addr
+        ? '<div class="gbebg-hatch">' +
+            '<p class="gbebg-hatch-copy">Having trouble verifying? Email us ' + esc(tail) + '</p>' +
+            '<a class="gbebg-hatch-link" href="mailto:' + esc(addr) +
+              '?subject=' + encodeURIComponent(subject) + '">' + esc(addr) + '</a>' +
+          '</div>'
+        : '<div class="gbebg-hatch">' +
+            '<p class="gbebg-hatch-copy">Having trouble verifying? Please try again in a ' +
+              'moment — or get in touch and we’ll finish this with you directly.</p>' +
+          '</div>';
+
+      setStatus(COPY_HATCH_STATUS, true);
+      announce(COPY_HATCH_STATUS + (addr ? ' You can email us at ' + addr + ' instead.' : ''));
       updateBtn();
     }
 
