@@ -205,7 +205,14 @@
     '.gbebg-status{margin:.55rem 0 0;font-size:.84rem;color:rgba(255,255,255,.8);' +
       'min-height:1.2em;overflow-wrap:anywhere;}' +
     '.gbebg-status.gbebg-err{color:#ff9d9d;}' +
-    '.gbebg-turnstile{margin:.6rem 0 0;min-height:1px;}' +
+    '.gbebg-turnstile{margin:.35rem 0 0;min-height:1px;}' +
+    /* Placeholder shown INSTEAD of the human-check until there is something to
+       check, so the fan is told what to do rather than shown a green tick they
+       did not earn. Swapped for .gbebg-tslabel + the widget by
+       mountTurnstileIfReady(). */
+    '.gbebg-hint{margin:.6rem 0 0;color:rgba(255,255,255,.55);font-size:.82rem;}' +
+    '.gbebg-tslabel{margin:.6rem 0 .1rem;color:rgba(255,255,255,.62);font-size:.78rem;' +
+      'text-transform:uppercase;letter-spacing:.05em;}' +
     '.gbebg-hatch{margin:.6rem 0 0;padding:.7rem .8rem;border-radius:8px;' +
       'border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);}' +
     '.gbebg-hatch-copy{margin:0;color:rgba(255,255,255,.78);font-size:.84rem;line-height:1.45;}' +
@@ -257,6 +264,9 @@
     var tsWidgetId = null;
     var tsToken = '';
     var sentEmail = '';
+    // Has the human-check been mounted yet? It is deferred until the fan has
+    // entered their info — see mountTurnstileIfReady().
+    var tsMounted = false;
 
     /* page-leave teardown (SPA hash nav swaps the fragment out): remove the
        Turnstile instance so repeat visits never accumulate. */
@@ -284,6 +294,7 @@
       }
       tsWidgetId = null;
       tsToken = '';
+      tsMounted = false;   // a fresh render must re-defer the check
     }
     function resetTurnstile() {
       tsToken = '';
@@ -351,6 +362,8 @@
         '<p class="gbebg-head">' + (isResend ? 'Resend your link' : 'Verify your email') + '</p>' +
         '<p class="gbebg-body">We’ll email you a secure link to finish ' + esc(PURPOSE_PHRASE[purpose]) +
           '. Tap it and you’ll land right back here on the payment step.</p>' +
+        '<p class="gbebg-hint" data-gbebg="hint">Enter your name and email above to continue.</p>' +
+        '<p class="gbebg-tslabel" data-gbebg="tslabel" hidden>Quick check that you’re human</p>' +
         '<div class="gbebg-turnstile"></div>' +
         '<div class="gbebg-btn-row">' +
           '<button type="button" class="gbebg-btn" data-gbebg="verify" disabled>' +
@@ -360,7 +373,32 @@
       );
       container.querySelector('[data-gbebg="verify"]').addEventListener('click', verifyTap);
 
+      tsMounted = false;
+      mountTurnstileIfReady();
+      updateBtn();
+    }
+
+    /* The human-check is deliberately NOT mounted on open. Turnstile in managed
+       mode auto-passes a low-risk visitor and flips straight to "Success!" — so
+       mounting it immediately showed a fan a green success tick before they had
+       typed a single character. That reads as "something already happened" or
+       "this form is broken", on the screen where we can least afford doubt.
+       It now appears only once there is a name and an email to check, with a
+       label saying what it is, so the success state is an answer to something
+       the fan just did. (owner 2026-07-27) */
+    function mountTurnstileIfReady() {
+      if (tsMounted || state !== 'idle') return;
+      if (!hostReady()) return;
+
+      var hint = container.querySelector('[data-gbebg="hint"]');
+      var label = container.querySelector('[data-gbebg="tslabel"]');
       var tsHost = container.querySelector('.gbebg-turnstile');
+      if (!tsHost || !tsHost.isConnected) return;
+
+      tsMounted = true;
+      if (hint) hint.hidden = true;
+      if (label) label.hidden = false;
+
       ensureTurnstile().then(function (ts) {
         if (state !== 'idle') return;
         if (!tsHost || !tsHost.isConnected) return;
@@ -498,8 +536,11 @@
     /* ── Controller ──────────────────────────────────────────────────────── */
     var controller = {
       getPass: function () { return null; }, // never mints a pass (server does)
-      refresh: function () { if (state === 'idle') updateBtn(); },
-      emailChanged: function () { if (state === 'idle') updateBtn(); },
+      // The host calls these on every keystroke in the name/email fields. They
+      // are also what brings the human-check on screen once there is something
+      // to check — see mountTurnstileIfReady().
+      refresh: function () { if (state === 'idle') { mountTurnstileIfReady(); updateBtn(); } },
+      emailChanged: function () { if (state === 'idle') { mountTurnstileIfReady(); updateBtn(); } },
       reset: function () {
         if (state === 'destroyed') return;
         teardownTurnstile();
