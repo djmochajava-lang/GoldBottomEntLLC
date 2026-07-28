@@ -89,6 +89,18 @@
   var COPY_TURNSTILE_TROUBLE = 'Having trouble with the human-check — please try again.';
   var COPY_INFO_FIRST = 'Enter your name and email above, then complete the check.';
 
+  /* Trust + a11y on the deferred human-check (EO follow-ons F3/F4, 2026-07-28).
+     F3: the check APPEARS mid-form after the fan types their info, and in
+     managed mode it can PASS with no interaction — both were silent to
+     assistive tech (the aria-live region stayed empty; only the hatch and
+     send paths announced). Announce both events through the same announce()/
+     .gbebg-live infrastructure those paths already use — mirrored, never a
+     new pattern. F4: an instant unexplained "Success!" reads as fake (the
+     owner's own reaction); the trust line names WHY it was instant. Copy is
+     EO-verbatim — do not reword. */
+  var COPY_CHECK_APPEARING = 'Human verification check appearing below — please complete it to continue.';
+  var COPY_TRUST_VERIFIED = 'Verified automatically — most visitors don’t need to do anything else here.';
+
   /* Escape hatch (owner ruling 2026-07-26). The human-check library is hosted by
      Cloudflare; some networks (ad-blockers, venue wifi, corporate firewalls) never
      let it load at all. That path used to end in a permanently disabled button with
@@ -213,6 +225,9 @@
     '.gbebg-hint{margin:.6rem 0 0;color:rgba(255,255,255,.55);font-size:.82rem;}' +
     '.gbebg-tslabel{margin:.6rem 0 .1rem;color:rgba(255,255,255,.62);font-size:.78rem;' +
       'text-transform:uppercase;letter-spacing:.05em;}' +
+    /* Trust line under the widget once the check passes (EO F4) — the site's
+       quiet-helper idiom (same metrics as .gbebg-hint): prose, not a label. */
+    '.gbebg-trust{margin:.35rem 0 0;color:rgba(255,255,255,.55);font-size:.82rem;}' +
     '.gbebg-hatch{margin:.6rem 0 0;padding:.7rem .8rem;border-radius:8px;' +
       'border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);}' +
     '.gbebg-hatch-copy{margin:0;color:rgba(255,255,255,.78);font-size:.84rem;line-height:1.45;}' +
@@ -279,6 +294,14 @@
       var live = container.querySelector('.gbebg-live');
       if (live) live.textContent = msg || '';
     }
+    /* EO F4 trust line visibility. Shown only while a token is actually held;
+       every path that clears the token (error/expired/server-reject) re-hides
+       it via resetTurnstile() so "Verified automatically" can never sit on
+       screen beside a failed or re-running check. */
+    function setTrustVisible(on) {
+      var el = container.querySelector('[data-gbebg="trust"]');
+      if (el) el.hidden = !on;
+    }
     function setStatus(msg, isErr) {
       var el = container.querySelector('.gbebg-status');
       if (el) {
@@ -298,6 +321,7 @@
     }
     function resetTurnstile() {
       tsToken = '';
+      setTrustVisible(false);
       if (tsWidgetId !== null && global.turnstile && typeof global.turnstile.reset === 'function') {
         try { global.turnstile.reset(tsWidgetId); } catch (e) { /* no-op */ }
       }
@@ -365,6 +389,7 @@
         '<p class="gbebg-hint" data-gbebg="hint">Enter your name and email above to continue.</p>' +
         '<p class="gbebg-tslabel" data-gbebg="tslabel" hidden>Quick check that you’re human</p>' +
         '<div class="gbebg-turnstile"></div>' +
+        '<p class="gbebg-trust" data-gbebg="trust" hidden>' + COPY_TRUST_VERIFIED + '</p>' +
         '<div class="gbebg-btn-row">' +
           '<button type="button" class="gbebg-btn" data-gbebg="verify" disabled>' +
             (isResend ? 'Resend email' : 'Verify email') + '</button>' +
@@ -398,6 +423,8 @@
       tsMounted = true;
       if (hint) hint.hidden = true;
       if (label) label.hidden = false;
+      // EO F3: the check appears mid-form — tell assistive tech, not just eyes.
+      announce(COPY_CHECK_APPEARING);
 
       ensureTurnstile().then(function (ts) {
         if (state !== 'idle') return;
@@ -408,7 +435,14 @@
           tsWidgetId = ts.render(tsHost, {
             sitekey: TURNSTILE_SITEKEY,
             size: narrow ? 'compact' : 'flexible',
-            callback: function (token) { tsToken = token || ''; updateBtn(); },
+            callback: function (token) {
+              tsToken = token || '';
+              // EO F3+F4: the pass is announced AND explained. Cloudflare's own
+              // success card may live in a closed shadow root invisible to AT,
+              // and an unexplained instant pass reads as fake to sighted fans.
+              if (tsToken) { setTrustVisible(true); announce(COPY_TRUST_VERIFIED); }
+              updateBtn();
+            },
             'error-callback': function () {
               tsToken = '';
               setStatus(COPY_TURNSTILE_TROUBLE, true);
