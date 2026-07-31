@@ -523,7 +523,10 @@
       if (!token) { setStatus('Please complete the human-check above, then tap again.', true); return; }
 
       // Widget owns email + token; the host's getContext() owns every surface-
-      // specific field (eventId, buyerName, fanOptIn — NOT purpose, NOT phone).
+      // specific field (eventId, buyerName, fanOptIn, optional buyerPhone —
+      // NOT purpose). D-61 / CTO t1 2026-07-31: buyerPhone rides as a
+      // passenger key only when the fan entered one; hostReady() never
+      // reads it.
       var body = { email: String(getEmail() || '').trim(), turnstileToken: token };
       var ctx = getContext() || {};
       for (var k in ctx) {
