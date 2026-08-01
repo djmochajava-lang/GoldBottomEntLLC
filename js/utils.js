@@ -452,6 +452,17 @@ const Utils = {
       if (el.tagName === 'INPUT') { el.setAttribute('placeholder', email); continue; }
       if (!el.hasAttribute('data-email-href-only')) el.textContent = email;
     }
+    // Ticket-buyer support lane — separate from the B2B booking contact above.
+    // Falls back to the booking address if the key is ever missing, so a link
+    // can never render empty.
+    var tEmail = SiteConfig.company.ticketSupportEmail || email;
+    var tNodes = scope.querySelectorAll('[data-gbe-ticket-email]');
+    for (var j = 0; j < tNodes.length; j++) {
+      var t = tNodes[j];
+      if (t.tagName === 'A') t.setAttribute('href', 'mailto:' + tEmail);
+      if (t.tagName === 'INPUT') { t.setAttribute('placeholder', tEmail); continue; }
+      if (!t.hasAttribute('data-email-href-only')) t.textContent = tEmail;
+    }
   }
 };
 

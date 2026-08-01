@@ -16,6 +16,14 @@ const SiteConfig = {
     // contact. Pages hydrate [data-gbe-email] from this — never hardcode an address.
     // (booking.agent@ is a real provisioned Zoho alias — D-60; distinct from the dead booking@goldbottoment addresses.)
     email: 'booking.agent@goldbottoment-llc.com',
+    // TICKET-BUYER support (the "tickets" rollout step of the config-variable
+    // rule). Deliberately NOT booking.agent@: that is the B2B lane (venues,
+    // promoters, corporate) landing in the CEO's mailbox. A refund request is a
+    // FAN matter, and this alias sits on the sys-mail pipeline mailbox that the
+    // server IMAP-ingests — so requests enter the monitored queue instead of a
+    // personal inbox. Receiving is PROVEN (sibling aliases on the same mailbox
+    // took live mail 2026-07-31). Hydrate via [data-gbe-ticket-email].
+    ticketSupportEmail: 'booking@layoungbandpage.com',
     phone: '(202) 557-8664',
     address: '5000 Thayer Ctr, Oakland, MD 21550',
     state: 'Maryland',
