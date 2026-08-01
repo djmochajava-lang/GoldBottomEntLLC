@@ -4,14 +4,22 @@
 
   The door scanner relocated OFF the public artist page ONTO the role-gated GBE
   staff dashboard. Only authenticated admin / band_manager reach this route
-  (Router ACL 'dashboard-scanner' + sidebar data-roles). The scan ENGINE is
-  unchanged — it reuses the already-built public ticket API:
-    POST https://gbe-tickets.goldbottom.workers.dev/api/v1/tickets/scan
-  the Cloudflare Worker front (permanent, no DNS move — feedback_no_dns_move).
-  That path is on the Worker's strict allowlist, is CSRF-exempt, CORS-allows
-  this origin, and rate-limits 30 scans/min/IP. Server does HMAC QR validation +
-  audit logging (scanned_by). We send NO secrets from the client — the token
-  comes off the QR, the staff name off the authenticated session.
+  (Router ACL 'dashboard-scanner' + sidebar data-roles — UX, not the boundary).
+
+  THE SCAN ENGINE MOVED TO THE CLOUD, 2026-08-01 (story-doorscan-cloud-rehome).
+  Was: POST https://gbe-tickets.goldbottom.workers.dev/api/v1/tickets/scan, a
+  Cloudflare Worker fronting the home-office Express server over a tunnel. Two
+  problems, both now closed:
+    • the path was auth-EXEMPT at the origin, so an unauthenticated POST could
+      burn any ticket, and `scannedBy` came from the request body, so the audit
+      trail was forgeable
+    • a venue door depended on a Mac at the owner's house being awake
+  Now: POST <supabase>/functions/v1/scan-ticket → ticketing.scan_ticket() in
+  hosted Postgres. The client still sends NO secret — the token comes off the QR
+  and the credential is the staff member's OWN Supabase session token, which the
+  edge function resolves to a user and re-checks against public.users for an
+  approved admin/band_manager role. Identity for the audit row is taken from the
+  verified JWT, never from anything this page sends.
 
   Door-list-locality resolution (F6 tension, CTO+InfoSec, this gate): the prior
   "door list stays LAN" note is HONORED for the BULK door-list EXPORT (that stays
@@ -300,9 +308,30 @@
 (function () {
   'use strict';
 
-  /* ── CONFIG — public ticket Worker (remote-reachable; CSRF-exempt) ── */
-  var GBE_API_BASE = 'https://gbe-tickets.goldbottom.workers.dev';
-  var SCAN_URL     = GBE_API_BASE + '/api/v1/tickets/scan';
+  /* ── CONFIG — the door is CLOUD-HOSTED (2026-08-01, story-doorscan-cloud-rehome).
+     Was: https://gbe-tickets.goldbottom.workers.dev/api/v1/tickets/scan, which the
+     Worker proxied over a Cloudflare tunnel to the home-office Express server. That
+     path was anonymously reachable (anyone with the URL could burn a ticket) and it
+     put a Mac at the owner's house in the middle of a venue door. Both are gone:
+     admission now runs in hosted Postgres behind a staff-authenticated edge
+     function, so the door works with the home office switched off.
+
+     THE SCANNER HOLDS NO SECRET. This file ships from the PUBLIC repo to GitHub
+     Pages — a key here would be a published key, and a scanner key opens every
+     ticket. The only credential sent is the staff member's OWN Supabase session
+     token, which the edge function resolves to a real user and re-checks against
+     public.users for an approved admin/band_manager role. ── */
+  function supaCfg() {
+    try {
+      var c = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
+        ? SiteConfig.integrations.supabase : null;
+      return (c && c.url && c.anonKey) ? c : null;
+    } catch (e) { return null; }
+  }
+  function scanUrl() {
+    var c = supaCfg();
+    return c ? c.url.replace(/\/$/, '') + '/functions/v1/scan-ticket' : null;
+  }
   var CAM_EXPLAINED_KEY = 'gbe-scan-cam-explained';
   var ADMIT_RESET_MS = 2500;   // ADMITTED auto-resets to scanning
   var DUP_IGNORE_MS  = 4000;   // ignore the same QR sitting in view
@@ -454,12 +483,50 @@
 
     showResult('is-checking', '', 'Checking…', 'Hold on one second.', tailOf(token), { spinner: true });
 
-    fetchWithTimeout(SCAN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: token, scannedBy: getStaff() || null })
-    }, 8000).then(function (res) {
+    /* The staff member's own session token IS the door credential. Note what is
+       NOT sent: scannedBy. It used to ride in the request body, which meant the
+       audit trail could be attributed to anyone the caller named. The edge
+       function now takes the operator's identity from the verified JWT and
+       ignores anything we'd put here. (InfoSec C2, 2026-08-01.) */
+    var cfg = supaCfg(), url = scanUrl();
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase) ? Auth.getSupabase() : null;
+    if (!cfg || !url || !sb) {
+      _busy = false;
+      showResult('is-offline', '⚠', 'Scanner not signed in',
+        'Sign in to the dashboard on this device, then scan.', tailOf(token), { retry: true });
+      return;
+    }
+
+    sb.auth.getSession().then(function (r) {
+      var tokenJwt = r && r.data && r.data.session && r.data.session.access_token;
+      if (!tokenJwt) {
+        showResult('is-offline', '⚠', 'Session expired',
+          'Sign in again on this device, then scan.', tailOf(token), { retry: true });
+        return;
+      }
+      return fetchWithTimeout(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + tokenJwt,
+          'apikey': cfg.anonKey
+        },
+        body: JSON.stringify({ token: token })
+      }, 8000).then(function (res) {
       return readJson(res).then(function (body) {
+        /* Fail CLOSED on an authorization problem — never fall through to a
+           local "probably fine" admit. A door that admits when it cannot check
+           is worse than a door that stops. (InfoSec C8.) */
+        if (res.status === 401) {
+          showResult('is-offline', '⚠', 'Session expired',
+            'Sign in again on this device, then scan.', tailOf(token), { retry: true });
+          return;
+        }
+        if (res.status === 403) {
+          showResult('is-offline', '⛔', 'Not authorized for the door',
+            'This account can\'t scan tickets. Ask an admin.', tailOf(token), { next: true });
+          return;
+        }
         if (res.status === 429) {
           showResult('is-offline', '⏳', 'Scanning too fast',
             'Give it a few seconds, then retry.', tailOf(token), { retry: true, next: true });
@@ -476,6 +543,7 @@
           return;
         }
         renderScanOutcome(body, token);
+      });
       });
     }).catch(function () {
       showResult('is-offline', '⚠', 'Connection lost',
