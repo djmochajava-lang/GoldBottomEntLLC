@@ -158,8 +158,13 @@ const Auth = {
         this._verifySession().then(function(result) {
           Auth._initializing = false;
 
-          if (result.valid) {
-            // PIN session is valid — we're authenticated!
+          // R-1 (CEO, 2026-08-02): admin exists ONLY on the LAN dashboard. There is no
+          // admin function on the public site, so there is nothing to grant there. The PIN
+          // endpoint is already private-IP-restricted server-side; this is the client-side
+          // half of the same rule, so a stray session token cannot establish admin on
+          // goldbottoment-llc.com.
+          if (result.valid && Auth.isLocalDashboard()) {
+            // PIN session is valid AND we are on the LAN dashboard — authenticated.
             Auth._isPinAuth = true;
             Auth._authorized = true;
             Auth._registrationStatus = 'approved';
@@ -441,23 +446,33 @@ const Auth = {
             Auth._showLoginError('Your access request has been denied.');
           }
         }).catch(function(err) {
+          // FAIL CLOSED (CEO ruling R-1, 2026-08-02).
+          //
+          // This branch used to grant admin — role, activeRole, linkedRoles AND a cache
+          // write — whenever the registration lookup rejected. It was authorised by
+          // IDP-001 §7.2 on the stated premise that this artifact was LAN-only. It is not:
+          // this file ships to GitHub Pages. §7.2 is VOID; see the note in
+          // docs/firebase-identity-provider-policy.md.
+          //
+          // Two things made it worse than a stale allowance. The lookup no longer talks to
+          // Firestore at all — _db is a Firestore-SHAPED ADAPTER over Supabase (see
+          // _makeSupabaseDbAdapter), so the rejection this catches is a Supabase/cache
+          // failure, i.e. an ordinary outage. And the grant was written to AuthCache, so it
+          // outlived the request that produced it.
+          //
+          // The approval gate is the only thing between an arbitrary signed-in federated
+          // account and the dashboard. An error in that gate must deny.
           console.error('[Auth] Registration check failed:', err);
-          // Fail open for Firestore errors — allow access so site isn't broken
-          // Log fail-open event per IDP-001 §7.2
-          console.warn('[Auth] FAIL-OPEN: Granting temporary access due to Firestore error');
-          Auth._authorized = true;
-          Auth._registrationStatus = 'approved';
-          Auth._role = 'admin';
-          Auth._linkedRoles = ['admin'];
-          Auth._activeRole = 'admin';
+          console.warn('[Auth] FAIL-CLOSED: access denied — the approval check could not be completed.');
+          Auth._authorized = false;
+          Auth._registrationStatus = null;
           Auth._initializing = false;
+          if (typeof AuthCache !== 'undefined') AuthCache.clear();
           Auth._hideAuthLoading();
-          if (typeof AuthCache !== 'undefined') {
-            AuthCache.write({ role: 'admin', activeRole: 'admin', linkedRoles: ['admin'], authorized: true });
-          }
+          if (Auth._auth && Auth._auth.signOut) Auth._auth.signOut();
+          Auth._showLoginError('We could not verify your access just now. Please try again in a moment.');
           document.dispatchEvent(new CustomEvent('gbe:auth-ready'));
-          Auth._updateUI(user);
-          Auth._notifyListeners(user);
+          Auth._notifyListeners(null);
         });
       } else {
         Auth._authorized = false;
@@ -1238,6 +1253,13 @@ const Auth = {
       return response.json().then(function(data) {
         if (!response.ok) {
           return { success: false, message: data.message || 'Authentication failed' };
+        }
+
+        // R-1 (CEO, 2026-08-02): PIN auth is the LAN admin path and only the LAN admin
+        // path. Refuse to establish admin off-LAN even if the server somehow answered.
+        if (!Auth.isLocalDashboard()) {
+          console.warn('[Auth] PIN auth refused: admin does not exist on the public site.');
+          return { success: false, message: 'PIN sign-in is only available on the home network.' };
         }
 
         // Success — store token and set auth state

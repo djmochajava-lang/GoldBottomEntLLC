@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.08.01-0325.04f9911';
+var GBE_BUILD = '2026.08.02-2039.f2f97d8';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': '8fcda4a8cfbff5da7a66f651eeb6846eb8c4cf23058006c3ff06dd3e99789e54',
@@ -25,19 +25,19 @@ var ASSET_HASHES = {
   './css/dashboard.css': 'c70fe8411bbcce30dcfd574301e7423f21113174f99c56fa3d3eb9863f9ca033',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': 'bee3150eedac7fbb0a0910c42682f196dee864c7da6dfeea0f29110ea3b8bbe7',
-  './js/build.js': 'cbffe6a5c6477b621793d257daf4ef27aaad171a473cea2dbbe1f5be085f66e9',
+  './js/build.js': '8fa15a41b331f126dcd951c2e060c720d03158a4c4ac2eb98e37266382fc64cb',
   './js/config.js': '3a1c13c57f5d2eabada50937b9bb90c3ea5529b2506ad8b11bb215de85556842',
   './js/utils.js': '49dc7ead1f12a1d817f2a1d182ced257c2c0842f6fd649444d7687ad2be95c38',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
   './js/toast.js': '74bfec8e52dbd0cc437b09851756f642d268ba21c2b28cd3563c3ca703f146f4',
   './js/modal.js': '0954ed6565e7e66c7b4bd2999106986eb2856efe63f1f8c199c2c4212f48361a',
-  './js/auth.js': 'fff9722c052c1bbbb4404299b68c236a17035fa3c745c5b3bbdf6fc20b732c2f',
+  './js/auth.js': '9c62ddfe931b63d7cc3799554190c9d82e450c0df9a5c79b3523eabf64ad4b4e',
   './js/page-loader.js': '4148f5c97d106c034f9524723b5838342c028fc6eceff6b76f9cf34ecc34330a',
   './js/scroll-animations.js': '8432cbd23b9bd38d07f0a081a1cafc8cdc30ef55f9f6b2c7a4cca4db6cc9cef1',
   './js/router.js': 'f8cfee182628ff87003e568a953d9a3e4fb021b0580b83208112b296efac801c',
   './js/navigation.js': 'a18c890b22580388af444e9b164935d0e7bd8589dfcbe9a4899cea2b78893254',
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
-  './js/auth-cache.js': '6042f6a875e3d6846be70e3b733b6398e680ec1a1448a6e64efd983bb87de5f6',
+  './js/auth-cache.js': '4790c386f084a9764f7fda46348c6846b3bdab7e0fce536cf59b7b516c6588d2',
   './js/sidebar-v2.js': '822146e4ef9d261bc58bf0de5f51121d14541dc4adb85e4b67ca295e2e947e21',
   './js/data-store.js': 'c677aa4a3f4fd618d133313057505f1254526fd43c58c18e1b8450582f3e5aba',
   './js/forms.js': '8f7e8303d873734db662a8d532163eeffe649528186877dc90b92f71f8841750',

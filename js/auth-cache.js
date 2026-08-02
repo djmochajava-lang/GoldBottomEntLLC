@@ -24,7 +24,13 @@
  */
 
 const AuthCache = {
-  STORAGE_KEY: 'gbe-auth-cache-v2', // -v2 invalidates stale 24h-TTL entries from the reverted experiment
+  // -v3 (CEO ruling R-1, 2026-08-02) invalidates EVERY cached grant written before the
+  // auth fail-open was closed. The removed branch wrote {role:'admin', authorized:true}
+  // here on any registration-check error, so a code fix alone would have left live admin
+  // grants sitting in users' localStorage until they expired. Bumping the key abandons
+  // them all on deploy — the same technique the -v2 bump used, and the reason the key is
+  // versioned at all. Do not reuse -v2.
+  STORAGE_KEY: 'gbe-auth-cache-v3',
   TTL: 5 * 60 * 1000, // 5 minutes (reverted from 24h — see header: caused iOS Safari login loop)
 
   /**
