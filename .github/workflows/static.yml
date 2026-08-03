@@ -33,11 +33,96 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
+      # ────────────────────────────────────────────────────────────────────
+      # G-6 / CEO Directive 02, item 2.1 — PUBLICATION IS OPT-IN.
+      #
+      # This workflow used to upload `path: '.'`, i.e. the entire repository.
+      # Publication was opt-OUT, so every file ever committed to the repo root
+      # became a live URL on https://goldbottoment-llc.com and the exposure
+      # grew with every commit. Verified live on 2026-08-02, all HTTP 200:
+      #   /.claude/settings.local.json  /BIO_B_UI_REPORT.md
+      #   /BIO_B_DOC_INTAKE_UI_REPORT.md  /docs/login-perf-handoff.md
+      #   /docs/v2-menu-design.md  /tools/GBEServerManager/Program.cs  /.gitignore
+      #
+      # Nothing reaches the production domain unless it is named below.
+      # Adding a file to the repo does NOT publish it. Adding a NEW top-level
+      # site asset means adding it to PUBLISH_FILES / PUBLISH_DIRS here.
+      # ────────────────────────────────────────────────────────────────────
+      - name: Build publish directory (explicit allowlist)
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+
+          # Top-level files the live site serves.
+          PUBLISH_FILES=(
+            CNAME            # GitHub Pages custom domain — required
+            index.html       # SPA shell
+            robots.txt
+            sitemap.xml
+            sw.js            # service worker (must be at origin root for full scope)
+          )
+
+          # Directories the live site loads from. Verified against index.html,
+          # sw.js PRECACHE_ASSETS, sitemap.xml and the page fragments.
+          PUBLISH_DIRS=(
+            css              # 8 stylesheets + band-player-v2.css
+            dashboard        # dashboard fragments fetched by PageLoader
+            images           # logo, hero, talent, merch
+            js               # all modules incl. js/vendor + js/band-player-v2
+            pages            # public page fragments (root / entertainment / enterprise)
+          )
+
+          for f in "${PUBLISH_FILES[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "::error::allowlisted file is missing from the checkout: $f"
+              exit 1
+            fi
+            cp -p "$f" _site/
+          done
+
+          for d in "${PUBLISH_DIRS[@]}"; do
+            if [ ! -d "$d" ]; then
+              echo "::error::allowlisted directory is missing from the checkout: $d"
+              exit 1
+            fi
+            cp -a "$d" _site/
+          done
+
+          # Scrub file types that must never be public even when they live
+          # inside an allowlisted directory (internal notes dropped next to
+          # assets, macOS/ExFAT sidecars from the working volume).
+          find _site \( \
+                 -name '*.md'  -o -name '*.markdown' -o \
+                 -name '*.ps1' -o -name '*.sh'       -o \
+                 -name '.env*' -o -name '*.pem'      -o -name '*.key' -o \
+                 -name '._*'   -o -name '.DS_Store'  -o -name 'Thumbs.db' \
+               \) -type f -print -delete
+
+      - name: Verify no internal file reached the artifact
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r p; do
+            case "$p" in
+              *.md|*.ps1|*.sh|*.cs|*.csproj|*/.env*|*.pem|*.key|*/._*|*/.DS_Store)
+                echo "::error::forbidden file in publish artifact: $p"; fail=1 ;;
+              _site/.claude/*|_site/.github/*|_site/server/*|_site/docs/*|_site/tools/*)
+                echo "::error::forbidden path in publish artifact: $p"; fail=1 ;;
+            esac
+          done < <(find _site -type f)
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::publish artifact rejected — fix the allowlist above"
+            exit 1
+          fi
+          echo "publish artifact OK — $(find _site -type f | wc -l) files"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: '.'
+          # Allowlisted publish directory ONLY — never the repository root.
+          path: '_site'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

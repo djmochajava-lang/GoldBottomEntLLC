@@ -62,11 +62,17 @@
   // "stems/<songId>/<stem>.aac"; build the Worker URL from the key. The bucket
   // stays private — the Worker authorizes + streams; no R2 key in the browser.
   var STEM_WORKER_BASE = 'https://gbe-stem-media.goldbottom.workers.dev';
+  // Shared read token for the stem Worker. Deliberately NOT a secret: this is a
+  // static public site, so anyone can read it from source. It is anti-scraping
+  // friction on a private bucket that was previously wide open, and it MUST equal
+  // the Worker's STEM_TOKEN or every stem load 403s. Sent as ?t= rather than a
+  // header because bp2-stems.js uses new Audio(url), which cannot carry headers.
+  var STEM_TOKEN = 'd4447eaca21ea24472b5490de4bc619ecb598036bdd1e803';
   function _stemUrl(keyOrPath) {
     var k = String(keyOrPath || '');
     if (k.indexOf('http://') === 0 || k.indexOf('https://') === 0) return k; // already a full URL
     k = k.replace(/^band-media\//, '').replace(/^\/+/, '');                   // strip legacy prefix / leading slash
-    return STEM_WORKER_BASE + '/' + k;
+    return STEM_WORKER_BASE + '/' + k + (STEM_TOKEN ? '?t=' + encodeURIComponent(STEM_TOKEN) : '');
   }
 
   // ── Event Bus ────────────────────────────────
