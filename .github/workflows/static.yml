@@ -90,28 +90,88 @@ jobs:
             cp -a "$d" _site/
           done
 
-          # Scrub file types that must never be public even when they live
-          # inside an allowlisted directory (internal notes dropped next to
-          # assets, macOS/ExFAT sidecars from the working volume).
-          find _site \( \
-                 -name '*.md'  -o -name '*.markdown' -o \
-                 -name '*.ps1' -o -name '*.sh'       -o \
-                 -name '.env*' -o -name '*.pem'      -o -name '*.key' -o \
-                 -name '._*'   -o -name '.DS_Store'  -o -name 'Thumbs.db' \
-               \) -type f -print -delete
+          # PUBLICATION IS AN ALLOWLIST ALL THE WAY DOWN.
+          #
+          # This used to scrub by extension DENYLIST, and a denylist inside an
+          # allowlist is just a denylist. InfoSec measured the consequence on
+          # 2026-08-03: seven non-site files were live HTTP 200 in production —
+          # images/merch/merch-set-index.csv, images/merch/pipeline/merch-delivery-manifest.csv,
+          # images/merch/rename-map-20260308.csv, pages/gallery.html.bak,
+          # pages/music.html.bak, pages/The_Music_Money_Myth.docx,
+          # pages/LAYoungMusicPlayer.tpl — plus 156 *.download files from a saved-page
+          # dump. The .md in images/merch/pipeline/ was scrubbed; the .csv sitting
+          # beside it was not, because nobody had thought of .csv.
+          #
+          # So the rule is inverted: inside a published directory, a file survives
+          # only if its extension is one the web actually serves. A future
+          # roster-contacts.csv, notes.txt, keys.json or backup.sql is dropped by
+          # default rather than by having been predicted.
+          #
+          # PUBLISH_EXT is consumed by BOTH this scrub and the verify step below.
+          # One list, two consumers, deliberately — a scrub and a verifier that
+          # drift apart is how the .csv survived a gate that claimed to catch it.
+          PUBLISH_EXT='html|htm|css|js|mjs|json|map|jpg|jpeg|png|gif|svg|webp|avif|ico|bmp|woff|woff2|ttf|otf|eot|mp3|m4a|aac|wav|ogg|oga|opus|flac|mp4|webm|mov|vtt|srt|pdf|txt|xml|webmanifest'
+
+          # Case-insensitive: README.MD and DEPLOY.PS1 must not survive on a
+          # technicality. Extensionless files are dropped too — nothing the sites
+          # serve lacks an extension.
+          # SCOPED TO THE COPIED DIRECTORIES ONLY. PUBLISH_FILES above is already an
+          # explicit per-file allowlist, so re-filtering it by extension buys nothing
+          # and costs everything: CNAME has no extension, and a dry-run of the naive
+          # version dropped it — which would have taken the custom domain off both
+          # sites. The directories are what need the filter, because their CONTENTS
+          # are not individually named.
+          for d in "${PUBLISH_DIRS[@]}"; do
+            [ -d "_site/$d" ] || continue
+            find "_site/$d" -type f
+          done | while IFS= read -r f; do
+            base=${f##*/}
+            case "$base" in
+              *.*) ext=${base##*.} ;;
+              *)   ext='' ;;
+            esac
+            lower=$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')
+            if ! printf '%s' "$lower" | grep -qxE "$PUBLISH_EXT"; then
+              echo "scrubbed (not a published file type): $f"
+              rm -f "$f"
+            fi
+          done
+          find _site -type d -empty -delete || true
 
       - name: Verify no internal file reached the artifact
         run: |
           set -euo pipefail
+          # Same allowlist the scrub used. If these two ever disagree, the gate is
+          # decorative — that is precisely how the .csv shipped past a step named
+          # "verify no internal file reached the artifact".
+          PUBLISH_EXT='html|htm|css|js|mjs|json|map|jpg|jpeg|png|gif|svg|webp|avif|ico|bmp|woff|woff2|ttf|otf|eot|mp3|m4a|aac|wav|ogg|oga|opus|flac|mp4|webm|mov|vtt|srt|pdf|txt|xml|webmanifest'
+          # Re-derive the directory list from the artifact itself so this step cannot
+          # drift from the build step's PUBLISH_DIRS.
+          PUBLISH_DIRS=()
+          while IFS= read -r d; do PUBLISH_DIRS+=("$(basename "$d")"); done < <(find _site -maxdepth 1 -mindepth 1 -type d)
           fail=0
           while IFS= read -r p; do
+            base=${p##*/}
+            case "$base" in
+              *.*) ext=${base##*.} ;;
+              *)   ext='' ;;
+            esac
+            lower=$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')
+            if ! printf '%s' "$lower" | grep -qxE "$PUBLISH_EXT"; then
+              echo "::error::file type not publishable: $p"; fail=1
+            fi
             case "$p" in
-              *.md|*.ps1|*.sh|*.cs|*.csproj|*/.env*|*.pem|*.key|*/._*|*/.DS_Store)
-                echo "::error::forbidden file in publish artifact: $p"; fail=1 ;;
               _site/.claude/*|_site/.github/*|_site/server/*|_site/docs/*|_site/tools/*)
                 echo "::error::forbidden path in publish artifact: $p"; fail=1 ;;
             esac
-          done < <(find _site -type f)
+          done < <(for d in "${PUBLISH_DIRS[@]}"; do [ -d "_site/$d" ] && find "_site/$d" -type f; done)
+          # Root files are verified by name, not by extension — CNAME legitimately has none.
+          while IFS= read -r p; do
+            case "$p" in
+              _site/.claude/*|_site/.github/*|_site/server/*|_site/docs/*|_site/tools/*)
+                echo "::error::forbidden path in publish artifact: $p"; fail=1 ;;
+            esac
+          done < <(find _site -maxdepth 1 -type f)
           if [ "$fail" -ne 0 ]; then
             echo "::error::publish artifact rejected — fix the allowlist above"
             exit 1
