@@ -17,10 +17,10 @@
       <i class="fa-solid fa-diagram-project"></i> Pipeline
       <span id="tab-count-pipeline" style="margin-left:6px;padding:1px 8px;border-radius:var(--radius-full);font-size:0.7rem;background:rgba(63,185,80,0.15);color:#3fb950;">0</span>
     </button>
-    <button class="booking-tab" data-tab="quotes" style="padding:var(--space-sm) var(--space-lg);font-size:var(--text-sm);font-weight:600;border:none;background:none;cursor:pointer;color:var(--color-text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 150ms ease;">
-      <i class="fa-solid fa-file-invoice-dollar"></i> Quotes
-      <span id="tab-count-quotes" style="margin-left:6px;padding:1px 8px;border-radius:var(--radius-full);font-size:0.7rem;background:rgba(88,166,255,0.15);color:#58a6ff;">0</span>
-    </button>
+    <!-- The standalone "Quotes" tab and its Firestore-backed read are retired: no
+         Firestore/Firebase calls remain here. Quotes are authored and tracked inside
+         each inquiry's detail (the guided stepper + resumable "Quote in progress"
+         chip). Do not re-add a Firestore-backed quotes tab. -->
   </div>
 
   <!-- ==================== INQUIRIES TAB ==================== -->
@@ -145,12 +145,7 @@
     </div>
   </div>
 
-  <!-- ==================== QUOTES TAB ==================== -->
-  <div id="tab-quotes" class="booking-tab-content" style="display:none;">
-    <div id="quotes-list-container" style="margin-bottom:var(--space-lg);">
-      <p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Loading quotes...</p>
-    </div>
-  </div>
+  <!-- Quotes tab retired — see the note in the tab bar above (no Firebase). -->
 
   <!-- Venue Database -->
   <div class="glass-card" style="margin-top:var(--space-lg);">
@@ -263,6 +258,95 @@
   function hexToRGB(hex) {
     hex = hex.replace('#','');
     return parseInt(hex.substring(0,2),16)+','+parseInt(hex.substring(2,4),16)+','+parseInt(hex.substring(4,6),16);
+  }
+
+  /* ==================================================================
+     REQUEST-SUMMARY HUMANIZATION
+     The band manager reads the customer's own selections in plain English before
+     acting. Values arrive on booking_inquiry_readmodel as bands/slugs
+     (guest_count '100-250', budget_range '5000-10000', package_pref 'full-band',
+     event_type 'gala'); these maps turn them into reading copy and, for budget,
+     into a numeric band for the beside-the-quote mismatch signal. Never any price,
+     rate, or internal cost — only the customer's stated inputs.
+     ================================================================== */
+  function _tc(s) { return String(s || '').replace(/[-_]/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }); }
+
+  // guest_count band → reading label (matches quote.html #quote-guests option set).
+  var GUEST_BAND_LABELS = {
+    'under-50': 'Under 50 guests', '50-100': '50–100 guests', '100-250': '100–250 guests',
+    '250-500': '250–500 guests', '500-1000': '500–1,000 guests', '1000-plus': '1,000+ guests'
+  };
+  function guestBandLabel(b) { if (!b) return ''; return GUEST_BAND_LABELS[b] || (_tc(b) + ' guests'); }
+
+  // budget_range band → { label, min, max } (matches quote.html #quote-budget option set).
+  // 'discuss'/absent carry no numeric band → no mismatch comparison, shown as words.
+  var BUDGET_BANDS = {
+    'under-1000':  { label: 'Under $1,000',      min: 0,     max: 1000 },
+    '1000-2500':   { label: '$1,000 – $2,500',   min: 1000,  max: 2500 },
+    '2500-5000':   { label: '$2,500 – $5,000',   min: 2500,  max: 5000 },
+    '5000-10000':  { label: '$5,000 – $10,000',  min: 5000,  max: 10000 },
+    '10000-plus':  { label: '$10,000+',          min: 10000, max: Infinity },
+    'discuss':     { label: 'Prefers to discuss', min: null, max: null }
+  };
+  function budgetBandInfo(b) { if (!b) return null; return BUDGET_BANDS[b] || { label: _tc(b), min: null, max: null }; }
+
+  // package_pref slug → the customer-facing label (reuses the QUOTE_PACKAGES catalog
+  // defined for the stepper; assigned before any click handler runs). Never a raw key.
+  function packageLabelFor(key) {
+    if (!key) return '';
+    if (typeof QUOTE_PACKAGES !== 'undefined') {
+      for (var i = 0; i < QUOTE_PACKAGES.length; i++) if (QUOTE_PACKAGES[i].key === key) return QUOTE_PACKAGES[i].label;
+    }
+    return _tc(key);
+  }
+  // A package_pref is stepper-prefillable only if it is a known package key.
+  function _pkgKeyFromPref(pref) {
+    if (!pref || typeof QUOTE_PACKAGES === 'undefined') return null;
+    for (var i = 0; i < QUOTE_PACKAGES.length; i++) if (QUOTE_PACKAGES[i].key === pref) return pref;
+    return null;
+  }
+
+  /**
+   * The request SUMMARY CARD. Field-presence-driven: renders only the structured
+   * columns that exist on the inquiry read-model row and returns '' (zero height,
+   * no empty box) when a row carries none (e.g. a plain contact-form submission).
+   * Human labels + humanized values; the package renders via the label catalog,
+   * bands via the maps above — never a raw slug. Notes are shown here once
+   * (labeled); openInquiryDetail de-dupes the raw body when it equals these notes
+   * so the same text never appears twice.
+   */
+  function renderInquirySummaryCard(r) {
+    if (!r) return '';
+    var rows = [];
+    function row(icon, label, value) {
+      if (value == null || String(value).trim() === '') return;
+      rows.push(
+        '<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;">' +
+          '<i class="fa-solid ' + icon + '" style="color:var(--color-gold);width:16px;text-align:center;margin-top:3px;flex-shrink:0;"></i>' +
+          '<div style="min-width:0;flex:1;">' +
+            '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-text-muted);">' + label + '</div>' +
+            '<div style="font-size:var(--text-sm);color:var(--color-text);font-weight:500;word-break:break-word;">' + esc(value) + '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+    row('fa-calendar-day', 'Event Date', r.event_date);
+    row('fa-star',         'Event Type', r.event_type ? _tc(r.event_type) : '');
+    row('fa-location-dot', 'Venue',      r.venue_name);
+    row('fa-users',        'Guests',     r.guest_count ? guestBandLabel(r.guest_count) : '');
+    row('fa-music',        'Package',    r.package_pref ? packageLabelFor(r.package_pref) : '');
+    var b = budgetBandInfo(r.budget_range);
+    row('fa-sack-dollar',  'Budget',     b ? b.label : '');
+    row('fa-note-sticky',  'Notes',      r.event_notes);
+    if (!rows.length) return ''; // nothing structured on this row — collapse entirely
+    return '<div id="inq-request-summary" data-testid="inq-request-summary" ' +
+      'style="margin-bottom:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);' +
+      'background:var(--color-bg);border:1px solid var(--color-border);">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-xs);">' +
+        '<i class="fa-solid fa-clipboard-list" style="color:var(--color-gold);"></i>' +
+        '<strong style="font-size:var(--text-base);">Their request</strong></div>' +
+      '<div style="display:grid;grid-template-columns:1fr;gap:0;">' + rows.join('') + '</div>' +
+    '</div>';
   }
 
   /* ---- Email Protocol (which email to use at each stage) ---- */
@@ -629,6 +713,13 @@
       }
       html += '</div>';
 
+      // ── The request SUMMARY CARD, at the very top of the detail (SEE precedes ACT)
+      //    — above the Create-a-Quote CTA, before the free-text body. Field-presence-
+      //    driven: renders '' (nothing) for rows with no structured intake, so a plain
+      //    contact-form submission shows no empty box. The detail now shows WHAT they
+      //    asked for, not just action buttons.
+      html += renderInquirySummaryCard(r);
+
       // ── Buyer counter (change-request) card — story-quote-revision-and-bm-surface (EO N1).
       // When a buyer clicks "Request a change" on their quote, the counter lands on the
       // deal and surfaces HERE (the manager-only inquiry read-model carries reason + note;
@@ -675,12 +766,24 @@
       html += '<div style="color:var(--color-text-muted);font-weight:600;">Received</div><div>' + new Date(r.received_at || r.created_at).toLocaleString() + '</div>';
       html += '</div>';
 
-      // Body (remote read-model carries body_preview; LAN carries full body_text)
+      // Body (remote read-model carries body_preview; LAN carries full body_text).
+      // Avoid duplicating the Notes field verbatim: when the raw body is the same text
+      // already shown as "Notes" in the summary card, subordinate it under a collapsed
+      // disclosure instead of repeating it; otherwise show it as before.
       var bodyFull = r.body_text || r.body_preview;
       if (bodyFull) {
-        html += '<div style="margin-bottom:var(--space-md);padding:var(--space-md);background:var(--color-bg);border-radius:var(--radius-sm);border:1px solid var(--color-border);">';
-        html += '<div style="font-size:0.82rem;color:var(--color-text-muted);white-space:pre-wrap;line-height:1.6;max-height:300px;overflow-y:auto;">' + esc(bodyFull) + '</div>';
-        html += '</div>';
+        var _notes = (r.event_notes != null) ? String(r.event_notes).trim() : '';
+        var _isDupeOfNotes = _notes && String(bodyFull).trim() === _notes;
+        if (_isDupeOfNotes) {
+          html += '<details style="margin-bottom:var(--space-md);">' +
+            '<summary style="cursor:pointer;font-size:0.8rem;color:var(--color-text-muted);padding:var(--space-xs) 0;">Full message</summary>' +
+            '<div style="margin-top:var(--space-xs);padding:var(--space-md);background:var(--color-bg);border-radius:var(--radius-sm);border:1px solid var(--color-border);">' +
+            '<div style="font-size:0.82rem;color:var(--color-text-muted);white-space:pre-wrap;line-height:1.6;max-height:300px;overflow-y:auto;">' + esc(bodyFull) + '</div></div></details>';
+        } else {
+          html += '<div style="margin-bottom:var(--space-md);padding:var(--space-md);background:var(--color-bg);border-radius:var(--radius-sm);border:1px solid var(--color-border);">';
+          html += '<div style="font-size:0.82rem;color:var(--color-text-muted);white-space:pre-wrap;line-height:1.6;max-height:300px;overflow-y:auto;">' + esc(bodyFull) + '</div>';
+          html += '</div>';
+        }
       }
 
       // Contact actions (BI-C5) — Email always; Call/Text only when phone present. Renders on BOTH local + remote.
@@ -2121,7 +2224,7 @@
               var fmt = '$' + parseFloat(total).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
               if (resultEl) resultEl.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#3fb950;margin-right:4px;"></i> Quote generated: <strong style="color:#3fb950;margin-left:4px;">' + fmt + '</strong>';
               if (typeof Toast !== 'undefined') Toast.success('Quote generated: ' + fmt);
-              loadQuotes();
+              // (the standalone Quotes tab was retired; the result is shown inline above)
             } else {
               if (resultEl) resultEl.textContent = 'Quote generated';
               if (typeof Toast !== 'undefined') Toast.success('Quote generated');
@@ -2439,93 +2542,13 @@
   }
 
   /* ==================================================================
-     QUOTES TAB — Firestore booking_quotes (remote) / API (local)
+     QUOTES — retired as a standalone tab. The old loadQuotes()/renderQuotesList()
+     read Firestore (booking_quotes via the retired Auth._db adapter) — a no-Firebase
+     violation that also duplicated the per-inquiry quote flow. Quote authoring, the
+     server-priced draft, and the office-offline send now live entirely inside the
+     inquiry detail (getLatestDraft / quote-price / booking_quote_send_outbox), so the
+     tab and its Firestore read are removed rather than relabeled.
      ================================================================== */
-
-  var quotesData = [];
-
-  async function loadQuotes() {
-    var container = document.getElementById('quotes-list-container');
-    if (!container) return;
-    try {
-      if (isLocal) {
-        // Local: fetch intake stats as a proxy — adapt if a dedicated /quotes endpoint exists
-        var data = await apiFetch('/quotes/intake-stats');
-        quotesData = (data && data.quotes) ? data.quotes : (Array.isArray(data) ? data : []);
-      } else {
-        // Remote — read via Auth._db (the Supabase-backed Firestore-shaped
-        // adapter); legacy firebase.firestore() fallback retired in fbexit S9.
-        var db = (typeof Auth !== 'undefined' && Auth._db) ? Auth._db : null;
-        if (!db) throw new Error('Firestore not available');
-        var snap = await db.collection('booking_quotes')
-          .orderBy('created_at', 'desc')
-          .limit(100)
-          .get();
-        quotesData = snap.docs.map(function(d) { return d.data(); });
-      }
-      document.getElementById('tab-count-quotes').textContent = quotesData.length;
-      renderQuotesList();
-    } catch (e) {
-      console.error('[Booking] Quotes load error:', e);
-      container.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">Failed to load quotes.</p>';
-    }
-  }
-
-  function renderQuotesList() {
-    var container = document.getElementById('quotes-list-container');
-    if (!container) return;
-
-    if (!quotesData.length) {
-      container.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);padding:var(--space-xl);">No quotes yet.</p>';
-      return;
-    }
-
-    // Simple two-state pill: sent = gold, anything else = gray.
-    // Backend only writes 'sent' and 'draft' — no multi-state lifecycle yet.
-    function quoteStatusPill(status) {
-      if (status === 'sent') {
-        return pill('rgba(212,160,23,0.15)', '#d4a017', 'Sent');
-      }
-      var label = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Draft';
-      return pill('rgba(139,148,158,0.15)', '#8b949e', label);
-    }
-
-    var html = '<div style="overflow-x:auto;"><table class="data-table" style="width:100%;">';
-    html += '<thead><tr>';
-    html += '<th style="text-align:left;">Booking</th>';
-    html += '<th style="text-align:right;">Total</th>';
-    html += '<th style="text-align:right;">Deposit</th>';
-    html += '<th style="text-align:center;">Status</th>';
-    html += '<th style="text-align:left;">Date</th>';
-    html += '</tr></thead><tbody>';
-
-    quotesData.forEach(function(q) {
-      // Look up booking name from pipelineData
-      var bookingName = '';
-      if (q.booking_id) {
-        var bk = pipelineData.find(function(x) { return String(x.id) === String(q.booking_id); });
-        bookingName = bk ? (bk.name || bk.contactName || q.booking_id) : q.booking_id;
-      }
-
-      var total   = q.total_amount != null ? q.total_amount : (q.total != null ? q.total : null);
-      var deposit = q.deposit_amount != null ? q.deposit_amount : null;
-      var status  = q.status || 'draft';
-      var dateStr = q.created_at ? new Date(q.created_at.seconds ? q.created_at.seconds * 1000 : q.created_at).toLocaleDateString() : '-';
-
-      html += '<tr>';
-      html += '<td data-label="Booking" style="font-size:var(--text-sm);font-weight:500;">' + esc(bookingName || '-') + '</td>';
-      html += '<td data-label="Total" style="text-align:right;font-size:var(--text-sm);font-weight:600;color:var(--color-text);">' +
-              (total != null ? '$' + parseFloat(total).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-') + '</td>';
-      html += '<td data-label="Deposit" style="text-align:right;font-size:var(--text-sm);color:var(--color-text-muted);">' +
-              (deposit != null ? '$' + parseFloat(deposit).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '-') + '</td>';
-      html += '<td data-label="Status" style="text-align:center;">' + quoteStatusPill(status) + '</td>';
-      html += '<td data-label="Date" style="font-size:0.8rem;color:var(--color-text-muted);">' + esc(dateStr) + '</td>';
-      html += '</tr>';
-    });
-
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-  }
 
   /* ==================================================================
      VENUE DATABASE — dynamic list from /venue-outreach/leads/all
@@ -2641,20 +2664,67 @@
   }
   function _titleCase(s) { return String(s || '').replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }); }
 
-  // Write a quote relay action (create_quote / approve_quote) into booking_actions.
-  // actor_id is the caller's OWN Supabase auth.uid (RLS WITH CHECK) — role is re-resolved
-  // server-side by the reconciler; the client never sets amounts (server prices).
-  async function writeQuoteAction(targetId, actionType, payload) {
+  // Price the quote SYNCHRONOUSLY via the quote-price edge fn (office-offline: the
+  // cloud prices from the Vault rate card; the home server need not be up). We send
+  // IDENTIFIERS ONLY — package + event params; never money (the server owns the
+  // price). The fn (verify_jwt=true, band_manager-only in code) writes the priced
+  // draft to booking_quote_draft_readmodel and returns strictly
+  // { quote_total, deposit_amount, package_label }. functions.invoke attaches the
+  // session JWT automatically.
+  async function priceQuote(input) {
     var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
-    if (!sb) throw new Error('Please sign in on the public site to author quotes.');
+    if (!sb || !sb.functions || typeof sb.functions.invoke !== 'function') {
+      throw new Error('Please sign in on the public site to author quotes.');
+    }
+    var res = await sb.functions.invoke('quote-price', { body: input });
+    if (res.error) {
+      // supabase-js wraps a non-2xx as FunctionsHttpError; surface a plain message.
+      var msg = (res.error && res.error.message) ? res.error.message : 'Could not price this quote.';
+      throw new Error(msg);
+    }
+    if (!res.data || res.data.quote_total == null) throw new Error('Pricing returned no total. Try again.');
+    return res.data; // { quote_total, deposit_amount, package_label }
+  }
+
+  // SEND / UPDATE by INSERTing an own-row send-intent into booking_quote_send_outbox
+  // (the office-offline drain: pg_cron → quote-send emails the buyer from the draft
+  // SERVER-SIDE; the home server need not be up). We queue
+  // { draft_id, inbox_id, deposit_percent_override, actor_uid } — no money, no
+  // recipient (the drain resolves those). actor_uid must equal auth.uid() (RLS WITH
+  // CHECK). Exactly-once send per draft is enforced by the outbox's partial unique
+  // index, so re-sending the same draft is safe/idempotent.
+  async function queueQuoteSend(draftId, inboxId, depositPercentOverride) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb) throw new Error('Please sign in on the public site to send quotes.');
     var sessionRes = await sb.auth.getSession();
     var uid = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.user && sessionRes.data.session.user.id;
     if (!uid) throw new Error('Not signed in.');
-    var res = await sb.from('booking_actions').insert({
-      actor_id: uid, target_id: String(targetId), action_type: actionType, payload: payload || {}
-    });
+    var row = { draft_id: String(draftId), inbox_id: inboxId != null ? String(inboxId) : null, actor_uid: uid };
+    if (depositPercentOverride != null && !isNaN(depositPercentOverride)) {
+      row.deposit_percent_override = Math.max(0, Math.min(100, Number(depositPercentOverride)));
+    }
+    var res = await sb.from('booking_quote_send_outbox').insert(row).select('id').single();
     if (res.error) throw new Error(res.error.message);
-    return { queued: true, uid: uid };
+    return { id: res.data && res.data.id, uid: uid };
+  }
+
+  // Poll the BM's OWN send-intent row (own-row SELECT RLS) until the drain stamps it
+  // 'sent' — upgrades the office-offline "queued" message to a confirmed "sent".
+  // Returns 'sent' | 'failed' | 'pending' (still draining — not a failure).
+  async function _pollOutboxSent(outboxId, maxMs) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb || !outboxId) return 'pending';
+    var deadline = Date.now() + (maxMs || 90000);
+    while (Date.now() < deadline) {
+      try {
+        var res = await sb.from('booking_quote_send_outbox').select('status').eq('id', outboxId).single();
+        var st = res && res.data && res.data.status;
+        if (st === 'sent') return 'sent';
+        if (st === 'failed') return 'failed';
+      } catch (_) { /* transient — keep polling */ }
+      await new Promise(function(r){ setTimeout(r, 3000); });
+    }
+    return 'pending';
   }
 
   // Read the latest server-computed draft for an inquiry from the read-model (own-row RLS).
@@ -2694,21 +2764,6 @@
     return null;
   }
 
-  // After queuing approve_quote, confirm the reconciler actually approved+sent before
-  // declaring success — the draft row is evicted (or flips off pending_approval) on a
-  // successful approve. Symmetric with Build's poll (QA close-review MUST-FIX: previously
-  // Send painted "Quote sent" the instant the action was merely QUEUED). Returns
-  // 'confirmed' | 'pending' (timed out — still processing, not a failure).
-  async function _pollSendConfirmed(inboxId, draftId, maxMs) {
-    var deadline = Date.now() + (maxMs || 90000);
-    while (Date.now() < deadline) {
-      var d = await getLatestDraft(inboxId);
-      if (!d || d.id !== draftId || d.status !== 'pending_approval') return 'confirmed';
-      await new Promise(function(r){ setTimeout(r, 3000); });
-    }
-    return 'pending';
-  }
-
   // Swap the inquiry-detail CTA to a resumable "Quote in progress" chip if a draft exists.
   async function _refreshQuoteInProgress(inq) {
     try {
@@ -2739,12 +2794,21 @@
     var rd = opts.resumeDraft || null;
     _qState = {
       inq: inq, step: 0,
-      // On resume, seed selectors + deposit FROM the persisted draft so the Review figure
-      // the BM already saw is exactly what Send re-prices/emails (QA close-review MUST-FIX:
-      // previously depositPercent was hardcoded 50, diverging a resumed non-50% draft).
-      packageKey: rd ? (rd.package_key || null) : null,
+      // PRE-FILL from the customer's own selections on a FRESH open (not just on
+      // resume). packageKey/eventType/eventDate seed from the inquiry read-model
+      // (package_pref/event_type/event_date) so the manager never re-picks what the
+      // customer already chose; every field stays editable in the stepper UI. On
+      // resume, seed selectors + deposit FROM the persisted draft so the Review figure
+      // the manager already saw is exactly what Send re-prices/emails (depositPercent
+      // must come from the draft, not a hardcoded 50, or a resumed non-50% draft diverges).
+      packageKey: rd ? (rd.package_key || null) : (_pkgKeyFromPref(inq.package_pref) || null),
       eventType: (rd && rd.event_type) || (inq.event_type || null),
-      eventDate: (rd && rd.event_date) || '',
+      eventDate: (rd && rd.event_date) || (inq.event_date || ''),
+      // guest_count band drives the server price (quote-price `guestBand`); budget_range
+      // is shown beside the total on Review with the mismatch signal. Both come from the
+      // customer's own inquiry and are carried through fresh + resumed opens.
+      guestBand: inq.guest_count || '',
+      budgetRange: inq.budget_range || '',
       depositPercent: (rd && rd.deposit_percent != null) ? Number(rd.deposit_percent) : 50,
       // D-54 travel/lodging estimate inputs. Blank = local show / no estimate (finalized in
       // contract). The read-model redacts these (server-only), so a resumed draft — which
@@ -2810,6 +2874,9 @@
     var back = document.getElementById('q-back');
     if (back) back.addEventListener('click', function() { _qCollect(); _qGo(_qState.step - 1); });
     document.getElementById('q-primary').addEventListener('click', _qPrimary);
+    // Governed edit: jump back to Services to change the package/inputs and re-price.
+    var adjust = document.getElementById('q-adjust');
+    if (adjust) adjust.addEventListener('click', function() { _qGo(0); });
   }
 
   function _stepServices() {
@@ -2887,7 +2954,14 @@
           '<span style="font-weight:700;font-size:var(--text-xl);color:var(--color-gold);">' + _money(f.quote_total) + '</span></div>' +
         '<div style="display:flex;justify-content:space-between;color:var(--color-text-muted);font-size:var(--text-sm);margin-top:4px;">' +
           '<span>Deposit to secure' + (f.deposit_percent != null ? ' (' + f.deposit_percent + '%)' : '') + '</span><span>' + _money(f.deposit_amount) + '</span></div>' +
+        // The customer's STATED BUDGET immediately beside the total, with an
+        // at-a-glance mismatch pill when the quote lands outside their band.
+        _budgetVsTotalRow(f.quote_total) +
       '</div></div>';
+    // Governed editability: no raw-dollar box — the number is server-computed and
+    // truthful. To change it, adjust the inputs and re-price.
+    h += '<button type="button" id="q-adjust" class="btn" style="width:100%;min-height:44px;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+      '<i class="fa-solid fa-sliders"></i> Adjust package &amp; inputs, then re-price</button>';
     // D-54 — when this build carried a qualifying distance/overnight, the total above already
     // includes a labeled travel/lodging ESTIMATE (itemized on the buyer's emailed quote).
     if ((_qState.oneWayMiles !== '' && _qState.oneWayMiles != null && Number(_qState.oneWayMiles) > 50) ||
@@ -2901,6 +2975,24 @@
   }
   function _reviewRow(k, v) {
     return '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:var(--color-text-muted);">' + k + '</span><span style="font-weight:600;text-align:right;">' + v + '</span></div>';
+  }
+
+  // Render the customer's stated budget beside the total, plus a mismatch pill when a
+  // numeric budget band is present and the total falls outside it. 'discuss' / absent
+  // budgets carry no numeric band, so they show as words with no pill (never blank).
+  function _budgetVsTotalRow(total) {
+    var info = budgetBandInfo(_qState && _qState.budgetRange);
+    var label = info ? info.label : 'Not specified';
+    var pillHtml = '';
+    if (info && info.min != null && info.max != null && total != null && !isNaN(total)) {
+      if (total > info.max)      pillHtml = ' ' + pill('rgba(248,81,73,0.18)', '#f85149', '▲ Above stated budget');
+      else if (total < info.min) pillHtml = ' ' + pill('rgba(88,166,255,0.18)', '#58a6ff', '▼ Below stated budget');
+      else                       pillHtml = ' ' + pill('rgba(63,185,80,0.18)', '#3fb950', '✓ Within budget');
+    }
+    return '<div data-testid="q-budget-row" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;color:var(--color-text-muted);font-size:var(--text-sm);margin-top:8px;padding-top:8px;border-top:1px dashed var(--color-border);">' +
+      '<span>Their stated budget</span>' +
+      '<span style="text-align:right;"><span style="font-weight:600;color:var(--color-text);">' + esc(label) + '</span>' + pillHtml + '</span>' +
+    '</div>';
   }
 
   // Collect the current step's inputs into state (non-destructive back/next).
@@ -2950,40 +3042,53 @@
     }
   }
 
-  // Build: write create_quote to the relay, then poll the read-model for the server price.
+  // Build: call the quote-price edge fn SYNCHRONOUSLY (cloud-priced, office-offline),
+  // then read the just-written priced draft back from the own-row read-model to obtain
+  // its draftId + figures for Send. quote-price does NOT return the draftId by design,
+  // so we read it from booking_quote_draft_readmodel.
   async function _qBuild() {
     var btn = document.getElementById('q-primary');
     var back = document.getElementById('q-back');
     var since = Date.now();
     // Lock BOTH nav controls while pricing is in flight so an async result can't fight
-    // a mid-wait Back tap (EO close-review MUST-FIX).
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Building quote…'; }
+    // a mid-wait Back tap.
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Pricing quote…'; }
     if (back) back.disabled = true;
+    var body = document.getElementById('q-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:40px 12px;color:var(--color-text-muted);">' +
+      '<i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:var(--color-gold);"></i>' +
+      '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Calculating your quote…</p>' +
+      '<p style="font-size:var(--text-xs);">GBE is pricing this package from your selections.</p></div>';
     try {
-      await writeQuoteAction(_qState.inq.id, 'create_quote', {
+      // IDENTIFIERS ONLY — the server prices; the client never sends money.
+      var priced = await priceQuote({
+        inquiryId: _qState.inq.id,
         packageKey: _qState.packageKey,
-        eventType: _qState.eventType,
+        eventType: _qState.eventType || undefined,
+        guestBand: _qState.guestBand || undefined,
         eventDate: _qState.eventDate || undefined,
-        // D-54 — send DISTANCE + overnight COUNT only (never a price). Omit when blank so a
-        // local show gets no estimate line. The server computes the labeled travel/lodging $.
+        // DISTANCE + overnight COUNT only (never a price). Omit when blank so a local
+        // show gets no estimate line. The server computes the labeled travel/lodging $.
         oneWayMiles: (_qState.oneWayMiles === '' || _qState.oneWayMiles == null) ? undefined : _qState.oneWayMiles,
         nights: (_qState.nights === '' || _qState.nights == null) ? undefined : _qState.nights,
-        depositPercentOverride: _qState.depositPercent,
-        note: _qState.note || undefined
+        depositPercent: _qState.depositPercent
       });
-      var body = document.getElementById('q-body');
-      if (body) body.innerHTML = '<div style="text-align:center;padding:40px 12px;color:var(--color-text-muted);">' +
-        '<i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:var(--color-gold);"></i>' +
-        '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Calculating your quote…</p>' +
-        '<p style="font-size:var(--text-xs);">GBE is pricing this package. This can take up to a minute.</p></div>';
-      var draft = await pollForDraft(_qState.inq.id, since, 100000);
-      // The BM may have closed the stepper during the ~1-min wait (_qState nulled). The
-      // quote still priced fine server-side; resolve silently instead of throwing a false
-      // "Could not build quote" toast (EO close-review MUST-FIX).
+      // The BM may have closed the stepper mid-price (_qState nulled). The quote still
+      // priced fine server-side; resolve silently rather than throwing a false toast.
+      if (!_qState) return;
+      // Read the priced draft back (own-row); quote-price wrote it synchronously, so a
+      // short poll covers read-after-write. draft.id is what Send queues.
+      var draft = await pollForDraft(_qState.inq.id, since, 20000);
       if (!_qState) return;
       if (!draft) {
-        if (typeof Toast !== 'undefined') Toast.error('Still calculating — check back shortly; your inputs are saved.');
-        _renderStepper();
+        // Price succeeded but the draft read hasn't landed yet — show the priced figures
+        // so the number is never lost; Send needs the draftId, so guide a quick retry.
+        _qState.figures = { quote_total: priced.quote_total, deposit_amount: priced.deposit_amount,
+          package_label: priced.package_label, event_type: _qState.eventType, event_date: _qState.eventDate,
+          deposit_percent: _qState.depositPercent };
+        _qState.draftId = null;
+        if (typeof Toast !== 'undefined') Toast.info('Priced — finalizing the draft; tap Build again if Send is not ready.');
+        _qGo(3);
         return;
       }
       _qState.draftId = draft.id;
@@ -2991,47 +3096,53 @@
       _qGo(3);
     } catch (e) {
       if (!_qState) return;
-      if (typeof Toast !== 'undefined') Toast.error('Could not build quote: ' + e.message);
+      if (typeof Toast !== 'undefined') Toast.error('Could not price quote: ' + e.message);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
       if (back) back.disabled = false;
+      // Re-render so the inputs (and enabled controls) come back after a failure.
+      _renderStepper();
     }
   }
 
-  // Send: ride the existing approve_quote path (server prices + emails + advances stage).
+  // Send / Update: INSERT an own-row send-intent into booking_quote_send_outbox. The
+  // office-offline drain (pg_cron → quote-send) resolves the recipient + composes the
+  // email SERVER-SIDE from the draft — the home server need not be up. The deposit % is
+  // the one adjustable money-adjacent control: it rides as deposit_percent_override
+  // (re-splits the deposit against the fixed, server-computed total). We then poll the
+  // OWN outbox row to upgrade "queued" → "sent" when it drains.
   async function _qSend() {
-    if (!_qState.draftId) { if (typeof Toast !== 'undefined') Toast.error('No draft to send. Go Back and Build Quote.'); return; }
+    if (!_qState.draftId) { if (typeof Toast !== 'undefined') Toast.error('No priced draft to send. Go Back and Build Quote.'); return; }
     var btn = document.getElementById('q-primary');
     var back = document.getElementById('q-back');
     var buyerAddr = _qState.inq.from_addr;           // capture before any await/close
     var inqId = _qState.inq.id;
     var figures = _qState.figures;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…'; }
-    if (back) back.disabled = true;                  // lock Back during the send (EO MUST-FIX)
+    if (back) back.disabled = true;                  // lock Back during the send
     try {
-      await writeQuoteAction(inqId, 'approve_quote', {
-        draftId: _qState.draftId,
-        depositPercentOverride: _qState.depositPercent
-      });
+      var queued = await queueQuoteSend(_qState.draftId, inqId, _qState.depositPercent);
       // Mark the inquiry responded so it leaves the "needs action" set (optimistic).
       try { await performInboxAction(inqId, 'mark_inbox_responded'); } catch (_) {}
-      // Interim "sending" state while we confirm the reconciler actually approved+emailed.
+      // Interim "sending" state while the minute-cadence drain claims + emails the row.
       var ovI = document.getElementById('quote-stepper-overlay');
       if (ovI) ovI.innerHTML =
         '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--color-text-muted);">' +
           '<i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:var(--color-gold);"></i>' +
-          '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Sending your quote…</p>' +
-          '<p style="font-size:var(--text-xs);">Emailing ' + esc(buyerAddr || 'the client') + ' and advancing the deal.</p></div>';
-      var draftId = _qState.draftId;
-      var outcome = await _pollSendConfirmed(inqId, draftId, 90000);   // 'confirmed' | 'pending'
-      var confirmed = outcome === 'confirmed';
+          '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Queuing your quote…</p>' +
+          '<p style="font-size:var(--text-xs);">Emailing ' + esc(buyerAddr || 'the client') + ' — this sends even with the home office offline.</p></div>';
+      var outcome = await _pollOutboxSent(queued.id, 90000);   // 'sent' | 'failed' | 'pending'
+      if (outcome === 'failed') {
+        if (typeof Toast !== 'undefined') Toast.error('The quote could not be emailed — reopen this inquiry to retry.');
+      }
+      var confirmed = outcome === 'sent';
       var ov = document.getElementById('quote-stepper-overlay');
       if (ov) ov.innerHTML =
         '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">' +
           '<div style="width:64px;height:64px;border-radius:50%;background:' + (confirmed ? 'rgba(63,185,80,0.15)' : 'rgba(212,160,23,0.15)') + ';display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><i class="fa-solid ' + (confirmed ? 'fa-check" style="color:#3fb950' : 'fa-paper-plane" style="color:#d4a017') + ';font-size:28px;"></i></div>' +
-          '<div style="font-weight:700;font-size:var(--text-lg);">' + (confirmed ? 'Quote sent' : 'Quote is sending') + '</div>' +
+          '<div style="font-weight:700;font-size:var(--text-lg);">' + (confirmed ? 'Quote sent' : 'Quote is on its way') + '</div>' +
           '<div style="color:var(--color-text-muted);margin-top:6px;max-width:320px;">' + _money(figures && figures.quote_total) + (confirmed
-            ? ' quote was emailed to ' + esc(buyerAddr || 'the client') + ' and the deal moved forward.'
-            : ' quote to ' + esc(buyerAddr || 'the client') + ' is still processing — it will be emailed shortly. You can reopen this inquiry to confirm.') + '</div>' +
+            ? ' quote was emailed to ' + esc(buyerAddr || 'the client') + '.'
+            : ' quote to ' + esc(buyerAddr || 'the client') + ' is queued and will email within a minute — it sends even with the home office offline. Reopen this inquiry to confirm.') + '</div>' +
           '<button id="q-done" class="btn btn-primary" style="margin-top:22px;min-height:48px;padding:0 28px;font-weight:600;">Done</button>' +
         '</div>';
       var done = document.getElementById('q-done');
@@ -3041,7 +3152,7 @@
         if (typeof loadPipeline === 'function') loadPipeline();
       });
     } catch (e) {
-      if (typeof Toast !== 'undefined') Toast.error('Send failed — your draft is saved: ' + e.message);
+      if (typeof Toast !== 'undefined') Toast.error('Send failed — your priced draft is saved: ' + e.message);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Quote'; }
       if (back) back.disabled = false;
     }
@@ -3056,7 +3167,6 @@
     injectEmailBadges();
     loadInquiries();
     loadPipeline();
-    loadQuotes();
     loadVenueLeads();
   });
 
@@ -3064,7 +3174,6 @@
   setInterval(function() {
     loadInquiries();
     loadPipeline();
-    loadQuotes();
     loadVenueLeads();
   }, 60000);
 })();
