@@ -3096,11 +3096,32 @@
       _qGo(3);
     } catch (e) {
       if (!_qState) return;
-      if (typeof Toast !== 'undefined') Toast.error('Could not price quote: ' + e.message);
+      // Surface the failure INSIDE the full-screen stepper overlay. A global Toast
+      // alone is occluded by the overlay's stacking context, so a failed price used to
+      // look silent — the spinner just reverted to a resting Build button with no word.
+      // Show a clear in-overlay error with an explicit Retry (and keep the footer Build
+      // Quote usable). The manager's selections stay in _qState, so retry re-prices with
+      // no re-entry. Fire the Toast too for when the stepper is not the top layer.
+      var emsg = (e && e.message) ? e.message : 'Something went wrong.';
+      if (typeof Toast !== 'undefined') Toast.error('Could not price quote: ' + emsg);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
       if (back) back.disabled = false;
-      // Re-render so the inputs (and enabled controls) come back after a failure.
-      _renderStepper();
+      var body2 = document.getElementById('q-body');
+      if (body2) {
+        body2.innerHTML =
+          '<div style="text-align:center;padding:32px 14px;">' +
+            '<div style="width:56px;height:56px;border-radius:50%;background:rgba(248,81,73,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><i class="fa-solid fa-triangle-exclamation" style="font-size:26px;color:#f85149;"></i></div>' +
+            '<div style="font-weight:700;font-size:var(--text-lg);color:var(--color-text);">Couldn’t price this quote</div>' +
+            '<p style="font-size:var(--text-sm);color:var(--color-text-muted);max-width:300px;margin:8px auto 0;line-height:1.5;">Please check your connection and try again — your selections are saved.</p>' +
+            '<p style="font-size:var(--text-xs);color:var(--color-text-muted);max-width:300px;margin:6px auto 0;word-break:break-word;">' + esc(emsg) + '</p>' +
+            '<button id="q-retry" class="btn btn-primary" style="margin-top:20px;min-height:48px;padding:0 26px;font-weight:600;"><i class="fa-solid fa-rotate-right"></i> Try again</button>' +
+          '</div>';
+        var retry = document.getElementById('q-retry');
+        if (retry) retry.addEventListener('click', _qBuild);
+      } else {
+        // No body node to write into — fall back to a full re-render so Build is usable.
+        _renderStepper();
+      }
     }
   }
 
