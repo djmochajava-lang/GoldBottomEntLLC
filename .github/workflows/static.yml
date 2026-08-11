@@ -59,6 +59,7 @@ jobs:
           PUBLISH_FILES=(
             CNAME            # GitHub Pages custom domain — required
             index.html       # SPA shell
+            negotiate.html   # standalone tokenized quote-negotiation page (buyer-facing)
             robots.txt
             sitemap.xml
             sw.js            # service worker (must be at origin root for full scope)
