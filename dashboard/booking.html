@@ -305,6 +305,18 @@
     for (var i = 0; i < QUOTE_PACKAGES.length; i++) if (QUOTE_PACKAGES[i].key === pref) return pref;
     return null;
   }
+  // Map an inquiry's raw event_type to a KNOWN pricing event type — CONFIDENTLY only.
+  // Exact key match (case/space/hyphen-insensitive) wins; anything ambiguous (e.g.
+  // "Corporate gala") returns '' so the wizard shows an unselected placeholder and the
+  // BM must pick — never silently inherit a wrong type (which mis-prices the multiplier).
+  function _normalizeEventType(raw) {
+    if (raw == null) return '';
+    var s = String(raw).trim().toLowerCase().replace(/\s+/g, '-');
+    if (typeof QUOTE_EVENT_TYPES !== 'undefined') {
+      for (var i = 0; i < QUOTE_EVENT_TYPES.length; i++) if (QUOTE_EVENT_TYPES[i] === s) return QUOTE_EVENT_TYPES[i];
+    }
+    return '';
+  }
 
   /**
    * The request SUMMARY CARD. Field-presence-driven: renders only the structured
@@ -2215,6 +2227,13 @@
         genQuoteBtn.addEventListener('click', async function() {
           var btn = this;
           var resultEl = document.getElementById('bk-quote-result');
+          // Guard: the auto-quote endpoint needs an event date (rush window, availability).
+          // Without one it silently no-ops — surface a clear validation message instead.
+          if (!(b && (b.eventDate || b.date))) {
+            if (resultEl) resultEl.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:#d29922;margin-right:4px;"></i> Set an event date first';
+            if (typeof Toast !== 'undefined') Toast.error('Set an event date first, then Generate Quote.');
+            return;
+          }
           btn.disabled = true;
           btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
           try {
@@ -2834,7 +2853,9 @@
       // the manager already saw is exactly what Send re-prices/emails (depositPercent
       // must come from the draft, not a hardcoded 50, or a resumed non-50% draft diverges).
       packageKey: rd ? (rd.package_key || null) : (_pkgKeyFromPref(inq.package_pref) || null),
-      eventType: (rd && rd.event_type) || (inq.event_type || null),
+      // Pre-select the event type ONLY when it confidently maps to a known pricing type;
+      // otherwise leave it unselected so the BM must choose (no silent "Wedding" default).
+      eventType: _normalizeEventType((rd && rd.event_type) || inq.event_type),
       eventDate: (rd && rd.event_date) || (inq.event_date || ''),
       // guest_count band drives the server price (quote-price `guestBand`); budget_range
       // is shown beside the total on Review with the mismatch signal. Both come from the
@@ -2938,10 +2959,23 @@
     h += '</div>';
     h += '<label class="form-label" style="font-weight:600;">Event type</label>';
     h += '<select id="q-eventtype" class="form-input" style="width:100%;min-height:44px;">';
+    h += '<option value=""' + (!_qState.eventType ? ' selected' : '') + '>Select event type…</option>';
     QUOTE_EVENT_TYPES.forEach(function(t) {
       h += '<option value="' + t + '"' + (_qState.eventType === t ? ' selected' : '') + '>' + esc(_titleCase(t)) + '</option>';
     });
     h += '</select>';
+    // Guest count is COLLECTED HERE (before pricing) because band packages need it to
+    // price sound/PA — the server 409s "sound_guest_count_unknown" without it. Pre-filled
+    // from the customer's own inquiry; still editable here and on the Review step.
+    var generic = _isGenericPkg(_qState.packageKey);
+    h += '<label class="form-label" style="font-weight:600;margin-top:14px;">Expected guest count' + (generic ? '' : ' <span style="color:var(--color-text-muted);font-weight:400;">(optional for this package)</span>') + '</label>';
+    h += '<select id="q-guests" class="form-input" style="width:100%;min-height:44px;">';
+    h += '<option value=""' + (!_qState.guestBand ? ' selected' : '') + '>Select guest count…</option>';
+    _QUOTE_GUEST_OPTIONS.forEach(function(g) {
+      h += '<option value="' + g + '"' + (_qState.guestBand === g ? ' selected' : '') + '>' + esc(guestBandLabel(g)) + '</option>';
+    });
+    h += '</select>';
+    h += '<p style="margin:6px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-users" style="margin-right:4px;"></i> ' + (generic ? 'Required to price sound and equipment for this package.' : 'Bundled for this package — set it if you have it.') + '</p>';
     return h;
   }
 
@@ -2991,6 +3025,7 @@
     h += '<p style="margin:0 0 12px;font-size:var(--text-xs);color:var(--color-text-muted);">Everything the client experiences is adjustable. Each change re-prices with GBE.</p>';
     h += '<label class="form-label" style="font-weight:600;">Event type</label>';
     h += '<select data-qfield="eventType" class="form-input" style="width:100%;min-height:44px;margin-bottom:10px;">';
+    h += '<option value=""' + (!_qState.eventType ? ' selected' : '') + '>Select event type…</option>';
     QUOTE_EVENT_TYPES.forEach(function(t) { h += '<option value="' + t + '"' + (_qState.eventType === t ? ' selected' : '') + '>' + esc(_titleCase(t)) + '</option>'; });
     h += '</select>';
     h += '<label class="form-label" style="font-weight:600;">Guest count</label>';
@@ -3368,6 +3403,8 @@
       if (pk) _qState.packageKey = pk.value;
       var et = document.getElementById('q-eventtype');
       if (et) _qState.eventType = et.value;
+      var gc = document.getElementById('q-guests');
+      if (gc) _qState.guestBand = gc.value;
     } else if (s === 1) {
       var dt = document.getElementById('q-date');
       if (dt) _qState.eventDate = dt.value;
@@ -3396,6 +3433,18 @@
     var s = _qState.step;
     if (s === 0) {
       if (!_qState.packageKey) { if (typeof Toast !== 'undefined') Toast.error('Pick a package first.'); return; }
+      if (!_qState.eventType) {
+        if (typeof Toast !== 'undefined') Toast.error('Choose the event type.');
+        var etEl = document.getElementById('q-eventtype'); if (etEl) etEl.focus();
+        return;
+      }
+      // Band packages CANNOT be priced without a guest count (server prices sound from it).
+      // Gate it here so the BM never reaches Build Quote missing it.
+      if (_isGenericPkg(_qState.packageKey) && !_qState.guestBand) {
+        if (typeof Toast !== 'undefined') Toast.error('Enter the expected guest count so we can price sound and equipment.');
+        var gcEl = document.getElementById('q-guests'); if (gcEl) { gcEl.focus(); gcEl.scrollIntoView({ block: 'center' }); }
+        return;
+      }
       _qGo(1);
     } else if (s === 1) {
       _qGo(2);
@@ -3428,24 +3477,16 @@
       '<p style="margin-top:14px;font-weight:600;color:var(--color-text);">Calculating your quote…</p>' +
       '<p style="font-size:var(--text-xs);">GBE is pricing this package from your selections.</p></div>';
     try {
-      // IDENTIFIERS ONLY — the server prices; the client never sends money.
-      var priced = await priceQuote({
-        inquiryId: _qState.inq.id,
-        packageKey: _qState.packageKey,
-        eventType: _qState.eventType || undefined,
-        guestBand: _qState.guestBand || undefined,
-        eventDate: _qState.eventDate || undefined,
-        // DISTANCE + overnight COUNT only (never a price). Omit when blank so a local
-        // show gets no estimate line. The server computes the labeled travel/lodging $.
-        oneWayMiles: (_qState.oneWayMiles === '' || _qState.oneWayMiles == null) ? undefined : _qState.oneWayMiles,
-        nights: (_qState.nights === '' || _qState.nights == null) ? undefined : _qState.nights,
-        depositPercent: _qState.depositPercent
-      });
-      // The BM may have closed the stepper mid-price (_qState nulled). The quote still
-      // priced fine server-side; resolve silently rather than throwing a false toast.
+      // IDENTIFIERS ONLY — the server prices; the client never sends money. Same shape as
+      // the Review re-price (levers were just reset, so this is the baseline). guestBand is
+      // now always carried from Step 1 so a band package can price its sound.
+      var r = await _invokeQuotePrice(_qPayload());
+      // The BM may have closed the stepper mid-price (_qState nulled). Resolve silently.
       if (!_qState) return;
-      // Hold the full pricer RESPONSE (line items + Talent cost + margin) in memory for
-      // the interactive Review render. This is the ONLY place these figures live — never storage.
+      if (!r.ok) { _qShowBuildError(r, btn, back); return; }
+      var priced = r.data;
+      // Hold the full pricer RESPONSE (line items + Talent cost + margin) in memory for the
+      // interactive Review render. This is the ONLY place these figures live — never storage.
       _qState.live = priced;
       _qState.repriceError = null;
       // Read the priced draft back (own-row); quote-price wrote it synchronously, so a
@@ -3468,33 +3509,57 @@
       _qGo(3);
     } catch (e) {
       if (!_qState) return;
-      // Surface the failure INSIDE the full-screen stepper overlay. A global Toast
-      // alone is occluded by the overlay's stacking context, so a failed price used to
-      // look silent — the spinner just reverted to a resting Build button with no word.
-      // Show a clear in-overlay error with an explicit Retry (and keep the footer Build
-      // Quote usable). The manager's selections stay in _qState, so retry re-prices with
-      // no re-entry. Fire the Toast too for when the stepper is not the top layer.
-      var emsg = (e && e.message) ? e.message : 'Something went wrong.';
-      if (typeof Toast !== 'undefined') Toast.error('Could not price quote: ' + emsg);
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
-      if (back) back.disabled = false;
-      var body2 = document.getElementById('q-body');
-      if (body2) {
-        body2.innerHTML =
-          '<div style="text-align:center;padding:32px 14px;">' +
-            '<div style="width:56px;height:56px;border-radius:50%;background:rgba(248,81,73,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><i class="fa-solid fa-triangle-exclamation" style="font-size:26px;color:#f85149;"></i></div>' +
-            '<div style="font-weight:700;font-size:var(--text-lg);color:var(--color-text);">Couldn’t price this quote</div>' +
-            '<p style="font-size:var(--text-sm);color:var(--color-text-muted);max-width:300px;margin:8px auto 0;line-height:1.5;">Please check your connection and try again — your selections are saved.</p>' +
-            '<p style="font-size:var(--text-xs);color:var(--color-text-muted);max-width:300px;margin:6px auto 0;word-break:break-word;">' + esc(emsg) + '</p>' +
-            '<button id="q-retry" class="btn btn-primary" style="margin-top:20px;min-height:48px;padding:0 26px;font-weight:600;"><i class="fa-solid fa-rotate-right"></i> Try again</button>' +
-          '</div>';
-        var retry = document.getElementById('q-retry');
-        if (retry) retry.addEventListener('click', _qBuild);
-      } else {
-        // No body node to write into — fall back to a full re-render so Build is usable.
-        _renderStepper();
-      }
+      _qShowBuildError({ ok: false, message: (e && e.message) ? e.message : 'Something went wrong.' }, btn, back);
     }
+  }
+
+  // Reason-specific Build error, INSIDE the overlay (a Toast alone is occluded by the
+  // overlay's stacking context). A 409 unpriceable/sound_guest_count_unknown is a MISSING
+  // INPUT, not a connection problem — say exactly what to fix and route focus to that
+  // field. Keeps the explicit Try-again pattern; selections stay in _qState.
+  function _qShowBuildError(r, btn, back) {
+    var errCode = r && r.body && r.body.error;
+    var reason = r && r.body && r.body.reason;
+    var title = 'Couldn’t price this quote';
+    var msg, action = null;
+    if (errCode === 'unpriceable' && reason === 'sound_guest_count_unknown') {
+      title = 'Guest count needed';
+      msg = 'Enter the expected guest count to price sound and equipment for this package.';
+      action = { label: 'Enter guest count', icon: 'fa-users', fn: function() { _qGo(0); setTimeout(function() { var g = document.getElementById('q-guests'); if (g) { g.focus(); g.scrollIntoView({ block: 'center' }); } }, 60); } };
+    } else if (errCode === 'unpriceable' && (reason === 'sound_default_tier_unset' || reason === 'sound_provision_unresolvable')) {
+      msg = 'We couldn’t match a sound / PA option for this show. Adjust the details and try again.';
+      action = { label: 'Back to details', icon: 'fa-arrow-left', fn: function() { _qGo(1); } };
+    } else if (errCode === 'unpriceable' && (reason === 'unknown_package' || reason === 'unpriced_package')) {
+      msg = 'This package can’t be priced right now. Pick a different package.';
+      action = { label: 'Change package', icon: 'fa-arrow-left', fn: function() { _qGo(0); } };
+    } else if (errCode === 'unpriceable') {
+      msg = 'We can’t price this combination' + (reason ? ' (' + reason + ')' : '') + '. Adjust your selections and try again.';
+      action = { label: 'Back', icon: 'fa-arrow-left', fn: function() { _qGo(0); } };
+    } else if (errCode === 'below_cost_floor') {
+      title = 'Below talent cost';
+      msg = 'This quote is below our talent cost. Adjust the discount or authorize it as owner on the Review step.';
+    } else {
+      msg = 'Please check your connection and try again — your selections are saved.';
+    }
+    var detail = (r && r.message && errCode !== 'unpriceable') ? r.message : '';
+    if (typeof Toast !== 'undefined') Toast.error(msg);
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-gears"></i> Build Quote'; }
+    if (back) back.disabled = false;
+    var body2 = document.getElementById('q-body');
+    if (!body2) { _renderStepper(); return; }
+    body2.innerHTML =
+      '<div style="text-align:center;padding:32px 14px;">' +
+        '<div style="width:56px;height:56px;border-radius:50%;background:rgba(248,81,73,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><i class="fa-solid fa-triangle-exclamation" style="font-size:26px;color:#f85149;"></i></div>' +
+        '<div style="font-weight:700;font-size:var(--text-lg);color:var(--color-text);">' + esc(title) + '</div>' +
+        '<p style="font-size:var(--text-sm);color:var(--color-text-muted);max-width:300px;margin:8px auto 0;line-height:1.5;">' + esc(msg) + '</p>' +
+        (detail ? '<p style="font-size:var(--text-xs);color:var(--color-text-muted);max-width:300px;margin:6px auto 0;word-break:break-word;">' + esc(detail) + '</p>' : '') +
+        (action ? '<button id="q-fix" class="btn btn-primary" style="margin-top:18px;min-height:48px;padding:0 22px;font-weight:600;"><i class="fa-solid ' + action.icon + '"></i> ' + esc(action.label) + '</button>' : '') +
+        '<button id="q-retry" class="btn' + (action ? '' : ' btn-primary') + '" style="display:block;margin:12px auto 0;min-height:48px;padding:0 22px;font-weight:600;"><i class="fa-solid fa-rotate-right"></i> Try again</button>' +
+      '</div>';
+    var fix = document.getElementById('q-fix');
+    if (fix && action) fix.addEventListener('click', action.fn);
+    var retry = document.getElementById('q-retry');
+    if (retry) retry.addEventListener('click', _qBuild);
   }
 
   // Send / Update: INSERT an own-row send-intent into booking_quote_send_outbox. The
