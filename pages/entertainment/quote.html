@@ -4,6 +4,18 @@
     <h1 class="page-title reveal">Get a Booking Quote</h1>
     <p class="page-subtitle reveal">Tell us about your event and we'll send you a custom quote for L.A. Young &amp; Soul Society within 24 hours.</p>
 
+    <!-- Call-to-quote (top placement). Ghost/outlined — Request Quote below stays
+         the primary action. BOTH placements hydrate from ONE runtime config fetch
+         (cloud site_config key "quote_phone"; SiteConfig.company.phone fallback);
+         the number is validated against a phone shape before entering the tel:
+         href, and stays hidden until a valid number is applied. -->
+    <a class="gbe-call-quote" data-gbe-call-quote href="#" hidden
+       style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 10px;max-width:800px;min-height:48px;margin:0 auto var(--space-lg);padding:12px 16px;border:1px solid var(--color-gold);border-radius:var(--radius-md);background:transparent;color:var(--color-text);text-decoration:none;font-weight:600;font-size:var(--text-sm);">
+      <i class="fa-solid fa-phone text-gold"></i>
+      <span>Prefer to talk? Call to request a quote</span>
+      <span class="text-gold" data-gbe-quote-phone style="white-space:nowrap;"></span>
+    </a>
+
     <div class="glass-card reveal" style="max-width: 800px; margin: 0 auto;">
       <form id="quote-request-form" data-form="quote-request">
 
@@ -204,9 +216,11 @@
             <i class="fa-solid fa-star text-gold"></i>
             <strong>Multi-Show Discounts Available</strong> — Planning a series, residency, or multiple events? <a href="#ent-series">Use the multi-show request <i class="fa-solid fa-arrow-right"></i></a>
           </p>
+          <!-- The old static "Call for Custom Pricing" line is consolidated into
+               the live call buttons above/below — no duplicate dead call prompt. -->
           <p style="margin: var(--space-xs) 0 0; font-size: var(--text-sm); color: var(--color-text-secondary);">
-            <i class="fa-solid fa-phone text-gold"></i>
-            <strong>Call for Custom Pricing</strong> — Every event is unique. We'll work with your budget and vision.
+            <i class="fa-solid fa-handshake text-gold"></i>
+            <strong>Custom Pricing</strong> — Every event is unique. We'll work with your budget and vision.
           </p>
         </div>
 
@@ -219,6 +233,14 @@
           We'll review your details and send a custom quote to your email within 24 hours.<br>
           Every event is unique — we work with your budget to create the perfect experience.
         </p>
+
+        <!-- Call-to-quote (bottom placement) — same single hydration as the top band. -->
+        <a class="gbe-call-quote" data-gbe-call-quote href="#" hidden
+           style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 10px;min-height:48px;margin-top:var(--space-md);padding:12px 16px;border:1px solid var(--color-gold);border-radius:var(--radius-md);background:transparent;color:var(--color-text);text-decoration:none;font-weight:600;font-size:var(--text-sm);">
+          <i class="fa-solid fa-phone text-gold"></i>
+          <span>Prefer to talk? Call to request a quote</span>
+          <span class="text-gold" data-gbe-quote-phone style="white-space:nowrap;"></span>
+        </a>
       </form>
     </div>
   </div>
@@ -337,6 +359,74 @@
   form.querySelectorAll('input, textarea, select').forEach(function(el) {
     el.addEventListener('input', function() { clearFieldError(this); });
     el.addEventListener('change', function() { clearFieldError(this); });
+  });
+
+  // ── Call-to-quote: ONE fetch hydrates BOTH placements ──────────────────────
+  // The number is a runtime config value (cloud site_config row "quote_phone",
+  // anon read-only) so it can change with no code change or redeploy; the
+  // committed SiteConfig.company.phone is only the fallback when the fetch
+  // fails. Whatever value arrives is VALIDATED against a phone-number shape
+  // before it is injected into the tel: href — a poisoned/malformed value keeps
+  // the fallback instead. CTAs stay hidden until a valid number is applied.
+  var callCtas = Array.prototype.slice.call(document.querySelectorAll('[data-gbe-call-quote]'));
+  function phoneShapeOk(v) {
+    if (typeof v !== 'string') return false;
+    var s = v.trim();
+    if (s.length < 7 || s.length > 24) return false;
+    if (!/^[+]?[0-9()\s.\-]+$/.test(s)) return false;
+    var digits = s.replace(/\D/g, '');
+    return digits.length === 10 || (digits.length === 11 && digits.charAt(0) === '1');
+  }
+  function applyQuotePhone(v) {
+    var digits = v.replace(/\D/g, '');
+    if (digits.length === 10) digits = '1' + digits;
+    callCtas.forEach(function(a) {
+      a.setAttribute('href', 'tel:+' + digits);
+      var num = a.querySelector('[data-gbe-quote-phone]');
+      if (num) num.textContent = v.trim();
+      a.hidden = false;
+    });
+  }
+  function fallbackQuotePhone() {
+    var p = (typeof SiteConfig !== 'undefined' && SiteConfig.company && SiteConfig.company.phone) || '';
+    if (phoneShapeOk(p)) applyQuotePhone(p);
+  }
+  (function hydrateQuotePhone() {
+    if (!callCtas.length) return;
+    var sb = (typeof Forms !== 'undefined' && Forms._getSupabaseClient) ? Forms._getSupabaseClient() : null;
+    if (!sb) { fallbackQuotePhone(); return; }
+    var settled = false;
+    function settle(fn) { if (!settled) { settled = true; fn(); } }
+    // A hung fetch must not leave the CTA hidden — fall back after 4s.
+    setTimeout(function() { settle(fallbackQuotePhone); }, 4000);
+    try {
+      sb.from('site_config').select('value').eq('key', 'quote_phone').maybeSingle()
+        .then(function(res) {
+          var v = res && !res.error && res.data && res.data.value;
+          settle(function() { (typeof v === 'string' && phoneShapeOk(v)) ? applyQuotePhone(v) : fallbackQuotePhone(); });
+        })
+        .catch(function() { settle(fallbackQuotePhone); });
+    } catch (e) { settle(fallbackQuotePhone); }
+  })();
+  // Tap signal — a lead-intent ping (no PII, no raw URL) that must NEVER delay
+  // or block the dialer: sendBeacon first, keepalive fetch fallback, and any
+  // failure is swallowed while the tel: navigation proceeds untouched.
+  callCtas.forEach(function(a) {
+    a.addEventListener('click', function() {
+      try {
+        var cfg = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations) ? SiteConfig.integrations.supabase : null;
+        if (!cfg || !cfg.url || !cfg.anonKey) return;
+        var url = cfg.url + '/rest/v1/rpc/log_quote_call_tap?apikey=' + encodeURIComponent(cfg.anonKey);
+        var body = JSON.stringify({ referrer: (document.referrer || '').slice(0, 200), page: 'ent-quote' });
+        var sent = false;
+        if (navigator.sendBeacon) {
+          try { sent = navigator.sendBeacon(url, new Blob([body], { type: 'application/json' })); } catch (be) { sent = false; }
+        }
+        if (!sent && window.fetch) {
+          fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true }).catch(function() {});
+        }
+      } catch (e) { /* the call always goes through */ }
+    });
   });
 
   form.addEventListener('submit', function(e) {

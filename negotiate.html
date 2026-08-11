@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- negotiate.html — buyer follow-up page (public, STANDALONE, write-only).
+       Opened from the "Let's talk" link in a quote email:
+         /negotiate.html?t=<link code>   (+ optional display params pkg / total)
+       NOT an SPA route: no router, no auth, no login — deliberately outside the
+       app shell. The link code is a WRITE-ONLY capability: this page NEVER
+       fetches quote data with it; the only quote details shown are the package
+       name + total passed as display params by the same email that already told
+       the buyer both. Submission goes through a single anonymous RPC that
+       returns nothing. -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tokenized page: never index, never leak the link via Referer -->
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Tell Us More — L.A. Young &amp; Soul Society Booking</title>
+  <link rel="icon" href="images/logo/gbe-logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <style>
+    body { background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); margin: 0; }
+    .neg-shell { max-width: 560px; margin: 0 auto; padding: var(--space-lg) var(--space-md) var(--space-3xl); }
+    .neg-brand { text-align: center; padding: var(--space-lg) 0 var(--space-md); }
+    .neg-brand a { color: var(--color-gold); text-decoration: none; font-family: var(--font-heading); font-weight: var(--fw-bold); font-size: var(--text-lg); letter-spacing: 0.02em; }
+    .neg-brand .neg-brand-sub { color: var(--color-text-muted); font-size: var(--text-xs); margin-top: 2px; }
+    .neg-card { background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-lg); }
+    .neg-card h1 { margin: 0 0 var(--space-sm); font-family: var(--font-heading); font-size: var(--text-xl); }
+    .neg-lede { color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.6; margin: 0 0 var(--space-lg); }
+    .neg-quote { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-md); padding: var(--space-sm) var(--space-md); border: 1px dashed var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-lg); font-size: var(--text-sm); }
+    .neg-quote .q-pkg { color: var(--color-text-secondary); min-width: 0; overflow-wrap: anywhere; }
+    .neg-quote .q-total { color: var(--color-gold); font-weight: var(--fw-bold); white-space: nowrap; }
+    .neg-label { display: block; font-weight: var(--fw-semibold); font-size: var(--text-sm); margin: 0 0 var(--space-xs); }
+    .neg-textarea { width: 100%; box-sizing: border-box; min-height: 120px; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); font-size: var(--text-base); font-family: inherit; resize: vertical; line-height: 1.5; }
+    .neg-input { width: 100%; box-sizing: border-box; padding: var(--space-md); background: var(--color-bg-tertiary); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); font-size: var(--text-base); font-family: inherit; }
+    .neg-field { margin-bottom: var(--space-lg); }
+    .neg-note { color: var(--color-text-muted); font-size: var(--text-xs); margin: var(--space-xs) 0 0; }
+    .neg-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-sm); width: 100%; min-height: 48px; padding: var(--space-md) var(--space-lg); border: none; border-radius: var(--radius-sm); background: var(--color-gold); color: #000; font-size: var(--text-base); font-weight: var(--fw-semibold); font-family: inherit; cursor: pointer; transition: filter 0.2s; }
+    .neg-btn:hover:not(:disabled) { filter: brightness(1.1); }
+    .neg-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .neg-error { display: none; margin: 0 0 var(--space-md); padding: var(--space-sm) var(--space-md); border-radius: var(--radius-sm); background: var(--color-danger-muted, rgba(248,81,73,0.14)); border: 1px solid var(--color-danger, #f85149); color: var(--color-text); font-size: var(--text-sm); line-height: 1.5; }
+    .neg-center { text-align: center; padding: var(--space-2xl) var(--space-md); }
+    .neg-center .neg-glyph { font-size: 2.2rem; line-height: 1; }
+    .neg-center h2 { margin: var(--space-md) 0 var(--space-sm); font-family: var(--font-heading); }
+    .neg-center p { color: var(--color-text-secondary); line-height: 1.6; }
+    .neg-support { text-align: center; color: var(--color-text-muted); font-size: var(--text-sm); padding: var(--space-xl) 0 0; }
+    .neg-support a { color: var(--color-gold); }
+    .neg-privacy { text-align: center; color: var(--color-text-muted); font-size: var(--text-xs); line-height: 1.6; margin: var(--space-md) 0 0; }
+    .neg-privacy a { color: var(--color-gold); text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="neg-shell">
+    <div class="neg-brand">
+      <a href="/">Gold Bottom Ent. LLC</a>
+      <div class="neg-brand-sub">L.A. Young &amp; Soul Society — Live Performance Booking</div>
+    </div>
+
+    <!-- The form -->
+    <div class="neg-card" id="neg-form-card">
+      <h1>Tell us more</h1>
+      <p class="neg-lede">Not quite right yet? No problem &mdash; tell us what you need and we&rsquo;ll come back with options. Nothing is charged or changed by sending this.</p>
+
+      <!-- Read-only quote recap — shown ONLY when the email link carried the
+           package + total as display params. Never fetched. -->
+      <div class="neg-quote" id="neg-quote" style="display:none;">
+        <span class="q-pkg" id="neg-quote-pkg"></span>
+        <span class="q-total" id="neg-quote-total"></span>
+      </div>
+
+      <div class="neg-error" id="neg-error" role="alert"></div>
+
+      <div class="neg-field">
+        <label class="neg-label" for="neg-text">What do you need for your event?</label>
+        <textarea id="neg-text" class="neg-textarea" rows="5" maxlength="2000" placeholder="Tell us about your event, your budget, timing, the vibe you're going for — anything that helps us get it right."></textarea>
+        <p class="neg-note">The more you share, the better we can tailor it.</p>
+      </div>
+
+      <div class="neg-field">
+        <label class="neg-label" for="neg-amount">What would you like to offer? (optional)</label>
+        <input id="neg-amount" class="neg-input" type="number" inputmode="numeric" min="0" max="1000000" step="50" placeholder="$">
+        <p class="neg-note">A number helps us meet you where you are &mdash; it&rsquo;s a starting point, not a commitment.</p>
+      </div>
+
+      <button type="button" class="neg-btn" id="neg-send">Send to L.A. Young &amp; Soul Society</button>
+
+      <!-- Conspicuous privacy notice (required on this standalone page — no site
+           footer here). Deliberately NO name/email/phone fields on this page:
+           the personal link ties your message to your existing enquiry. -->
+      <p class="neg-privacy">Your message goes to the Gold Bottom Entertainment booking team and is handled as part of your booking enquiry under our <a href="https://goldbottoment-llc.com/#legal">Privacy Policy</a>.</p>
+    </div>
+
+    <!-- In-place confirmation -->
+    <div class="neg-card neg-center" id="neg-done" style="display:none;">
+      <div class="neg-glyph">&#127926;</div>
+      <h2>Got it &mdash; we&rsquo;ll follow up by email</h2>
+      <p>Thanks for telling us more. We&rsquo;ll review your note and get back to you with options, usually within 24 hours.</p>
+    </div>
+
+    <!-- Missing / incomplete link -->
+    <div class="neg-card neg-center" id="neg-nolink" style="display:none;">
+      <div class="neg-glyph">&#9993;&#65039;</div>
+      <h2>Open this from your quote email</h2>
+      <p>This page works from the personal link in your quote email. Open that link again &mdash; or simply reply to the email and tell us what you need.</p>
+    </div>
+
+    <div class="neg-support">
+      <p>Questions? Email <a data-gbe-email href="#"></a></p>
+    </div>
+  </div>
+
+  <!-- Same client stack the other standalone pages load: SiteConfig (Supabase
+       url + anon publishable key — client-safe by design) + the self-hosted,
+       version-pinned supabase-js v2 UMD vendor copy. No auth.js / router.js. -->
+  <script src="js/config.js"></script>
+  <script src="js/vendor/supabase-js-2.110.2.umd.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    function $(id) { return document.getElementById(id); }
+
+    // Contact hydration (standalone pages carry their own inline hydrator).
+    try {
+      var em = (typeof SiteConfig !== 'undefined' && SiteConfig.company && SiteConfig.company.email) || '';
+      if (em) {
+        var links = document.querySelectorAll('[data-gbe-email]');
+        for (var i = 0; i < links.length; i++) { links[i].textContent = em; links[i].setAttribute('href', 'mailto:' + em); }
+      }
+    } catch (e) { /* non-fatal */ }
+
+    var qs = new URLSearchParams(window.location.search);
+    var token = (qs.get('t') || qs.get('token') || '').trim();
+
+    // Display-only recap from the email link (a copy-through of what the email
+    // already told the buyer). Rendered via textContent; total must be a plain
+    // non-negative number or it is dropped.
+    var pkg = (qs.get('pkg') || '').trim().slice(0, 120);
+    var totalRaw = (qs.get('total') || '').trim();
+    var totalNum = (totalRaw !== '' && isFinite(Number(totalRaw)) && Number(totalRaw) >= 0 && Number(totalRaw) < 10000000)
+      ? Number(totalRaw) : null;
+    if (pkg || totalNum !== null) {
+      if (pkg) $('neg-quote-pkg').textContent = pkg;
+      if (totalNum !== null) {
+        $('neg-quote-total').textContent = '$' + totalNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      }
+      $('neg-quote').style.display = '';
+    }
+
+    if (!token) {
+      $('neg-form-card').style.display = 'none';
+      $('neg-nolink').style.display = '';
+      return;
+    }
+
+    // Anonymous client, created lazily at send time. No session persisted.
+    var sbClient = null;
+    function getClient() {
+      if (sbClient) return sbClient;
+      try {
+        var cfg = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations)
+          ? SiteConfig.integrations.supabase : null;
+        if (!cfg || !cfg.url || !cfg.anonKey) return null;
+        if (typeof window.supabase === 'undefined' ||
+            typeof window.supabase.createClient !== 'function') return null;
+        sbClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+        });
+        return sbClient;
+      } catch (e) { return null; }
+    }
+
+    function showError(msg) { var el = $('neg-error'); el.textContent = msg; el.style.display = 'block'; }
+    function clearError() { $('neg-error').style.display = 'none'; }
+
+    var sending = false;
+    $('neg-send').addEventListener('click', function () {
+      if (sending) return;
+      clearError();
+
+      var freeText = $('neg-text').value.trim().slice(0, 2000);
+      var amtRaw = $('neg-amount').value.trim();
+      var amount = null;
+      if (amtRaw !== '') {
+        var n = Number(amtRaw);
+        if (!isFinite(n) || n < 0 || n > 1000000) {
+          showError('That offer amount doesn’t look right — please enter a plain number (or leave it blank).');
+          return;
+        }
+        amount = Math.round(n * 100) / 100;
+      }
+      if (!freeText && amount === null) {
+        showError('Tell us a little about what you need — or add the amount you’d like to offer.');
+        return;
+      }
+
+      var sb = getClient();
+      if (!sb) {
+        showError('We couldn’t reach our system just now — please try again, or reply to your quote email.');
+        return;
+      }
+
+      sending = true;
+      var btn = $('neg-send');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      // Single write-only RPC. It acknowledges generically and returns no quote
+      // data by design; the page confirms in place.
+      sb.rpc('submit_quote_negotiation', {
+        p_token: token,
+        p_free_text: freeText,
+        p_target_amount: amount,
+        p_source_page: 'negotiate',
+        p_referrer: (document.referrer || '').slice(0, 200)
+      }).then(function (res) {
+        if (res && res.error) throw res.error;
+        $('neg-form-card').style.display = 'none';
+        $('neg-done').style.display = '';
+      }).catch(function () {
+        sending = false;
+        btn.disabled = false;
+        btn.textContent = 'Send to L.A. Young & Soul Society';
+        showError('We couldn’t send that just now — please try again in a moment, or reply to your quote email.');
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

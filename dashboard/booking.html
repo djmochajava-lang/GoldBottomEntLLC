@@ -2875,10 +2875,20 @@
       // written to any web storage (a security condition of exposing cost to the device).
       durationHours: '',
       soundSystem: '',
-      roster: {},          // { musician:'on-quote'|'absorbed'|'removed', backgroundSinger:…, dj:… }
+      roster: {},          // { musician:'on-quote'|'removed', backgroundSinger:…, dj:… }
       added: {},           // { musician:N, backgroundSinger:N, dj:N } — extra seats to add
       discount: null,      // { amount, ownerOverride, reason } once applied
       live: null,          // last quote-price response (in-memory only)
+      // STAFFING (cost-side only). The server returns the package roster as
+      // staffing:[{role,label,standard_fee,set_rate,muted}] with every price; we
+      // hold it here IN MEMORY ONLY (never web storage — same rule as `live`),
+      // echo edits back as identifiers+numbers, and always re-render from the
+      // server's authoritative copy. Dial/mute move our cost and margin only;
+      // the customer total never moves from here.
+      staffing: null,
+      staffingOpen: false, // configurator collapsed by default
+      versionOpen: false,  // version-history cards expanded?
+      threadMax: null,     // highest sent version in this quote thread (lazy-loaded)
       repriceError: null,
       note: '',
       draftId: rd ? rd.id : null,
@@ -2944,6 +2954,14 @@
     if (adjust) adjust.addEventListener('click', function() { _qGo(0); });
     // Review is now an interactive, live-repricing screen: wire its controls.
     if (_qState.step === 3) _bindReviewControls();
+    else {
+      // Fixing a flagged field clears the inline step-gate strip immediately
+      // (the overlay is rebuilt per render, so this never double-binds).
+      var qb = document.getElementById('q-body');
+      if (qb) qb.addEventListener('change', function() {
+        var strip = document.getElementById('q-step-error'); if (strip) strip.remove();
+      });
+    }
   }
 
   function _stepServices() {
@@ -2971,7 +2989,7 @@
     h += '<p style="margin:6px 0 12px;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-users" style="margin-right:4px;"></i> ' + (generic ? 'Required to price sound and equipment for this package.' : 'Bundled for this package — set it if you have it.') + '</p>';
     // Package list follows.
     h += '<label class="form-label" style="font-weight:600;margin-top:6px;">Package</label>';
-    h += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">';
+    h += '<div id="q-pkg-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">';
     QUOTE_PACKAGES.forEach(function(p) {
       var on = _qState.packageKey === p.key;
       h += '<label style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--radius-md);border:1px solid ' + (on ? 'var(--color-gold)' : 'var(--color-border)') + ';background:' + (on ? 'rgba(212,160,23,0.08)' : 'var(--color-bg-secondary)') + ';cursor:pointer;min-height:44px;">' +
@@ -3021,8 +3039,13 @@
     // Banner + who-gets-what.
     var h = '<div style="padding:12px 14px;border-radius:var(--radius-md);background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.35);margin-bottom:14px;font-size:var(--text-sm);">' +
       '<i class="fa-solid fa-eye" style="color:#3fb950;margin-right:6px;"></i>The itemized quote below is exactly what <strong>' + esc(buyer) + '</strong> will receive. Adjust anything and it re-prices instantly.</div>';
+    // Version pill + expandable history cards (stacked, reverse-chron).
+    h += '<div id="q-version-pill">' + _versionPillHtml() + '</div>';
+    h += '<div id="q-version-history" style="display:none;"></div>';
     // ITEMIZED BREAKDOWN + price / Talent cost / margin — repaints on every change.
     h += '<div id="q-breakdown">' + _breakdownHtml() + '</div>';
+    // ── STAFFING configurator (cost-side only; collapsed by default) ──────────────
+    h += '<div id="q-staffing">' + _staffingHtml() + '</div>';
     // ── ADJUSTABLE SHOW DETAILS (Ruling 2) ─────────────────────────────────────────
     h += '<div style="margin-top:16px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);">';
     h += '<div style="font-weight:700;margin-bottom:4px;"><i class="fa-solid fa-sliders" style="color:var(--color-gold);margin-right:6px;"></i>Show details</div>';
@@ -3059,7 +3082,7 @@
     // ── BAND CONFIGURATION (Ruling 3) ──────────────────────────────────────────────
     h += '<div style="margin-top:14px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);">';
     h += '<div style="font-weight:700;margin-bottom:4px;"><i class="fa-solid fa-users" style="color:var(--color-gold);margin-right:6px;"></i>Band configuration</div>';
-    h += '<p style="margin:0 0 10px;font-size:var(--text-xs);color:var(--color-text-muted);"><strong>Absorb</strong> drops the client\'s price for a seat but keeps paying the player (margin falls). <strong>Remove</strong> drops price and cost. Both re-price live.</p>';
+    h += '<p style="margin:0 0 10px;font-size:var(--text-xs);color:var(--color-text-muted);"><strong>Remove</strong> drops the client\'s price and our cost for a seat; <strong>Add</strong> does the reverse. To keep a player while trimming what they cost us, dial their rate in <strong>Staffing</strong> above — that never moves the client\'s price.</p>';
     h += '<div id="q-roster">' + _rosterHtml() + '</div>';
     h += '</div>';
     // ── GOVERNED DISCOUNT (Ruling 1) ───────────────────────────────────────────────
@@ -3152,6 +3175,235 @@
     if (el) { el.style.opacity = ''; el.innerHTML = _breakdownHtml(); }
   }
 
+  // ── STAFFING configurator (cost-side ONLY) ─────────────────────────────────────
+  // Every roster slot the server returns gets a rate dial (0 → standard) and a mute
+  // checkbox. The dialed figure is a PLANNED COST — a negotiated basis for the show
+  // plan, never anyone's pay (nothing becomes pay until that musician accepts at
+  // contracting). Dial/mute move our talent cost and margin ONLY; the customer
+  // total is server-owned and never moves from this panel. All figures render from
+  // the last server response (in-memory only); the client does no pricing math —
+  // the sums below are display subtractions of figures already on screen.
+  function _staffingSlots() {
+    return (_qState && Array.isArray(_qState.staffing) && _qState.staffing.length) ? _qState.staffing : null;
+  }
+  function _staffingRollup() {
+    var slots = _staffingSlots(); if (!slots) return null;
+    var total = slots.length, engaged = 0, atStd = 0, sumStd = 0, sumSet = 0;
+    slots.forEach(function(s) {
+      var std = Number(s.standard_fee) || 0;
+      var set = Number(s.set_rate); if (isNaN(set)) set = std;
+      sumStd += std;
+      if (!s.muted) { engaged++; sumSet += set; if (set === std) atStd++; }
+    });
+    return { total: total, engaged: engaged, atStd: atStd,
+      impact: Math.round((sumStd - sumSet) * 100) / 100 };
+  }
+  function _staffingHtml() {
+    var slots = _staffingSlots();
+    if (!slots) return ''; // pricer hasn't returned a staffing roster (or mid-build)
+    var f = _qState.live || {};
+    var roll = _staffingRollup();
+    var open = !!_qState.staffingOpen;
+    // The lock-label is persistent and non-dismissible: rendered in the header so
+    // it is visible collapsed AND expanded, on a distinct tinted background.
+    var lock = '<div style="margin-top:8px;padding:7px 10px;border-radius:var(--radius-sm);background:rgba(88,166,255,0.16);border:1px solid rgba(88,166,255,0.4);color:#79b8ff;font-size:var(--text-xs);font-weight:600;">' +
+      '<i class="fa-solid fa-lock" style="margin-right:6px;"></i>Internal only — customer price unaffected</div>';
+    var rollLine = roll ? ('Staffing: ' + roll.atStd + ' of ' + roll.total + ' at standard · talent cost ' + _money(f.internal_cost)) : 'Staffing';
+    var impact = (roll && roll.impact > 0)
+      ? '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;">Cost impact: −' + _money(roll.impact) + ' vs standard</div>'
+      : '';
+    var h = '<div style="margin-top:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;">';
+    h += '<button type="button" data-qact="staffingToggle" aria-expanded="' + (open ? 'true' : 'false') + '" style="display:block;width:100%;text-align:left;padding:12px 14px;background:var(--color-bg-secondary);border:none;cursor:pointer;color:var(--color-text);font-family:inherit;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+        '<span style="font-weight:700;font-size:var(--text-base);"><i class="fa-solid fa-user-gear" style="color:var(--color-gold);margin-right:6px;"></i>Staffing</span>' +
+        '<i class="fa-solid fa-chevron-' + (open ? 'up' : 'down') + '" style="color:var(--color-text-muted);"></i></div>' +
+      '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">' + esc(rollLine) + '</div>' +
+      impact + lock + '</button>';
+    if (open) {
+      h += '<div style="padding:4px 14px 14px;">';
+      h += '<p style="margin:8px 0 2px;font-size:var(--text-xs);color:var(--color-text-muted);">Each figure is a <strong>planned cost</strong> — the negotiated basis for this show plan, confirmed with each musician at contracting. Dial between $0 and standard, or mute a seat that isn\'t engaged. Dialing never lowers the owner-approval floor; muting does.</p>';
+      var djHeadingDone = false;
+      slots.forEach(function(s, i) {
+        var std = Math.max(0, Number(s.standard_fee) || 0);
+        var set = Number(s.set_rate); if (isNaN(set)) set = std;
+        var muted = s.muted === true;
+        var isDj = String(s.role).indexOf('dj') === 0;
+        if (isDj && !djHeadingDone) {
+          djHeadingDone = true;
+          h += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--color-border);font-weight:700;font-size:var(--text-sm);"><i class="fa-solid fa-compact-disc" style="color:var(--color-gold);margin-right:6px;"></i>DJ</div>';
+        }
+        var pct = std > 0 ? Math.round((muted ? 0 : set) / std * 100) : 0;
+        h += '<div style="padding:10px 0 12px;' + (isDj ? 'margin-left:10px;' : 'border-top:1px solid var(--color-border);') + (muted ? 'opacity:0.55;' : '') + '">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+          '<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:var(--text-sm);">' + esc(s.label || _titleCase(s.role)) + '</div>' +
+          '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">standard ' + _money(std) + '</div></div>' +
+          '<label style="display:flex;align-items:center;gap:6px;font-size:var(--text-xs);color:var(--color-text-muted);cursor:pointer;flex-shrink:0;min-height:44px;">' +
+            '<input type="checkbox" data-qact="slotMute" data-slot="' + i + '"' + (muted ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--color-gold);"> Mute</label>' +
+          '</div>';
+        // Numeric stepper: tap-to-type + −/+ in $25 steps. Never a bare slider —
+        // the thin track below is a read-only position visual.
+        h += '<div style="display:flex;align-items:center;gap:10px;margin-top:6px;">' +
+          '<button type="button" data-qact="slotDial" data-slot="' + i + '" data-dir="-1" aria-label="lower planned cost $25"' + (muted ? ' disabled' : '') + ' style="width:44px;height:44px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);cursor:pointer;font-size:18px;flex-shrink:0;">−</button>' +
+          '<div style="flex:1;min-width:0;">' +
+            (muted
+              ? '<div style="min-height:44px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--color-text-muted);">$0 (muted)</div>'
+              : '<input type="text" inputmode="numeric" pattern="[0-9]*" data-qact="slotRate" data-slot="' + i + '" value="' + set + '" aria-label="planned cost, dollars" class="form-input" style="width:100%;min-height:44px;text-align:center;font-weight:700;">') +
+            '<div style="height:3px;border-radius:2px;background:var(--color-border);margin-top:5px;"><div style="width:' + pct + '%;height:100%;border-radius:2px;background:var(--color-gold);"></div></div>' +
+          '</div>' +
+          '<button type="button" data-qact="slotDial" data-slot="' + i + '" data-dir="1" aria-label="raise planned cost $25"' + (muted ? ' disabled' : '') + ' style="width:44px;height:44px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);cursor:pointer;font-size:18px;flex-shrink:0;">+</button>' +
+          '</div>';
+        // Inline gap vs standard — neutral color, never alarm-styled.
+        if (muted) {
+          h += '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">Not engaged — dropped from cost and the staffing plan. Last dial (' + _money(set) + ') kept for un-mute.</div>';
+        } else if (set < std) {
+          h += '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">−' + _money(std - set) + ' vs standard</div>';
+        }
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+  function _renderStaffing() { var el = document.getElementById('q-staffing'); if (el) el.innerHTML = _staffingHtml(); }
+  function _slotClamp(slot, v) {
+    var std = Math.max(0, Number(slot.standard_fee) || 0);
+    if (isNaN(v)) v = std;
+    return Math.max(0, Math.min(std, Math.round(v)));
+  }
+
+  // ── VERSION HISTORY (vN of M pill + stacked cards) ─────────────────────────────
+  // Reads the versioned draft read-model (version / parent_draft_id / thread_id),
+  // the own-row adjustment log (one-line change summaries) and the role-gated
+  // negotiation rows (the buyer's ask, shown verbatim but HTML-escaped). All
+  // reads degrade gracefully while the versioned columns are still rolling out.
+  function _versionPillHtml() {
+    var f = _qState && _qState.figures;
+    var v = (f && f.version != null && !isNaN(Number(f.version))) ? Number(f.version) : 1;
+    var m = (_qState && _qState.threadMax != null) ? Math.max(_qState.threadMax, v) : v;
+    return '<button type="button" data-qact="versionHistory" aria-expanded="' + (_qState && _qState.versionOpen ? 'true' : 'false') + '" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;min-height:34px;border-radius:var(--radius-full);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text-muted);font-size:var(--text-xs);font-weight:600;cursor:pointer;margin-bottom:12px;font-family:inherit;">' +
+      '<i class="fa-solid fa-clock-rotate-left"></i> v' + v + ' of ' + m + ' · view history</button>';
+  }
+  function _renderVersionPill() { var el = document.getElementById('q-version-pill'); if (el) el.innerHTML = _versionPillHtml(); }
+  async function _fetchThreadRows() {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    var f = _qState && _qState.figures;
+    if (!sb || !f) return null;
+    var threadId = f.thread_id || f.id;
+    if (!threadId) return null;
+    try {
+      var res = await sb.from('booking_quote_draft_readmodel')
+        .select('id,version,parent_draft_id,thread_id,created_at,status,package_label,quote_total,deposit_amount')
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: false })
+        .limit(40);
+      if (res.error || !Array.isArray(res.data)) return null;
+      return res.data;
+    } catch (e) { return null; }
+  }
+  // Non-blocking: populate "of M" on the pill once the thread is known.
+  function _loadThreadMeta() {
+    _fetchThreadRows().then(function(rows) {
+      if (!rows || !_qState) return;
+      var maxV = 1;
+      rows.forEach(function(r) { var v = Number(r.version); if (!isNaN(v) && v > maxV) maxV = v; });
+      _qState.threadMax = maxV;
+      _renderVersionPill();
+    }).catch(function() {});
+  }
+  function _fmtWhen(v) {
+    var ts = _draftTs(v);
+    if (isNaN(ts)) return '';
+    try { return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+    catch (e) { return new Date(ts).toString(); }
+  }
+  async function _loadVersionHistory() {
+    var host = document.getElementById('q-version-history');
+    if (!host || !_qState) return;
+    host.style.display = '';
+    host.innerHTML = '<div style="padding:14px;text-align:center;color:var(--color-text-muted);font-size:var(--text-sm);"><i class="fa-solid fa-spinner fa-spin" style="color:var(--color-gold);"></i> Loading history…</div>';
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    var rows = await _fetchThreadRows();
+    if (!_qState) return;
+    var f = _qState.figures || {};
+    if (!rows || !rows.length) {
+      // Pre-version thread (or read unavailable): show the current draft only.
+      rows = [{ id: f.id, version: f.version != null ? f.version : 1, created_at: f.created_at,
+        package_label: f.package_label, quote_total: f.quote_total, status: f.status }];
+    }
+    // One card per version — keep the newest row for each version number.
+    var byVersion = {};
+    rows.forEach(function(r) {
+      var v = Number(r.version); if (isNaN(v)) v = 1;
+      var ts = _draftTs(r.created_at);
+      if (!byVersion[v] || (!isNaN(ts) && ts > _draftTs(byVersion[v].created_at))) byVersion[v] = r;
+    });
+    var versions = Object.keys(byVersion).map(Number).sort(function(a, b) { return b - a; });
+    var maxV = versions.length ? versions[0] : 1;
+    _qState.threadMax = maxV;
+    _renderVersionPill();
+    // Change summaries (own-row adjustment log) + buyer asks (role-gated read) —
+    // both optional: a failed read just omits that layer.
+    var adjByDraft = {}, negByDraft = {}, negLoose = [];
+    if (sb) {
+      try {
+        var ids = versions.map(function(v) { return byVersion[v].id; }).filter(Boolean);
+        if (ids.length) {
+          var ar = await sb.from('booking_quote_adjustment_log')
+            .select('draft_id,inputs_changed,total_before,total_after,adjusted_at,note')
+            .in('draft_id', ids).order('adjusted_at', { ascending: false }).limit(60);
+          if (!ar.error && Array.isArray(ar.data)) {
+            ar.data.forEach(function(a) { if (a.draft_id && !adjByDraft[a.draft_id]) adjByDraft[a.draft_id] = a; });
+          }
+        }
+      } catch (e) { /* omit summaries */ }
+      try {
+        var threadId = f.thread_id || f.id;
+        if (threadId) {
+          var nr = await sb.from('booking_quote_negotiation')
+            .select('draft_id,free_text,target_amount,submitted_at')
+            .eq('thread_id', threadId).order('submitted_at', { ascending: false }).limit(20);
+          if (!nr.error && Array.isArray(nr.data)) {
+            nr.data.forEach(function(n) {
+              if (n.draft_id && !negByDraft[n.draft_id]) negByDraft[n.draft_id] = n;
+              else if (!n.draft_id) negLoose.push(n);
+            });
+          }
+        }
+      } catch (e) { /* omit asks */ }
+    }
+    if (!_qState) return;
+    var curId = _qState.draftId || f.id;
+    var h = '';
+    versions.forEach(function(v, idx) {
+      var r = byVersion[v];
+      var isCurrent = (r.id && r.id === curId) || idx === 0;
+      var adj = r.id ? adjByDraft[r.id] : null;
+      var neg = r.id ? negByDraft[r.id] : null;
+      if (!neg && idx === 0 && negLoose.length) neg = negLoose[0];
+      var summary;
+      if (adj && adj.inputs_changed) {
+        var keys = [];
+        try { keys = Object.keys(adj.inputs_changed); } catch (e) { keys = []; }
+        summary = 'Adjusted ' + (keys.length ? keys.map(function(k) { return _titleCase(k); }).join(', ').toLowerCase() : 'quote') +
+          (adj.total_before != null && adj.total_after != null ? ' · total ' + _money(adj.total_before) + ' → ' + _money(adj.total_after) : '');
+      } else {
+        summary = esc(r.package_label || 'Quote') + (r.quote_total != null ? ' · ' + _money(r.quote_total) : '');
+      }
+      h += '<div style="margin-bottom:8px;padding:10px 12px;border-radius:var(--radius-md);border:1px solid ' + (isCurrent ? 'var(--color-gold)' : 'var(--color-border)') + ';background:' + (isCurrent ? 'rgba(212,160,23,0.07)' : 'var(--color-bg-secondary)') + ';">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+          '<span style="font-weight:700;font-size:var(--text-sm);">v' + v + (isCurrent ? ' <span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-gold);border:1px solid var(--color-gold);border-radius:var(--radius-full);padding:1px 8px;margin-left:6px;">Current</span>' : '') + '</span>' +
+          '<span style="font-size:var(--text-xs);color:var(--color-text-muted);">' + esc(_fmtWhen(r.created_at)) + '</span></div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">' + summary + '</div>' +
+        (neg && neg.free_text
+          ? '<div style="margin-top:6px;padding:8px 10px;border-left:3px solid #58a6ff;background:rgba(88,166,255,0.08);border-radius:var(--radius-sm);font-size:var(--text-xs);color:var(--color-text);"><span style="color:#79b8ff;font-weight:600;">Their ask:</span> ' + esc(neg.free_text) +
+            (neg.target_amount != null ? ' <span style="color:var(--color-text-muted);">(offered ' + _money(neg.target_amount) + ')</span>' : '') + '</div>'
+          : '') +
+        '</div>';
+    });
+    host.innerHTML = h;
+  }
+
   // Band-configuration control: per role a three-state segmented control (On quote /
   // Absorb / Remove) acting on one seat, plus an add-extra stepper. Sends role+state
   // identifiers only; the server moves price and cost independently.
@@ -3163,7 +3415,9 @@
       h += '<div style="padding:8px 0;border-top:1px solid var(--color-border);">';
       h += '<div style="font-weight:600;margin-bottom:6px;">' + esc(r.label) + '</div>';
       h += '<div style="display:flex;gap:6px;">';
-      [['on-quote', 'On quote'], ['absorbed', 'Absorb'], ['removed', 'Remove']].forEach(function(opt) {
+      // 'Absorb' is retired as a slot state: the Staffing rate dial supersedes it
+      // (same money math — one dial). Price-scope stays On quote / Remove.
+      [['on-quote', 'On quote'], ['removed', 'Remove']].forEach(function(opt) {
         var on = st === opt[0];
         h += '<button type="button" data-qact="roster" data-role="' + r.role + '" data-state="' + opt[0] + '" style="flex:1;min-height:40px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--text-xs);font-weight:600;border:1px solid ' + (on ? 'var(--color-gold)' : 'var(--color-border)') + ';background:' + (on ? 'rgba(212,160,23,0.16)' : 'var(--color-bg-secondary)') + ';color:' + (on ? 'var(--color-gold)' : 'var(--color-text)') + ';">' + opt[1] + '</button>';
       });
@@ -3206,7 +3460,8 @@
     var err = _qState.repriceError;
     if (err && err.kind === 'below_cost') {
       return '<div style="margin-top:10px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(248,81,73,0.14);border:1px solid rgba(248,81,73,0.45);color:#f85149;font-size:var(--text-sm);">' +
-        '<i class="fa-solid fa-ban" style="margin-right:6px;"></i>This quote is below our talent cost — needs owner authorization.' +
+        '<i class="fa-solid fa-ban" style="margin-right:6px;"></i>This total is below the standard talent cost of the engaged lineup — needs owner authorization.' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">Dialing a rate down doesn\'t lower this floor (a dialed rate isn\'t confirmed until contracting); muting a seat that isn\'t engaged does.</div>' +
         '<label style="display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--color-text);font-size:var(--text-sm);cursor:pointer;">' +
           '<input type="checkbox" data-qfield="ownerOverride"' + (_qState.discount && _qState.discount.ownerOverride ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--color-gold);">' +
           '<span>Owner authorization — approve this below-cost quote</span></label>' +
@@ -3263,6 +3518,15 @@
       soundSystem: (generic && _qState.soundSystem) ? _qState.soundSystem : undefined,
       roster: roster.length ? roster : undefined
     };
+    // STAFFING echo: slot identifiers + the dialed numbers, in the server's own
+    // slot order. The server re-computes every dollar (clamping set_rate into
+    // [0, standard]) and returns the authoritative staffing[] we re-render from.
+    // Omitted entirely until the pricer has handed us a roster (baseline build).
+    if (Array.isArray(_qState.staffing) && _qState.staffing.length) {
+      p.staffing = _qState.staffing.map(function(s) {
+        return { role: String(s.role), set_rate: Number(s.set_rate), muted: s.muted === true };
+      });
+    }
     var d = _qState.discount;
     if (d && Number(d.amount) > 0) p.discount = { amount: Number(d.amount), ownerOverride: d.ownerOverride === true, reason: d.reason || undefined };
     return p;
@@ -3289,6 +3553,22 @@
     return { ok: true, data: res.data };
   }
 
+  // Hold the pricer response in memory (never storage) and adopt its
+  // authoritative staffing roster — tolerant of both staffing:[…] and
+  // staffing:{slots:[…]} while the parallel backend rollout settles.
+  // keepLocalStaffing: when a NEWER edit is already queued behind this response
+  // (rapid dial taps), the response's staffing is stale — keep the local dials
+  // and let the queued re-price fetch the authoritative copy, otherwise the
+  // in-flight response silently reverts the user's second tap.
+  function _adoptLive(data, keepLocalStaffing) {
+    if (!_qState) return;
+    _qState.live = data;
+    if (keepLocalStaffing && Array.isArray(_qState.staffing)) return;
+    var st = data && data.staffing;
+    if (st && !Array.isArray(st) && Array.isArray(st.slots)) st = st.slots;
+    if (Array.isArray(st)) _qState.staffing = st;
+  }
+
   var _repriceBusy = false, _repriceQueued = false;
   // Re-price server-side after any Review change and repaint the breakdown + discount
   // status regions ONLY (keeps control focus/scroll). Coalesces rapid changes.
@@ -3303,7 +3583,7 @@
       var r = await _invokeQuotePrice(_qPayload());
       if (!_qState) return;
       if (r.ok) {
-        _qState.live = r.data;
+        _adoptLive(r.data, _repriceQueued === true);
         _qState.repriceError = null;
         _refreshDraftId(since);
       } else if (r.body && r.body.error === 'below_cost_floor') {
@@ -3317,7 +3597,7 @@
       if (_qState) _qState.repriceError = { kind: 'error', message: (e && e.message) || 'Could not price this quote.' };
     } finally {
       _repriceBusy = false;
-      if (_qState) { _renderBreakdown(); _renderDiscountStatus(); }
+      if (_qState) { _renderBreakdown(); _renderDiscountStatus(); _renderStaffing(); }
       if (_repriceQueued && _qState) { _repriceQueued = false; _reprice(); }
     }
   }
@@ -3331,6 +3611,8 @@
   }
 
   function _bindReviewControls() {
+    // The "of M" side of the version pill needs the thread — load it lazily.
+    _loadThreadMeta();
     var body = document.getElementById('q-body');
     if (!body || body._qReviewBound) { if (_qState && !_qState.live) _reprice(); return; }
     body._qReviewBound = true;
@@ -3342,6 +3624,21 @@
   function _onReviewChange(e) {
     if (!_qState) return;
     var t = e.target; if (!t || !t.getAttribute) return;
+    // Staffing rate dial, typed directly (tap-to-type). Clamp [0, standard] and
+    // send identifiers+numbers for the server to re-compute.
+    if (t.getAttribute('data-qact') === 'slotRate') {
+      var slots = _staffingSlots();
+      var si = parseInt(t.getAttribute('data-slot'), 10);
+      if (slots && slots[si] && slots[si].muted !== true) {
+        slots[si].set_rate = _slotClamp(slots[si], parseFloat(String(t.value).replace(/[^0-9.]/g, '')));
+        // No synchronous re-render here: replacing the panel's DOM inside the
+        // change/blur dispatch of the very input being edited throws in Chrome
+        // (and would skip the re-price). _reprice()'s finally repaints the panel
+        // with the clamped, server-confirmed figures.
+        _reprice();
+      }
+      return;
+    }
     var f = t.getAttribute('data-qfield'); if (!f) return;
     var v = t.value;
     if (f === 'eventType') { _qState.eventType = v; _reprice(); }
@@ -3349,7 +3646,13 @@
     else if (f === 'eventDate') { _qState.eventDate = v; _reprice(); }
     else if (f === 'oneWayMiles') { var m = String(v).trim(); _qState.oneWayMiles = (m === '') ? '' : Math.max(0, Math.min(5000, parseInt(m, 10) || 0)); _reprice(); }
     else if (f === 'nights') { var n = String(v).trim(); _qState.nights = (n === '') ? '' : Math.max(0, Math.min(30, parseInt(n, 10) || 0)); _reprice(); }
-    else if (f === 'durationHours') { var dh = String(v).trim(); _qState.durationHours = (dh === '') ? '' : Math.max(0, Math.min(24, parseFloat(dh) || 0)); _reprice(); }
+    else if (f === 'durationHours') {
+      var dh = String(v).trim(); _qState.durationHours = (dh === '') ? '' : Math.max(0, Math.min(24, parseFloat(dh) || 0));
+      // Booked hours drive the DJ service standard fee — let the server rebuild
+      // the roster rather than echo dials against stale standards.
+      _qState.staffing = null;
+      _reprice();
+    }
     else if (f === 'soundSystem') { _qState.soundSystem = v; _reprice(); }
     else if (f === 'depositPercent') { var dp = parseInt(v, 10); if (!isNaN(dp)) _qState.depositPercent = Math.max(0, Math.min(100, dp)); _reprice(); }
     // discount fields (amount/target/reason/ownerOverride) are read from the DOM on Apply.
@@ -3359,14 +3662,45 @@
     var btn = e.target && e.target.closest ? e.target.closest('[data-qact]') : null;
     if (!btn) return;
     var act = btn.getAttribute('data-qact');
-    if (act === 'roster') {
+    if (act === 'staffingToggle') {
+      _qState.staffingOpen = !_qState.staffingOpen;
+      _renderStaffing();
+    } else if (act === 'slotDial') {
+      var sSlots = _staffingSlots();
+      var sIdx = parseInt(btn.getAttribute('data-slot'), 10);
+      var sDir = parseInt(btn.getAttribute('data-dir'), 10) || 0;
+      if (sSlots && sSlots[sIdx] && sSlots[sIdx].muted !== true) {
+        var cur = Number(sSlots[sIdx].set_rate); if (isNaN(cur)) cur = Number(sSlots[sIdx].standard_fee) || 0;
+        sSlots[sIdx].set_rate = _slotClamp(sSlots[sIdx], cur + sDir * 25);
+        _renderStaffing(); _reprice();
+      }
+    } else if (act === 'slotMute') {
+      // Checkbox: mute drops the seat from cost and the staffing plan but the
+      // last dial is preserved on the slot for un-mute.
+      var mSlots = _staffingSlots();
+      var mIdx = parseInt(btn.getAttribute('data-slot'), 10);
+      if (mSlots && mSlots[mIdx]) {
+        mSlots[mIdx].muted = btn.checked === true;
+        _renderStaffing(); _reprice();
+      }
+    } else if (act === 'versionHistory') {
+      _qState.versionOpen = !_qState.versionOpen;
+      _renderVersionPill();
+      var vh = document.getElementById('q-version-history');
+      if (_qState.versionOpen) { _loadVersionHistory(); }
+      else if (vh) { vh.style.display = 'none'; vh.innerHTML = ''; }
+    } else if (act === 'roster') {
       var role = btn.getAttribute('data-role'), state = btn.getAttribute('data-state');
       _qState.roster = _qState.roster || {}; _qState.roster[role] = state;
+      // Composition changed — the server rebuilds the slot list; stale dials
+      // must not be echoed against a different roster shape.
+      _qState.staffing = null;
       _renderRoster(); _reprice();
     } else if (act === 'add') {
       var role2 = btn.getAttribute('data-role'), dir = parseInt(btn.getAttribute('data-dir'), 10) || 0;
       _qState.added = _qState.added || {};
       _qState.added[role2] = Math.max(0, Math.min(6, (_qState.added[role2] || 0) + dir));
+      _qState.staffing = null;
       _renderRoster(); _reprice();
     } else if (act === 'applyDiscount') {
       _applyDiscount();
@@ -3451,21 +3785,50 @@
     _renderStepper();
   }
 
+  // Step-gate validation message, rendered INLINE inside the stepper. A Toast
+  // alone is occluded by this full-screen overlay's stacking context (the same
+  // failure mode the Build-Quote error fixed), which made a refused Next look
+  // like a dead button. The strip lands next to the offending field in #q-body
+  // and the Toast stays as a secondary signal only.
+  function _qStepError(msg, fieldEl) {
+    var body = document.getElementById('q-body');
+    var old = document.getElementById('q-step-error'); if (old) old.remove();
+    var strip = document.createElement('div');
+    strip.id = 'q-step-error';
+    strip.setAttribute('role', 'alert');
+    strip.style.cssText = 'margin:0 0 12px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(248,81,73,0.14);border:1px solid rgba(248,81,73,0.45);color:#f85149;font-size:var(--text-sm);';
+    strip.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>' + esc(msg);
+    if (fieldEl && body && body.contains(fieldEl)) {
+      // Sit the strip just above the field (in front of its label when the
+      // label immediately precedes it) so the message points at the fix.
+      var ref = fieldEl;
+      var prev = fieldEl.previousElementSibling;
+      if (prev && prev.classList && prev.classList.contains('form-label')) ref = prev;
+      ref.parentNode.insertBefore(strip, ref);
+    } else if (body) {
+      body.insertBefore(strip, body.firstChild);
+    }
+    try { strip.scrollIntoView({ block: 'center' }); } catch (e) {}
+    if (fieldEl && /^(SELECT|INPUT|TEXTAREA)$/.test(fieldEl.tagName || '') && fieldEl.focus) fieldEl.focus();
+    if (typeof Toast !== 'undefined') Toast.error(msg);
+  }
+
   async function _qPrimary() {
     _qCollect();
     var s = _qState.step;
     if (s === 0) {
-      if (!_qState.packageKey) { if (typeof Toast !== 'undefined') Toast.error('Pick a package first.'); return; }
+      if (!_qState.packageKey) {
+        _qStepError('Pick a package first.', document.getElementById('q-pkg-list'));
+        return;
+      }
       if (!_qState.eventType) {
-        if (typeof Toast !== 'undefined') Toast.error('Choose the event type.');
-        var etEl = document.getElementById('q-eventtype'); if (etEl) etEl.focus();
+        _qStepError('Choose the event type.', document.getElementById('q-eventtype'));
         return;
       }
       // Band packages CANNOT be priced without a guest count (server prices sound from it).
       // Gate it here so the BM never reaches Build Quote missing it.
       if (_isGenericPkg(_qState.packageKey) && !_qState.guestBand) {
-        if (typeof Toast !== 'undefined') Toast.error('Enter the expected guest count so we can price sound and equipment.');
-        var gcEl = document.getElementById('q-guests'); if (gcEl) { gcEl.focus(); gcEl.scrollIntoView({ block: 'center' }); }
+        _qStepError('Enter the expected guest count so we can price sound and equipment.', document.getElementById('q-guests'));
         return;
       }
       _qGo(1);
@@ -3487,6 +3850,9 @@
     // stale roster/discount selections can't desync from the just-priced baseline figure.
     _qState.roster = {}; _qState.added = {}; _qState.discount = null;
     _qState.durationHours = ''; _qState.soundSystem = ''; _qState.repriceError = null;
+    // Staffing dials belong to a roster; a fresh baseline reloads the package's
+    // standard roster from the server, so drop any stale dial/mute state.
+    _qState.staffing = null; _qState.staffingOpen = false; _qState.versionOpen = false;
     var btn = document.getElementById('q-primary');
     var back = document.getElementById('q-back');
     var since = Date.now();
@@ -3508,9 +3874,10 @@
       if (!_qState) return;
       if (!r.ok) { _qShowBuildError(r, btn, back); return; }
       var priced = r.data;
-      // Hold the full pricer RESPONSE (line items + Talent cost + margin) in memory for the
-      // interactive Review render. This is the ONLY place these figures live — never storage.
-      _qState.live = priced;
+      // Hold the full pricer RESPONSE (line items + Talent cost + margin + staffing
+      // roster) in memory for the interactive Review render. This is the ONLY place
+      // these figures live — never storage.
+      _adoptLive(priced);
       _qState.repriceError = null;
       // Read the priced draft back (own-row); quote-price wrote it synchronously, so a
       // short poll covers read-after-write. draft.id is what Send queues.
@@ -3560,7 +3927,7 @@
       action = { label: 'Back', icon: 'fa-arrow-left', fn: function() { _qGo(0); } };
     } else if (errCode === 'below_cost_floor') {
       title = 'Below talent cost';
-      msg = 'This quote is below our talent cost. Adjust the discount or authorize it as owner on the Review step.';
+      msg = 'This quote is below the standard talent cost of the engaged lineup. Adjust the discount, mute a seat that isn\'t engaged, or authorize it as owner on the Review step.';
     } else {
       msg = 'Please check your connection and try again — your selections are saved.';
     }
@@ -3617,7 +3984,7 @@
         if (back) back.disabled = false;
         return;
       }
-      _qState.live = r.data; _qState.repriceError = null; _renderBreakdown();
+      _adoptLive(r.data); _qState.repriceError = null; _renderBreakdown(); _renderStaffing();
       // Read the just-written priced draft back (own-row) to get its id for the send outbox.
       var draft = await pollForDraft(inqId, since, 20000);
       if (!_qState) return;
