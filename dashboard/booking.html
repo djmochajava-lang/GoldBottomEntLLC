@@ -2656,7 +2656,39 @@
     'private-party', 'club-lounge', 'concert', 'other'
   ];
 
-  var _qState = null; // { inq, step, packageKey, eventType, eventDate, depositPercent, note, draftId, figures }
+  // Event-native tiers price their premium into the flat package price; the server
+  // forces the event/guest multipliers to 1.0 and bundles sound at $0 for them. So the
+  // hourly-duration and sound-tier controls apply to the generic packages ONLY.
+  var _QUOTE_NATIVE_KEYS = {
+    'wedding-ceremony': 1, 'wedding-reception': 1, 'wedding-ultimate': 1,
+    'gala-cocktail-dinner': 1, 'gala-showcase': 1, 'gala-ultimate': 1,
+    'tribute-phyllis-hyman': 1, 'tribute-phyllis-sade': 1
+  };
+  function _isGenericPkg(key) { return !!key && !_QUOTE_NATIVE_KEYS[key]; }
+
+  // Editable guest-count buckets — IDENTIFIERS the server prices (match the public quote
+  // form + GUEST_BAND_LABELS). Low → high. Never a price, only the customer's headcount band.
+  var _QUOTE_GUEST_OPTIONS = ['under-50', '50-100', '100-250', '250-500', '500-1000', '1000-plus'];
+
+  // Sound provision the buyer's venue offers. We send an IDENTIFIER only; the server owns
+  // the fee. Sound moves the price on generic packages once a larger/pro show triggers it;
+  // native tiers bundle sound. Blank = let the server decide from the show size.
+  var _QUOTE_SOUND_OPTIONS = [
+    { key: '',                     label: 'Let GBE decide (default)' },
+    { key: 'venue-system',         label: 'Venue provides the PA — our engineer only' },
+    { key: 'engineer-with-system', label: 'We provide the engineer + full PA' }
+  ];
+
+  // The three priced roster roles. Values are the server role identifiers; labels are the
+  // customer-facing words. Absorb = drop the customer's price for that seat but keep paying
+  // the player (their pay stays an internal cost, so margin falls). Remove = drop both.
+  var _QUOTE_ROSTER_ROLES = [
+    { role: 'musician',         label: 'Musician' },
+    { role: 'backgroundSinger', label: 'Background vocalist' },
+    { role: 'dj',               label: 'DJ' }
+  ];
+
+  var _qState = null; // { inq, step, packageKey, eventType, eventDate, depositPercent, note, draftId, figures, live, roster, added, discount }
 
   function _money(n) {
     if (n == null || isNaN(n)) return '—';
@@ -2815,6 +2847,18 @@
       // Sends the already-priced draft as-is — leaves them blank; they only drive a fresh Build.
       oneWayMiles: '',
       nights: '',
+      // Transparency & control (Review-screen levers). durationHours + soundSystem are
+      // generic-package levers; roster/added are the band-configuration deltas; discount
+      // is the governed customer-price reduction. live = the last cloud-pricer RESPONSE
+      // (7 keys incl. internal_cost/margin) held IN MEMORY ONLY for the render — never
+      // written to any web storage (a security condition of exposing cost to the device).
+      durationHours: '',
+      soundSystem: '',
+      roster: {},          // { musician:'on-quote'|'absorbed'|'removed', backgroundSinger:…, dj:… }
+      added: {},           // { musician:N, backgroundSinger:N, dj:N } — extra seats to add
+      discount: null,      // { amount, ownerOverride, reason } once applied
+      live: null,          // last quote-price response (in-memory only)
+      repriceError: null,
       note: '',
       draftId: rd ? rd.id : null,
       figures: rd
@@ -2877,6 +2921,8 @@
     // Governed edit: jump back to Services to change the package/inputs and re-price.
     var adjust = document.getElementById('q-adjust');
     if (adjust) adjust.addEventListener('click', function() { _qGo(0); });
+    // Review is now an interactive, live-repricing screen: wire its controls.
+    if (_qState.step === 3) _bindReviewControls();
   }
 
   function _stepServices() {
@@ -2931,48 +2977,366 @@
   }
 
   function _stepReview() {
-    var f = _qState.figures;
     var buyer = _qState.inq.from_name || _qState.inq.from_addr || 'the client';
-    if (!f) {
-      return '<div style="text-align:center;padding:32px 12px;color:var(--color-text-muted);"><i class="fa-solid fa-triangle-exclamation" style="font-size:24px;color:#d29922;"></i>' +
-        '<p style="margin-top:10px;">No priced draft yet. Go Back and tap <strong>Build Quote</strong>.</p></div>';
-    }
+    var generic = _isGenericPkg(_qState.packageKey);
+    var pkgLabel = packageLabelFor(_qState.packageKey) || _titleCase(_qState.packageKey);
+    // Banner + who-gets-what.
     var h = '<div style="padding:12px 14px;border-radius:var(--radius-md);background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.35);margin-bottom:14px;font-size:var(--text-sm);">' +
-      '<i class="fa-solid fa-eye" style="color:#3fb950;margin-right:6px;"></i>This is exactly what <strong>' + esc(buyer) + '</strong> will receive.</div>';
-    h += '<div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;">' +
-      '<div style="padding:14px;text-align:center;border-bottom:2px solid var(--color-gold);background:var(--color-bg-secondary);">' +
-        '<div style="font-weight:700;color:var(--color-gold);">Gold Bottom Ent. LLC</div>' +
-        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Performance Quote</div></div>' +
-      '<div style="padding:14px;font-size:var(--text-sm);">' +
-        _reviewRow('Client', esc(buyer)) +
-        _reviewRow('Package', esc(_titleCase(f.package_label || f.package_key))) +
-        _reviewRow('Event', esc(_titleCase(f.event_type || _qState.eventType))) +
-        _reviewRow('Date', esc(f.event_date && f.event_date !== 'TBD' ? f.event_date : (_qState.eventDate || 'TBD'))) +
-      '</div>' +
-      '<div style="padding:14px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:700;">Total</span>' +
-          '<span style="font-weight:700;font-size:var(--text-xl);color:var(--color-gold);">' + _money(f.quote_total) + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between;color:var(--color-text-muted);font-size:var(--text-sm);margin-top:4px;">' +
-          '<span>Deposit to secure' + (f.deposit_percent != null ? ' (' + f.deposit_percent + '%)' : '') + '</span><span>' + _money(f.deposit_amount) + '</span></div>' +
-        // The customer's STATED BUDGET immediately beside the total, with an
-        // at-a-glance mismatch pill when the quote lands outside their band.
-        _budgetVsTotalRow(f.quote_total) +
-      '</div></div>';
-    // Governed editability: no raw-dollar box — the number is server-computed and
-    // truthful. To change it, adjust the inputs and re-price.
-    h += '<button type="button" id="q-adjust" class="btn" style="width:100%;min-height:44px;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
-      '<i class="fa-solid fa-sliders"></i> Adjust package &amp; inputs, then re-price</button>';
-    // D-54 — when this build carried a qualifying distance/overnight, the total above already
-    // includes a labeled travel/lodging ESTIMATE (itemized on the buyer's emailed quote).
-    if ((_qState.oneWayMiles !== '' && _qState.oneWayMiles != null && Number(_qState.oneWayMiles) > 50) ||
-        (_qState.nights !== '' && _qState.nights != null && Number(_qState.nights) > 0)) {
-      h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-route" style="margin-right:4px;"></i> This total includes a labeled travel/lodging <strong>estimate</strong>' +
-        (_qState.oneWayMiles !== '' && _qState.oneWayMiles != null && Number(_qState.oneWayMiles) > 0 ? ' (' + esc(String(_qState.oneWayMiles)) + ' mi each way' + (_qState.nights ? ', ' + esc(String(_qState.nights)) + ' night' + (Number(_qState.nights) > 1 ? 's' : '') : '') + ')' : '') +
-        ' — itemized on the buyer\'s quote and finalized as actuals in the contract.</p>';
+      '<i class="fa-solid fa-eye" style="color:#3fb950;margin-right:6px;"></i>The itemized quote below is exactly what <strong>' + esc(buyer) + '</strong> will receive. Adjust anything and it re-prices instantly.</div>';
+    // ITEMIZED BREAKDOWN + price / Talent cost / margin — repaints on every change.
+    h += '<div id="q-breakdown">' + _breakdownHtml() + '</div>';
+    // ── ADJUSTABLE SHOW DETAILS (Ruling 2) ─────────────────────────────────────────
+    h += '<div style="margin-top:16px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);">';
+    h += '<div style="font-weight:700;margin-bottom:4px;"><i class="fa-solid fa-sliders" style="color:var(--color-gold);margin-right:6px;"></i>Show details</div>';
+    h += '<p style="margin:0 0 12px;font-size:var(--text-xs);color:var(--color-text-muted);">Everything the client experiences is adjustable. Each change re-prices with GBE.</p>';
+    h += '<label class="form-label" style="font-weight:600;">Event type</label>';
+    h += '<select data-qfield="eventType" class="form-input" style="width:100%;min-height:44px;margin-bottom:10px;">';
+    QUOTE_EVENT_TYPES.forEach(function(t) { h += '<option value="' + t + '"' + (_qState.eventType === t ? ' selected' : '') + '>' + esc(_titleCase(t)) + '</option>'; });
+    h += '</select>';
+    h += '<label class="form-label" style="font-weight:600;">Guest count</label>';
+    h += '<select data-qfield="guestBand" class="form-input" style="width:100%;min-height:44px;margin-bottom:10px;">';
+    h += '<option value=""' + (!_qState.guestBand ? ' selected' : '') + '>Not specified</option>';
+    _QUOTE_GUEST_OPTIONS.forEach(function(g) { h += '<option value="' + g + '"' + (_qState.guestBand === g ? ' selected' : '') + '>' + esc(guestBandLabel(g)) + '</option>'; });
+    h += '</select>';
+    h += '<label class="form-label" style="font-weight:600;">Event date</label>';
+    h += '<input type="date" data-qfield="eventDate" class="form-input" value="' + esc(_qState.eventDate || '') + '" style="width:100%;min-height:44px;margin-bottom:10px;">';
+    h += '<div style="display:flex;gap:10px;">';
+    h += '<div style="flex:1;"><label class="form-label" style="font-weight:600;">Travel (one-way mi)</label>' +
+      '<input type="number" inputmode="numeric" data-qfield="oneWayMiles" min="0" max="5000" value="' + (_qState.oneWayMiles !== '' && _qState.oneWayMiles != null ? esc(String(_qState.oneWayMiles)) : '') + '" placeholder="local" class="form-input" style="width:100%;min-height:44px;"></div>';
+    h += '<div style="flex:1;"><label class="form-label" style="font-weight:600;">Overnight nights</label>' +
+      '<input type="number" inputmode="numeric" data-qfield="nights" min="0" max="30" value="' + (_qState.nights !== '' && _qState.nights != null ? esc(String(_qState.nights)) : '') + '" placeholder="0" class="form-input" style="width:100%;min-height:44px;"></div>';
+    h += '</div>';
+    if (generic) {
+      h += '<label class="form-label" style="font-weight:600;margin-top:10px;">Performance duration (hours)</label>';
+      h += '<input type="number" inputmode="decimal" data-qfield="durationHours" min="0" max="24" step="0.5" value="' + (_qState.durationHours !== '' && _qState.durationHours != null ? esc(String(_qState.durationHours)) : '') + '" placeholder="included: 2 hrs" class="form-input" style="width:100%;min-height:44px;margin-bottom:10px;">';
+      h += '<label class="form-label" style="font-weight:600;">Sound / PA</label>';
+      h += '<select data-qfield="soundSystem" class="form-input" style="width:100%;min-height:44px;">';
+      _QUOTE_SOUND_OPTIONS.forEach(function(o) { h += '<option value="' + o.key + '"' + (_qState.soundSystem === o.key ? ' selected' : '') + '>' + esc(o.label) + '</option>'; });
+      h += '</select>';
     }
-    h += '<p style="margin:12px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);">Send delivers this quote by email to ' + esc(_qState.inq.from_addr || 'the client') + ' and moves the deal forward. If sending fails, your draft is saved and you can resume it.</p>';
+    h += '<label class="form-label" style="font-weight:600;margin-top:10px;">Deposit to secure (%)</label>';
+    h += '<input type="number" inputmode="numeric" data-qfield="depositPercent" min="0" max="100" step="5" value="' + (_qState.depositPercent != null ? _qState.depositPercent : 50) + '" class="form-input" style="width:100%;min-height:44px;">';
+    h += '</div>';
+    // ── BAND CONFIGURATION (Ruling 3) ──────────────────────────────────────────────
+    h += '<div style="margin-top:14px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);">';
+    h += '<div style="font-weight:700;margin-bottom:4px;"><i class="fa-solid fa-users" style="color:var(--color-gold);margin-right:6px;"></i>Band configuration</div>';
+    h += '<p style="margin:0 0 10px;font-size:var(--text-xs);color:var(--color-text-muted);"><strong>Absorb</strong> drops the client\'s price for a seat but keeps paying the player (margin falls). <strong>Remove</strong> drops price and cost. Both re-price live.</p>';
+    h += '<div id="q-roster">' + _rosterHtml() + '</div>';
+    h += '</div>';
+    // ── GOVERNED DISCOUNT (Ruling 1) ───────────────────────────────────────────────
+    h += '<div style="margin-top:14px;padding:14px;border:1px solid var(--color-border);border-radius:var(--radius-md);">';
+    h += '<div style="font-weight:700;margin-bottom:4px;"><i class="fa-solid fa-tag" style="color:var(--color-gold);margin-right:6px;"></i>Negotiated discount</div>';
+    h += '<div id="q-discount">' + _discountHtml() + '</div>';
+    h += '</div>';
+    // Repick / send footer notes.
+    h += '<button type="button" id="q-adjust" class="btn" style="width:100%;min-height:44px;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+      '<i class="fa-solid fa-arrow-rotate-left"></i> Change package</button>';
+    h += '<p style="margin:12px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);">Send delivers this quote by email to ' + esc(_qState.inq.from_addr || 'the client') + ' and moves the deal forward. Talent cost &amp; margin are internal — never shown to the client. If sending fails, your draft is saved and you can resume it.</p>';
     return h;
   }
+
+  // ── Interactive-Review helpers (transparency & control) ──────────────────────────
+  // Money that may be negative (removals/discounts show as −$1,500).
+  function _moneySigned(n) {
+    if (n == null || isNaN(n)) return '—';
+    var v = Number(n);
+    return (v < 0 ? '−' : '') + '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  // The itemized breakdown + price / Talent cost / Gross margin (pre-overhead). Rendered
+  // entirely from the in-memory pricer response — no arithmetic, no rates in the page.
+  function _breakdownHtml() {
+    var f = _qState && _qState.live;
+    if (!f) {
+      return '<div style="text-align:center;padding:26px 12px;color:var(--color-text-muted);">' +
+        '<i class="fa-solid fa-spinner fa-spin" style="font-size:20px;color:var(--color-gold);"></i>' +
+        '<p style="margin-top:8px;font-size:var(--text-sm);">Building the itemized quote…</p></div>';
+    }
+    var items = Array.isArray(f.line_items) ? f.line_items : [];
+    var h = '<div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;">' +
+      '<div style="padding:12px 14px;text-align:center;border-bottom:2px solid var(--color-gold);background:var(--color-bg-secondary);">' +
+        '<div style="font-weight:700;color:var(--color-gold);">Gold Bottom Ent. LLC</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">Performance Quote — itemized</div></div>';
+    h += '<div style="padding:12px 14px;font-size:var(--text-sm);">';
+    if (!items.length) h += '<div style="color:var(--color-text-muted);">No line items.</div>';
+    items.forEach(function(li) {
+      var neg = Number(li.amount) < 0;
+      h += '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--color-border);">' +
+        '<span style="color:var(--color-text);min-width:0;">' + esc(li.label) + '</span>' +
+        '<span style="font-weight:600;white-space:nowrap;color:' + (neg ? '#3fb950' : 'var(--color-text)') + ';">' + _moneySigned(li.amount) + '</span></div>';
+    });
+    h += '</div>';
+    h += '<div style="padding:12px 14px;border-top:1px solid var(--color-border);background:var(--color-bg-secondary);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:700;">Total to client</span>' +
+          '<span style="font-weight:700;font-size:var(--text-xl);color:var(--color-gold);">' + _money(f.quote_total) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;color:var(--color-text-muted);font-size:var(--text-sm);margin-top:4px;">' +
+          '<span>Deposit to secure (' + (_qState.depositPercent != null ? _qState.depositPercent : 50) + '%)</span><span>' + _money(f.deposit_amount) + '</span></div>' +
+        _budgetVsTotalRow(f.quote_total) +
+      '</div></div>';
+    // INTERNAL — BM only. Talent cost, Gross margin (pre-overhead), margin %. Never "profit".
+    var mp = Number(f.margin_pct);
+    var caution = '';
+    if (!isNaN(mp)) {
+      if (mp < 0) caution = '<div style="margin-top:8px;padding:8px 10px;border-radius:var(--radius-sm);background:rgba(248,81,73,0.14);border:1px solid rgba(248,81,73,0.4);color:#f85149;font-size:var(--text-xs);"><i class="fa-solid fa-triangle-exclamation" style="margin-right:5px;"></i>Below talent cost — owner-authorized.</div>';
+      else if (mp < 20) caution = '<div style="margin-top:8px;padding:8px 10px;border-radius:var(--radius-sm);background:rgba(212,160,23,0.14);border:1px solid rgba(212,160,23,0.4);color:#d4a017;font-size:var(--text-xs);"><i class="fa-solid fa-circle-exclamation" style="margin-right:5px;"></i>Thin margin — at or below the target minimum.</div>';
+    }
+    h += '<div style="margin-top:10px;border:1px dashed var(--color-gold);border-radius:var(--radius-md);background:rgba(212,160,23,0.06);padding:12px 14px;">' +
+      '<div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-muted);margin-bottom:6px;"><i class="fa-solid fa-lock" style="margin-right:5px;"></i>Internal — not shown to the client</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:var(--text-sm);padding:2px 0;"><span style="color:var(--color-text-muted);">Talent cost</span><span style="font-weight:600;">' + _money(f.internal_cost) + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:var(--text-sm);padding:2px 0;"><span style="color:var(--color-text-muted);">Gross margin (pre-overhead)</span>' +
+        '<span style="font-weight:700;color:' + (Number(f.margin) < 0 ? '#f85149' : '#3fb950') + ';">' + _moneySigned(f.margin) + (f.margin_pct != null && !isNaN(f.margin_pct) ? ' · ' + Number(f.margin_pct).toFixed(1) + '%' : '') + '</span></div>' +
+      caution +
+      '</div>';
+    return h;
+  }
+  function _renderBreakdown() {
+    var el = document.getElementById('q-breakdown');
+    if (el) { el.style.opacity = ''; el.innerHTML = _breakdownHtml(); }
+  }
+
+  // Band-configuration control: per role a three-state segmented control (On quote /
+  // Absorb / Remove) acting on one seat, plus an add-extra stepper. Sends role+state
+  // identifiers only; the server moves price and cost independently.
+  function _rosterHtml() {
+    var h = '';
+    _QUOTE_ROSTER_ROLES.forEach(function(r) {
+      var st = (_qState.roster && _qState.roster[r.role]) || 'on-quote';
+      var added = (_qState.added && _qState.added[r.role]) || 0;
+      h += '<div style="padding:8px 0;border-top:1px solid var(--color-border);">';
+      h += '<div style="font-weight:600;margin-bottom:6px;">' + esc(r.label) + '</div>';
+      h += '<div style="display:flex;gap:6px;">';
+      [['on-quote', 'On quote'], ['absorbed', 'Absorb'], ['removed', 'Remove']].forEach(function(opt) {
+        var on = st === opt[0];
+        h += '<button type="button" data-qact="roster" data-role="' + r.role + '" data-state="' + opt[0] + '" style="flex:1;min-height:40px;border-radius:var(--radius-sm);cursor:pointer;font-size:var(--text-xs);font-weight:600;border:1px solid ' + (on ? 'var(--color-gold)' : 'var(--color-border)') + ';background:' + (on ? 'rgba(212,160,23,0.16)' : 'var(--color-bg-secondary)') + ';color:' + (on ? 'var(--color-gold)' : 'var(--color-text)') + ';">' + opt[1] + '</button>';
+      });
+      h += '</div>';
+      h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:var(--text-xs);color:var(--color-text-muted);">' +
+        '<span>Add extra ' + esc(r.label.toLowerCase()) + '</span>' +
+        '<span style="display:flex;align-items:center;gap:10px;">' +
+          '<button type="button" data-qact="add" data-role="' + r.role + '" data-dir="-1" aria-label="remove one" style="width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);cursor:pointer;font-size:16px;">−</button>' +
+          '<span style="min-width:16px;text-align:center;font-weight:700;color:var(--color-text);">' + added + '</span>' +
+          '<button type="button" data-qact="add" data-role="' + r.role + '" data-dir="1" aria-label="add one" style="width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--color-border);background:var(--color-bg-secondary);color:var(--color-text);cursor:pointer;font-size:16px;">+</button>' +
+        '</span></div>';
+      h += '</div>';
+    });
+    return h;
+  }
+  function _renderRoster() { var el = document.getElementById('q-roster'); if (el) el.innerHTML = _rosterHtml(); }
+
+  // Governed discount: lower the client total by an amount OR to a target. The reason is
+  // recorded server-side with the adjustment. A below-cost attempt is BLOCKED until an
+  // owner authorizes it (with a required reason).
+  function _discountHtml() {
+    var d = _qState.discount || {};
+    var h = '<p style="margin:0 0 10px;font-size:var(--text-xs);color:var(--color-text-muted);">Lower the client\'s total. If it falls below our talent cost the system blocks it until an owner authorizes.</p>';
+    h += '<div style="display:flex;gap:10px;">';
+    h += '<div style="flex:1;"><label class="form-label" style="font-weight:600;">Discount ($ off)</label>' +
+      '<input type="number" inputmode="numeric" data-qfield="discountAmount" min="0" value="' + (d.amount != null ? esc(String(d.amount)) : '') + '" placeholder="e.g. 500" class="form-input" style="width:100%;min-height:44px;"></div>';
+    h += '<div style="flex:1;"><label class="form-label" style="font-weight:600;">…or target total</label>' +
+      '<input type="number" inputmode="numeric" data-qfield="discountTarget" min="0" placeholder="e.g. 5000" class="form-input" style="width:100%;min-height:44px;"></div>';
+    h += '</div>';
+    h += '<label class="form-label" style="font-weight:600;margin-top:10px;">Reason / note for this adjustment</label>';
+    h += '<textarea data-qfield="discountReason" class="form-input" rows="2" maxlength="500" placeholder="e.g. repeat client; absorbing a player to win the booking" style="width:100%;resize:vertical;">' + esc(d.reason || '') + '</textarea>';
+    h += '<div id="q-discount-status">' + _discountStatusHtml() + '</div>';
+    h += '<div style="display:flex;gap:10px;margin-top:10px;">' +
+      '<button type="button" data-qact="applyDiscount" class="btn btn-primary" style="flex:1;min-height:44px;font-weight:600;">Apply discount</button>' +
+      '<button type="button" data-qact="clearDiscount" class="btn" style="flex:0 0 auto;min-height:44px;padding:0 16px;">Clear</button>' +
+      '</div>';
+    return h;
+  }
+  function _discountStatusHtml() {
+    var err = _qState.repriceError;
+    if (err && err.kind === 'below_cost') {
+      return '<div style="margin-top:10px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(248,81,73,0.14);border:1px solid rgba(248,81,73,0.45);color:#f85149;font-size:var(--text-sm);">' +
+        '<i class="fa-solid fa-ban" style="margin-right:6px;"></i>This quote is below our talent cost — needs owner authorization.' +
+        '<label style="display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--color-text);font-size:var(--text-sm);cursor:pointer;">' +
+          '<input type="checkbox" data-qfield="ownerOverride"' + (_qState.discount && _qState.discount.ownerOverride ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--color-gold);">' +
+          '<span>Owner authorization — approve this below-cost quote</span></label>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:4px;">A reason (above) is required. Then tap Apply discount again.</div>' +
+      '</div>';
+    }
+    if (err && err.kind === 'unpriceable') {
+      return '<div style="margin-top:10px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(212,160,23,0.14);border:1px solid rgba(212,160,23,0.4);color:#d4a017;font-size:var(--text-sm);"><i class="fa-solid fa-circle-exclamation" style="margin-right:6px;"></i>Can\'t price this combination' + (err.reason ? ' (' + esc(String(err.reason)) + ')' : '') + '. Adjust and try again.</div>';
+    }
+    if (err && err.kind === 'error') {
+      return '<div style="margin-top:10px;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(212,160,23,0.14);border:1px solid rgba(212,160,23,0.4);color:#d4a017;font-size:var(--text-sm);"><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>' + esc(err.message || 'Could not re-price. Try again.') + '</div>';
+    }
+    if (_qState.discount && Number(_qState.discount.amount) > 0) {
+      return '<div style="margin-top:10px;padding:8px 12px;border-radius:var(--radius-sm);background:rgba(63,185,80,0.12);border:1px solid rgba(63,185,80,0.4);color:#3fb950;font-size:var(--text-sm);"><i class="fa-solid fa-check" style="margin-right:6px;"></i>Discount applied' + (_qState.discount.ownerOverride ? ' (owner-authorized)' : '') + '.</div>';
+    }
+    return '';
+  }
+  function _renderDiscountStatus() { var el = document.getElementById('q-discount-status'); if (el) el.innerHTML = _discountStatusHtml(); }
+
+  // Sum of the current line items EXCLUDING any negotiated-discount line — the base a
+  // target-total discount subtracts from. Uses only the customer-facing figures already
+  // on screen (no rates); benign subtraction, not pricing math.
+  function _preDiscountSubtotal() {
+    var f = _qState && _qState.live;
+    if (!f || !Array.isArray(f.line_items)) return null;
+    var s = 0;
+    f.line_items.forEach(function(li) { if (String(li.label || '').toLowerCase().indexOf('discount') === -1) s += Number(li.amount) || 0; });
+    return Math.round(s * 100) / 100;
+  }
+
+  // Build the IDENTIFIER-ONLY roster deltas from the Review selections.
+  function _qBuildRoster() {
+    var out = [];
+    var rs = _qState.roster || {}, added = _qState.added || {};
+    _QUOTE_ROSTER_ROLES.forEach(function(r) { var st = rs[r.role]; if (st === 'absorbed' || st === 'removed') out.push({ role: r.role, state: st }); });
+    _QUOTE_ROSTER_ROLES.forEach(function(r) { var n = added[r.role] || 0; for (var i = 0; i < n; i++) out.push({ role: r.role, state: 'added' }); });
+    return out;
+  }
+  // Assemble the full quote-price request from the live Review state. Omits blanks and
+  // generic-only levers on native tiers. NEVER sends money — only selections.
+  function _qPayload() {
+    var generic = _isGenericPkg(_qState.packageKey);
+    var roster = _qBuildRoster();
+    var p = {
+      inquiryId: _qState.inq.id,
+      packageKey: _qState.packageKey,
+      eventType: _qState.eventType || undefined,
+      guestBand: _qState.guestBand || undefined,
+      eventDate: _qState.eventDate || undefined,
+      oneWayMiles: (_qState.oneWayMiles === '' || _qState.oneWayMiles == null) ? undefined : Number(_qState.oneWayMiles),
+      nights: (_qState.nights === '' || _qState.nights == null) ? undefined : Number(_qState.nights),
+      depositPercent: _qState.depositPercent,
+      durationHours: (generic && _qState.durationHours !== '' && _qState.durationHours != null) ? Number(_qState.durationHours) : undefined,
+      soundSystem: (generic && _qState.soundSystem) ? _qState.soundSystem : undefined,
+      roster: roster.length ? roster : undefined
+    };
+    var d = _qState.discount;
+    if (d && Number(d.amount) > 0) p.discount = { amount: Number(d.amount), ownerOverride: d.ownerOverride === true, reason: d.reason || undefined };
+    return p;
+  }
+
+  // Invoke the cloud pricer; return a STRUCTURED result so a below-cost block (422) is
+  // distinguishable from an ordinary failure. functions.invoke attaches the BM session JWT.
+  async function _invokeQuotePrice(payload) {
+    var sb = (typeof Auth !== 'undefined' && Auth.getSupabase && Auth.getSupabase());
+    if (!sb || !sb.functions || typeof sb.functions.invoke !== 'function') {
+      return { ok: false, status: 0, body: null, message: 'Please sign in on the public site to author quotes.' };
+    }
+    var res = await sb.functions.invoke('quote-price', { body: payload });
+    if (res.error) {
+      var status = 0, body = null;
+      try {
+        var ctx = res.error.context;
+        if (ctx && typeof ctx.json === 'function') { body = await ctx.json(); status = ctx.status || 0; }
+        else if (ctx && typeof ctx.status === 'number') { status = ctx.status; }
+      } catch (_) { /* non-JSON body — leave null */ }
+      return { ok: false, status: status, body: body, message: (res.error && res.error.message) ? res.error.message : 'Could not price this quote.' };
+    }
+    if (!res.data || res.data.quote_total == null) return { ok: false, status: 0, body: null, message: 'Pricing returned no total. Try again.' };
+    return { ok: true, data: res.data };
+  }
+
+  var _repriceBusy = false, _repriceQueued = false;
+  // Re-price server-side after any Review change and repaint the breakdown + discount
+  // status regions ONLY (keeps control focus/scroll). Coalesces rapid changes.
+  async function _reprice() {
+    if (!_qState) return;
+    if (_repriceBusy) { _repriceQueued = true; return; }
+    _repriceBusy = true; _repriceQueued = false;
+    var since = Date.now();
+    var bd = document.getElementById('q-breakdown');
+    if (bd) bd.style.opacity = '0.5';
+    try {
+      var r = await _invokeQuotePrice(_qPayload());
+      if (!_qState) return;
+      if (r.ok) {
+        _qState.live = r.data;
+        _qState.repriceError = null;
+        _refreshDraftId(since);
+      } else if (r.body && r.body.error === 'below_cost_floor') {
+        _qState.repriceError = { kind: 'below_cost' };
+      } else if (r.body && r.body.error === 'unpriceable') {
+        _qState.repriceError = { kind: 'unpriceable', reason: r.body.reason };
+      } else {
+        _qState.repriceError = { kind: 'error', message: r.message };
+      }
+    } catch (e) {
+      if (_qState) _qState.repriceError = { kind: 'error', message: (e && e.message) || 'Could not price this quote.' };
+    } finally {
+      _repriceBusy = false;
+      if (_qState) { _renderBreakdown(); _renderDiscountStatus(); }
+      if (_repriceQueued && _qState) { _repriceQueued = false; _reprice(); }
+    }
+  }
+  // Non-blocking: the pricer wrote a fresh draft row synchronously — grab its id so Send
+  // targets exactly this price.
+  function _refreshDraftId(since) {
+    if (!_qState) return;
+    pollForDraft(_qState.inq.id, since, 12000).then(function(d) {
+      if (d && _qState) { _qState.draftId = d.id; _qState.figures = d; }
+    }).catch(function() {});
+  }
+
+  function _bindReviewControls() {
+    var body = document.getElementById('q-body');
+    if (!body || body._qReviewBound) { if (_qState && !_qState.live) _reprice(); return; }
+    body._qReviewBound = true;
+    body.addEventListener('change', _onReviewChange);
+    body.addEventListener('click', _onReviewClick);
+    // Resumed draft (no in-memory response yet) → fetch the breakdown/cost/margin now.
+    if (_qState && !_qState.live) _reprice();
+  }
+  function _onReviewChange(e) {
+    if (!_qState) return;
+    var t = e.target; if (!t || !t.getAttribute) return;
+    var f = t.getAttribute('data-qfield'); if (!f) return;
+    var v = t.value;
+    if (f === 'eventType') { _qState.eventType = v; _reprice(); }
+    else if (f === 'guestBand') { _qState.guestBand = v; _reprice(); }
+    else if (f === 'eventDate') { _qState.eventDate = v; _reprice(); }
+    else if (f === 'oneWayMiles') { var m = String(v).trim(); _qState.oneWayMiles = (m === '') ? '' : Math.max(0, Math.min(5000, parseInt(m, 10) || 0)); _reprice(); }
+    else if (f === 'nights') { var n = String(v).trim(); _qState.nights = (n === '') ? '' : Math.max(0, Math.min(30, parseInt(n, 10) || 0)); _reprice(); }
+    else if (f === 'durationHours') { var dh = String(v).trim(); _qState.durationHours = (dh === '') ? '' : Math.max(0, Math.min(24, parseFloat(dh) || 0)); _reprice(); }
+    else if (f === 'soundSystem') { _qState.soundSystem = v; _reprice(); }
+    else if (f === 'depositPercent') { var dp = parseInt(v, 10); if (!isNaN(dp)) _qState.depositPercent = Math.max(0, Math.min(100, dp)); _reprice(); }
+    // discount fields (amount/target/reason/ownerOverride) are read from the DOM on Apply.
+  }
+  function _onReviewClick(e) {
+    if (!_qState) return;
+    var btn = e.target && e.target.closest ? e.target.closest('[data-qact]') : null;
+    if (!btn) return;
+    var act = btn.getAttribute('data-qact');
+    if (act === 'roster') {
+      var role = btn.getAttribute('data-role'), state = btn.getAttribute('data-state');
+      _qState.roster = _qState.roster || {}; _qState.roster[role] = state;
+      _renderRoster(); _reprice();
+    } else if (act === 'add') {
+      var role2 = btn.getAttribute('data-role'), dir = parseInt(btn.getAttribute('data-dir'), 10) || 0;
+      _qState.added = _qState.added || {};
+      _qState.added[role2] = Math.max(0, Math.min(6, (_qState.added[role2] || 0) + dir));
+      _renderRoster(); _reprice();
+    } else if (act === 'applyDiscount') {
+      _applyDiscount();
+    } else if (act === 'clearDiscount') {
+      _qState.discount = null;
+      var a = document.querySelector('[data-qfield="discountAmount"]'); if (a) a.value = '';
+      var tg = document.querySelector('[data-qfield="discountTarget"]'); if (tg) tg.value = '';
+      _reprice();
+    }
+  }
+  function _applyDiscount() {
+    if (!_qState) return;
+    var q = function(sel) { return document.querySelector(sel); };
+    var amtEl = q('[data-qfield="discountAmount"]'), tgtEl = q('[data-qfield="discountTarget"]');
+    var reasonEl = q('[data-qfield="discountReason"]'), ownerEl = q('[data-qfield="ownerOverride"]');
+    var reason = reasonEl ? reasonEl.value.trim() : '';
+    var amt = (amtEl && String(amtEl.value).trim() !== '') ? parseFloat(amtEl.value) : NaN;
+    if ((isNaN(amt) || amt <= 0) && tgtEl && String(tgtEl.value).trim() !== '') {
+      var tgt = parseFloat(tgtEl.value), sub = _preDiscountSubtotal();
+      if (!isNaN(tgt) && sub != null) amt = Math.max(0, Math.round((sub - tgt) * 100) / 100);
+    }
+    if (isNaN(amt) || amt <= 0) { _qState.discount = null; if (typeof Toast !== 'undefined') Toast.info('Discount cleared.'); _reprice(); return; }
+    var owner = !!(ownerEl && ownerEl.checked);
+    if (owner && !reason) { if (typeof Toast !== 'undefined') Toast.error('A reason is required for owner authorization.'); return; }
+    _qState.discount = { amount: amt, ownerOverride: owner, reason: reason || undefined };
+    _reprice();
+  }
+
   function _reviewRow(k, v) {
     return '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:var(--color-text-muted);">' + k + '</span><span style="font-weight:600;text-align:right;">' + v + '</span></div>';
   }
@@ -3047,6 +3411,10 @@
   // its draftId + figures for Send. quote-price does NOT return the draftId by design,
   // so we read it from booking_quote_draft_readmodel.
   async function _qBuild() {
+    // A fresh baseline build (package/inputs may have changed) — reset the Review levers so
+    // stale roster/discount selections can't desync from the just-priced baseline figure.
+    _qState.roster = {}; _qState.added = {}; _qState.discount = null;
+    _qState.durationHours = ''; _qState.soundSystem = ''; _qState.repriceError = null;
     var btn = document.getElementById('q-primary');
     var back = document.getElementById('q-back');
     var since = Date.now();
@@ -3076,6 +3444,10 @@
       // The BM may have closed the stepper mid-price (_qState nulled). The quote still
       // priced fine server-side; resolve silently rather than throwing a false toast.
       if (!_qState) return;
+      // Hold the full pricer RESPONSE (line items + Talent cost + margin) in memory for
+      // the interactive Review render. This is the ONLY place these figures live — never storage.
+      _qState.live = priced;
+      _qState.repriceError = null;
       // Read the priced draft back (own-row); quote-price wrote it synchronously, so a
       // short poll covers read-after-write. draft.id is what Send queues.
       var draft = await pollForDraft(_qState.inq.id, since, 20000);
@@ -3132,15 +3504,44 @@
   // (re-splits the deposit against the fixed, server-computed total). We then poll the
   // OWN outbox row to upgrade "queued" → "sent" when it drains.
   async function _qSend() {
-    if (!_qState.draftId) { if (typeof Toast !== 'undefined') Toast.error('No priced draft to send. Go Back and Build Quote.'); return; }
     var btn = document.getElementById('q-primary');
     var back = document.getElementById('q-back');
     var buyerAddr = _qState.inq.from_addr;           // capture before any await/close
     var inqId = _qState.inq.id;
-    var figures = _qState.figures;
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Finalizing…'; }
     if (back) back.disabled = true;                  // lock Back during the send
     try {
+      // AUTHORITATIVE FINAL PRICE: re-price the current on-screen selections one last time
+      // so the draft that gets emailed equals exactly what the BM is looking at (each price
+      // writes a fresh draft; the sent draft is thus frozen and never a stale/edited one).
+      var since = Date.now();
+      var r = await _invokeQuotePrice(_qPayload());
+      if (!_qState) return;
+      if (!r.ok) {
+        _qState.repriceError = (r.body && r.body.error === 'below_cost_floor') ? { kind: 'below_cost' }
+          : (r.body && r.body.error === 'unpriceable') ? { kind: 'unpriceable', reason: r.body.reason }
+          : { kind: 'error', message: r.message };
+        _renderBreakdown(); _renderDiscountStatus();
+        if (typeof Toast !== 'undefined') Toast.error((r.body && r.body.error === 'below_cost_floor')
+          ? 'This quote is below our talent cost — authorize it as owner before sending.'
+          : 'Could not finalize the quote: ' + (r.message || 'try again') + '.');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Quote'; }
+        if (back) back.disabled = false;
+        return;
+      }
+      _qState.live = r.data; _qState.repriceError = null; _renderBreakdown();
+      // Read the just-written priced draft back (own-row) to get its id for the send outbox.
+      var draft = await pollForDraft(inqId, since, 20000);
+      if (!_qState) return;
+      if (!draft) {
+        if (typeof Toast !== 'undefined') Toast.info('Priced — finalizing the draft; tap Send again in a moment.');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Quote'; }
+        if (back) back.disabled = false;
+        return;
+      }
+      _qState.draftId = draft.id; _qState.figures = draft;
+      var figures = _qState.figures;
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
       var queued = await queueQuoteSend(_qState.draftId, inqId, _qState.depositPercent);
       // Mark the inquiry responded so it leaves the "needs action" set (optimistic).
       try { await performInboxAction(inqId, 'mark_inbox_responded'); } catch (_) {}
