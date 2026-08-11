@@ -2947,16 +2947,10 @@
   }
 
   function _stepServices() {
-    var h = '<p style="margin:0 0 12px;color:var(--color-text-muted);font-size:var(--text-sm);">What are they booking? Pick a package and event type — we price it for you.</p>';
-    h += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">';
-    QUOTE_PACKAGES.forEach(function(p) {
-      var on = _qState.packageKey === p.key;
-      h += '<label style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--radius-md);border:1px solid ' + (on ? 'var(--color-gold)' : 'var(--color-border)') + ';background:' + (on ? 'rgba(212,160,23,0.08)' : 'var(--color-bg-secondary)') + ';cursor:pointer;min-height:44px;">' +
-        '<input type="radio" name="q-pkg" value="' + p.key + '"' + (on ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--color-gold);flex-shrink:0;">' +
-        '<div style="flex:1;min-width:0;"><div style="font-weight:600;">' + esc(p.label) + '</div>' +
-        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + esc(p.desc) + '</div></div></label>';
-    });
-    h += '</div>';
+    var generic = _isGenericPkg(_qState.packageKey);
+    var h = '<p style="margin:0 0 12px;color:var(--color-text-muted);font-size:var(--text-sm);">Confirm the event type and guest count, then pick a package — we price it for you.</p>';
+    // Event type + guest count apply to EVERY package and gate pricing, so they lead — no
+    // scrolling past the 16-item package list to reach them (was buried at the bottom).
     h += '<label class="form-label" style="font-weight:600;">Event type</label>';
     h += '<select id="q-eventtype" class="form-input" style="width:100%;min-height:44px;">';
     h += '<option value=""' + (!_qState.eventType ? ' selected' : '') + '>Select event type…</option>';
@@ -2967,7 +2961,6 @@
     // Guest count is COLLECTED HERE (before pricing) because band packages need it to
     // price sound/PA — the server 409s "sound_guest_count_unknown" without it. Pre-filled
     // from the customer's own inquiry; still editable here and on the Review step.
-    var generic = _isGenericPkg(_qState.packageKey);
     h += '<label class="form-label" style="font-weight:600;margin-top:14px;">Expected guest count' + (generic ? '' : ' <span style="color:var(--color-text-muted);font-weight:400;">(optional for this package)</span>') + '</label>';
     h += '<select id="q-guests" class="form-input" style="width:100%;min-height:44px;">';
     h += '<option value=""' + (!_qState.guestBand ? ' selected' : '') + '>Select guest count…</option>';
@@ -2975,7 +2968,18 @@
       h += '<option value="' + g + '"' + (_qState.guestBand === g ? ' selected' : '') + '>' + esc(guestBandLabel(g)) + '</option>';
     });
     h += '</select>';
-    h += '<p style="margin:6px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-users" style="margin-right:4px;"></i> ' + (generic ? 'Required to price sound and equipment for this package.' : 'Bundled for this package — set it if you have it.') + '</p>';
+    h += '<p style="margin:6px 0 12px;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-users" style="margin-right:4px;"></i> ' + (generic ? 'Required to price sound and equipment for this package.' : 'Bundled for this package — set it if you have it.') + '</p>';
+    // Package list follows.
+    h += '<label class="form-label" style="font-weight:600;margin-top:6px;">Package</label>';
+    h += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">';
+    QUOTE_PACKAGES.forEach(function(p) {
+      var on = _qState.packageKey === p.key;
+      h += '<label style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--radius-md);border:1px solid ' + (on ? 'var(--color-gold)' : 'var(--color-border)') + ';background:' + (on ? 'rgba(212,160,23,0.08)' : 'var(--color-bg-secondary)') + ';cursor:pointer;min-height:44px;">' +
+        '<input type="radio" name="q-pkg" value="' + p.key + '"' + (on ? ' checked' : '') + ' style="width:18px;height:18px;accent-color:var(--color-gold);flex-shrink:0;">' +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:600;">' + esc(p.label) + '</div>' +
+        '<div style="font-size:var(--text-xs);color:var(--color-text-muted);">' + esc(p.desc) + '</div></div></label>';
+    });
+    h += '</div>';
     return h;
   }
 
@@ -3078,6 +3082,25 @@
     return (v < 0 ? '−' : '') + '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
+  // The edge fn currently returns the SAME "Roster adjustment — <role> removed" label for
+  // an ABSORBED slot as for a removed one (server-owned label). But an absorbed player still
+  // performs — they just aren't billed to the client — so "removed" is untruthful on a screen
+  // labeled "exactly what the client receives". We KNOW which state we sent (_qState.roster),
+  // so we correct the DISPLAY wording only — never the dollar amount (that stays server-computed).
+  // Maps the customer-facing role word the server uses back to our role key.
+  var _SERVER_ROLE_WORD = { 'musician': 'musician', 'background vocalist': 'backgroundSinger', 'dj': 'dj' };
+  function _displayLineLabel(label) {
+    var s = String(label == null ? '' : label);
+    var m = /^Roster adjustment [—-] (.+) removed$/.exec(s);
+    if (m) {
+      var roleKey = _SERVER_ROLE_WORD[m[1].toLowerCase()];
+      if (roleKey && _qState && _qState.roster && _qState.roster[roleKey] === 'absorbed') {
+        return 'Roster adjustment — ' + m[1] + ' absorbed (not billed)';
+      }
+    }
+    return s;
+  }
+
   // The itemized breakdown + price / Talent cost / Gross margin (pre-overhead). Rendered
   // entirely from the in-memory pricer response — no arithmetic, no rates in the page.
   function _breakdownHtml() {
@@ -3097,7 +3120,7 @@
     items.forEach(function(li) {
       var neg = Number(li.amount) < 0;
       h += '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--color-border);">' +
-        '<span style="color:var(--color-text);min-width:0;">' + esc(li.label) + '</span>' +
+        '<span style="color:var(--color-text);min-width:0;">' + esc(_displayLineLabel(li.label)) + '</span>' +
         '<span style="font-weight:600;white-space:nowrap;color:' + (neg ? '#3fb950' : 'var(--color-text)') + ';">' + _moneySigned(li.amount) + '</span></div>';
     });
     h += '</div>';
