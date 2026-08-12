@@ -15,7 +15,7 @@ var SHELL_CACHE = 'gbe-shell-v39';
 var AUDIO_CACHE = 'bp-offline-audio'; // Owned by BandPlayer — never delete this cache
 
 // SHA-256 hashes of precached assets — populated by generate-sw-hashes.js
-var GBE_BUILD = '2026.08.11-1429.7b5832a';
+var GBE_BUILD = '2026.08.12-0403.09a0d2e';
 var ASSET_HASHES = {
   './css/base.css': '2a43744f37cfb253154beefd8cb0e6c2054c11cf72f1041434a2c9d3cce630ab',
   './css/layout.css': '8fcda4a8cfbff5da7a66f651eeb6846eb8c4cf23058006c3ff06dd3e99789e54',
@@ -25,7 +25,7 @@ var ASSET_HASHES = {
   './css/dashboard.css': 'c70fe8411bbcce30dcfd574301e7423f21113174f99c56fa3d3eb9863f9ca033',
   './css/animations.css': '97ae5536821674cf9ead7114e508260b951ffb5885127a538861a28f3ddbc85c',
   './css/responsive.css': 'bee3150eedac7fbb0a0910c42682f196dee864c7da6dfeea0f29110ea3b8bbe7',
-  './js/build.js': '4ed9523572d5ec3a139db7045c4d9da3ad4e9e3f4f6c396ca3bac6202d89b85f',
+  './js/build.js': 'fe8bebf75ec5c3f419cfdd40df212f3755a87e26a8be23ce118acac403232b17',
   './js/config.js': '3a1c13c57f5d2eabada50937b9bb90c3ea5529b2506ad8b11bb215de85556842',
   './js/utils.js': '49dc7ead1f12a1d817f2a1d182ced257c2c0842f6fd649444d7687ad2be95c38',
   './js/mobile-detect.js': 'a5fc7d286ca4497e9a88f72c9cf092d207ad0875fa2b45dc550287e62daaf94e',
@@ -39,7 +39,7 @@ var ASSET_HASHES = {
   './js/sidebar.js': '629752996e35c993c2b16cd0c02cbeec060226cfe4877b6b2f828e8d81eba312',
   './js/auth-cache.js': '4790c386f084a9764f7fda46348c6846b3bdab7e0fce536cf59b7b516c6588d2',
   './js/sidebar-v2.js': '822146e4ef9d261bc58bf0de5f51121d14541dc4adb85e4b67ca295e2e947e21',
-  './js/data-store.js': 'c677aa4a3f4fd618d133313057505f1254526fd43c58c18e1b8450582f3e5aba',
+  './js/data-store.js': '946c2d347c47a913915bf670877835a8ca94d48fb0dd3a4e3b8392badba35660',
   './js/forms.js': '8f7e8303d873734db662a8d532163eeffe649528186877dc90b92f71f8841750',
   './js/table-manager.js': '48472d850800b118c57e850844a3dff7121fa661db818f238afd0135daa40ca8',
   './js/dashboard-widgets.js': '689cf2f3529404f220e4ac2d4c3def22d3c3b1f4d425d2f8d21e95f86338700f',
