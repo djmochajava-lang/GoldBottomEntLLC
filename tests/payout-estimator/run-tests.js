@@ -300,6 +300,21 @@ test('no guarantee, no earn-back line', () => {
   assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, guarantee: 0 })).venueNote, '');
 });
 
+console.log('\nGBE recoup verdict — after its costs, who wins');
+test('defaults: GBE does not recoup — it absorbs $875, tickets add nothing for her', () => {
+  const s = M.summarize(M.estimate(DEFAULTS));
+  assert.strictEqual(s.gbeText, '−$875');
+  assert.strictEqual(s.gbeTone, 'neg');
+  assert(s.gbeNote.includes('doesn’t recoup'), s.gbeNote);
+  assert(s.gbeNote.includes('absorbs $875'), s.gbeNote);
+});
+test('a strong night flips the verdict green and the extra rides to her', () => {
+  const s = M.summarize(M.estimate({ ...DEFAULTS, ticketPrice: 40, ticketsSold: 150 }));
+  assert.strictEqual(s.gbeText, '+$965');
+  assert.strictEqual(s.gbeTone, 'pos');
+  assert(s.gbeNote.includes('rides to you'), s.gbeNote);
+});
+
 console.log('\nVisible totals — costs and ticket revenue');
 test('total costs: $900 at defaults, moves with each cost', () => {
   assert(near(M.estimate(DEFAULTS).costsTotal, 900));
@@ -386,6 +401,10 @@ test('fuzz holds every invariant', () => {
     } else {
       assert.strictEqual(s.lossText, '', 'no phantom loss figure' + ctx);
     }
+    assert.strictEqual(s.gbeText, M.fmtSigned(r.flexible), 'GBE verdict drift' + ctx);
+    const gt = r.flexible < -1e-9 ? 'neg' : (r.flexible > 1e-9 ? 'pos' : 'zero');
+    assert.strictEqual(s.gbeTone, gt, 'GBE verdict tone' + ctx);
+    if (gt === 'neg') assert(s.gbeNote.includes(M.fmtMoney(r.outOfPocket)), 'GBE loss named' + ctx);
     // 3. The waterfall; her rate law; the venue's off-the-top claim.
     const others = inp.musicians * inp.musicianRate + inp.singers * inp.singerRate;
     const affordable = Math.max(0, inp.guarantee - others);

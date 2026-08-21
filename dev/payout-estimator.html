@@ -258,10 +258,20 @@
         // The show's loss as its own figure — big and unmissable when the
         // show is taking a hit, absent when it isn't.
         var lossText = r.flexible < 0 ? '−' + fmtMoney(r.outOfPocket) : '';
+        // GBE's recoup verdict: after its costs, does anything ride to her —
+        // or does GBE absorb a loss while tickets add nothing for her?
+        var gbeText = fmtSigned(r.flexible);
+        var gbeTone = r.flexible < -1e-9 ? 'neg' : (r.flexible > 1e-9 ? 'pos' : 'zero');
+        var gbeNote = gbeTone === 'neg'
+          ? 'GBE doesn\u2019t recoup — it absorbs ' + fmtMoney(r.outOfPocket) + ', and tickets add nothing for you.'
+          : (gbeTone === 'pos'
+            ? 'GBE\u2019s costs are covered — this extra rides to you.'
+            : 'GBE\u2019s costs are exactly covered.');
         return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(bandPay),
                  bandNote: bandNote, bandShort: bandShort,
                  surplusText: surplusText, surplusTone: surplusTone,
                  feeNote: feeNote, feeState: feeState, lossText: lossText,
+                 gbeText: gbeText, gbeTone: gbeTone, gbeNote: gbeNote,
                  breakEvenNote: beNote, breakEvenTone: beTone,
                  venueNote: vNote, venueTone: vTone,
                  coverage: coverage, coach: coach };
@@ -368,42 +378,6 @@
       </p>
     </section>
 
-    <!-- The costs -->
-    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
-      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">The costs</h2>
-
-      <div class="mb-5">
-        <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-fee" class="text-sm font-medium">GBE booking fee</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-fee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="booking fee"></span>
-        </div>
-        <input id="in-fee" type="range" min="0" max="2000" step="25" value="200" class="w-full" aria-label="booking fee slider">
-      </div>
-
-      <div class="mb-5">
-        <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="500" aria-label="promo spend"></span>
-        </div>
-        <input id="in-promo" type="range" min="0" max="3000" step="25" value="500" class="w-full" aria-label="promo spend slider">
-      </div>
-
-      <div>
-        <div class="flex items-baseline justify-between mb-0.5">
-          <label for="in-misc" class="text-sm font-medium">Miscellaneous</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="miscellaneous cost"></span>
-        </div>
-        <p class="text-[11px] text-gray-600 mb-1.5">Anything else you pay for &mdash; travel, wardrobe, gear, whatever the night needs.</p>
-        <input id="in-misc" type="range" min="0" max="3000" step="25" value="200" class="w-full" aria-label="miscellaneous cost slider">
-      </div>
-
-      <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
-        <p class="text-sm font-medium min-w-0">Total costs</p>
-        <p id="out-coststotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-white">$900</p>
-      </div>
-      <p class="text-[11px] text-gray-600 mt-1">These come out of your take-home.</p>
-    </section>
-
     <!-- Tickets & the venue -->
     <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
       <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Tickets &amp; the venue</h2>
@@ -482,6 +456,48 @@
         <p id="out-tkshare" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$840</p>
       </div>
       <p class="text-[11px] text-gray-600 mt-1">This rides into your take-home.</p>
+    </section>
+
+    <!-- GBE-LLC costs — and whether GBE recoups them -->
+    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">GBE-LLC costs</h2>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-fee" class="text-sm font-medium">GBE booking fee</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-fee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="booking fee"></span>
+        </div>
+        <input id="in-fee" type="range" min="0" max="2000" step="25" value="200" class="w-full" aria-label="booking fee slider">
+      </div>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="500" aria-label="promo spend"></span>
+        </div>
+        <input id="in-promo" type="range" min="0" max="3000" step="25" value="500" class="w-full" aria-label="promo spend slider">
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between mb-0.5">
+          <label for="in-misc" class="text-sm font-medium">Miscellaneous</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="miscellaneous cost"></span>
+        </div>
+        <p class="text-[11px] text-gray-600 mb-1.5">Anything else you pay for &mdash; travel, wardrobe, gear, whatever the night needs.</p>
+        <input id="in-misc" type="range" min="0" max="3000" step="25" value="200" class="w-full" aria-label="miscellaneous cost slider">
+      </div>
+
+      <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
+        <p class="text-sm font-medium min-w-0">Total GBE costs</p>
+        <p id="out-coststotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-white">$900</p>
+      </div>
+      <p class="text-[11px] text-gray-600 mt-1">These come out of your take-home.</p>
+
+      <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
+        <p class="text-sm font-medium min-w-0">After GBE costs</p>
+        <p id="out-gberesult" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-loss">&minus;$875</p>
+      </div>
+      <p id="out-gbenote" class="text-xs mt-1 font-medium text-gray-500"></p>
     </section>
 
     <p class="mx-6 mt-6 text-center text-[11px] leading-relaxed text-gray-600">
@@ -569,6 +585,13 @@
           (s.venueTone === 'red' ? 'text-loss' : (s.venueTone === 'warn' ? 'text-warn' : 'text-gray-500'));
         vEl.classList.toggle('hidden', !s.venueNote);
         $('out-revtotal').textContent = M.fmtMoney(r.ticketGross);
+        var gbeEl = $('out-gberesult');
+        gbeEl.textContent = s.gbeText;
+        gbeEl.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' +
+          (s.gbeTone === 'neg' ? 'text-loss' : (s.gbeTone === 'pos' ? 'text-good' : 'text-gray-400'));
+        var gbeNoteEl = $('out-gbenote');
+        gbeNoteEl.textContent = s.gbeNote;
+        gbeNoteEl.className = 'text-xs mt-1 font-medium ' + (s.gbeTone === 'neg' ? 'text-loss' : 'text-gray-500');
         $('out-coststotal').textContent = M.fmtMoney(r.costsTotal);
         $('out-tksales').textContent = r.sold + ' × ' + M.fmtMoney(r.ticketPrice);
         $('out-tkgross').textContent = M.fmtMoney(r.ticketGross);
