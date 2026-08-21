@@ -139,7 +139,14 @@
         }
         // The band's collective take-home: every player but her, and the deal
         // rules always make them whole — so this never dips with ticket sales.
-        return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(r.others), coverage: coverage, coach: coach };
+        // When the guarantee falls short of the band, say so loudly and name
+        // the amount that gets made up out of ticket money.
+        var bandShort = r.ownerGap > 0;
+        var bandNote = bandShort
+          ? 'The guarantee is ' + fmtMoney(r.ownerGap) + ' short of the band — that gets made up out of ticket money.'
+          : 'The guarantee covers the band in full.';
+        return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(r.others),
+                 bandNote: bandNote, bandShort: bandShort, coverage: coverage, coach: coach };
       }
 
       var api = { estimate: estimate, summarize: summarize, fmtMoney: fmtMoney };
@@ -173,17 +180,61 @@
       <button id="sign-out" class="text-xs text-gray-500 underline underline-offset-2 py-2 pl-3">sign out</button>
     </header>
 
-    <!-- The show -->
+    <!-- Her band and its money — leads the page -->
     <section class="mx-3 mt-1 bg-panel border border-edge rounded-2xl p-5">
-      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">The show</h2>
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Your band</h2>
 
-      <div class="mb-5">
-        <div class="flex items-baseline justify-between mb-1.5">
+      <div class="mb-6">
+        <div class="flex items-baseline justify-between mb-0.5">
           <label for="in-guarantee" class="text-sm font-medium">Band guarantee</label>
           <span class="text-white font-semibold text-base">$<input id="chip-guarantee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="2,000" aria-label="band guarantee amount"></span>
         </div>
+        <p class="text-[11px] text-gray-600 mb-1.5">What the venue pays toward the band.</p>
         <input id="in-guarantee" type="range" min="0" max="10000" step="50" value="2000" class="w-full" aria-label="band guarantee slider">
       </div>
+
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-sm font-medium">Musicians</p>
+        <div class="flex items-center gap-2.5">
+          <button data-step="musicians" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer musicians">&minus;</button>
+          <span id="out-musicians" class="font-display text-2xl font-bold text-white w-8 text-center">5</span>
+          <button data-step="musicians" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more musicians">+</button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mb-5 flex items-center gap-1.5">
+        $<input id="chip-mrate" class="num-chip !w-12 !text-left text-xs text-gray-300" inputmode="numeric" value="200" aria-label="musician pay"> each
+        <button data-rate="mrate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+        <button data-rate="mrate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+      </p>
+
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-sm font-medium">Background singers</p>
+        <div class="flex items-center gap-2.5">
+          <button data-step="singers" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer singers">&minus;</button>
+          <span id="out-singers" class="font-display text-2xl font-bold text-white w-8 text-center">3</span>
+          <button data-step="singers" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more singers">+</button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 flex items-center gap-1.5">
+        $<input id="chip-brate" class="num-chip !w-12 !text-left text-xs text-gray-300" inputmode="numeric" value="125" aria-label="singer pay"> each
+        <button data-rate="brate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+        <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+      </p>
+
+      <div class="flex items-baseline justify-between mt-5 border-t border-edge pt-3">
+        <p class="text-sm font-medium">What the band takes home together</p>
+        <p id="out-band" class="font-display text-xl font-bold text-gold">$1,375</p>
+      </div>
+      <p id="out-bandnote" class="text-xs mt-1.5 font-medium text-gray-500"></p>
+      <p class="text-[11px] text-gray-600 mt-1">Everyone but you &mdash; they&rsquo;re always paid in full.</p>
+      <p id="out-you" class="text-xs text-gray-500 mt-3">
+        You sing every show &mdash; you&rsquo;re player 9, at the same $200 as your musicians, paid last.
+      </p>
+    </section>
+
+    <!-- Tickets & the venue -->
+    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Tickets &amp; the venue</h2>
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
@@ -225,48 +276,6 @@
         <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; taken off ticket money before your share.</p>
         <input id="in-house" type="range" min="0" max="2000" step="25" value="0" class="w-full" aria-label="house cut slider">
       </div>
-    </section>
-
-    <!-- The band -->
-    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
-      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Your band</h2>
-
-      <div class="flex items-center justify-between mb-1">
-        <p class="text-sm font-medium">Musicians</p>
-        <div class="flex items-center gap-2.5">
-          <button data-step="musicians" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer musicians">&minus;</button>
-          <span id="out-musicians" class="font-display text-2xl font-bold text-white w-8 text-center">5</span>
-          <button data-step="musicians" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more musicians">+</button>
-        </div>
-      </div>
-      <p class="text-xs text-gray-500 mb-5 flex items-center gap-1.5">
-        $<input id="chip-mrate" class="num-chip !w-12 !text-left text-xs text-gray-300" inputmode="numeric" value="200" aria-label="musician pay"> each
-        <button data-rate="mrate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
-        <button data-rate="mrate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
-      </p>
-
-      <div class="flex items-center justify-between mb-1">
-        <p class="text-sm font-medium">Background singers</p>
-        <div class="flex items-center gap-2.5">
-          <button data-step="singers" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer singers">&minus;</button>
-          <span id="out-singers" class="font-display text-2xl font-bold text-white w-8 text-center">3</span>
-          <button data-step="singers" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more singers">+</button>
-        </div>
-      </div>
-      <p class="text-xs text-gray-500 flex items-center gap-1.5">
-        $<input id="chip-brate" class="num-chip !w-12 !text-left text-xs text-gray-300" inputmode="numeric" value="125" aria-label="singer pay"> each
-        <button data-rate="brate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
-        <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
-      </p>
-
-      <div class="flex items-baseline justify-between mt-5 border-t border-edge pt-3">
-        <p class="text-sm font-medium">What the band takes home together</p>
-        <p id="out-band" class="font-display text-xl font-bold text-gold">$1,375</p>
-      </div>
-      <p class="text-[11px] text-gray-600 mt-0.5">Everyone but you &mdash; they&rsquo;re always paid in full.</p>
-      <p id="out-you" class="text-xs text-gray-500 mt-3">
-        You sing every show &mdash; you&rsquo;re player 9, at the same $200 as your musicians, paid last.
-      </p>
     </section>
 
     <!-- The costs -->
@@ -335,6 +344,9 @@
         var s = M.summarize(r);
         $('payout').textContent = s.payoutText;
         $('out-band').textContent = s.bandText;
+        var note = $('out-bandnote');
+        note.textContent = s.bandNote;
+        note.className = 'text-xs mt-1.5 font-medium ' + (s.bandShort ? 'text-warn' : 'text-gray-500');
         $('coach').textContent = s.coach;
         $('coverage').textContent = s.coverage;
         var sum = $('summary');

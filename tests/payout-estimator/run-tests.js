@@ -105,6 +105,15 @@ test('green needs her full fee intact after every cost', () => {
   const g = M.estimate(DEFAULTS);
   assert(g.raw >= g.herFee && g.mood === 'good');
 });
+test('band shortfall is said out loud with its amount', () => {
+  const short = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1000 }));
+  assert(short.bandShort === true);
+  assert(short.bandNote.includes('$375'), short.bandNote);
+  assert(short.bandNote.includes('made up out of ticket money'), short.bandNote);
+  const ok = M.summarize(M.estimate(DEFAULTS));
+  assert(ok.bandShort === false);
+  assert(ok.bandNote.includes('covers the band in full'), ok.bandNote);
+});
 test('band collective take-home: $1,375 at defaults, moves with the lineup', () => {
   assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).bandText, '$1,375');
   assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, musicians: 6 })).bandText, '$1,575');
@@ -204,6 +213,9 @@ test('fuzz holds every invariant', () => {
     assert(near(r.herFeePaid + r.guaranteeLeft - r.ownerGap, inp.guarantee - others), 'identity' + ctx);
     assert(near(r.ticketShare, Math.max(0, inp.ticketsSold * inp.ticketPrice - inp.houseCut) * inp.split), 'house cut' + ctx);
     assert(near(r.raw, inp.guarantee - others + r.ticketShare - inp.promo - inp.bookingFee), 'blend' + ctx);
+    // 3b. The band-shortfall note always matches the owner gap.
+    assert.strictEqual(s.bandShort, r.ownerGap > 0, 'band short flag' + ctx);
+    if (s.bandShort) assert(s.bandNote.includes(M.fmtMoney(r.ownerGap)), 'shortfall names its amount' + ctx);
     // 4. Mood is a total ordering on raw vs her fee.
     const expect = r.raw < 0 ? 'loss' : (r.raw < r.herFee ? 'warn' : 'good');
     assert.strictEqual(r.mood, expect, 'mood' + ctx);
