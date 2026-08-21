@@ -123,6 +123,21 @@
         else if (price > 0 && split > 0) breakEven = Math.ceil((showCost / split + house) / price - 1e-9);
         else breakEven = null;
 
+        // The venue's side: the guarantee has to be covered by ticket money
+        // too. The venue collects the house cut plus its share of the rest;
+        // it has earned the guarantee back once that reaches G.
+        function venueTake(soldN) {
+          var gross = soldN * price;
+          return gross <= house ? gross : house + (1 - split) * (gross - house);
+        }
+        var venueBreakEven;
+        if (G <= 0) venueBreakEven = 0;
+        else if (price <= 0) venueBreakEven = null;
+        else if (G <= house) venueBreakEven = Math.ceil(G / price - 1e-9);
+        else if (split >= 1) venueBreakEven = null;
+        else venueBreakEven = Math.ceil((house + (G - house) / (1 - split)) / price - 1e-9);
+        var venueTakeAtCap = venueTake(cap);
+
         // How many players the guarantee pays, in priority order: the
         // musicians she hires, then the singers, then her — always last.
         var covered = 0, left = G, i;
@@ -140,7 +155,8 @@
           ownerGap: ownerGap, ticketShare: ticketShare, others: others,
           players: players, covered: covered, mood: mood,
           musicianRate: mRate, soldOut: cap > 0 && sold >= cap,
-          breakEven: breakEven, capacity: cap, sold: sold, guarantee: G
+          breakEven: breakEven, capacity: cap, sold: sold, guarantee: G,
+          venueBreakEven: venueBreakEven, venueTakeAtCap: venueTakeAtCap
         };
       }
 
@@ -213,11 +229,25 @@
         } else {
           beNote = 'Breaks even at ' + r.breakEven + ' tickets — below that this show is in the red. You’re estimating ' + r.sold + '.'; beTone = 'red';
         }
+        // The venue's earn-back line — where ticket money covers the guarantee.
+        var vNote = '', vTone = 'ok';
+        if (r.guarantee > 0) {
+          if (r.venueBreakEven === null) {
+            vNote = 'Ticket money can never pay the venue back for the guarantee at these settings.'; vTone = 'red';
+          } else if (r.capacity > 0 && r.venueBreakEven > r.capacity) {
+            vNote = 'Even sold out, the venue collects ' + fmtMoney(r.venueTakeAtCap) + ' toward your ' + fmtMoney(r.guarantee) + ' guarantee — this room can’t pay it back.'; vTone = 'red';
+          } else if (r.sold >= r.venueBreakEven) {
+            vNote = 'The venue earns your ' + fmtMoney(r.guarantee) + ' guarantee back at ' + r.venueBreakEven + ' tickets — your ' + r.sold + ' estimate covers it.'; vTone = 'ok';
+          } else {
+            vNote = 'The venue earns your ' + fmtMoney(r.guarantee) + ' guarantee back at ' + r.venueBreakEven + ' tickets — you’re estimating ' + r.sold + '.'; vTone = 'warn';
+          }
+        }
         return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(bandPay),
                  bandNote: bandNote, bandShort: bandShort,
                  surplusText: surplusText, surplusTone: surplusTone,
                  feeNote: feeNote, feeState: feeState,
                  breakEvenNote: beNote, breakEvenTone: beTone,
+                 venueNote: vNote, venueTone: vTone,
                  coverage: coverage, coach: coach };
       }
 
@@ -259,10 +289,10 @@
       <div class="mb-6">
         <div class="flex items-baseline justify-between mb-0.5">
           <label for="in-guarantee" class="text-sm font-medium">Band guarantee</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-guarantee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="2,000" aria-label="band guarantee amount"></span>
+          <span class="text-white font-semibold text-base">$<input id="chip-guarantee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="2,500" aria-label="band guarantee amount"></span>
         </div>
         <p class="text-[11px] text-gray-600 mb-1.5">What the venue pays toward the band.</p>
-        <input id="in-guarantee" type="range" min="0" max="10000" step="50" value="2000" class="w-full" aria-label="band guarantee slider">
+        <input id="in-guarantee" type="range" min="0" max="10000" step="50" value="2500" class="w-full" aria-label="band guarantee slider">
       </div>
 
       <div class="flex items-center justify-between mb-1">
@@ -288,7 +318,7 @@
         </div>
       </div>
       <p class="text-sm text-gray-400 flex items-center gap-1.5">
-        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-brate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="singer rate"></span> each
+        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-brate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="125" aria-label="singer rate"></span> each
         <button data-rate="brate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
         <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
       </p>
@@ -348,10 +378,11 @@
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-sold" class="text-sm font-medium">Tickets you think you&rsquo;ll sell</label>
-          <span class="text-white font-semibold text-base"><span id="out-sold">90</span> <span id="out-soldpct" class="text-gray-400 text-sm">(60%)</span></span>
+          <span class="text-white font-semibold text-base"><span id="out-sold">75</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span></span>
         </div>
-        <input id="in-sold" type="range" min="0" max="150" step="1" value="90" class="w-full" aria-label="tickets sold slider">
+        <input id="in-sold" type="range" min="0" max="150" step="1" value="75" class="w-full" aria-label="tickets sold slider">
         <p id="out-breakeven" class="text-xs mt-1.5 font-medium text-gray-500"></p>
+        <p id="out-venue" class="text-xs mt-1 font-medium text-gray-500"></p>
       </div>
 
       <div class="mb-5">
@@ -365,10 +396,10 @@
       <div>
         <div class="flex items-baseline justify-between mb-0.5">
           <label for="in-house" class="text-sm font-medium">What the venue keeps off tickets</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-house" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="0" aria-label="house cut amount"></span>
+          <span class="text-white font-semibold text-base">$<input id="chip-house" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="1,200" aria-label="house cut amount"></span>
         </div>
         <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; taken off ticket money before your share.</p>
-        <input id="in-house" type="range" min="0" max="2000" step="25" value="0" class="w-full" aria-label="house cut slider">
+        <input id="in-house" type="range" min="0" max="3000" step="25" value="1200" class="w-full" aria-label="house cut slider">
       </div>
     </section>
 
@@ -387,18 +418,18 @@
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="150" aria-label="promo spend"></span>
+          <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="500" aria-label="promo spend"></span>
         </div>
-        <input id="in-promo" type="range" min="0" max="3000" step="25" value="150" class="w-full" aria-label="promo spend slider">
+        <input id="in-promo" type="range" min="0" max="3000" step="25" value="500" class="w-full" aria-label="promo spend slider">
       </div>
 
       <div>
         <div class="flex items-baseline justify-between mb-0.5">
           <label for="in-misc" class="text-sm font-medium">Miscellaneous</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="0" aria-label="miscellaneous cost"></span>
+          <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="miscellaneous cost"></span>
         </div>
         <p class="text-[11px] text-gray-600 mb-1.5">Anything else you pay for &mdash; travel, wardrobe, gear, whatever the night needs.</p>
-        <input id="in-misc" type="range" min="0" max="3000" step="25" value="0" class="w-full" aria-label="miscellaneous cost slider">
+        <input id="in-misc" type="range" min="0" max="3000" step="25" value="200" class="w-full" aria-label="miscellaneous cost slider">
       </div>
     </section>
 
@@ -429,9 +460,9 @@
       var ALLOWED = ['artist', 'band_manager', 'admin'];
 
       var state = {
-        guarantee: 2000, capacity: 150, ticketPrice: 30, ticketsSold: 90,
+        guarantee: 2500, capacity: 150, ticketPrice: 30, ticketsSold: 75,
         split: 0.80, musicians: 5, musicianRate: 300, singers: 3,
-        singerRate: 300, artistRate: 300, bookingFee: 200, promo: 150, misc: 0, houseCut: 0
+        singerRate: 125, artistRate: 300, bookingFee: 200, promo: 500, misc: 200, houseCut: 1200
       };
 
       function $(id) { return document.getElementById(id); }
@@ -466,6 +497,11 @@
         var beEl = $('out-breakeven');
         beEl.textContent = s.breakEvenNote;
         beEl.className = 'text-xs mt-1.5 font-medium ' + (s.breakEvenTone === 'red' ? 'text-loss' : 'text-gray-500');
+        var vEl = $('out-venue');
+        vEl.textContent = s.venueNote;
+        vEl.className = 'text-xs mt-1 font-medium ' +
+          (s.venueTone === 'red' ? 'text-loss' : (s.venueTone === 'warn' ? 'text-warn' : 'text-gray-500'));
+        vEl.classList.toggle('hidden', !s.venueNote);
         $('coach').textContent = s.coach;
         $('coverage').textContent = s.coverage;
         var sum = $('summary');
