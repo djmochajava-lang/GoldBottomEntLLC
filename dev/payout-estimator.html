@@ -106,18 +106,22 @@
         var afterHouse    = Math.max(0, ticketGross - house);
         var ticketShare   = afterHouse * split;
 
-        // Owner rule: her FEE comes only from the guarantee — up to her set
+        // Owner rules: her FEE comes only from the guarantee — up to her set
         // fee, shrinking to whatever is left after the members, zero if
         // nothing is. Guarantee money beyond her fee is SURPLUS: it rides
         // into her take-home too, and her costs come out of the whole.
-        var raw    = herFeePaid + guaranteeLeft + ticketShare - promo - fee - misc - ownerGap;
-        var payout = Math.max(0, raw);
-        var outOfPocket = raw < 0 ? -raw : 0;
+        // The guarantee-paid part of her fee is GUARANTEED: a losing show
+        // eats the surplus and ticket money, never the fee already paid —
+        // her take-home floors at herFeePaid even when the show takes a loss.
+        var raw      = herFeePaid + guaranteeLeft + ticketShare - promo - fee - misc - ownerGap;
+        var flexible = raw - herFeePaid;
+        var payout   = herFeePaid + Math.max(0, flexible);
+        var outOfPocket = flexible < 0 ? -flexible : 0;
 
         // Break-even in tickets: the smallest sale count where the show is out
-        // of the red — ticket money has covered whatever the guarantee didn't
-        // (band shortfall + promo + booking fee), after the house cut.
-        var showCost = others - G + promo + fee + misc;
+        // of the red — costs and band shortfall covered by surplus + ticket
+        // money WITHOUT touching her guaranteed fee.
+        var showCost = promo + fee + misc + ownerGap - guaranteeLeft;
         var breakEven;
         if (showCost <= 0) breakEven = 0;
         else if (price > 0 && split > 0) breakEven = Math.ceil((showCost / split + house) / price - 1e-9);
@@ -145,15 +149,16 @@
         for (i = 0; i < bCount; i++) { if (covered === mCount + i && left >= bRate) { covered++; left -= bRate; } }
         if (covered === mCount + bCount && left >= herFee) covered++;
 
-        // Mood: loss (red) < short of her full fee (amber) < everything
+        // Mood: loss (red, the show loses money even though her guaranteed
+        // fee is safe) < short of her full set fee (amber) < everything
         // covered with her full fee intact (green).
-        var mood = raw < 0 ? 'loss' : (raw < herFee ? 'warn' : 'good');
+        var mood = flexible < 0 ? 'loss' : (payout < herFee ? 'warn' : 'good');
 
         return {
           payout: payout, raw: raw, outOfPocket: outOfPocket,
           herFee: herFee, herFeePaid: herFeePaid, guaranteeLeft: guaranteeLeft,
           ownerGap: ownerGap, ticketShare: ticketShare, others: others,
-          players: players, covered: covered, mood: mood,
+          players: players, covered: covered, mood: mood, flexible: flexible,
           musicianRate: mRate, soldOut: cap > 0 && sold >= cap,
           breakEven: breakEven, capacity: cap, sold: sold, guarantee: G,
           venueBreakEven: venueBreakEven, venueTakeAtCap: venueTakeAtCap,
@@ -170,7 +175,9 @@
           : 'This guarantee covers ' + r.covered + ' of your ' + r.players + ' players. You’re player ' + r.players + '.';
         var coach;
         if (r.mood === 'loss') {
-          coach = 'At this lineup and these sales, this show costs you ' + fmtMoney(r.outOfPocket) + ' out of pocket.';
+          coach = r.herFeePaid > 0
+            ? 'This show loses ' + fmtMoney(r.outOfPocket) + ' — your guaranteed ' + fmtMoney(r.herFeePaid) + ' is safe; the show absorbs the loss.'
+            : 'At this lineup and these sales, this show costs you ' + fmtMoney(r.outOfPocket) + ' out of pocket.';
         } else if (r.mood === 'warn') {
           coach = 'The show breaks even, but the extras are coming out of your pocket — you’d walk with less than your full ' + fmtMoney(r.herFee) + '. Each added musician costs ' + fmtMoney(r.musicianRate) + '.';
         } else {

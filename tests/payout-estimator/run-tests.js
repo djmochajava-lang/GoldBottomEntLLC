@@ -134,12 +134,24 @@ test('loss shows red and says the out-of-pocket number out loud', () => {
   assert(M.summarize(r).coach.includes('$1,175'));
   assert(M.summarize(r).coach.includes('out of pocket'));
 });
-test('amber when the band is covered but she nets under her full fee', () => {
-  const r = M.estimate({ ...DEFAULTS, guarantee: 2175, ticketsSold: 70 });
-  // raw = 300 + 0 + (2100−1200)×0.8 − 900 = 120 → between 0 and her $300 fee
+test('amber when the show holds up but she nets under her full set fee', () => {
+  // paid fee 125; tickets (79×30−1200)×0.8 = 936; raw = 125+936−900 = 161 —
+  // no loss (the flexible money covers the costs), but under her $300.
+  const r = M.estimate({ ...DEFAULTS, guarantee: 2000, ticketsSold: 79 });
   assert.strictEqual(r.mood, 'warn');
-  assert(near(r.raw, 120));
+  assert(near(r.raw, 161));
   assert(M.summarize(r).coach.includes('Each added musician costs $300'));
+});
+test('GUARANTEED FEE FLOOR: a losing show can never touch her paid fee', () => {
+  // zero tickets sold: surplus 325 − costs 900 → the show loses $575,
+  // but her guarantee-paid $300 is untouchable — she walks with it.
+  const r = M.estimate({ ...DEFAULTS, ticketsSold: 0 });
+  assert.strictEqual(r.mood, 'loss');
+  assert(near(r.payout, 300), 'floors at her paid fee, not $0');
+  assert(near(r.outOfPocket, 575));
+  const c = M.summarize(r).coach;
+  assert(c.includes('loses $575'), c);
+  assert(c.includes('guaranteed $300 is safe'), c);
 });
 test('green needs her full fee intact after every cost', () => {
   const g = M.estimate(DEFAULTS);
@@ -193,37 +205,40 @@ test('misc comes straight out of her take-home, dollar for dollar', () => {
   assert(near(M.estimate(DEFAULTS).payout - M.estimate({ ...DEFAULTS, misc: 450 }).payout, 250));
 });
 test('misc moves the break-even line', () => {
-  // cost 275 + 100 = 375 → (375/0.8 + 1200)/30 = 55.6 → 56 tickets
-  assert.strictEqual(M.estimate({ ...DEFAULTS, misc: 300 }).breakEven, 56);
+  // cost 575 + 100 = 675 → (675/0.8 + 1200)/30 = 68.1 → 69 tickets
+  assert.strictEqual(M.estimate({ ...DEFAULTS, misc: 300 }).breakEven, 69);
 });
 
 console.log('\nBreak-even — where the show climbs out of the red, in tickets');
-test('defaults: breaks even at 52 tickets and the 75 estimate clears it', () => {
-  // cost = 1875 − 2500 + 900 = 275 → (275/0.8 + 1200)/30 = 51.5 → 52
+test('defaults: breaks even at 64 tickets (her guaranteed fee untouched) and 75 clears it', () => {
+  // costs 900 + gap 0 − surplus 325 = 575 → (575/0.8 + 1200)/30 = 64
   const r = M.estimate(DEFAULTS);
-  assert.strictEqual(r.breakEven, 52);
+  assert.strictEqual(r.breakEven, 64);
   const s = M.summarize(r);
-  assert(s.breakEvenNote.includes('Breaks even at 52 tickets'), s.breakEvenNote);
+  assert(s.breakEvenNote.includes('Breaks even at 64 tickets'), s.breakEvenNote);
   assert(s.breakEvenNote.includes('your 75 estimate clears it'), s.breakEvenNote);
   assert.strictEqual(s.breakEvenTone, 'ok');
 });
-test('break-even is exact: 52 tickets is out of the red, 51 is not', () => {
-  assert(M.estimate({ ...DEFAULTS, ticketsSold: 52 }).raw >= -1e-6);
-  assert(M.estimate({ ...DEFAULTS, ticketsSold: 51 }).raw < 0);
+test('break-even is exact: 64 tickets keeps the show whole, 63 does not', () => {
+  const at = M.estimate({ ...DEFAULTS, ticketsSold: 64 });
+  const under = M.estimate({ ...DEFAULTS, ticketsSold: 63 });
+  assert(at.flexible >= -1e-6);
+  assert(under.flexible < 0);
 });
 test('estimating below break-even reads red', () => {
   const s = M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 40 }));
   assert.strictEqual(s.breakEvenTone, 'red');
   assert(s.breakEvenNote.includes('below that this show is in the red'), s.breakEvenNote);
 });
-test('a rich guarantee is out of the red before a ticket sells', () => {
-  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2800 }));
+test('a surplus bigger than the costs is out of the red before a ticket sells', () => {
+  // G 3100 → surplus 925 covers the 900 costs with room to spare
+  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 3100 }));
   assert(s.breakEvenNote.includes('before a single ticket sells'), s.breakEvenNote);
   assert.strictEqual(s.breakEvenTone, 'ok');
 });
 test('a room too small to break even says so', () => {
   const s = M.summarize(M.estimate({ ...DEFAULTS, capacity: 20, ticketsSold: 10 }));
-  assert(s.breakEvenNote.includes('takes 52 tickets'), s.breakEvenNote);
+  assert(s.breakEvenNote.includes('takes 64 tickets'), s.breakEvenNote);
   assert(s.breakEvenNote.includes('room holds 20'), s.breakEvenNote);
   assert.strictEqual(s.breakEvenTone, 'red');
 });
@@ -344,10 +359,15 @@ test('fuzz holds every invariant', () => {
     assert.strictEqual(s.payoutText, M.fmtMoney(r.payout), 'display drift' + ctx);
     assert.strictEqual(s.bandText, M.fmtMoney(r.others + r.herFee), 'band display drift' + ctx);
     assert(/^\$[\d,]+$/.test(s.payoutText), 'money format' + ctx);
-    // 2. Floor at $0; the loss is reported, never hidden.
-    assert(near(r.payout, Math.max(0, r.raw)), 'floor' + ctx);
-    assert(near(r.outOfPocket, r.raw < 0 ? -r.raw : 0), 'out-of-pocket' + ctx);
-    if (r.mood === 'loss') assert(s.coach.includes(M.fmtMoney(r.outOfPocket)), 'loss says its number' + ctx);
+    // 2. The guaranteed-fee floor; the loss is reported, never hidden.
+    assert(near(r.flexible, r.raw - r.herFeePaid), 'flexible split' + ctx);
+    assert(near(r.payout, r.herFeePaid + Math.max(0, r.flexible)), 'guaranteed-fee floor' + ctx);
+    assert(r.payout >= r.herFeePaid - 1e-6, 'paid fee never lost' + ctx);
+    assert(near(r.outOfPocket, r.flexible < 0 ? -r.flexible : 0), 'show loss' + ctx);
+    if (r.mood === 'loss') {
+      assert(s.coach.includes(M.fmtMoney(r.outOfPocket)), 'loss says its number' + ctx);
+      if (r.herFeePaid > 0) assert(s.coach.includes('guaranteed'), 'protected fee named in loss' + ctx);
+    }
     // 3. The waterfall is linear in every branch; her fee is her own rate;
     //    the house cut comes off gross ticket money before the split.
     const others = inp.musicians * inp.musicianRate + inp.singers * inp.singerRate;
@@ -378,12 +398,13 @@ test('fuzz holds every invariant', () => {
     const sv = inp.guarantee - bandPay;
     assert.strictEqual(s.surplusTone, sv < -1e-9 ? 'neg' : (sv > 1e-9 ? 'pos' : 'zero'), 'balance tone' + ctx);
     if (s.surplusTone === 'pos') assert(s.bandNote.includes('rides into your take-home'), 'pos balance explained' + ctx);
-    // 3c. Break-even is minimal and its note matches the state.
+    // 3c. Break-even is minimal (in the fee-floor economics) and its note
+    //     matches the state.
     if (r.breakEven === 0) {
-      assert(M.estimate({ ...inp, ticketsSold: 0 }).raw >= -1e-6, 'be=0 means out of the red at zero sales' + ctx);
+      assert(M.estimate({ ...inp, ticketsSold: 0 }).flexible >= -1e-6, 'be=0 means out of the red at zero sales' + ctx);
     } else if (r.breakEven !== null) {
-      assert(M.estimate({ ...inp, ticketsSold: r.breakEven }).raw >= -1e-6, 'raw at break-even' + ctx);
-      assert(M.estimate({ ...inp, ticketsSold: r.breakEven - 1 }).raw < 1e-6, 'minimality' + ctx);
+      assert(M.estimate({ ...inp, ticketsSold: r.breakEven }).flexible >= -1e-6, 'whole at break-even' + ctx);
+      assert(M.estimate({ ...inp, ticketsSold: r.breakEven - 1 }).flexible < 1e-6, 'minimality' + ctx);
     }
     const expectTone = (r.breakEven === null || (r.breakEven > 0 && ((inp.capacity > 0 && r.breakEven > inp.capacity) || r.sold < r.breakEven))) ? 'red' : 'ok';
     assert.strictEqual(s.breakEvenTone, expectTone, 'break-even tone' + ctx);
@@ -400,8 +421,8 @@ test('fuzz holds every invariant', () => {
         : (r.sold >= r.venueBreakEven ? 'ok' : 'warn');
       assert.strictEqual(s.venueTone, vExpect, 'venue tone' + ctx);
     }
-    // 4. Mood is a total ordering on raw vs her fee.
-    const expect = r.raw < 0 ? 'loss' : (r.raw < r.herFee ? 'warn' : 'good');
+    // 4. Mood: show loss beats amber beats green, on the fee-floor economics.
+    const expect = r.flexible < 0 ? 'loss' : (r.payout < r.herFee ? 'warn' : 'good');
     assert.strictEqual(r.mood, expect, 'mood' + ctx);
     // 5. Coverage stays inside the lineup.
     assert(r.covered >= 0 && r.covered <= r.players, 'coverage bounds' + ctx);
