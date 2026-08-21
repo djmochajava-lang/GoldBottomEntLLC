@@ -70,6 +70,7 @@ jobs:
           PUBLISH_DIRS=(
             css              # 8 stylesheets + band-player-v2.css
             dashboard        # dashboard fragments fetched by PageLoader
+            dev              # cloud-dev standalone pages (sign-in gated, unlinked)
             images           # logo, hero, talent, merch
             js               # all modules incl. js/vendor + js/band-player-v2
             pages            # public page fragments (root / entertainment / enterprise)
