@@ -156,7 +156,9 @@
           players: players, covered: covered, mood: mood,
           musicianRate: mRate, soldOut: cap > 0 && sold >= cap,
           breakEven: breakEven, capacity: cap, sold: sold, guarantee: G,
-          venueBreakEven: venueBreakEven, venueTakeAtCap: venueTakeAtCap
+          venueBreakEven: venueBreakEven, venueTakeAtCap: venueTakeAtCap,
+          costsTotal: promo + fee + misc, ticketGross: ticketGross,
+          houseKept: ticketGross - afterHouse, ticketPrice: price, split: split
         };
       }
 
@@ -431,6 +433,31 @@
         <p class="text-[11px] text-gray-600 mb-1.5">Anything else you pay for &mdash; travel, wardrobe, gear, whatever the night needs.</p>
         <input id="in-misc" type="range" min="0" max="3000" step="25" value="200" class="w-full" aria-label="miscellaneous cost slider">
       </div>
+
+      <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
+        <p class="text-sm font-medium min-w-0">Total costs</p>
+        <p id="out-coststotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-white">$900</p>
+      </div>
+      <p class="text-[11px] text-gray-600 mt-1">These come out of your take-home.</p>
+    </section>
+
+    <!-- Ticket revenue — sales, the venue's keep, and her share -->
+    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Ticket revenue</h2>
+
+      <div class="flex items-baseline justify-between gap-3 mb-2">
+        <p class="text-sm font-medium min-w-0">Ticket sales &mdash; <span id="out-tksales">75 &times; $30</span></p>
+        <p id="out-tkgross" class="font-semibold text-base text-white whitespace-nowrap shrink-0">$2,250</p>
+      </div>
+      <div class="flex items-baseline justify-between gap-3 mb-2">
+        <p class="text-sm font-medium min-w-0">The venue keeps</p>
+        <p id="out-tkkept" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$1,200</p>
+      </div>
+      <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
+        <p class="text-sm font-medium min-w-0">Your share <span id="out-tkpct" class="text-gray-500">(80%)</span></p>
+        <p id="out-tkshare" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$840</p>
+      </div>
+      <p class="text-[11px] text-gray-600 mt-1">This rides into your take-home.</p>
     </section>
 
     <p class="mx-6 mt-6 text-center text-[11px] leading-relaxed text-gray-600">
@@ -502,6 +529,12 @@
         vEl.className = 'text-xs mt-1 font-medium ' +
           (s.venueTone === 'red' ? 'text-loss' : (s.venueTone === 'warn' ? 'text-warn' : 'text-gray-500'));
         vEl.classList.toggle('hidden', !s.venueNote);
+        $('out-coststotal').textContent = M.fmtMoney(r.costsTotal);
+        $('out-tksales').textContent = r.sold + ' × ' + M.fmtMoney(r.ticketPrice);
+        $('out-tkgross').textContent = M.fmtMoney(r.ticketGross);
+        $('out-tkkept').textContent = r.houseKept > 0 ? '−' + M.fmtMoney(r.houseKept) : '$0';
+        $('out-tkpct').textContent = '(' + Math.round(r.split * 100) + '%)';
+        $('out-tkshare').textContent = M.fmtMoney(r.ticketShare);
         $('coach').textContent = s.coach;
         $('coverage').textContent = s.coverage;
         var sum = $('summary');

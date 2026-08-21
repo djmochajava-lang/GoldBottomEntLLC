@@ -284,6 +284,24 @@ test('house cut larger than gross zeroes the ticket money, never negative', () =
   assert(near(M.estimate({ ...DEFAULTS, houseCut: 5000 }).ticketShare, 0));
 });
 
+console.log('\nVisible totals — costs and ticket revenue');
+test('total costs: $900 at defaults, moves with each cost', () => {
+  assert(near(M.estimate(DEFAULTS).costsTotal, 900));
+  assert(near(M.estimate({ ...DEFAULTS, misc: 500 }).costsTotal, 1200));
+});
+test('ticket revenue chain: $2,250 sales, $1,200 kept, $840 share', () => {
+  const r = M.estimate(DEFAULTS);
+  assert(near(r.ticketGross, 2250));
+  assert(near(r.houseKept, 1200));
+  assert(near(r.ticketShare, 840));
+});
+test('a gross below the nut: the venue keeps it all, her share is $0', () => {
+  const r = M.estimate({ ...DEFAULTS, ticketsSold: 30 });
+  assert(near(r.ticketGross, 900));
+  assert(near(r.houseKept, 900));
+  assert(near(r.ticketShare, 0));
+});
+
 console.log('\nEdges');
 test('all zeros: $0, one player (her), no crash', () => {
   const r = M.estimate({ guarantee: 0, capacity: 0, ticketPrice: 0, ticketsSold: 0,
@@ -336,6 +354,9 @@ test('fuzz holds every invariant', () => {
     assert(near(r.herFee, inp.artistRate), 'her fee is her rate' + ctx);
     assert(near(r.herFeePaid + r.guaranteeLeft - r.ownerGap, inp.guarantee - others), 'identity' + ctx);
     assert(near(r.ticketShare, Math.max(0, inp.ticketsSold * inp.ticketPrice - inp.houseCut) * inp.split), 'house cut' + ctx);
+    assert(near(r.costsTotal, inp.promo + inp.bookingFee + inp.misc), 'costs total' + ctx);
+    assert(near(r.ticketGross, inp.ticketsSold * inp.ticketPrice), 'ticket gross' + ctx);
+    assert(near(r.houseKept, Math.min(inp.houseCut, r.ticketGross)), 'house kept' + ctx);
     assert(near(r.raw, inp.guarantee - others + r.ticketShare - inp.promo - inp.bookingFee - inp.misc), 'blend' + ctx);
     // 3b. Band-shortfall and fee-status notes always match the waterfall,
     //     and the shortfall's parts sum to the whole.
