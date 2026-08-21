@@ -43,7 +43,7 @@ function test(name, fn) {
 const DEFAULTS = {
   guarantee: 2000, capacity: 150, ticketPrice: 30, ticketsSold: 90,
   split: 0.80, musicians: 5, musicianRate: 300, singers: 3,
-  singerRate: 300, artistRate: 300, bookingFee: 200, promo: 150, houseCut: 0
+  singerRate: 300, artistRate: 300, bookingFee: 200, promo: 150, misc: 0, houseCut: 0
 };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
@@ -176,6 +176,16 @@ test('green copy frames the number as hers alone, never as the pot', () => {
   assert(so.coach.includes('yours to take home'), so.coach);
 });
 
+console.log('\nMiscellaneous cost');
+test('misc comes straight out of her take-home, dollar for dollar', () => {
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, misc: 100 })).payoutText, '$1,310');
+  assert(near(M.estimate(DEFAULTS).payout - M.estimate({ ...DEFAULTS, misc: 250 }).payout, 250));
+});
+test('misc moves the break-even line', () => {
+  // cost 750 + 100 misc = 850 → 850/0.8/30 = 35.42 → 36 tickets
+  assert.strictEqual(M.estimate({ ...DEFAULTS, misc: 100 }).breakEven, 36);
+});
+
 console.log('\nBreak-even — where the show climbs out of the red, in tickets');
 test('defaults: breaks even at 32 tickets and the 90 estimate clears it', () => {
   // showCost = 2400−2000+150+200 = 750; 750/0.8/30 = 31.25 → 32 tickets.
@@ -271,7 +281,8 @@ test('fuzz holds every invariant', () => {
       guarantee: pick(50000), capacity: cap, ticketPrice: rand() * 500,
       ticketsSold: pick(cap + 1), split: rand(), musicians: pick(30),
       musicianRate: pick(2000), singers: pick(20), singerRate: pick(1500),
-      artistRate: pick(2000), bookingFee: pick(5000), promo: pick(5000), houseCut: pick(8000)
+      artistRate: pick(2000), bookingFee: pick(5000), promo: pick(5000),
+      misc: pick(5000), houseCut: pick(8000)
     };
     const r = M.estimate(inp);
     const s = M.summarize(r);
@@ -291,7 +302,7 @@ test('fuzz holds every invariant', () => {
     assert(near(r.herFee, inp.artistRate), 'her fee is her rate' + ctx);
     assert(near(r.herFeePaid + r.guaranteeLeft - r.ownerGap, inp.guarantee - others), 'identity' + ctx);
     assert(near(r.ticketShare, Math.max(0, inp.ticketsSold * inp.ticketPrice - inp.houseCut) * inp.split), 'house cut' + ctx);
-    assert(near(r.raw, inp.guarantee - others + r.ticketShare - inp.promo - inp.bookingFee), 'blend' + ctx);
+    assert(near(r.raw, inp.guarantee - others + r.ticketShare - inp.promo - inp.bookingFee - inp.misc), 'blend' + ctx);
     // 3b. Band-shortfall and fee-status notes always match the waterfall,
     //     and the shortfall's parts sum to the whole.
     const bandPay = others + r.herFee;

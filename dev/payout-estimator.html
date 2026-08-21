@@ -80,6 +80,7 @@
         var bRate  = Math.max(0, Number(inp.singerRate) || 0);
         var fee    = Math.max(0, Number(inp.bookingFee) || 0);
         var promo  = Math.max(0, Number(inp.promo) || 0);
+        var misc   = Math.max(0, Number(inp.misc) || 0);
         var house  = Math.max(0, Number(inp.houseCut) || 0);
         var aRate  = Math.max(0, Number(inp.artistRate) || 0);
 
@@ -102,14 +103,14 @@
         // fee, shrinking to whatever is left after the members, zero if
         // nothing is. Guarantee money beyond her fee is SURPLUS: it rides
         // into her take-home too, and her costs come out of the whole.
-        var raw    = herFeePaid + guaranteeLeft + ticketShare - promo - fee - ownerGap;
+        var raw    = herFeePaid + guaranteeLeft + ticketShare - promo - fee - misc - ownerGap;
         var payout = Math.max(0, raw);
         var outOfPocket = raw < 0 ? -raw : 0;
 
         // Break-even in tickets: the smallest sale count where the show is out
         // of the red — ticket money has covered whatever the guarantee didn't
         // (band shortfall + promo + booking fee), after the house cut.
-        var showCost = others - G + promo + fee;
+        var showCost = others - G + promo + fee + misc;
         var breakEven;
         if (showCost <= 0) breakEven = 0;
         else if (price > 0 && split > 0) breakEven = Math.ceil((showCost / split + house) / price - 1e-9);
@@ -366,12 +367,21 @@
         <input id="in-fee" type="range" min="0" max="2000" step="25" value="200" class="w-full" aria-label="booking fee slider">
       </div>
 
-      <div>
+      <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
           <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="150" aria-label="promo spend"></span>
         </div>
         <input id="in-promo" type="range" min="0" max="3000" step="25" value="150" class="w-full" aria-label="promo spend slider">
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between mb-0.5">
+          <label for="in-misc" class="text-sm font-medium">Miscellaneous</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="0" aria-label="miscellaneous cost"></span>
+        </div>
+        <p class="text-[11px] text-gray-600 mb-1.5">Anything else you pay for &mdash; travel, wardrobe, gear, whatever the night needs.</p>
+        <input id="in-misc" type="range" min="0" max="3000" step="25" value="0" class="w-full" aria-label="miscellaneous cost slider">
       </div>
     </section>
 
@@ -404,7 +414,7 @@
       var state = {
         guarantee: 2000, capacity: 150, ticketPrice: 30, ticketsSold: 90,
         split: 0.80, musicians: 5, musicianRate: 300, singers: 3,
-        singerRate: 300, artistRate: 300, bookingFee: 200, promo: 150, houseCut: 0
+        singerRate: 300, artistRate: 300, bookingFee: 200, promo: 150, misc: 0, houseCut: 0
       };
 
       function $(id) { return document.getElementById(id); }
@@ -491,6 +501,8 @@
         bindSlider('promo', 'promo', 'chip-promo', String);
         bindSlider('house', 'houseCut', 'chip-house', String);
         bindChip('chip-house', 'houseCut', 'in-house');
+        bindSlider('misc', 'misc', 'chip-misc', String);
+        bindChip('chip-misc', 'misc', 'in-misc');
         bindChip('chip-guarantee', 'guarantee', 'in-guarantee');
         bindChip('chip-capacity', 'capacity', 'in-capacity');
         bindChip('chip-price', 'ticketPrice', 'in-price');
