@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Artist's Payout Estimator — Gold Bottom Ent. LLC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0d1117', panel: '#161b22', edge: '#30363d',
+            gold: '#d4a017', goldlight: '#e8b53a',
+            good: '#2ea16b', warn: '#d29922', loss: '#e5534b'
+          },
+          fontFamily: {
+            display: ['Montserrat', 'sans-serif'],
+            body: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    html { -webkit-text-size-adjust: 100%; }
+    body { background: #0d1117; overscroll-behavior-y: none; }
+    input[type=range] { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 9999px;
+      background: linear-gradient(to right, #d4a017 var(--fill, 50%), #30363d var(--fill, 50%)); outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px;
+      border-radius: 9999px; background: #e8b53a; border: 3px solid #0d1117; box-shadow: 0 1px 6px rgba(0,0,0,.5); }
+    input[type=range]::-moz-range-thumb { width: 30px; height: 30px; border-radius: 9999px; background: #e8b53a;
+      border: 3px solid #0d1117; box-shadow: 0 1px 6px rgba(0,0,0,.5); }
+    .num-chip { background: transparent; border: none; text-align: right; width: 6.5rem; }
+    .num-chip:focus { outline: 2px solid #d4a017; border-radius: 6px; }
+    /* Summary moods — the whole card changes, per the coaching rules */
+    .mood-good  { border-color: rgba(46,161,107,.7);  background: linear-gradient(180deg, rgba(46,161,107,.16), rgba(22,27,34,.9)); }
+    .mood-warn  { border-color: rgba(210,153,34,.7);  background: linear-gradient(180deg, rgba(210,153,34,.16), rgba(22,27,34,.9)); }
+    .mood-loss  { border-color: rgba(229,83,75,.85);  background: linear-gradient(180deg, rgba(229,83,75,.24), rgba(60,20,18,.92)); }
+    .stepper-btn { width: 56px; height: 56px; font-size: 1.6rem; line-height: 1; }
+    .rate-btn { width: 40px; height: 40px; font-size: 1.15rem; line-height: 1; }
+  </style>
+
+  <!-- ═══════════ THE MATH — one pure function, no DOM, no fetch ═══════════
+       The test suite extracts and runs THIS block verbatim from this file, so
+       the number on screen and the number under test are the same code path. -->
+  <script id="estimator-math">
+    (function (root) {
+      'use strict';
+
+      // Money display: whole dollars, US format. The ONLY way a dollar amount
+      // reaches the screen — tests assert screen text === fmtMoney(math).
+      function fmtMoney(n) {
+        var v = Math.round(Number(n) || 0);
+        return '$' + Math.abs(v).toLocaleString('en-US');
+      }
+
+      /**
+       * The deal is guarantee AND ticket split — never versus/max.
+       * Priority: other players are paid in full from the guarantee first;
+       * L.A.'s own slot fee is paid last among performers; if the guarantee
+       * can't cover the other players, the owner covers the gap and that
+       * out-of-pocket comes out of her ticket money, as do promo and the
+       * booking fee. One blended number, floored at $0; a loss is reported
+       * out loud, never hidden. Nothing carries between scenarios.
+       */
+      function estimate(inp) {
+        var G      = Math.max(0, Number(inp.guarantee) || 0);
+        var cap    = Math.max(0, Math.round(Number(inp.capacity) || 0));
+        var price  = Math.max(0, Number(inp.ticketPrice) || 0);
+        var sold   = Math.max(0, Math.round(Number(inp.ticketsSold) || 0));
+        var split  = Math.min(1, Math.max(0, Number(inp.split) || 0));
+        var mCount = Math.max(0, Math.round(Number(inp.musicians) || 0));
+        var mRate  = Math.max(0, Number(inp.musicianRate) || 0);
+        var bCount = Math.max(0, Math.round(Number(inp.singers) || 0));
+        var bRate  = Math.max(0, Number(inp.singerRate) || 0);
+        var fee    = Math.max(0, Number(inp.bookingFee) || 0);
+        var promo  = Math.max(0, Number(inp.promo) || 0);
+
+        // She sings every show: one ordinary band slot at the musician rate,
+        // in addition to the musicians and singers she hires.
+        var herFee  = mRate;
+        var others  = mCount * mRate + bCount * bRate;
+        var players = mCount + bCount + 1;
+
+        var herFeePaid    = Math.min(Math.max(0, G - others), herFee);
+        var guaranteeLeft = Math.max(0, G - others - herFee);
+        var ownerGap      = Math.max(0, others - G);
+        var ticketShare   = sold * price * split;
+
+        var raw    = herFeePaid + guaranteeLeft + ticketShare - promo - fee - ownerGap;
+        var payout = Math.max(0, raw);
+        var outOfPocket = raw < 0 ? -raw : 0;
+
+        // How many players the guarantee pays, in priority order: the
+        // musicians she hires, then the singers, then her — always last.
+        var covered = 0, left = G, i;
+        for (i = 0; i < mCount; i++) { if (left >= mRate) { covered++; left -= mRate; } }
+        for (i = 0; i < bCount; i++) { if (covered === mCount + i && left >= bRate) { covered++; left -= bRate; } }
+        if (covered === mCount + bCount && left >= herFee) covered++;
+
+        // Mood: loss (red) < short of her full fee (amber) < everything
+        // covered with her full fee intact (green).
+        var mood = raw < 0 ? 'loss' : (raw < herFee ? 'warn' : 'good');
+
+        return {
+          payout: payout, raw: raw, outOfPocket: outOfPocket,
+          herFee: herFee, herFeePaid: herFeePaid, guaranteeLeft: guaranteeLeft,
+          ownerGap: ownerGap, ticketShare: ticketShare, others: others,
+          players: players, covered: covered, mood: mood,
+          soldOut: cap > 0 && sold >= cap
+        };
+      }
+
+      // Every sentence the summary can say, produced beside the math so the
+      // words and the numbers can never disagree.
+      function summarize(r) {
+        var coverage = (r.covered >= r.players)
+          ? 'This guarantee pays all ' + r.players + ' of your players — including you.'
+          : 'This guarantee covers ' + r.covered + ' of your ' + r.players + ' players. You’re player ' + r.players + '.';
+        var coach;
+        if (r.mood === 'loss') {
+          coach = 'At this lineup and these sales, this show costs you ' + fmtMoney(r.outOfPocket) + ' out of pocket.';
+        } else if (r.mood === 'warn') {
+          coach = 'The show breaks even, but the extras are coming out of your pocket — you’d walk with less than your full ' + fmtMoney(r.herFee) + '. Each added player costs ' + fmtMoney(r.herFee) + '.';
+        } else {
+          coach = r.soldOut
+            ? 'Sold-out math: this room pays everybody, including you.'
+            : 'These numbers pay everybody, including you.';
+        }
+        return { payoutText: fmtMoney(r.payout), coverage: coverage, coach: coach };
+      }
+
+      var api = { estimate: estimate, summarize: summarize, fmtMoney: fmtMoney };
+      if (typeof module !== 'undefined' && module.exports) module.exports = api;
+      else root.EstimatorMath = api;
+    })(typeof self !== 'undefined' ? self : this);
+  </script>
+</head>
+
+<body class="font-body text-gray-200 min-h-screen">
+
+  <!-- ══ Gate: checking / sign in / not allowed ══ -->
+  <div id="gate" class="min-h-screen flex items-center justify-center px-6">
+    <div id="gate-card" class="w-full max-w-sm bg-panel border border-edge rounded-2xl p-8 text-center shadow-2xl">
+      <p class="font-display text-gold tracking-widest text-xs uppercase mb-2">Gold Bottom Ent.</p>
+      <h1 class="font-display text-xl font-bold text-white mb-4">Artist&rsquo;s Payout Estimator</h1>
+      <div id="gate-body">
+        <p class="text-sm text-gray-400">Checking your sign-in&hellip;</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ The tool ══ -->
+  <main id="tool" class="hidden max-w-md mx-auto pb-16">
+
+    <header class="px-5 pt-5 pb-3 flex items-center justify-between">
+      <div>
+        <p class="font-display text-gold tracking-widest text-[10px] uppercase">Gold Bottom Ent.</p>
+        <h1 class="font-display text-lg font-bold text-white leading-tight">Artist&rsquo;s Payout Estimator</h1>
+      </div>
+      <button id="sign-out" class="text-xs text-gray-500 underline underline-offset-2 py-2 pl-3">sign out</button>
+    </header>
+
+    <!-- Sticky summary: her number, always visible -->
+    <section id="summary" class="mood-good sticky top-0 z-10 mx-3 rounded-2xl border-2 px-5 pt-4 pb-5 shadow-2xl backdrop-blur transition-colors duration-300">
+      <p class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">Your estimated take</p>
+      <p id="payout" class="font-display font-extrabold text-white leading-none mt-1" style="font-size:3.4rem">$0</p>
+      <p id="coach" class="text-sm mt-2 font-medium text-gray-200"></p>
+      <p id="coverage" class="text-[13px] mt-1.5 text-gray-400"></p>
+    </section>
+
+    <!-- The show -->
+    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">The show</h2>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-guarantee" class="text-sm font-medium">What the venue pays you</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-guarantee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="2,000" aria-label="venue guarantee amount"></span>
+        </div>
+        <input id="in-guarantee" type="range" min="0" max="10000" step="50" value="2000" class="w-full" aria-label="venue guarantee slider">
+      </div>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-capacity" class="text-sm font-medium">Seats in the room</label>
+          <span class="text-white font-semibold text-base"><input id="chip-capacity" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="150" aria-label="room capacity"></span>
+        </div>
+        <input id="in-capacity" type="range" min="0" max="1000" step="10" value="150" class="w-full" aria-label="room capacity slider">
+      </div>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-price" class="text-sm font-medium">Ticket price</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-price" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="30" aria-label="ticket price"></span>
+        </div>
+        <input id="in-price" type="range" min="0" max="200" step="5" value="30" class="w-full" aria-label="ticket price slider">
+      </div>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-sold" class="text-sm font-medium">Tickets you think you&rsquo;ll sell</label>
+          <span class="text-white font-semibold text-base"><span id="out-sold">90</span> <span id="out-soldpct" class="text-gray-400 text-sm">(60%)</span></span>
+        </div>
+        <input id="in-sold" type="range" min="0" max="150" step="1" value="90" class="w-full" aria-label="tickets sold slider">
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-split" class="text-sm font-medium">Your share of each ticket</label>
+          <span id="out-split" class="text-white font-semibold text-base">80%</span>
+        </div>
+        <input id="in-split" type="range" min="0" max="100" step="5" value="80" class="w-full" aria-label="ticket split slider">
+      </div>
+    </section>
+
+    <!-- The band -->
+    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Your band</h2>
+
+      <div class="flex items-center justify-between mb-2">
+        <div>
+          <p class="text-sm font-medium">Musicians</p>
+          <p class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+            $<input id="chip-mrate" class="num-chip !w-14 !text-left text-xs text-gray-300" inputmode="numeric" value="200" aria-label="musician pay"> each
+            <button data-rate="mrate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+            <button data-rate="mrate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button data-step="musicians" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer musicians">&minus;</button>
+          <span id="out-musicians" class="font-display text-2xl font-bold text-white w-8 text-center">5</span>
+          <button data-step="musicians" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more musicians">+</button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between mt-5 mb-2">
+        <div>
+          <p class="text-sm font-medium">Background singers</p>
+          <p class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+            $<input id="chip-brate" class="num-chip !w-14 !text-left text-xs text-gray-300" inputmode="numeric" value="125" aria-label="singer pay"> each
+            <button data-rate="brate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+            <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button data-step="singers" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer singers">&minus;</button>
+          <span id="out-singers" class="font-display text-2xl font-bold text-white w-8 text-center">3</span>
+          <button data-step="singers" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more singers">+</button>
+        </div>
+      </div>
+
+      <p id="out-you" class="text-xs text-gray-500 mt-4 border-t border-edge pt-3">
+        You sing every show &mdash; you&rsquo;re player 9, at the same $200 as your musicians, paid last.
+      </p>
+    </section>
+
+    <!-- The costs -->
+    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">The costs</h2>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-fee" class="text-sm font-medium">GBE booking fee</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-fee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="booking fee"></span>
+        </div>
+        <input id="in-fee" type="range" min="0" max="2000" step="25" value="200" class="w-full" aria-label="booking fee slider">
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="150" aria-label="promo spend"></span>
+        </div>
+        <input id="in-promo" type="range" min="0" max="3000" step="25" value="150" class="w-full" aria-label="promo spend slider">
+      </div>
+    </section>
+
+    <p class="mx-6 mt-6 text-center text-[11px] leading-relaxed text-gray-600">
+      Estimates only &mdash; a projection before a show, never a promise or an amount owed.
+      Starting numbers are examples, not real rates. Adjust everything.
+    </p>
+  </main>
+
+  <!-- ══ Wiring: state, gate, render. Display values come ONLY from the math block. ══ -->
+  <script>
+    (function () {
+      'use strict';
+      var M = window.EstimatorMath;
+      var SUPABASE_URL = 'https://rklvvuzedmadydmohouu.supabase.co';
+      var SUPABASE_KEY = 'sb_publishable_oIOHXXN_pwkeoeAfcQkNbg_rJkDFNZK';
+      var ALLOWED = ['artist', 'band_manager', 'admin'];
+
+      var state = {
+        guarantee: 2000, capacity: 150, ticketPrice: 30, ticketsSold: 90,
+        split: 0.80, musicians: 5, musicianRate: 200, singers: 3,
+        singerRate: 125, bookingFee: 200, promo: 150
+      };
+
+      function $(id) { return document.getElementById(id); }
+      function digits(s) { var n = parseFloat(String(s).replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n; }
+      function thousands(n) { return Math.round(n).toLocaleString('en-US'); }
+      function paintRange(el) {
+        var min = Number(el.min) || 0, max = Number(el.max) || 100, v = Number(el.value) || 0;
+        el.style.setProperty('--fill', (max === min ? 0 : ((v - min) / (max - min)) * 100) + '%');
+      }
+
+      function render() {
+        var r = M.estimate(state);
+        var s = M.summarize(r);
+        $('payout').textContent = s.payoutText;
+        $('coach').textContent = s.coach;
+        $('coverage').textContent = s.coverage;
+        var sum = $('summary');
+        sum.className = sum.className.replace(/mood-\w+/, 'mood-' + r.mood);
+        $('out-musicians').textContent = state.musicians;
+        $('out-singers').textContent = state.singers;
+        $('out-sold').textContent = state.ticketsSold;
+        $('out-soldpct').textContent = state.capacity > 0
+          ? '(' + Math.round((state.ticketsSold / state.capacity) * 100) + '%)' : '';
+        $('out-split').textContent = Math.round(state.split * 100) + '%';
+        $('out-you').textContent = 'You sing every show — you’re player ' + r.players +
+          ', at the same ' + M.fmtMoney(r.herFee) + ' as your musicians, paid last.';
+      }
+
+      function bindSlider(id, key, chipId, fmt) {
+        var el = $('in-' + id);
+        el.addEventListener('input', function () {
+          state[key] = Number(el.value);
+          if (chipId) $(chipId).value = fmt ? fmt(state[key]) : String(state[key]);
+          if (key === 'capacity') syncSoldMax();
+          paintRange(el); render();
+        });
+        paintRange(el);
+      }
+
+      function bindChip(chipId, key, sliderId) {
+        var chip = $(chipId);
+        function commit() {
+          var v = digits(chip.value);
+          state[key] = v;
+          chip.value = thousands(v);
+          var slider = $(sliderId);
+          if (slider) { slider.value = Math.min(Number(slider.max), v); paintRange(slider); }
+          if (key === 'capacity') syncSoldMax();
+          render();
+        }
+        chip.addEventListener('change', commit);
+        chip.addEventListener('blur', commit);
+      }
+
+      // The sold slider always spans the current room: raise the room and the
+      // slider grows; shrink it and the estimate clamps to the seats that exist.
+      function syncSoldMax() {
+        var sold = $('in-sold');
+        sold.max = Math.max(0, Math.round(state.capacity));
+        if (state.ticketsSold > Number(sold.max)) state.ticketsSold = Number(sold.max);
+        sold.value = state.ticketsSold;
+        paintRange(sold);
+      }
+
+      function initTool() {
+        bindSlider('guarantee', 'guarantee', 'chip-guarantee', thousands);
+        bindSlider('capacity', 'capacity', 'chip-capacity', String);
+        bindSlider('price', 'ticketPrice', 'chip-price', String);
+        bindSlider('fee', 'bookingFee', 'chip-fee', String);
+        bindSlider('promo', 'promo', 'chip-promo', String);
+        bindChip('chip-guarantee', 'guarantee', 'in-guarantee');
+        bindChip('chip-capacity', 'capacity', 'in-capacity');
+        bindChip('chip-price', 'ticketPrice', 'in-price');
+        bindChip('chip-fee', 'bookingFee', 'in-fee');
+        bindChip('chip-promo', 'promo', 'in-promo');
+        bindChip('chip-mrate', 'musicianRate', null);
+        bindChip('chip-brate', 'singerRate', null);
+
+        $('in-sold').addEventListener('input', function () {
+          state.ticketsSold = Number(this.value); paintRange(this); render();
+        });
+        $('in-split').addEventListener('input', function () {
+          state.split = Number(this.value) / 100; paintRange(this); render();
+        });
+
+        document.querySelectorAll('.step').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var k = btn.getAttribute('data-step');
+            state[k] = Math.max(0, state[k] + Number(btn.getAttribute('data-d')));
+            render();
+          });
+        });
+        document.querySelectorAll('.rate-adj').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var key = btn.getAttribute('data-rate') === 'mrate' ? 'musicianRate' : 'singerRate';
+            var chip = btn.getAttribute('data-rate') === 'mrate' ? 'chip-mrate' : 'chip-brate';
+            state[key] = Math.max(0, state[key] + Number(btn.getAttribute('data-d')));
+            $(chip).value = String(state[key]);
+            render();
+          });
+        });
+
+        syncSoldMax();
+        document.querySelectorAll('input[type=range]').forEach(paintRange);
+        render();
+      }
+
+      // ── The gate: the site's existing sign-in, two people allowed ──
+      var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { flowType: 'pkce', persistSession: true }
+      });
+
+      function gateMsg(html) { $('gate-body').innerHTML = html; }
+
+      function showTool(email) {
+        $('gate').classList.add('hidden');
+        $('tool').classList.remove('hidden');
+        if (!showTool.done) { initTool(); showTool.done = true; }
+        $('sign-out').addEventListener('click', function () {
+          sb.auth.signOut().then(function () { location.reload(); });
+        });
+      }
+
+      function showSignIn() {
+        gateMsg(
+          '<p class="text-sm text-gray-400 mb-5">This tool is for L.A. and the band manager. Sign in with the same account you use for the GBE dashboard.</p>' +
+          '<button id="btn-google" class="w-full bg-gold text-ink font-display font-bold rounded-xl py-3.5 text-base active:bg-goldlight">Continue with Google</button>' +
+          '<p class="text-[11px] text-gray-600 mt-4">Already signed in on the dashboard in this browser? Pull to refresh.</p>'
+        );
+        $('btn-google').addEventListener('click', function () {
+          sb.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.href.split('#')[0] }
+          });
+        });
+      }
+
+      function showDenied() {
+        gateMsg(
+          '<p class="text-sm text-gray-400 mb-4">This page isn&rsquo;t part of your dashboard.</p>' +
+          '<button id="btn-out" class="text-xs text-gray-500 underline underline-offset-2 py-2">sign out</button>'
+        );
+        $('btn-out').addEventListener('click', function () {
+          sb.auth.signOut().then(function () { location.reload(); });
+        });
+      }
+
+      sb.auth.getSession().then(function (res) {
+        var session = res && res.data ? res.data.session : null;
+        if (!session || !session.user) { showSignIn(); return; }
+        sb.from('users').select('role, linked_roles, status').eq('id', session.user.id).maybeSingle()
+          .then(function (q) {
+            var row = q && q.data ? q.data : null;
+            if (!row || (row.status && row.status !== 'approved')) { showDenied(); return; }
+            var roles = [row.role].concat(Array.isArray(row.linked_roles) ? row.linked_roles : []);
+            var ok = roles.some(function (r) { return ALLOWED.indexOf(r) !== -1; });
+            if (ok) showTool(session.user.email); else showDenied();
+          })
+          .catch(function () { showDenied(); });
+      }).catch(function () { showSignIn(); });
+    })();
+  </script>
+</body>
+</html>
