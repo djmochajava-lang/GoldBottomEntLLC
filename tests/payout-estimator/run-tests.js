@@ -41,7 +41,7 @@ function test(name, fn) {
 const DEFAULTS = {
   guarantee: 2000, capacity: 150, ticketPrice: 30, ticketsSold: 90,
   split: 0.80, musicians: 5, musicianRate: 200, singers: 3,
-  singerRate: 125, bookingFee: 200, promo: 150
+  singerRate: 125, bookingFee: 200, promo: 150, houseCut: 0
 };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
@@ -126,6 +126,22 @@ test('sold-out green uses the sold-out sentence', () => {
   assert(M.summarize(r).coach.startsWith('Sold-out math'));
 });
 
+console.log('\nHouse cut (the venue\'s nut, off ticket money before her split)');
+test('house cut comes off gross before the split', () => {
+  // gross 90×$30 = 2700; house 500 → 2200; ×80% = 1760;
+  // raw = 200 + 425 + 1760 − 150 − 200 = 2035.
+  const r = M.estimate({ ...DEFAULTS, houseCut: 500 });
+  assert(near(r.ticketShare, 1760));
+  assert.strictEqual(M.summarize(r).payoutText, '$2,035');
+});
+test('house cut larger than gross zeroes the ticket money, never negative', () => {
+  const r = M.estimate({ ...DEFAULTS, houseCut: 5000 });
+  assert(near(r.ticketShare, 0));
+});
+test('house cut of zero changes nothing', () => {
+  assert(near(M.estimate(DEFAULTS).payout, M.estimate({ ...DEFAULTS, houseCut: 0 }).payout));
+});
+
 console.log('\nCoverage sentence');
 test('$1,300 guarantee covers 7 of her 9 players', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: 1300 });
@@ -168,7 +184,7 @@ test('fuzz holds every invariant', () => {
       guarantee: pick(50000), capacity: cap, ticketPrice: rand() * 500,
       ticketsSold: pick(cap + 1), split: rand(), musicians: pick(30),
       musicianRate: pick(2000), singers: pick(20), singerRate: pick(1500),
-      bookingFee: pick(5000), promo: pick(5000)
+      bookingFee: pick(5000), promo: pick(5000), houseCut: pick(8000)
     };
     const r = M.estimate(inp);
     const s = M.summarize(r);
@@ -182,9 +198,11 @@ test('fuzz holds every invariant', () => {
     assert(near(r.payout, Math.max(0, r.raw)), 'floor' + ctx);
     assert(near(r.outOfPocket, r.raw < 0 ? -r.raw : 0), 'out-of-pocket' + ctx);
     if (r.mood === 'loss') assert(s.coach.includes(M.fmtMoney(r.outOfPocket)), 'loss says its number' + ctx);
-    // 3. The waterfall is linear in every branch.
+    // 3. The waterfall is linear in every branch, and the house cut comes
+    //    off gross ticket money before the split.
     const others = inp.musicians * inp.musicianRate + inp.singers * inp.singerRate;
     assert(near(r.herFeePaid + r.guaranteeLeft - r.ownerGap, inp.guarantee - others), 'identity' + ctx);
+    assert(near(r.ticketShare, Math.max(0, inp.ticketsSold * inp.ticketPrice - inp.houseCut) * inp.split), 'house cut' + ctx);
     assert(near(r.raw, inp.guarantee - others + r.ticketShare - inp.promo - inp.bookingFee), 'blend' + ctx);
     // 4. Mood is a total ordering on raw vs her fee.
     const expect = r.raw < 0 ? 'loss' : (r.raw < r.herFee ? 'warn' : 'good');

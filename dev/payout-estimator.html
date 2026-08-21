@@ -80,6 +80,7 @@
         var bRate  = Math.max(0, Number(inp.singerRate) || 0);
         var fee    = Math.max(0, Number(inp.bookingFee) || 0);
         var promo  = Math.max(0, Number(inp.promo) || 0);
+        var house  = Math.max(0, Number(inp.houseCut) || 0);
 
         // She sings every show: one ordinary band slot at the musician rate,
         // in addition to the musicians and singers she hires.
@@ -90,7 +91,11 @@
         var herFeePaid    = Math.min(Math.max(0, G - others), herFee);
         var guaranteeLeft = Math.max(0, G - others - herFee);
         var ownerGap      = Math.max(0, others - G);
-        var ticketShare   = sold * price * split;
+        // The venue's house cut (the "nut") comes off ticket money FIRST;
+        // her split applies to what's left.
+        var ticketGross   = sold * price;
+        var afterHouse    = Math.max(0, ticketGross - house);
+        var ticketShare   = afterHouse * split;
 
         var raw    = herFeePaid + guaranteeLeft + ticketShare - promo - fee - ownerGap;
         var payout = Math.max(0, raw);
@@ -158,7 +163,7 @@
   </div>
 
   <!-- ══ The tool ══ -->
-  <main id="tool" class="hidden max-w-md mx-auto pb-16">
+  <main id="tool" class="hidden max-w-md mx-auto pb-52">
 
     <header class="px-5 pt-5 pb-3 flex items-center justify-between">
       <div>
@@ -168,16 +173,8 @@
       <button id="sign-out" class="text-xs text-gray-500 underline underline-offset-2 py-2 pl-3">sign out</button>
     </header>
 
-    <!-- Sticky summary: her number, always visible -->
-    <section id="summary" class="mood-good sticky top-0 z-10 mx-3 rounded-2xl border-2 px-5 pt-4 pb-5 shadow-2xl backdrop-blur transition-colors duration-300">
-      <p class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">Your estimated take-home</p>
-      <p id="payout" class="font-display font-extrabold text-white leading-none mt-1" style="font-size:3.4rem">$0</p>
-      <p id="coach" class="text-sm mt-2 font-medium text-gray-200"></p>
-      <p id="coverage" class="text-[13px] mt-1.5 text-gray-400"></p>
-    </section>
-
     <!-- The show -->
-    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+    <section class="mx-3 mt-1 bg-panel border border-edge rounded-2xl p-5">
       <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">The show</h2>
 
       <div class="mb-5">
@@ -212,12 +209,21 @@
         <input id="in-sold" type="range" min="0" max="150" step="1" value="90" class="w-full" aria-label="tickets sold slider">
       </div>
 
-      <div>
+      <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-split" class="text-sm font-medium">Your share of each ticket</label>
           <span id="out-split" class="text-white font-semibold text-base">80%</span>
         </div>
         <input id="in-split" type="range" min="0" max="100" step="5" value="80" class="w-full" aria-label="ticket split slider">
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between mb-0.5">
+          <label for="in-house" class="text-sm font-medium">What the venue keeps off tickets</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-house" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="0" aria-label="house cut amount"></span>
+        </div>
+        <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; taken off ticket money before your share.</p>
+        <input id="in-house" type="range" min="0" max="2000" step="25" value="0" class="w-full" aria-label="house cut slider">
       </div>
     </section>
 
@@ -225,37 +231,33 @@
     <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
       <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Your band</h2>
 
-      <div class="flex items-center justify-between mb-2">
-        <div>
-          <p class="text-sm font-medium">Musicians</p>
-          <p class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-            $<input id="chip-mrate" class="num-chip !w-14 !text-left text-xs text-gray-300" inputmode="numeric" value="200" aria-label="musician pay"> each
-            <button data-rate="mrate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
-            <button data-rate="mrate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
-          </p>
-        </div>
-        <div class="flex items-center gap-3">
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-sm font-medium">Musicians</p>
+        <div class="flex items-center gap-2.5">
           <button data-step="musicians" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer musicians">&minus;</button>
           <span id="out-musicians" class="font-display text-2xl font-bold text-white w-8 text-center">5</span>
           <button data-step="musicians" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more musicians">+</button>
         </div>
       </div>
+      <p class="text-xs text-gray-500 mb-5 flex items-center gap-1.5">
+        $<input id="chip-mrate" class="num-chip !w-12 !text-left text-xs text-gray-300" inputmode="numeric" value="200" aria-label="musician pay"> each
+        <button data-rate="mrate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+        <button data-rate="mrate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+      </p>
 
-      <div class="flex items-center justify-between mt-5 mb-2">
-        <div>
-          <p class="text-sm font-medium">Background singers</p>
-          <p class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-            $<input id="chip-brate" class="num-chip !w-14 !text-left text-xs text-gray-300" inputmode="numeric" value="125" aria-label="singer pay"> each
-            <button data-rate="brate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
-            <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
-          </p>
-        </div>
-        <div class="flex items-center gap-3">
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-sm font-medium">Background singers</p>
+        <div class="flex items-center gap-2.5">
           <button data-step="singers" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer singers">&minus;</button>
           <span id="out-singers" class="font-display text-2xl font-bold text-white w-8 text-center">3</span>
           <button data-step="singers" data-d="1" class="stepper-btn step bg-gold text-ink rounded-xl font-bold active:bg-goldlight" aria-label="more singers">+</button>
         </div>
       </div>
+      <p class="text-xs text-gray-500 flex items-center gap-1.5">
+        $<input id="chip-brate" class="num-chip !w-12 !text-left text-xs text-gray-300" inputmode="numeric" value="125" aria-label="singer pay"> each
+        <button data-rate="brate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+        <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+      </p>
 
       <div class="flex items-baseline justify-between mt-5 border-t border-edge pt-3">
         <p class="text-sm font-medium">What the band takes home together</p>
@@ -292,6 +294,17 @@
       Estimates only &mdash; a projection before a show, never a promise or an amount owed.
       Starting numbers are examples, not real rates. Adjust everything.
     </p>
+
+    <!-- The bottom line: her take-home, pinned to the bottom of the screen so
+         it reads like a statement's last line and stays visible while inputs move. -->
+    <section id="summary" class="mood-good fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-20 rounded-t-2xl border-2 border-b-0 px-5 pt-3 shadow-2xl backdrop-blur transition-colors duration-300" style="padding-bottom: calc(0.9rem + env(safe-area-inset-bottom))">
+      <div class="flex items-end justify-between gap-3">
+        <p class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold pb-2">Your estimated<br>take-home</p>
+        <p id="payout" class="font-display font-extrabold text-white leading-none whitespace-nowrap" style="font-size:clamp(1.9rem, 10vw, 2.9rem)">$0</p>
+      </div>
+      <p id="coach" class="text-[13px] mt-1.5 font-medium text-gray-200"></p>
+      <p id="coverage" class="text-xs mt-1 text-gray-400"></p>
+    </section>
   </main>
 
   <!-- ══ Wiring: state, gate, render. Display values come ONLY from the math block. ══ -->
@@ -306,7 +319,7 @@
       var state = {
         guarantee: 2000, capacity: 150, ticketPrice: 30, ticketsSold: 90,
         split: 0.80, musicians: 5, musicianRate: 200, singers: 3,
-        singerRate: 125, bookingFee: 200, promo: 150
+        singerRate: 125, bookingFee: 200, promo: 150, houseCut: 0
       };
 
       function $(id) { return document.getElementById(id); }
@@ -378,6 +391,8 @@
         bindSlider('price', 'ticketPrice', 'chip-price', String);
         bindSlider('fee', 'bookingFee', 'chip-fee', String);
         bindSlider('promo', 'promo', 'chip-promo', String);
+        bindSlider('house', 'houseCut', 'chip-house', String);
+        bindChip('chip-house', 'houseCut', 'in-house');
         bindChip('chip-guarantee', 'guarantee', 'in-guarantee');
         bindChip('chip-capacity', 'capacity', 'in-capacity');
         bindChip('chip-price', 'ticketPrice', 'in-price');
