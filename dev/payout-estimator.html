@@ -81,10 +81,11 @@
         var fee    = Math.max(0, Number(inp.bookingFee) || 0);
         var promo  = Math.max(0, Number(inp.promo) || 0);
         var house  = Math.max(0, Number(inp.houseCut) || 0);
+        var aRate  = Math.max(0, Number(inp.artistRate) || 0);
 
-        // She sings every show: one ordinary band slot at the musician rate,
-        // in addition to the musicians and singers she hires.
-        var herFee  = mRate;
+        // She sings every show: her own slot at her own rate, in addition to
+        // the musicians and singers she hires — and hers is paid last.
+        var herFee  = aRate;
         var others  = mCount * mRate + bCount * bRate;
         var players = mCount + bCount + 1;
 
@@ -117,7 +118,7 @@
           herFee: herFee, herFeePaid: herFeePaid, guaranteeLeft: guaranteeLeft,
           ownerGap: ownerGap, ticketShare: ticketShare, others: others,
           players: players, covered: covered, mood: mood,
-          soldOut: cap > 0 && sold >= cap
+          musicianRate: mRate, soldOut: cap > 0 && sold >= cap
         };
       }
 
@@ -131,7 +132,7 @@
         if (r.mood === 'loss') {
           coach = 'At this lineup and these sales, this show costs you ' + fmtMoney(r.outOfPocket) + ' out of pocket.';
         } else if (r.mood === 'warn') {
-          coach = 'The show breaks even, but the extras are coming out of your pocket — you’d walk with less than your full ' + fmtMoney(r.herFee) + '. Each added player costs ' + fmtMoney(r.herFee) + '.';
+          coach = 'The show breaks even, but the extras are coming out of your pocket — you’d walk with less than your full ' + fmtMoney(r.herFee) + '. Each added musician costs ' + fmtMoney(r.musicianRate) + '.';
         } else {
           coach = r.soldOut
             ? 'Sold-out math: the band and the costs are covered — this is yours to take home.'
@@ -145,8 +146,24 @@
         var bandNote = bandShort
           ? 'The guarantee is ' + fmtMoney(r.ownerGap) + ' short of the band — that gets made up out of ticket money.'
           : 'The guarantee covers the band in full.';
+        // Her fee's fate under the guarantee — covered, partly paid, or
+        // forfeited — always visible, always with the amounts named.
+        var feeState, feeNote;
+        if (r.herFee <= 0) {
+          feeState = 'covered'; feeNote = '';
+        } else if (r.herFeePaid >= r.herFee) {
+          feeState = 'covered';
+          feeNote = 'Your ' + fmtMoney(r.herFee) + ' fee is covered by the guarantee.';
+        } else if (r.herFeePaid > 0) {
+          feeState = 'partial';
+          feeNote = 'The guarantee pays ' + fmtMoney(r.herFeePaid) + ' of your ' + fmtMoney(r.herFee) + ' fee — you forfeit ' + fmtMoney(r.herFee - r.herFeePaid) + '.';
+        } else {
+          feeState = 'forfeit';
+          feeNote = 'The guarantee runs out before you — you forfeit your ' + fmtMoney(r.herFee) + ' fee.';
+        }
         return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(r.others),
-                 bandNote: bandNote, bandShort: bandShort, coverage: coverage, coach: coach };
+                 bandNote: bandNote, bandShort: bandShort,
+                 feeNote: feeNote, feeState: feeState, coverage: coverage, coach: coach };
       }
 
       var api = { estimate: estimate, summarize: summarize, fmtMoney: fmtMoney };
@@ -194,6 +211,17 @@
       </div>
 
       <div class="flex items-center justify-between mb-1">
+        <p class="text-sm font-medium">Artist &mdash; you</p>
+        <p class="text-[11px] text-gray-500">every show &middot; paid last</p>
+      </div>
+      <p class="text-sm text-gray-400 flex items-center gap-1.5">
+        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-arate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="artist rate"></span>
+        <button data-rate="arate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+        <button data-rate="arate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+      </p>
+      <p id="out-artistfee" class="text-xs mt-1 mb-5 font-medium text-gray-500"></p>
+
+      <div class="flex items-center justify-between mb-1">
         <p class="text-sm font-medium">Musicians</p>
         <div class="flex items-center gap-2.5">
           <button data-step="musicians" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer musicians">&minus;</button>
@@ -202,7 +230,7 @@
         </div>
       </div>
       <p class="text-sm text-gray-400 mb-5 flex items-center gap-1.5">
-        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-mrate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="200" aria-label="musician rate"></span> each
+        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-mrate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="musician rate"></span> each
         <button data-rate="mrate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
         <button data-rate="mrate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
       </p>
@@ -216,7 +244,7 @@
         </div>
       </div>
       <p class="text-sm text-gray-400 flex items-center gap-1.5">
-        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-brate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="125" aria-label="singer rate"></span> each
+        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-brate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="singer rate"></span> each
         <button data-rate="brate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
         <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
       </p>
@@ -228,7 +256,7 @@
       <p id="out-bandnote" class="text-xs mt-1.5 font-medium text-gray-500"></p>
       <p class="text-[11px] text-gray-600 mt-1">Everyone but you &mdash; they&rsquo;re always paid in full.</p>
       <p id="out-you" class="text-xs text-gray-500 mt-3">
-        You sing every show &mdash; you&rsquo;re player 9, at the same $200 as your musicians, paid last.
+        You sing every show &mdash; you&rsquo;re player 9, paid last.
       </p>
     </section>
 
@@ -327,8 +355,8 @@
 
       var state = {
         guarantee: 2000, capacity: 150, ticketPrice: 30, ticketsSold: 90,
-        split: 0.80, musicians: 5, musicianRate: 200, singers: 3,
-        singerRate: 125, bookingFee: 200, promo: 150, houseCut: 0
+        split: 0.80, musicians: 5, musicianRate: 300, singers: 3,
+        singerRate: 300, artistRate: 300, bookingFee: 200, promo: 150, houseCut: 0
       };
 
       function $(id) { return document.getElementById(id); }
@@ -347,6 +375,9 @@
         var note = $('out-bandnote');
         note.textContent = s.bandNote;
         note.className = 'text-xs mt-1.5 font-medium ' + (s.bandShort ? 'text-warn' : 'text-gray-500');
+        var feeEl = $('out-artistfee');
+        feeEl.textContent = s.feeNote;
+        feeEl.className = 'text-xs mt-1 mb-5 font-medium ' + (s.feeState === 'covered' ? 'text-gray-500' : 'text-warn');
         $('coach').textContent = s.coach;
         $('coverage').textContent = s.coverage;
         var sum = $('summary');
@@ -357,8 +388,7 @@
         $('out-soldpct').textContent = state.capacity > 0
           ? '(' + Math.round((state.ticketsSold / state.capacity) * 100) + '%)' : '';
         $('out-split').textContent = Math.round(state.split * 100) + '%';
-        $('out-you').textContent = 'You sing every show — you’re player ' + r.players +
-          ', at the same ' + M.fmtMoney(r.herFee) + ' as your musicians, paid last.';
+        $('out-you').textContent = 'You sing every show — you’re player ' + r.players + ', paid last.';
       }
 
       function bindSlider(id, key, chipId, fmt) {
@@ -412,6 +442,7 @@
         bindChip('chip-promo', 'promo', 'in-promo');
         bindChip('chip-mrate', 'musicianRate', null);
         bindChip('chip-brate', 'singerRate', null);
+        bindChip('chip-arate', 'artistRate', null);
 
         $('in-sold').addEventListener('input', function () {
           state.ticketsSold = Number(this.value); paintRange(this); render();
@@ -427,12 +458,17 @@
             render();
           });
         });
+        var RATE_MAP = {
+          mrate: { key: 'musicianRate', chip: 'chip-mrate' },
+          brate: { key: 'singerRate', chip: 'chip-brate' },
+          arate: { key: 'artistRate', chip: 'chip-arate' }
+        };
         document.querySelectorAll('.rate-adj').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            var key = btn.getAttribute('data-rate') === 'mrate' ? 'musicianRate' : 'singerRate';
-            var chip = btn.getAttribute('data-rate') === 'mrate' ? 'chip-mrate' : 'chip-brate';
-            state[key] = Math.max(0, state[key] + Number(btn.getAttribute('data-d')));
-            $(chip).value = String(state[key]);
+            var m = RATE_MAP[btn.getAttribute('data-rate')];
+            if (!m) return;
+            state[m.key] = Math.max(0, state[m.key] + Number(btn.getAttribute('data-d')));
+            $(m.chip).value = String(state[m.key]);
             render();
           });
         });
