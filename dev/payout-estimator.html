@@ -311,7 +311,7 @@
         <p id="out-band" class="font-display text-xl font-bold text-gold whitespace-nowrap shrink-0">$2,700</p>
       </div>
       <div class="flex items-baseline justify-between gap-3 mt-2">
-        <p class="text-sm font-medium min-w-0">Guarantee surplus</p>
+        <p class="text-sm font-medium min-w-0">Guarantee balance</p>
         <p id="out-surplusfig" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-loss">&minus;$700</p>
       </div>
       <p id="out-bandnote" class="text-xs mt-1.5 font-medium text-gray-500"></p>
@@ -444,7 +444,7 @@
         $('payout').textContent = s.payoutText;
         var bandEl = $('out-band');
         bandEl.textContent = s.bandText;
-        bandEl.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' + (s.bandShort ? 'text-loss' : 'text-gold');
+        bandEl.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold';
         var note = $('out-bandnote');
         note.textContent = s.bandNote;
         note.className = 'text-xs mt-1.5 font-medium ' + (s.bandShort ? 'text-loss' : 'text-gray-500');
@@ -454,7 +454,7 @@
         var surFig = $('out-surplusfig');
         surFig.textContent = s.surplusText;
         surFig.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' +
-          (s.surplusTone === 'neg' ? 'text-loss' : (s.surplusTone === 'pos' ? 'text-gold' : 'text-gray-400'));
+          (s.surplusTone === 'neg' ? 'text-loss' : (s.surplusTone === 'pos' ? 'text-good' : 'text-gray-400'));
         var beEl = $('out-breakeven');
         beEl.textContent = s.breakEvenNote;
         beEl.className = 'text-xs mt-1.5 font-medium ' + (s.breakEvenTone === 'red' ? 'text-loss' : 'text-gray-500');
