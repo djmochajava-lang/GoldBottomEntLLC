@@ -164,7 +164,10 @@
           breakEven: breakEven, capacity: cap, sold: sold, guarantee: G,
           venueBreakEven: venueBreakEven, venueTakeAtCap: venueTakeAtCap,
           costsTotal: promo + fee + misc, ticketGross: ticketGross,
-          houseKept: ticketGross - afterVenue, ticketPrice: price, split: split
+          houseKept: ticketGross - afterVenue,
+          nutKept: Math.min(ticketGross, house),
+          recoupKept: Math.min(Math.max(0, ticketGross - house), G),
+          ticketPrice: price, split: split
         };
       }
 
@@ -464,8 +467,12 @@
         <p id="out-tkgross" class="font-semibold text-base text-white whitespace-nowrap shrink-0">$2,250</p>
       </div>
       <div class="flex items-baseline justify-between gap-3 mb-2">
-        <p class="text-sm font-medium min-w-0">The venue keeps first <span class="text-gray-500 text-xs">(nut + guarantee)</span></p>
-        <p id="out-tkkept" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$2,250</p>
+        <p class="text-sm font-medium min-w-0">The house nut</p>
+        <p id="out-tknut" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$1,200</p>
+      </div>
+      <div class="flex items-baseline justify-between gap-3 mb-2">
+        <p class="text-sm font-medium min-w-0">Paying back the guarantee</p>
+        <p id="out-tkrecoup" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$1,050</p>
       </div>
       <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
         <p class="text-sm font-medium min-w-0">Your share <span id="out-tkpct" class="text-gray-500">(80%)</span></p>
@@ -561,7 +568,8 @@
         $('out-coststotal').textContent = M.fmtMoney(r.costsTotal);
         $('out-tksales').textContent = r.sold + ' × ' + M.fmtMoney(r.ticketPrice);
         $('out-tkgross').textContent = M.fmtMoney(r.ticketGross);
-        $('out-tkkept').textContent = r.houseKept > 0 ? '−' + M.fmtMoney(r.houseKept) : '$0';
+        $('out-tknut').textContent = r.nutKept > 0 ? '−' + M.fmtMoney(r.nutKept) : '$0';
+        $('out-tkrecoup').textContent = r.recoupKept > 0 ? '−' + M.fmtMoney(r.recoupKept) : '$0';
         $('out-tkpct').textContent = '(' + Math.round(r.split * 100) + '%)';
         $('out-tkshare').textContent = M.fmtMoney(r.ticketShare);
         $('coach').textContent = s.coach;

@@ -307,16 +307,19 @@ test('total costs: $900 at defaults, moves with each cost', () => {
   assert(near(M.estimate(DEFAULTS).costsTotal, 900));
   assert(near(M.estimate({ ...DEFAULTS, misc: 500 }).costsTotal, 1200));
 });
-test('ticket revenue chain: $2,250 sales, all kept by the venue, $0 share', () => {
+test('ticket revenue chain: $2,250 sales, nut −$1,200, recoup −$1,050, $0 share', () => {
   const r = M.estimate(DEFAULTS);
   assert(near(r.ticketGross, 2250));
-  assert(near(r.houseKept, 2250), 'nut + guarantee soak up the whole gross');
+  assert(near(r.nutKept, 1200));
+  assert(near(r.recoupKept, 1050), 'the rest goes toward paying back the guarantee');
+  assert(near(r.houseKept, 2250), 'nut + recoup soak up the whole gross');
   assert(near(r.ticketShare, 0));
 });
-test('sold-out chain: venue keeps its full $3,700, her share is $640', () => {
+test('sold-out chain: nut −$1,200, guarantee fully recouped −$2,500, her share $640', () => {
   const r = M.estimate({ ...DEFAULTS, ticketsSold: 150 });
   assert(near(r.ticketGross, 4500));
-  assert(near(r.houseKept, 3700));
+  assert(near(r.nutKept, 1200));
+  assert(near(r.recoupKept, 2500));
   assert(near(r.ticketShare, 640));
 });
 test('no house nut: only the guarantee comes off the top', () => {
@@ -390,6 +393,9 @@ test('fuzz holds every invariant', () => {
     assert(near(r.ticketGross, gross), 'ticket gross' + ctx);
     assert(near(r.ticketShare, Math.max(0, gross - offTop) * inp.split), 'venue off the top' + ctx);
     assert(near(r.houseKept, Math.min(gross, offTop)), 'venue keep' + ctx);
+    assert(near(r.nutKept, Math.min(gross, inp.houseCut)), 'nut line item' + ctx);
+    assert(near(r.recoupKept, Math.min(Math.max(0, gross - inp.houseCut), inp.guarantee)), 'recoup line item' + ctx);
+    assert(near(r.nutKept + r.recoupKept, r.houseKept), 'line items sum to the venue keep' + ctx);
     assert(near(r.costsTotal, inp.promo + inp.bookingFee + inp.misc), 'costs total' + ctx);
     assert(near(r.raw, inp.guarantee - others + r.ticketShare - inp.promo - inp.bookingFee - inp.misc), 'blend' + ctx);
     // 3b. Band-shortfall, fee-status, and balance notes match the waterfall.
