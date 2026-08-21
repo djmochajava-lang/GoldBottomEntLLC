@@ -365,6 +365,42 @@
       </p>
     </section>
 
+    <!-- The costs -->
+    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
+      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">The costs</h2>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-fee" class="text-sm font-medium">GBE booking fee</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-fee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="booking fee"></span>
+        </div>
+        <input id="in-fee" type="range" min="0" max="2000" step="25" value="200" class="w-full" aria-label="booking fee slider">
+      </div>
+
+      <div class="mb-5">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="500" aria-label="promo spend"></span>
+        </div>
+        <input id="in-promo" type="range" min="0" max="3000" step="25" value="500" class="w-full" aria-label="promo spend slider">
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between mb-0.5">
+          <label for="in-misc" class="text-sm font-medium">Miscellaneous</label>
+          <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="miscellaneous cost"></span>
+        </div>
+        <p class="text-[11px] text-gray-600 mb-1.5">Anything else you pay for &mdash; travel, wardrobe, gear, whatever the night needs.</p>
+        <input id="in-misc" type="range" min="0" max="3000" step="25" value="200" class="w-full" aria-label="miscellaneous cost slider">
+      </div>
+
+      <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
+        <p class="text-sm font-medium min-w-0">Total costs</p>
+        <p id="out-coststotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-white">$900</p>
+      </div>
+      <p class="text-[11px] text-gray-600 mt-1">These come out of your take-home.</p>
+    </section>
+
     <!-- Tickets & the venue -->
     <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
       <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Tickets &amp; the venue</h2>
@@ -417,42 +453,6 @@
         <p id="out-revtotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$2,250</p>
       </div>
       <p class="text-[11px] text-gray-600 mt-1">All ticket money &mdash; before anyone&rsquo;s cut.</p>
-    </section>
-
-    <!-- The costs -->
-    <section class="mx-3 mt-4 bg-panel border border-edge rounded-2xl p-5">
-      <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">The costs</h2>
-
-      <div class="mb-5">
-        <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-fee" class="text-sm font-medium">GBE booking fee</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-fee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="booking fee"></span>
-        </div>
-        <input id="in-fee" type="range" min="0" max="2000" step="25" value="200" class="w-full" aria-label="booking fee slider">
-      </div>
-
-      <div class="mb-5">
-        <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="500" aria-label="promo spend"></span>
-        </div>
-        <input id="in-promo" type="range" min="0" max="3000" step="25" value="500" class="w-full" aria-label="promo spend slider">
-      </div>
-
-      <div>
-        <div class="flex items-baseline justify-between mb-0.5">
-          <label for="in-misc" class="text-sm font-medium">Miscellaneous</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="miscellaneous cost"></span>
-        </div>
-        <p class="text-[11px] text-gray-600 mb-1.5">Anything else you pay for &mdash; travel, wardrobe, gear, whatever the night needs.</p>
-        <input id="in-misc" type="range" min="0" max="3000" step="25" value="200" class="w-full" aria-label="miscellaneous cost slider">
-      </div>
-
-      <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
-        <p class="text-sm font-medium min-w-0">Total costs</p>
-        <p id="out-coststotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-white">$900</p>
-      </div>
-      <p class="text-[11px] text-gray-600 mt-1">These come out of your take-home.</p>
     </section>
 
     <!-- Ticket revenue — sales, the venue's keep, and her share -->
