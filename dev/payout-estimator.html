@@ -275,7 +275,7 @@
 
       <div class="flex items-center justify-between gap-2 mt-4 border-t border-edge pt-3 mb-1">
         <div class="min-w-0">
-          <p class="text-sm font-medium whitespace-nowrap">Artist &mdash; you</p>
+          <p class="text-sm font-semibold whitespace-nowrap text-gold">Artist &mdash; you</p>
           <p class="text-[11px] text-gray-500 mt-0.5 whitespace-nowrap">paid last</p>
         </div>
         <p class="text-sm text-gray-400 flex items-center gap-1.5 shrink-0 whitespace-nowrap">
@@ -409,13 +409,15 @@
         var r = M.estimate(state);
         var s = M.summarize(r);
         $('payout').textContent = s.payoutText;
-        $('out-band').textContent = s.bandText;
+        var bandEl = $('out-band');
+        bandEl.textContent = s.bandText;
+        bandEl.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' + (s.bandShort ? 'text-loss' : 'text-gold');
         var note = $('out-bandnote');
         note.textContent = s.bandNote;
-        note.className = 'text-xs mt-1.5 font-medium ' + (s.bandShort ? 'text-warn' : 'text-gray-500');
+        note.className = 'text-xs mt-1.5 font-medium ' + (s.bandShort ? 'text-loss' : 'text-gray-500');
         var feeEl = $('out-artistfee');
         feeEl.textContent = s.feeNote;
-        feeEl.className = 'text-xs mt-1 font-medium ' + (s.feeState === 'covered' ? 'text-gray-500' : 'text-warn');
+        feeEl.className = 'text-xs mt-1 font-medium ' + (s.feeState === 'covered' ? 'text-gray-500' : 'text-loss');
         var beEl = $('out-breakeven');
         beEl.textContent = s.breakEvenNote;
         beEl.className = 'text-xs mt-1.5 font-medium ' + (s.breakEvenTone === 'red' ? 'text-loss' : 'text-gray-500');
