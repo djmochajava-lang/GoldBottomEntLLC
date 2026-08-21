@@ -6,9 +6,7 @@
  * The suite extracts the <script id="estimator-math"> block from the SHIPPED
  * page file and tests that exact source, including a wide-range fuzz proving
  * the numbers displayed on screen can never drift from the numbers the math
- * produced (every display string is asserted equal to the formatter applied
- * to engine output on every fuzz case — the page writes the screen only
- * through that pair).
+ * produced.
  *
  * Deal shape (owner rulings): guarantee AND split, never versus. Members are
  * paid first from the guarantee; her rate auto-lowers to what the guarantee
@@ -46,13 +44,13 @@ function test(name, fn) {
   try { fn(); passed++; console.log('  ok    ' + name); }
   catch (e) { failed++; console.log('  FAIL  ' + name + '\n        ' + e.message); }
 }
-// CEO defaults of 2026-08-21: guarantee 2,500; musicians 300; singers 125;
-// artist 300; sales estimate 50% of the room; house nut 1,200; ads 500;
-// misc 200. Band pay = 5×300 + 3×125 + 300 = 2,175. Venue off the top of
-// tickets = nut 1,200 + guarantee 2,500 = 3,700.
+// CEO defaults of 2026-08-21: guarantee 2,500; SIX musicians at 300; three
+// singers at 125; artist 300; sales estimate 50% of the room; house nut
+// 1,200; ads 500; misc 200. Members = 6×300 + 3×125 = 2,175; with her
+// slot the band pay is 2,475. Venue off the top = 1,200 + 2,500 = 3,700.
 const DEFAULTS = {
   guarantee: 2500, capacity: 150, ticketPrice: 30, ticketsSold: 75,
-  split: 0.80, musicians: 5, musicianRate: 300, singers: 3,
+  split: 0.80, musicians: 6, musicianRate: 300, singers: 3,
   singerRate: 125, artistRate: 300, bookingFee: 200, promo: 500,
   misc: 200, houseCut: 1200
 };
@@ -60,33 +58,42 @@ const near = (a, b) => Math.abs(a - b) < 1e-6;
 
 console.log('\nStarting values — the honest story the defaults tell');
 test('defaults: 75 tickets do not clear the venue, she floors at her guaranteed $300', () => {
-  // gross 2,250 < venue 3,700 → her ticket share is $0. Fee 300 + surplus
-  // 325 − costs 900 = −275 raw → show loses 575, her paid 300 is protected.
+  // gross 2,250 < venue 3,700 → share $0. Fee 300 + surplus 25 − costs 900
+  // = −575 raw → the show loses 875, her paid 300 is protected.
   const r = M.estimate(DEFAULTS);
   assert(near(r.ticketShare, 0));
   assert.strictEqual(r.mood, 'loss');
   assert(near(r.payout, 300));
-  assert(near(r.outOfPocket, 575));
+  assert(near(r.outOfPocket, 875));
   const s = M.summarize(r);
   assert.strictEqual(s.payoutText, '$300');
-  assert(s.coach.includes('loses $575'), s.coach);
+  assert.strictEqual(s.lossText, '−$875');
+  assert(s.coach.includes('loses $875'), s.coach);
   assert(s.coach.includes('guaranteed $300 is safe'), s.coach);
 });
-test('defaults: guarantee pays all 9 players with a green +$325 balance', () => {
+test('defaults: guarantee pays all 10 players with a slim +$25 balance', () => {
   const r = M.estimate(DEFAULTS);
   const s = M.summarize(r);
-  assert.strictEqual(r.players, 9);
-  assert.strictEqual(r.covered, 9);
-  assert(s.coverage.includes('pays all 9'));
+  assert.strictEqual(r.players, 10);
+  assert.strictEqual(r.covered, 10);
+  assert(s.coverage.includes('pays all 10'));
   assert(s.bandShort === false);
-  assert.strictEqual(s.surplusText, '+$325');
+  assert.strictEqual(s.surplusText, '+$25');
   assert.strictEqual(s.surplusTone, 'pos');
 });
-test('sold out: the room finally pays — $365 take-home, green', () => {
-  // share (4,500 − 3,700) × 80% = 640 → 300 + 325 + 640 − 900 = 365
+test('sold out at $30 still loses — the tool says so with the figure', () => {
+  // share (4,500 − 3,700) × 80% = 640 → raw 300+25+640−900 = 65 → flexible −235
   const r = M.estimate({ ...DEFAULTS, ticketsSold: 150 });
+  assert.strictEqual(r.mood, 'loss');
+  assert(near(r.payout, 300));
+  assert(near(r.outOfPocket, 235));
+  assert.strictEqual(M.summarize(r).lossText, '−$235');
+});
+test('a $40 ticket turns the same sold-out night green', () => {
+  // gross 6,000 − 3,700 = 2,300 × 80% = 1,840 → raw 325 + 1,840 − 900 = 1,265
+  const r = M.estimate({ ...DEFAULTS, ticketPrice: 40, ticketsSold: 150 });
   assert.strictEqual(r.mood, 'good');
-  assert.strictEqual(M.summarize(r).payoutText, '$365');
+  assert.strictEqual(M.summarize(r).payoutText, '$1,265');
   assert(M.summarize(r).coach.startsWith('Sold-out math'));
 });
 
@@ -94,29 +101,29 @@ console.log('\nPriority rules (§5)');
 test('other players paid first: short guarantee pays her nothing', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: 1000 });
   assert(near(r.herFeePaid, 0));
-  assert(near(r.ownerGap, 875), 'owner covers 1875−1000');
+  assert(near(r.ownerGap, 1175), 'owner covers 2175−1000');
 });
 test('her rate auto-lowers to what the guarantee affords', () => {
-  const r = M.estimate({ ...DEFAULTS, guarantee: 2000 });
-  assert(near(r.herFee, 125), 'shown rate lowered to the affordable 125');
+  const r = M.estimate({ ...DEFAULTS, guarantee: 2400 });
+  assert(near(r.herFee, 225), 'shown rate lowered to the affordable 225');
   assert(near(r.herFeeWanted, 300), 'her intended rate is remembered');
-  assert(near(r.herFeePaid, 125));
+  assert(near(r.herFeePaid, 225));
 });
 test('owner gap comes out of her ticket money', () => {
-  // both below the members' 1875 and with equal off-the-top venue claims
   const a = M.estimate({ ...DEFAULTS, guarantee: 1875, ticketsSold: 150 });
   const b = M.estimate({ ...DEFAULTS, guarantee: 1675, ticketsSold: 150 });
-  // a $200 smaller guarantee widens the gap by 200 but also lowers the
-  // venue's off-the-top by 200, raising her share by 200×0.8 = 160
+  // a $200 smaller guarantee widens the gap by 200 but lowers the venue's
+  // off-the-top by 200, raising her share by 200×0.8 = 160
   assert(near(a.raw - b.raw, 200 - 160), 'gap and recoup move together');
 });
-test('rich guarantee at a full house: fee, surplus, and tickets all ride', () => {
-  // G 3000: fee 300, surplus 825; venue off-top 4200; share (4500−4200)×.8 = 240
-  const r = M.estimate({ ...DEFAULTS, guarantee: 3000, ticketsSold: 150 });
+test('rich guarantee at a $40 full house: fee, surplus, and tickets all ride', () => {
+  // G 3000: fee 300, surplus 525 wait — members 2175, fee 300 → left 525.
+  // Venue off-top 4,200; share (6,000 − 4,200) × 0.8 = 1,440.
+  const r = M.estimate({ ...DEFAULTS, guarantee: 3000, ticketPrice: 40, ticketsSold: 150 });
   assert(near(r.herFeePaid, 300));
-  assert(near(r.guaranteeLeft, 825));
-  assert(near(r.ticketShare, 240));
-  assert.strictEqual(M.summarize(r).payoutText, '$465');
+  assert(near(r.guaranteeLeft, 525));
+  assert(near(r.ticketShare, 1440));
+  assert.strictEqual(M.summarize(r).payoutText, '$1,365');
 });
 
 console.log('\nHer rate under the guarantee — one visible number, always earned');
@@ -126,20 +133,20 @@ test('defaults: her $300 rate is covered and the screen says so', () => {
   assert(s.feeNote.includes('Your $300 rate is covered'), s.feeNote);
 });
 test('lowered: the note names the usual rate and what is afforded', () => {
-  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
+  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2400 }));
   assert.strictEqual(s.feeState, 'lowered');
   assert(s.feeNote.includes('Lowered from your usual $300'), s.feeNote);
-  assert(s.feeNote.includes('affords $125 after the band'), s.feeNote);
+  assert(s.feeNote.includes('affords $225 after the band'), s.feeNote);
 });
 test('lowered to zero when nothing is left after the band', () => {
-  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1500 }));
+  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
   assert.strictEqual(s.feeState, 'lowered');
   assert(s.feeNote.includes('Lowered to $0'), s.feeNote);
 });
 test('the visible rate auto-adjusts with the numbers and is restored later', () => {
   assert(near(M.estimate(DEFAULTS).herFee, 300));
-  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2000 }).herFee, 125));
-  assert(near(M.estimate({ ...DEFAULTS, guarantee: 1500 }).herFee, 0));
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2400 }).herFee, 225));
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2000 }).herFee, 0));
   assert(near(M.estimate({ ...DEFAULTS, musicians: 7 }).herFee, 25));
   assert(near(M.estimate({ ...DEFAULTS, musicians: 8 }).herFee, 0));
   assert(near(M.estimate({ ...DEFAULTS, guarantee: 2500 }).herFee, 300));
@@ -150,108 +157,102 @@ test('loss with no paid fee reads as her own out-of-pocket', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: 1500, ticketsSold: 0, promo: 400 });
   assert.strictEqual(r.mood, 'loss');
   assert(near(r.payout, 0), 'no paid fee → floor is $0');
-  assert(near(r.outOfPocket, 1175), 'raw = (1500−1875) − 400 − 200 − 200 = −1175');
-  assert(M.summarize(r).coach.includes('$1,175'));
+  assert(near(r.outOfPocket, 1475), 'raw = (1500−2175) − 400 − 200 − 200 = −1475');
+  assert(M.summarize(r).coach.includes('$1,475'));
   assert(M.summarize(r).coach.includes('out of pocket'));
 });
 test('GUARANTEED FEE FLOOR: a losing show can never touch her paid fee', () => {
   const r = M.estimate({ ...DEFAULTS, ticketsSold: 0 });
   assert.strictEqual(r.mood, 'loss');
   assert(near(r.payout, 300), 'floors at her paid fee, not $0');
-  assert(near(r.outOfPocket, 575));
-  const c = M.summarize(r).coach;
-  assert(c.includes('loses $575'), c);
-  assert(c.includes('guaranteed $300 is safe'), c);
+  assert(near(r.outOfPocket, 875));
 });
 test('amber when the show holds up but she nets under her full set fee', () => {
-  // G 2100 → rate lowered to 225 (paid). Venue off-top 3300; sold 148:
-  // share (4440−3300)×0.8 = 912 → raw = 225 + 912 − 900 = 237 < 300.
-  const r = M.estimate({ ...DEFAULTS, guarantee: 2100, ticketsSold: 148 });
+  // G 2400 → rate lowered to 225 (paid). Venue off-top 3,600; $40 tickets,
+  // 120 sold: share (4,800 − 3,600) × 0.8 = 960 → raw 225 + 960 − 900 = 285.
+  const r = M.estimate({ ...DEFAULTS, guarantee: 2400, ticketPrice: 40, ticketsSold: 120 });
   assert.strictEqual(r.mood, 'warn');
-  assert(near(r.raw, 237));
+  assert(near(r.raw, 285));
   const c = M.summarize(r).coach;
   assert(c.includes('less than your full $300'), c);
   assert(c.includes('Each added musician costs $300'), c);
 });
 test('green needs her full intended rate intact after every cost', () => {
-  const g = M.estimate({ ...DEFAULTS, ticketsSold: 150 });
+  const g = M.estimate({ ...DEFAULTS, ticketPrice: 40, ticketsSold: 150 });
   assert(g.payout >= g.herFeeWanted && g.mood === 'good');
 });
 test('band shortfall: with the rate auto-lowered, the short is pure ticket money', () => {
   const short = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1000 }));
   assert(short.bandShort === true);
-  assert(short.bandNote.includes('$875 short of this total'), short.bandNote);
-  assert(short.bandNote.includes('$875 gets made up out of ticket money'), short.bandNote);
+  assert(short.bandNote.includes('$1,175 short of this total'), short.bandNote);
+  assert(short.bandNote.includes('$1,175 gets made up out of ticket money'), short.bandNote);
   assert(!short.bandNote.includes('forfeit'), short.bandNote);
-  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
+  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2400 }));
   assert(exact.bandShort === false);
   assert(exact.bandNote.includes('covers the band in full'), exact.bandNote);
 });
 test('band total includes her (auto-lowered) slot so the column adds up', () => {
-  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).bandText, '$2,175');
-  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, musicians: 6 })).bandText, '$2,475');
-  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, artistRate: 400 })).bandText, '$2,275');
-  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 })).bandText, '$2,000');
+  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).bandText, '$2,475');
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, musicians: 7 })).bandText, '$2,500');
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, artistRate: 400 })).bandText, '$2,500');
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 })).bandText, '$2,175');
 });
-test('balance figure is signed: +$325 default, $0 when capped, −$375 short of the band', () => {
-  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).surplusText, '+$325');
-  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
+test('balance figure is signed: +$25 default, $0 when capped, −$675 short of the band', () => {
+  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).surplusText, '+$25');
+  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2400 }));
   assert.strictEqual(exact.surplusText, '$0');
   assert.strictEqual(exact.surplusTone, 'zero');
   const neg = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1500 }));
-  assert.strictEqual(neg.surplusText, '−$375');
+  assert.strictEqual(neg.surplusText, '−$675');
   assert.strictEqual(neg.surplusTone, 'neg');
 });
 test('green copy frames the number as hers alone, never as the pot', () => {
-  const g = M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 150 }));
+  const g = M.summarize(M.estimate({ ...DEFAULTS, ticketPrice: 40, ticketsSold: 150 }));
   assert(g.coach.includes('yours to take home'), g.coach);
   assert(!g.coach.includes('pays everybody'), 'pot framing is banned: ' + g.coach);
 });
 
 console.log('\nMiscellaneous cost');
 test('misc comes straight out of her flexible money, dollar for dollar', () => {
-  // use a no-floor scenario so the delta is visible: G 1500, full house
-  const base = M.estimate({ ...DEFAULTS, guarantee: 1500, ticketsSold: 150 });
-  const more = M.estimate({ ...DEFAULTS, guarantee: 1500, ticketsSold: 150, misc: 300 });
-  assert(near(base.payout, 165), 'gap 375; share (4500−2700)×0.8 = 1440; 1440−900−375 = 165');
+  // no-floor scenario: G 2175 (her rate 0), $40 tickets, full house
+  const base = M.estimate({ ...DEFAULTS, guarantee: 2175, ticketPrice: 40, ticketsSold: 150 });
+  const more = M.estimate({ ...DEFAULTS, guarantee: 2175, ticketPrice: 40, ticketsSold: 150, misc: 300 });
+  assert(near(base.payout, 1200), 'share (6000−3375)×0.8 = 2100; 2100 − 900 = 1200');
   assert(near(base.payout - more.payout, 100));
 });
 test('misc moves the break-even line', () => {
-  // cost 575 + 100 = 675 → (675/0.8 + 3700)/30 = 151.5 → 152 tickets
-  assert.strictEqual(M.estimate({ ...DEFAULTS, misc: 300 }).breakEven, 152);
+  // cost 875 + 100 = 975 → (975/0.8 + 3700)/30 = 163.96 → 164 tickets
+  assert.strictEqual(M.estimate({ ...DEFAULTS, misc: 300 }).breakEven, 164);
 });
 
 console.log('\nBreak-even — where the show climbs out of the red, in tickets');
-test('defaults: breaks even at 148 tickets — the 75 estimate reads red', () => {
-  // her costs (900) minus surplus (325) = 575 must come from her 80% share
-  // AFTER the venue recoups 3,700 → (575/0.8 + 3700)/30 = 147.3 → 148.
+test('defaults: break-even needs 160 tickets — more than the room holds', () => {
+  // her costs (900) minus surplus (25) = 875 from her 80% share AFTER the
+  // venue recoups 3,700 → (875/0.8 + 3700)/30 = 159.8 → 160 > 150 seats.
   const r = M.estimate(DEFAULTS);
-  assert.strictEqual(r.breakEven, 148);
+  assert.strictEqual(r.breakEven, 160);
   const s = M.summarize(r);
-  assert(s.breakEvenNote.includes('Breaks even at 148 tickets'), s.breakEvenNote);
-  assert(s.breakEvenNote.includes('below that this show is in the red'), s.breakEvenNote);
-  assert(s.breakEvenNote.includes('estimating 75'), s.breakEvenNote);
+  assert(s.breakEvenNote.includes('takes 160 tickets'), s.breakEvenNote);
+  assert(s.breakEvenNote.includes('room holds 150'), s.breakEvenNote);
   assert.strictEqual(s.breakEvenTone, 'red');
 });
-test('estimating at or past break-even clears it', () => {
-  const s = M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 148 }));
-  assert(s.breakEvenNote.includes('your 148 estimate clears it'), s.breakEvenNote);
-  assert.strictEqual(s.breakEvenTone, 'ok');
+test('break-even is exact: 160 tickets keeps the show whole, 159 does not', () => {
+  assert(M.estimate({ ...DEFAULTS, ticketsSold: 160 }).flexible >= -1e-6);
+  assert(M.estimate({ ...DEFAULTS, ticketsSold: 159 }).flexible < 0);
 });
-test('break-even is exact: 148 tickets keeps the show whole, 147 does not', () => {
-  assert(M.estimate({ ...DEFAULTS, ticketsSold: 148 }).flexible >= -1e-6);
-  assert(M.estimate({ ...DEFAULTS, ticketsSold: 147 }).flexible < 0);
+test('a $40 ticket brings break-even inside the room and an estimate can clear it', () => {
+  // (875/0.8 + 3700)/40 = 119.8 → 120
+  const r = M.estimate({ ...DEFAULTS, ticketPrice: 40, ticketsSold: 120 });
+  assert.strictEqual(r.breakEven, 120);
+  const s = M.summarize(r);
+  assert(s.breakEvenNote.includes('your 120 estimate clears it'), s.breakEvenNote);
+  assert.strictEqual(s.breakEvenTone, 'ok');
 });
 test('a surplus bigger than the costs is out of the red before a ticket sells', () => {
-  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 3100 }));
+  // G 3400 → surplus 925 covers the 900 costs
+  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 3400 }));
   assert(s.breakEvenNote.includes('before a single ticket sells'), s.breakEvenNote);
   assert.strictEqual(s.breakEvenTone, 'ok');
-});
-test('a room too small to break even says so', () => {
-  const s = M.summarize(M.estimate({ ...DEFAULTS, capacity: 20, ticketsSold: 10 }));
-  assert(s.breakEvenNote.includes('takes 148 tickets'), s.breakEvenNote);
-  assert(s.breakEvenNote.includes('room holds 20'), s.breakEvenNote);
-  assert.strictEqual(s.breakEvenTone, 'red');
 });
 test('no ticket money at all: break-even is honestly unreachable', () => {
   const s = M.summarize(M.estimate({ ...DEFAULTS, ticketPrice: 0 }));
@@ -261,7 +262,6 @@ test('no ticket money at all: break-even is honestly unreachable', () => {
 
 console.log('\nThe venue is paid back first — nut plus the guarantee it fronted');
 test('defaults: the venue is made whole at 124 tickets; 75 reads amber', () => {
-  // (1,200 + 2,500) / $30 = 123.3 → 124 tickets
   const r = M.estimate(DEFAULTS);
   assert.strictEqual(r.venueBreakEven, 124);
   assert(near(r.venueTakeAtCap, 2500), 'fully recouped inside this room');
@@ -284,8 +284,6 @@ test('a smaller guarantee is earned back sooner', () => {
   assert.strictEqual(M.summarize(r).venueTone, 'ok');
 });
 test('a room too small to make the venue whole says it out loud', () => {
-  // cap 100 × $30 = 3,000 gross; after the 1,200 nut only 1,800 of the
-  // 2,500 guarantee comes back.
   const r = M.estimate({ ...DEFAULTS, capacity: 100, ticketsSold: 50 });
   assert(near(r.venueTakeAtCap, 1800));
   const s = M.summarize(r);
@@ -311,8 +309,8 @@ test('ticket revenue chain: $2,250 sales, nut −$1,200, recoup −$1,050, $0 sh
   const r = M.estimate(DEFAULTS);
   assert(near(r.ticketGross, 2250));
   assert(near(r.nutKept, 1200));
-  assert(near(r.recoupKept, 1050), 'the rest goes toward paying back the guarantee');
-  assert(near(r.houseKept, 2250), 'nut + recoup soak up the whole gross');
+  assert(near(r.recoupKept, 1050));
+  assert(near(r.houseKept, 2250));
   assert(near(r.ticketShare, 0));
 });
 test('sold-out chain: nut −$1,200, guarantee fully recouped −$2,500, her share $640', () => {
@@ -321,6 +319,13 @@ test('sold-out chain: nut −$1,200, guarantee fully recouped −$2,500, her sha
   assert(near(r.nutKept, 1200));
   assert(near(r.recoupKept, 2500));
   assert(near(r.ticketShare, 640));
+});
+test('a tiny gross goes to the nut first, recoup waits', () => {
+  const r = M.estimate({ ...DEFAULTS, ticketsSold: 30 });
+  assert(near(r.ticketGross, 900));
+  assert(near(r.nutKept, 900));
+  assert(near(r.recoupKept, 0));
+  assert(near(r.ticketShare, 0));
 });
 test('no house nut: only the guarantee comes off the top', () => {
   const r = M.estimate({ ...DEFAULTS, houseCut: 0, ticketsSold: 150 });
@@ -338,13 +343,13 @@ test('all zeros: $0, one player (her), no crash', () => {
 });
 test('negative and junk inputs are treated as zero', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: -50, promo: 'abc' });
-  assert(near(r.ownerGap, 1875));
+  assert(near(r.ownerGap, 2175));
   assert(!Number.isNaN(r.payout));
 });
 test('nothing is capped: huge values compute cleanly', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: 250000, ticketPrice: 1000, capacity: 20000, ticketsSold: 20000 });
   assert(near(r.ticketShare, (20000 * 1000 - 1200 - 250000) * 0.8));
-  assert(near(r.raw, 250000 - 1875 + r.ticketShare - 900));
+  assert(near(r.raw, 250000 - 2175 + r.ticketShare - 900));
 });
 
 console.log('\nFuzz — the screen can never drift from the math (2,000 cases)');
