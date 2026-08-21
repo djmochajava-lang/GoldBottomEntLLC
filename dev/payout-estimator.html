@@ -450,13 +450,11 @@
       sb.auth.getSession().then(function (res) {
         var session = res && res.data ? res.data.session : null;
         if (!session || !session.user) { showSignIn(); return; }
-        sb.from('users').select('role, linked_roles, status').eq('id', session.user.id).maybeSingle()
+        sb.from('users').select('role, status').eq('id', session.user.id).maybeSingle()
           .then(function (q) {
             var row = q && q.data ? q.data : null;
             if (!row || (row.status && row.status !== 'approved')) { showDenied(); return; }
-            var roles = [row.role].concat(Array.isArray(row.linked_roles) ? row.linked_roles : []);
-            var ok = roles.some(function (r) { return ALLOWED.indexOf(r) !== -1; });
-            if (ok) showTool(session.user.email); else showDenied();
+            if (ALLOWED.indexOf(row.role) !== -1) showTool(session.user.email); else showDenied();
           })
           .catch(function () { showDenied(); });
       }).catch(function () { showSignIn(); });
