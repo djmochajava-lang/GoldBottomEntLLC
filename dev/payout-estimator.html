@@ -503,7 +503,7 @@
         <p class="text-sm font-medium min-w-0">After GBE costs</p>
         <p id="out-gberesult" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-good">+$365</p>
       </div>
-      <p id="out-gbeformula" class="text-[11px] text-gray-500 mt-0.5">$1,265 revenue &minus; $900 costs =</p>
+      <p id="out-gbeformula" class="text-sm mt-1"><span class="font-display font-semibold text-base text-gold">$1,265</span> <span class="text-gray-500 text-xs">revenue</span> <span class="text-gray-400">&minus;</span> <span class="font-display font-semibold text-base text-white">$900</span> <span class="text-gray-500 text-xs">costs</span> <span class="text-gray-400">=</span></p>
       <p id="out-gbenote" class="text-xs mt-1 font-medium text-gray-500"></p>
       <p class="text-[11px] text-gray-600 mt-1.5">You and GBE own this risk together &mdash; creative side and management side.</p>
     </section>
@@ -597,7 +597,13 @@
         gbeEl.textContent = s.gbeText;
         gbeEl.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' +
           (s.gbeTone === 'neg' ? 'text-loss' : (s.gbeTone === 'pos' ? 'text-good' : 'text-gray-400'));
-        $('out-gbeformula').textContent = s.gbeFormula;
+        var fRev = r.ticketShare + r.guaranteeLeft - r.ownerGap;
+        var fRevTxt = fRev < 0 ? '−' + M.fmtMoney(-fRev) : M.fmtMoney(fRev);
+        $('out-gbeformula').innerHTML =
+          '<span class="font-display font-semibold text-base ' + (fRev < 0 ? 'text-loss' : 'text-gold') + '">' + fRevTxt + '</span>' +
+          ' <span class="text-gray-500 text-xs">revenue</span> <span class="text-gray-400">−</span> ' +
+          '<span class="font-display font-semibold text-base text-white">' + M.fmtMoney(r.costsTotal) + '</span>' +
+          ' <span class="text-gray-500 text-xs">costs</span> <span class="text-gray-400">=</span>';
         var gbeNoteEl = $('out-gbenote');
         gbeNoteEl.textContent = s.gbeNote;
         gbeNoteEl.className = 'text-xs mt-1 font-medium ' + (s.gbeTone === 'neg' ? 'text-loss' : 'text-gray-500');
