@@ -263,10 +263,10 @@
         var gbeText = fmtSigned(r.flexible);
         var gbeTone = r.flexible < -1e-9 ? 'neg' : (r.flexible > 1e-9 ? 'pos' : 'zero');
         var gbeNote = gbeTone === 'neg'
-          ? 'GBE doesn\u2019t recoup — it absorbs ' + fmtMoney(r.outOfPocket) + ', and tickets add nothing for you.'
+          ? 'The tool comes home ' + fmtMoney(r.outOfPocket) + ' short — GBE reinvests that before the next show; tickets added nothing for you this time.'
           : (gbeTone === 'pos'
-            ? 'GBE\u2019s costs are covered — this extra rides to you.'
-            : 'GBE\u2019s costs are exactly covered.');
+            ? 'The tool comes home whole — the extra rides to you.'
+            : 'The tool comes home exactly whole.');
         return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(bandPay),
                  bandNote: bandNote, bandShort: bandShort,
                  surplusText: surplusText, surplusTone: surplusTone,
@@ -491,13 +491,14 @@
         <p class="text-sm font-medium min-w-0">Total GBE costs</p>
         <p id="out-coststotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-white">$900</p>
       </div>
-      <p class="text-[11px] text-gray-600 mt-1">These come out of your take-home.</p>
+      <p class="text-[11px] text-gray-600 mt-1">The show tool &mdash; GBE puts this to work each night, and it comes out of the night&rsquo;s money.</p>
 
       <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
         <p class="text-sm font-medium min-w-0">After GBE costs</p>
         <p id="out-gberesult" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-loss">&minus;$875</p>
       </div>
       <p id="out-gbenote" class="text-xs mt-1 font-medium text-gray-500"></p>
+      <p class="text-[11px] text-gray-600 mt-1.5">You and GBE own this risk together &mdash; creative side and management side.</p>
     </section>
 
     <p class="mx-6 mt-6 text-center text-[11px] leading-relaxed text-gray-600">

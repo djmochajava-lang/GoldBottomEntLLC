@@ -301,17 +301,19 @@ test('no guarantee, no earn-back line', () => {
 });
 
 console.log('\nGBE recoup verdict — after its costs, who wins');
-test('defaults: GBE does not recoup — it absorbs $875, tickets add nothing for her', () => {
+test('defaults: the tool comes home $875 short and GBE must reinvest', () => {
   const s = M.summarize(M.estimate(DEFAULTS));
   assert.strictEqual(s.gbeText, '−$875');
   assert.strictEqual(s.gbeTone, 'neg');
-  assert(s.gbeNote.includes('doesn’t recoup'), s.gbeNote);
-  assert(s.gbeNote.includes('absorbs $875'), s.gbeNote);
+  assert(s.gbeNote.includes('comes home $875 short'), s.gbeNote);
+  assert(s.gbeNote.includes('GBE reinvests'), s.gbeNote);
+  assert(s.gbeNote.includes('tickets added nothing for you'), s.gbeNote);
 });
-test('a strong night flips the verdict green and the extra rides to her', () => {
+test('a strong night brings the tool home whole and the extra rides to her', () => {
   const s = M.summarize(M.estimate({ ...DEFAULTS, ticketPrice: 40, ticketsSold: 150 }));
   assert.strictEqual(s.gbeText, '+$965');
   assert.strictEqual(s.gbeTone, 'pos');
+  assert(s.gbeNote.includes('comes home whole'), s.gbeNote);
   assert(s.gbeNote.includes('rides to you'), s.gbeNote);
 });
 
