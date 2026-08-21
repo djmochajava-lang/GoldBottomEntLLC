@@ -132,7 +132,9 @@
             ? 'Sold-out math: the band and the costs are covered — this is yours to take home.'
             : 'The band and the costs are covered — this is yours to take home.';
         }
-        return { payoutText: fmtMoney(r.payout), coverage: coverage, coach: coach };
+        // The band's collective take-home: every player but her, and the deal
+        // rules always make them whole — so this never dips with ticket sales.
+        return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(r.others), coverage: coverage, coach: coach };
       }
 
       var api = { estimate: estimate, summarize: summarize, fmtMoney: fmtMoney };
@@ -255,7 +257,12 @@
         </div>
       </div>
 
-      <p id="out-you" class="text-xs text-gray-500 mt-4 border-t border-edge pt-3">
+      <div class="flex items-baseline justify-between mt-5 border-t border-edge pt-3">
+        <p class="text-sm font-medium">What the band takes home together</p>
+        <p id="out-band" class="font-display text-xl font-bold text-gold">$1,375</p>
+      </div>
+      <p class="text-[11px] text-gray-600 mt-0.5">Everyone but you &mdash; they&rsquo;re always paid in full.</p>
+      <p id="out-you" class="text-xs text-gray-500 mt-3">
         You sing every show &mdash; you&rsquo;re player 9, at the same $200 as your musicians, paid last.
       </p>
     </section>
@@ -314,6 +321,7 @@
         var r = M.estimate(state);
         var s = M.summarize(r);
         $('payout').textContent = s.payoutText;
+        $('out-band').textContent = s.bandText;
         $('coach').textContent = s.coach;
         $('coverage').textContent = s.coverage;
         var sum = $('summary');

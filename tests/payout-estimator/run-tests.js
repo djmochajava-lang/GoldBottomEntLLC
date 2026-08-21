@@ -105,6 +105,12 @@ test('green needs her full fee intact after every cost', () => {
   const g = M.estimate(DEFAULTS);
   assert(g.raw >= g.herFee && g.mood === 'good');
 });
+test('band collective take-home: $1,375 at defaults, moves with the lineup', () => {
+  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).bandText, '$1,375');
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, musicians: 6 })).bandText, '$1,575');
+  // ticket sales never move the band's number — the deal makes them whole
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 0 })).bandText, '$1,375');
+});
 test('green copy frames the number as hers alone, never as the pot', () => {
   // CEO ruling: the big number is her personal take-home. The words must
   // never suggest the displayed number is what pays the band.
@@ -168,8 +174,9 @@ test('fuzz holds every invariant', () => {
     const s = M.summarize(r);
     const ctx = ' [case ' + i + ' ' + JSON.stringify(inp) + ']';
 
-    // 1. The screen's number IS the math's number, formatted — nothing else.
+    // 1. The screen's numbers ARE the math's numbers, formatted — nothing else.
     assert.strictEqual(s.payoutText, M.fmtMoney(r.payout), 'display drift' + ctx);
+    assert.strictEqual(s.bandText, M.fmtMoney(r.others), 'band display drift' + ctx);
     assert(/^\$[\d,]+$/.test(s.payoutText), 'money format' + ctx);
     // 2. Floor at $0; the loss is reported, never hidden.
     assert(near(r.payout, Math.max(0, r.raw)), 'floor' + ctx);
