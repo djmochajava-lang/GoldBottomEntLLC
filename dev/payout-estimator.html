@@ -411,6 +411,12 @@
         <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; taken off ticket money before your share.</p>
         <input id="in-house" type="range" min="0" max="3000" step="25" value="1200" class="w-full" aria-label="house cut slider">
       </div>
+
+      <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
+        <p class="text-sm font-medium min-w-0">Total revenue</p>
+        <p id="out-revtotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$2,250</p>
+      </div>
+      <p class="text-[11px] text-gray-600 mt-1">All ticket money &mdash; before anyone&rsquo;s cut.</p>
     </section>
 
     <!-- The costs -->
@@ -545,6 +551,7 @@
         vEl.className = 'text-xs mt-1 font-medium ' +
           (s.venueTone === 'red' ? 'text-loss' : (s.venueTone === 'warn' ? 'text-warn' : 'text-gray-500'));
         vEl.classList.toggle('hidden', !s.venueNote);
+        $('out-revtotal').textContent = M.fmtMoney(r.ticketGross);
         $('out-coststotal').textContent = M.fmtMoney(r.costsTotal);
         $('out-tksales').textContent = r.sold + ' × ' + M.fmtMoney(r.ticketPrice);
         $('out-tkgross').textContent = M.fmtMoney(r.ticketGross);
