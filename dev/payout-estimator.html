@@ -91,13 +91,16 @@
         var house  = Math.max(0, Number(inp.houseCut) || 0);
         var aRate  = Math.max(0, Number(inp.artistRate) || 0);
 
-        // She sings every show: her own slot at her own rate, in addition to
-        // the musicians and singers she hires — and hers is paid last.
-        var herFee  = aRate;
-        var others  = mCount * mRate + bCount * bRate;
-        var players = mCount + bCount + 1;
-
-        var herFeePaid    = Math.min(Math.max(0, G - others), herFee);
+        // She sings every show: her own slot, paid last. Owner rule: her RATE
+        // itself can never sit above what the guarantee affords after the
+        // members — it lowers automatically (her intended rate is remembered
+        // by the page and restored when the guarantee allows it again).
+        var others     = mCount * mRate + bCount * bRate;
+        var players    = mCount + bCount + 1;
+        var affordable = Math.max(0, G - others);
+        var herFeeWanted = aRate;
+        var herFee     = Math.min(aRate, affordable);   // the rate she SEES
+        var herFeePaid = herFee;                        // always affordable now
         var guaranteeLeft = Math.max(0, G - others - herFee);
         var ownerGap      = Math.max(0, others - G);
         // The venue's house cut (the "nut") comes off ticket money FIRST;
@@ -147,18 +150,19 @@
         var covered = 0, left = G, i;
         for (i = 0; i < mCount; i++) { if (left >= mRate) { covered++; left -= mRate; } }
         for (i = 0; i < bCount; i++) { if (covered === mCount + i && left >= bRate) { covered++; left -= bRate; } }
-        if (covered === mCount + bCount && left >= herFee) covered++;
+        if (covered === mCount + bCount && herFee > 0 && left >= herFee) covered++;
 
         // Mood: loss (red, the show loses money even though her guaranteed
-        // fee is safe) < short of her full set fee (amber) < everything
-        // covered with her full fee intact (green).
-        var mood = flexible < 0 ? 'loss' : (payout < herFee ? 'warn' : 'good');
+        // fee is safe) < short of the rate she WANTS (amber) < everything
+        // covered with her intended rate intact (green).
+        var mood = flexible < 0 ? 'loss' : (payout < herFeeWanted ? 'warn' : 'good');
 
         return {
           payout: payout, raw: raw, outOfPocket: outOfPocket,
           herFee: herFee, herFeePaid: herFeePaid, guaranteeLeft: guaranteeLeft,
           ownerGap: ownerGap, ticketShare: ticketShare, others: others,
           players: players, covered: covered, mood: mood, flexible: flexible,
+          herFeeWanted: herFeeWanted, affordable: affordable,
           musicianRate: mRate, soldOut: cap > 0 && sold >= cap,
           breakEven: breakEven, capacity: cap, sold: sold, guarantee: G,
           venueBreakEven: venueBreakEven, venueTakeAtCap: venueTakeAtCap,
@@ -179,7 +183,7 @@
             ? 'This show loses ' + fmtMoney(r.outOfPocket) + ' — your guaranteed ' + fmtMoney(r.herFeePaid) + ' is safe; the show absorbs the loss.'
             : 'At this lineup and these sales, this show costs you ' + fmtMoney(r.outOfPocket) + ' out of pocket.';
         } else if (r.mood === 'warn') {
-          coach = 'The show breaks even, but the extras are coming out of your pocket — you’d walk with less than your full ' + fmtMoney(r.herFee) + '. Each added musician costs ' + fmtMoney(r.musicianRate) + '.';
+          coach = 'The show breaks even, but the extras are coming out of your pocket — you’d walk with less than your full ' + fmtMoney(r.herFeeWanted) + '. Each added musician costs ' + fmtMoney(r.musicianRate) + '.';
         } else {
           coach = r.soldOut
             ? 'Sold-out math: the band and the costs are covered — this is yours to take home.'
@@ -209,20 +213,20 @@
         } else {
           bandNote = 'The guarantee covers the band in full.';
         }
-        // Her fee's fate under the guarantee — covered, partly paid, or
-        // forfeited — always visible, always with the amounts named.
+        // Her rate's fate: covered at her intended rate, or auto-lowered to
+        // what the guarantee affords — one visible number, always earned.
         var feeState, feeNote;
-        if (r.herFee <= 0) {
+        if (r.herFeeWanted <= 0) {
           feeState = 'covered'; feeNote = '';
-        } else if (r.herFeePaid >= r.herFee) {
+        } else if (r.herFee >= r.herFeeWanted) {
           feeState = 'covered';
-          feeNote = 'Your ' + fmtMoney(r.herFee) + ' fee is covered by the guarantee.';
-        } else if (r.herFeePaid > 0) {
-          feeState = 'partial';
-          feeNote = 'The guarantee pays ' + fmtMoney(r.herFeePaid) + ' of your ' + fmtMoney(r.herFee) + ' fee — you forfeit ' + fmtMoney(r.herFee - r.herFeePaid) + '.';
+          feeNote = 'Your ' + fmtMoney(r.herFeeWanted) + ' rate is covered by the guarantee.';
+        } else if (r.herFee > 0) {
+          feeState = 'lowered';
+          feeNote = 'Lowered from your usual ' + fmtMoney(r.herFeeWanted) + ' — the guarantee affords ' + fmtMoney(r.herFee) + ' after the band.';
         } else {
-          feeState = 'forfeit';
-          feeNote = 'The guarantee runs out before you — you forfeit your ' + fmtMoney(r.herFee) + ' fee.';
+          feeState = 'lowered';
+          feeNote = 'Lowered to $0 — the guarantee has nothing left after the band.';
         }
         // Where the show climbs out of the red, in tickets — and whether her
         // current sales estimate clears that line.
@@ -337,16 +341,13 @@
           <p class="text-sm font-semibold whitespace-nowrap text-gold">Artist &mdash; you</p>
           <p class="text-[11px] text-gray-500 mt-0.5 whitespace-nowrap">paid last</p>
         </div>
-        <div class="shrink-0 text-right">
-          <p class="text-sm text-gray-400 flex items-center justify-end gap-1.5 whitespace-nowrap">
-            Rate:&nbsp;<span class="text-white font-semibold text-xl whitespace-nowrap">$<input id="chip-arate" class="num-chip !w-14 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="artist rate"></span>
-            <button data-rate="arate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
-            <button data-rate="arate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
-          </p>
-          <p class="text-[11px] text-gray-500 mt-0.5 whitespace-nowrap">paid from guarantee:
-            <span id="out-feepaid" class="font-display text-base font-bold text-loss">$0</span></p>
-        </div>
+        <p id="out-artist-take" class="font-display text-2xl font-bold whitespace-nowrap shrink-0 text-good">$300</p>
       </div>
+      <p class="text-sm text-gray-400 flex items-center gap-1.5">
+        Rate:&nbsp;<span class="text-white font-semibold text-xl whitespace-nowrap">$<input id="chip-arate" class="num-chip !w-14 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="artist rate"></span>
+        <button data-rate="arate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+        <button data-rate="arate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+      </p>
       <p id="out-artistfee" class="text-xs mt-1 font-medium text-gray-500"></p>
 
       <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
@@ -507,8 +508,10 @@
         el.style.setProperty('--fill', (max === min ? 0 : ((v - min) / (max - min)) * 100) + '%');
       }
 
+      var lastR = null;
       function render() {
         var r = M.estimate(state);
+        lastR = r;
         var s = M.summarize(r);
         $('payout').textContent = s.payoutText;
         var bandEl = $('out-band');
@@ -520,10 +523,16 @@
         var feeEl = $('out-artistfee');
         feeEl.textContent = s.feeNote;
         feeEl.className = 'text-xs mt-1 font-medium ' + (s.feeState === 'covered' ? 'text-gray-500' : 'text-loss');
-        var paidEl = $('out-feepaid');
-        paidEl.textContent = M.fmtMoney(r.herFeePaid);
-        paidEl.className = 'font-display text-base font-bold ' +
-          (r.herFeePaid < r.herFee ? 'text-loss' : (r.herFee > 0 ? 'text-good' : 'text-gray-400'));
+        // Her rate chip shows the EFFECTIVE rate — auto-lowered when the
+        // guarantee can't afford her intended rate, red while lowered.
+        var rateChip = $('chip-arate');
+        if (document.activeElement !== rateChip) rateChip.value = String(Math.round(r.herFee));
+        rateChip.className = 'num-chip !w-14 !text-left text-xl font-semibold ' +
+          (r.herFee < r.herFeeWanted ? 'text-loss' : 'text-white');
+        var takeEl = $('out-artist-take');
+        takeEl.textContent = M.fmtMoney(r.herFee);
+        takeEl.className = 'font-display text-2xl font-bold whitespace-nowrap shrink-0 ' +
+          (r.herFeeWanted <= 0 ? 'text-gray-400' : (r.herFee < r.herFeeWanted ? 'text-loss' : 'text-good'));
         var surFig = $('out-surplusfig');
         surFig.textContent = s.surplusText;
         surFig.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' +
@@ -633,8 +642,19 @@
           btn.addEventListener('click', function () {
             var m = RATE_MAP[btn.getAttribute('data-rate')];
             if (!m) return;
-            state[m.key] = Math.max(0, state[m.key] + Number(btn.getAttribute('data-d')));
-            $(m.chip).value = String(state[m.key]);
+            if (m.key === 'artistRate') {
+              // Steppers act on the VISIBLE (effective) rate, and it can
+              // never be pushed above what the guarantee affords. A plus
+              // press never lowers her remembered intended rate.
+              var delta = Number(btn.getAttribute('data-d'));
+              var eff = lastR ? lastR.herFee : state.artistRate;
+              var cap = lastR ? lastR.affordable : state.artistRate;
+              if (delta > 0) state.artistRate = Math.max(state.artistRate, Math.min(eff + delta, cap));
+              else state.artistRate = Math.max(0, eff + delta);
+            } else {
+              state[m.key] = Math.max(0, state[m.key] + Number(btn.getAttribute('data-d')));
+              $(m.chip).value = String(state[m.key]);
+            }
             render();
           });
         });

@@ -76,8 +76,10 @@ test('other players paid first: short guarantee pays her nothing', () => {
   assert(near(r.herFeePaid, 0));
   assert(near(r.ownerGap, 875), 'owner covers 1875−1000');
 });
-test('she forfeits first: partial fee between others and full fee', () => {
+test('her rate auto-lowers to what the guarantee affords', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: 2000 });
+  assert(near(r.herFee, 125), 'shown rate lowered to the affordable 125');
+  assert(near(r.herFeeWanted, 300), 'her intended rate is remembered');
   assert(near(r.herFeePaid, 125));
   assert(near(r.guaranteeLeft, 0));
   assert(near(r.ownerGap, 0));
@@ -97,32 +99,32 @@ test('rich guarantee: fee paid, +$825 surplus rides into her take-home', () => {
   assert.strictEqual(s.payoutText, '$1,065');
 });
 
-console.log('\nHer fee under the guarantee — covered, partial, forfeited');
-test('defaults: her $300 fee is covered and the screen says so', () => {
+console.log('\nHer rate under the guarantee — one visible number, always earned');
+test('defaults: her $300 rate is covered and the screen says so', () => {
   const s = M.summarize(M.estimate(DEFAULTS));
   assert.strictEqual(s.feeState, 'covered');
-  assert(s.feeNote.includes('Your $300 fee is covered'), s.feeNote);
+  assert(s.feeNote.includes('Your $300 rate is covered'), s.feeNote);
 });
-test('partial: the guarantee pays part, the forfeit amount is named', () => {
+test('lowered: the note names the usual rate and what is afforded', () => {
   const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
-  assert.strictEqual(s.feeState, 'partial');
-  assert(s.feeNote.includes('$125 of your $300 fee'), s.feeNote);
-  assert(s.feeNote.includes('you forfeit $175'), s.feeNote);
+  assert.strictEqual(s.feeState, 'lowered');
+  assert(s.feeNote.includes('Lowered from your usual $300'), s.feeNote);
+  assert(s.feeNote.includes('affords $125 after the band'), s.feeNote);
 });
-test('forfeit: the guarantee runs out before her', () => {
+test('lowered to zero when nothing is left after the band', () => {
   const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1500 }));
-  assert.strictEqual(s.feeState, 'forfeit');
-  assert(s.feeNote.includes('you forfeit your $300 fee'), s.feeNote);
+  assert.strictEqual(s.feeState, 'lowered');
+  assert(s.feeNote.includes('Lowered to $0'), s.feeNote);
 });
-
-console.log('\nHer paid-from-guarantee figure auto-adjusts with the numbers');
-test('paid figure: $300 covered, $125 partial, $0 forfeited', () => {
-  assert(near(M.estimate(DEFAULTS).herFeePaid, 300));
-  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2000 }).herFeePaid, 125));
-  assert(near(M.estimate({ ...DEFAULTS, guarantee: 1500 }).herFeePaid, 0));
-  // growing the lineup at the same guarantee pulls her paid figure down
-  assert(near(M.estimate({ ...DEFAULTS, musicians: 7 }).herFeePaid, 25));
-  assert(near(M.estimate({ ...DEFAULTS, musicians: 8 }).herFeePaid, 0));
+test('the visible rate auto-adjusts with the numbers and is restored later', () => {
+  assert(near(M.estimate(DEFAULTS).herFee, 300));
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2000 }).herFee, 125));
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 1500 }).herFee, 0));
+  // growing the lineup at the same guarantee pulls her rate down
+  assert(near(M.estimate({ ...DEFAULTS, musicians: 7 }).herFee, 25));
+  assert(near(M.estimate({ ...DEFAULTS, musicians: 8 }).herFee, 0));
+  // intended rate remembered: raise the guarantee back → rate returns
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2500 }).herFee, 300));
 });
 
 console.log('\nThe three coaching states (§6)');
@@ -162,35 +164,34 @@ test('sold-out green uses the sold-out sentence', () => {
   assert.strictEqual(r.mood, 'good');
   assert(M.summarize(r).coach.startsWith('Sold-out math'));
 });
-test('band shortfall names its parts and they sum to the total short', () => {
-  // G 1000 vs pay 2175 → $1,175 short = $875 ticket money + $300 forfeit
+test('band shortfall: with the rate auto-lowered, the short is pure ticket money', () => {
+  // G 1000: her rate lowers to $0, so the total is the members' 1875 —
+  // $875 short, all of it made up out of ticket money.
   const short = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1000 }));
   assert(short.bandShort === true);
-  assert(short.bandNote.includes('$1,175 short of this total'), short.bandNote);
+  assert(short.bandNote.includes('$875 short of this total'), short.bandNote);
   assert(short.bandNote.includes('$875 gets made up out of ticket money'), short.bandNote);
-  assert(short.bandNote.includes('$300 is the fee you forfeit'), short.bandNote);
-  // partial-fee case: G 2000 → $175 short, all of it her forfeit
-  const partial = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
-  assert(partial.bandNote.includes('$175 short of this total'), partial.bandNote);
-  assert(partial.bandNote.includes('$175 is the fee you forfeit'), partial.bandNote);
-  assert(!partial.bandNote.includes('ticket money'), partial.bandNote);
-  const ok = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2175 }));
-  assert(ok.bandShort === false);
-  assert(ok.bandNote.includes('covers the band in full'), ok.bandNote);
+  assert(!short.bandNote.includes('forfeit'), short.bandNote);
+  // G 2000: her rate lowers to 125 → the guarantee exactly covers the total
+  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
+  assert(exact.bandShort === false);
+  assert(exact.bandNote.includes('covers the band in full'), exact.bandNote);
 });
-test('band total includes her slot so the visible column adds up: $2,175', () => {
+test('band total includes her (auto-lowered) slot so the column adds up', () => {
   assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).bandText, '$2,175');
   assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, musicians: 6 })).bandText, '$2,475');
   assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 0 })).bandText, '$2,175');
   assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, artistRate: 400 })).bandText, '$2,275');
+  // lowered rate lowers the displayed total too — the column stays true
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 })).bandText, '$2,000');
 });
-test('balance figure is signed: +$325 default, $0 exact, −$175 short', () => {
+test('balance figure is signed: +$325 default, $0 when capped, −$375 short of the band', () => {
   assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).surplusText, '+$325');
-  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2175 }));
+  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
   assert.strictEqual(exact.surplusText, '$0');
   assert.strictEqual(exact.surplusTone, 'zero');
-  const neg = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2000 }));
-  assert.strictEqual(neg.surplusText, '−$175');
+  const neg = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1500 }));
+  assert.strictEqual(neg.surplusText, '−$375');
   assert.strictEqual(neg.surplusTone, 'neg');
 });
 test('green copy frames the number as hers alone, never as the pot', () => {
@@ -371,7 +372,11 @@ test('fuzz holds every invariant', () => {
     // 3. The waterfall is linear in every branch; her fee is her own rate;
     //    the house cut comes off gross ticket money before the split.
     const others = inp.musicians * inp.musicianRate + inp.singers * inp.singerRate;
-    assert(near(r.herFee, inp.artistRate), 'her fee is her rate' + ctx);
+    const affordable = Math.max(0, inp.guarantee - others);
+    assert(near(r.herFee, Math.min(inp.artistRate, affordable)), 'shown rate = min(wanted, affordable)' + ctx);
+    assert(near(r.herFeeWanted, inp.artistRate), 'intended rate remembered' + ctx);
+    assert(near(r.herFeePaid, r.herFee), 'shown rate is always fully paid' + ctx);
+    assert(r.herFee <= affordable + 1e-9, 'rate can never sit above the guarantee' + ctx);
     assert(near(r.herFeePaid + r.guaranteeLeft - r.ownerGap, inp.guarantee - others), 'identity' + ctx);
     assert(near(r.ticketShare, Math.max(0, inp.ticketsSold * inp.ticketPrice - inp.houseCut) * inp.split), 'house cut' + ctx);
     assert(near(r.costsTotal, inp.promo + inp.bookingFee + inp.misc), 'costs total' + ctx);
@@ -384,16 +389,16 @@ test('fuzz holds every invariant', () => {
     assert.strictEqual(s.bandShort, inp.guarantee < bandPay - 1e-9, 'band short flag' + ctx);
     if (s.bandShort) {
       assert(s.bandNote.includes(M.fmtMoney(bandPay - inp.guarantee)), 'shortfall names the total short' + ctx);
-      if (r.ownerGap > 0) assert(s.bandNote.includes(M.fmtMoney(r.ownerGap)), 'ticket-money part named' + ctx);
-      const feeMissing = r.herFee - r.herFeePaid;
-      if (feeMissing > 0) assert(s.bandNote.includes(M.fmtMoney(feeMissing)), 'forfeit part named' + ctx);
-      assert(near(r.ownerGap + (r.herFee - r.herFeePaid), bandPay - inp.guarantee) || inp.guarantee > bandPay, 'parts sum to the short' + ctx);
+      assert(near(r.ownerGap, bandPay - inp.guarantee), 'a short total is pure ticket money now' + ctx);
+      assert(!s.bandNote.includes('forfeit'), 'no forfeit language in the band note' + ctx);
     }
-    const expectFee = r.herFee <= 0 ? 'covered'
-      : (r.herFeePaid >= r.herFee ? 'covered' : (r.herFeePaid > 0 ? 'partial' : 'forfeit'));
+    const expectFee = r.herFeeWanted <= 0 ? 'covered'
+      : (r.herFee >= r.herFeeWanted ? 'covered' : 'lowered');
     assert.strictEqual(s.feeState, expectFee, 'fee state' + ctx);
-    if (s.feeState === 'partial') assert(s.feeNote.includes(M.fmtMoney(r.herFeePaid)), 'partial names paid amount' + ctx);
-    if (s.feeState === 'forfeit' && r.herFee > 0) assert(s.feeNote.includes(M.fmtMoney(r.herFee)), 'forfeit names the fee' + ctx);
+    if (s.feeState === 'lowered') {
+      assert(s.feeNote.includes('Lowered'), 'lowered note' + ctx);
+      if (r.herFee > 0) assert(s.feeNote.includes(M.fmtMoney(r.herFee)), 'lowered names the afforded rate' + ctx);
+    }
     assert.strictEqual(s.surplusText, M.fmtSigned(inp.guarantee - bandPay), 'balance figure drift' + ctx);
     const sv = inp.guarantee - bandPay;
     assert.strictEqual(s.surplusTone, sv < -1e-9 ? 'neg' : (sv > 1e-9 ? 'pos' : 'zero'), 'balance tone' + ctx);
@@ -421,8 +426,9 @@ test('fuzz holds every invariant', () => {
         : (r.sold >= r.venueBreakEven ? 'ok' : 'warn');
       assert.strictEqual(s.venueTone, vExpect, 'venue tone' + ctx);
     }
-    // 4. Mood: show loss beats amber beats green, on the fee-floor economics.
-    const expect = r.flexible < 0 ? 'loss' : (r.payout < r.herFee ? 'warn' : 'good');
+    // 4. Mood: show loss beats amber beats green — amber measured against
+    //    the rate she WANTS, not the lowered one.
+    const expect = r.flexible < 0 ? 'loss' : (r.payout < r.herFeeWanted ? 'warn' : 'good');
     assert.strictEqual(r.mood, expect, 'mood' + ctx);
     // 5. Coverage stays inside the lineup.
     assert(r.covered >= 0 && r.covered <= r.players, 'coverage bounds' + ctx);
