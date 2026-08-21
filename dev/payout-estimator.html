@@ -298,11 +298,15 @@
           <p class="text-sm font-semibold whitespace-nowrap text-gold">Artist &mdash; you</p>
           <p class="text-[11px] text-gray-500 mt-0.5 whitespace-nowrap">paid last</p>
         </div>
-        <p class="text-sm text-gray-400 flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          Rate:&nbsp;<span class="text-white font-semibold text-xl whitespace-nowrap">$<input id="chip-arate" class="num-chip !w-14 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="artist rate"></span>
-          <button data-rate="arate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
-          <button data-rate="arate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
-        </p>
+        <div class="shrink-0 text-right">
+          <p class="text-sm text-gray-400 flex items-center justify-end gap-1.5 whitespace-nowrap">
+            Rate:&nbsp;<span class="text-white font-semibold text-xl whitespace-nowrap">$<input id="chip-arate" class="num-chip !w-14 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="artist rate"></span>
+            <button data-rate="arate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+            <button data-rate="arate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+          </p>
+          <p class="text-[11px] text-gray-500 mt-0.5 whitespace-nowrap">paid from guarantee:
+            <span id="out-feepaid" class="font-display text-base font-bold text-loss">$0</span></p>
+        </div>
       </div>
       <p id="out-artistfee" class="text-xs mt-1 font-medium text-gray-500"></p>
 
@@ -451,6 +455,10 @@
         var feeEl = $('out-artistfee');
         feeEl.textContent = s.feeNote;
         feeEl.className = 'text-xs mt-1 font-medium ' + (s.feeState === 'covered' ? 'text-gray-500' : 'text-loss');
+        var paidEl = $('out-feepaid');
+        paidEl.textContent = M.fmtMoney(r.herFeePaid);
+        paidEl.className = 'font-display text-base font-bold ' +
+          (r.herFeePaid < r.herFee ? 'text-loss' : (r.herFee > 0 ? 'text-good' : 'text-gray-400'));
         var surFig = $('out-surplusfig');
         surFig.textContent = s.surplusText;
         surFig.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' +

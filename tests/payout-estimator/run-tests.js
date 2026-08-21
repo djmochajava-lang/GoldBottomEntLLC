@@ -125,6 +125,16 @@ test('covered: her fee is safe and the screen says so', () => {
   assert(s.feeNote.includes('Your $300 fee is covered'), s.feeNote);
 });
 
+console.log('\nHer paid-from-guarantee figure auto-adjusts with the numbers');
+test('paid figure: $0 at defaults, $100 partial, $300 covered', () => {
+  assert(near(M.estimate(DEFAULTS).herFeePaid, 0));
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2500 }).herFeePaid, 100));
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2700 }).herFeePaid, 300));
+  // adding a musician at the same guarantee pulls her paid figure down
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2600, musicians: 5 }).herFeePaid, 200));
+  assert(near(M.estimate({ ...DEFAULTS, guarantee: 2600, musicians: 6 }).herFeePaid, 0));
+});
+
 console.log('\nThe three coaching states (§6)');
 test('loss shows red and says the out-of-pocket number out loud', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: 500, ticketsSold: 0, promo: 400 });
