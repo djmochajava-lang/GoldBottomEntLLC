@@ -252,10 +252,13 @@
             vNote = 'The venue earns your ' + fmtMoney(r.guarantee) + ' guarantee back at ' + r.venueBreakEven + ' tickets — you’re estimating ' + r.sold + '.'; vTone = 'warn';
           }
         }
+        // The show's loss as its own figure — big and unmissable when the
+        // show is taking a hit, absent when it isn't.
+        var lossText = r.flexible < 0 ? '−' + fmtMoney(r.outOfPocket) : '';
         return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(bandPay),
                  bandNote: bandNote, bandShort: bandShort,
                  surplusText: surplusText, surplusTone: surplusTone,
-                 feeNote: feeNote, feeState: feeState,
+                 feeNote: feeNote, feeState: feeState, lossText: lossText,
                  breakEvenNote: beNote, breakEvenTone: beTone,
                  venueNote: vNote, venueTone: vTone,
                  coverage: coverage, coach: coach };
@@ -483,6 +486,10 @@
         <p class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold pb-2">Your estimated<br>take-home</p>
         <p id="payout" class="font-display font-extrabold text-white leading-none whitespace-nowrap" style="font-size:clamp(1.9rem, 10vw, 2.9rem)">$0</p>
       </div>
+      <div id="row-showloss" class="flex items-baseline justify-between gap-3 mt-1 hidden">
+        <p class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">The show&rsquo;s loss</p>
+        <p id="out-showloss" class="font-display text-2xl font-bold whitespace-nowrap text-loss">&minus;$575</p>
+      </div>
       <p id="coach" class="text-[13px] mt-1.5 font-medium text-gray-200"></p>
       <p id="coverage" class="text-xs mt-1 text-gray-400"></p>
     </section>
@@ -517,6 +524,8 @@
         lastR = r;
         var s = M.summarize(r);
         $('payout').textContent = s.payoutText;
+        $('out-showloss').textContent = s.lossText;
+        $('row-showloss').classList.toggle('hidden', !s.lossText);
         var bandEl = $('out-band');
         bandEl.textContent = s.bandText;
         bandEl.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold';

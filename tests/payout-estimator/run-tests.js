@@ -374,6 +374,9 @@ test('fuzz holds every invariant', () => {
     if (r.mood === 'loss') {
       assert(s.coach.includes(M.fmtMoney(r.outOfPocket)), 'loss says its number' + ctx);
       if (r.herFeePaid > 0) assert(s.coach.includes('guaranteed'), 'protected fee named in loss' + ctx);
+      assert.strictEqual(s.lossText, '−' + M.fmtMoney(r.outOfPocket), 'loss figure drift' + ctx);
+    } else {
+      assert.strictEqual(s.lossText, '', 'no phantom loss figure' + ctx);
     }
     // 3. The waterfall; her rate law; the venue's off-the-top claim.
     const others = inp.musicians * inp.musicianRate + inp.singers * inp.singerRate;
