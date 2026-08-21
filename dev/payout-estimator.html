@@ -398,18 +398,7 @@
         <input id="in-price" type="range" min="0" max="200" step="5" value="35" class="w-full" aria-label="ticket price slider">
       </div>
 
-      <div class="mb-5">
-        <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-sold" class="text-sm font-medium">Tickets you think you&rsquo;ll sell</label>
-          <span class="text-right">
-            <span class="text-white font-semibold text-base"><span id="out-sold">150</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span></span><br>
-            <span class="text-gray-500 text-[11px]">break-even at this price:&nbsp;</span><span id="out-be-fixed" class="text-gray-400 font-semibold text-sm">137</span>
-          </span>
-        </div>
-        <input id="in-sold" type="range" min="0" max="300" step="1" value="150" class="w-full" aria-label="tickets sold slider">
-        <p id="out-breakeven" class="text-xs mt-1.5 font-medium text-gray-500"></p>
-        <p id="out-venue" class="text-xs mt-1 font-medium text-gray-500"></p>
-      </div>
+
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
@@ -426,6 +415,19 @@
         </div>
         <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; the venue takes this AND its guarantee off ticket money before your share.</p>
         <input id="in-house" type="range" min="0" max="3000" step="25" value="1200" class="w-full" aria-label="house cut slider">
+      </div>
+
+      <div class="mt-6 rounded-xl border border-gold/40 p-3" style="background:rgba(212,160,23,0.07)">
+        <div class="flex items-baseline justify-between mb-1.5">
+          <label for="in-sold" class="text-base font-semibold text-white">Tickets you think you&rsquo;ll sell</label>
+          <span class="text-right">
+            <span class="font-display text-2xl font-bold text-gold" id="out-sold">150</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span><br>
+            <span class="text-gray-500 text-[11px]">break-even at this price:&nbsp;</span><span id="out-be-fixed" class="text-gray-400 font-semibold text-sm">137</span>
+          </span>
+        </div>
+        <input id="in-sold" type="range" min="0" max="300" step="1" value="150" class="w-full" aria-label="tickets sold slider">
+        <p id="out-breakeven" class="text-xs mt-1.5 font-medium text-gray-500"></p>
+        <p id="out-venue" class="text-xs mt-1 font-medium text-gray-500"></p>
       </div>
 
       <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
