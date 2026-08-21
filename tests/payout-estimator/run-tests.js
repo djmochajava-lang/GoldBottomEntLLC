@@ -105,6 +105,15 @@ test('green needs her full fee intact after every cost', () => {
   const g = M.estimate(DEFAULTS);
   assert(g.raw >= g.herFee && g.mood === 'good');
 });
+test('green copy frames the number as hers alone, never as the pot', () => {
+  // CEO ruling: the big number is her personal take-home. The words must
+  // never suggest the displayed number is what pays the band.
+  const g = M.summarize(M.estimate(DEFAULTS));
+  assert(g.coach.includes('yours to take home'), g.coach);
+  assert(!g.coach.includes('pays everybody'), 'pot framing is banned: ' + g.coach);
+  const so = M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 150 }));
+  assert(so.coach.includes('yours to take home'), so.coach);
+});
 test('sold-out green uses the sold-out sentence', () => {
   const r = M.estimate({ ...DEFAULTS, ticketsSold: 150 });
   assert.strictEqual(r.mood, 'good');

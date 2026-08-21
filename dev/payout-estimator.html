@@ -129,8 +129,8 @@
           coach = 'The show breaks even, but the extras are coming out of your pocket — you’d walk with less than your full ' + fmtMoney(r.herFee) + '. Each added player costs ' + fmtMoney(r.herFee) + '.';
         } else {
           coach = r.soldOut
-            ? 'Sold-out math: this room pays everybody, including you.'
-            : 'These numbers pay everybody, including you.';
+            ? 'Sold-out math: the band and the costs are covered — this is yours to take home.'
+            : 'The band and the costs are covered — this is yours to take home.';
         }
         return { payoutText: fmtMoney(r.payout), coverage: coverage, coach: coach };
       }
@@ -168,7 +168,7 @@
 
     <!-- Sticky summary: her number, always visible -->
     <section id="summary" class="mood-good sticky top-0 z-10 mx-3 rounded-2xl border-2 px-5 pt-4 pb-5 shadow-2xl backdrop-blur transition-colors duration-300">
-      <p class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">Your estimated take</p>
+      <p class="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">Your estimated take-home</p>
       <p id="payout" class="font-display font-extrabold text-white leading-none mt-1" style="font-size:3.4rem">$0</p>
       <p id="coach" class="text-sm mt-2 font-medium text-gray-200"></p>
       <p id="coverage" class="text-[13px] mt-1.5 text-gray-400"></p>
