@@ -43,6 +43,11 @@
     .mood-loss  { border-color: rgba(229,83,75,.85);  background: linear-gradient(180deg, rgba(229,83,75,.24), rgba(60,20,18,.92)); }
     .stepper-btn { width: 56px; height: 56px; font-size: 1.6rem; line-height: 1; }
     .rate-btn { width: 40px; height: 40px; font-size: 1.15rem; line-height: 1; }
+    .info-btn { width: 20px; height: 20px; border-radius: 9999px; border: 1px solid #4b5563;
+      color: #9ca3af; font-size: 12px; font-style: italic; font-family: Georgia, serif;
+      line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 8px; vertical-align: middle; flex: none; }
+    .info-btn:active { border-color: #d4a017; color: #d4a017; }
   </style>
 
   <!-- ═══════════ THE MATH — one pure function, no DOM, no fetch ═══════════
@@ -318,7 +323,7 @@
 
       <div class="mb-6">
         <div class="flex items-baseline justify-between mb-0.5">
-          <label for="in-guarantee" class="text-sm font-medium">Band guarantee</label>
+          <label for="in-guarantee" class="text-sm font-medium">Band guarantee</label><button type="button" class="info-btn" data-info="guarantee" aria-label="more about this">i</button>
           <span class="text-white font-semibold text-base">$<input id="chip-guarantee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="2,500" aria-label="band guarantee amount"></span>
         </div>
         <p class="text-[11px] text-gray-600 mb-1.5">What the venue pays toward the band.</p>
@@ -326,7 +331,7 @@
       </div>
 
       <div class="flex items-center justify-between mb-1">
-        <p class="text-sm font-medium">Musicians</p>
+        <p class="text-sm font-medium">Musicians<button type="button" class="info-btn" data-info="musicians" aria-label="more about this">i</button></p>
         <div class="flex items-center gap-2.5">
           <button data-step="musicians" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer musicians">&minus;</button>
           <span id="out-musicians" class="font-display text-2xl font-bold text-white w-8 text-center">6</span>
@@ -340,7 +345,7 @@
       </p>
 
       <div class="flex items-center justify-between mb-1">
-        <p class="text-sm font-medium">Background singers</p>
+        <p class="text-sm font-medium">Background singers<button type="button" class="info-btn" data-info="singers" aria-label="more about this">i</button></p>
         <div class="flex items-center gap-2.5">
           <button data-step="singers" data-d="-1" class="stepper-btn step bg-ink border border-edge rounded-xl text-white font-bold active:bg-edge" aria-label="fewer singers">&minus;</button>
           <span id="out-singers" class="font-display text-2xl font-bold text-white w-8 text-center">3</span>
@@ -355,7 +360,7 @@
 
       <div class="flex items-center justify-between gap-2 mt-4 border-t border-edge pt-3 mb-1">
         <div class="min-w-0">
-          <p class="text-sm font-semibold whitespace-nowrap text-gold">Artist &mdash; you</p>
+          <p class="text-sm font-semibold whitespace-nowrap text-gold">Artist &mdash; you<button type="button" class="info-btn" data-info="artist" aria-label="more about this">i</button></p>
           <p class="text-[11px] text-gray-500 mt-0.5 whitespace-nowrap">paid last</p>
         </div>
         <p id="out-artist-take" class="font-display text-2xl font-bold whitespace-nowrap shrink-0 text-good">$300</p>
@@ -388,7 +393,7 @@
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-capacity" class="text-sm font-medium">Seats in the room</label>
+          <label for="in-capacity" class="text-sm font-medium">Seats in the room</label><button type="button" class="info-btn" data-info="capacity" aria-label="more about this">i</button>
           <span class="text-white font-semibold text-base"><input id="chip-capacity" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="300" aria-label="room capacity"></span>
         </div>
         <input id="in-capacity" type="range" min="0" max="1000" step="10" value="300" class="w-full" aria-label="room capacity slider">
@@ -396,7 +401,7 @@
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-price" class="text-sm font-medium">Ticket price</label>
+          <label for="in-price" class="text-sm font-medium">Ticket price</label><button type="button" class="info-btn" data-info="price" aria-label="more about this">i</button>
           <span class="text-white font-semibold text-base">$<input id="chip-price" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="35" aria-label="ticket price"></span>
         </div>
         <input id="in-price" type="range" min="0" max="200" step="5" value="35" class="w-full" aria-label="ticket price slider">
@@ -406,7 +411,7 @@
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-split" class="text-sm font-medium">Your share of each ticket</label>
+          <label for="in-split" class="text-sm font-medium">Your share of each ticket</label><button type="button" class="info-btn" data-info="split" aria-label="more about this">i</button>
           <span id="out-split" class="text-white font-semibold text-base">80%</span>
         </div>
         <input id="in-split" type="range" min="0" max="100" step="5" value="80" class="w-full" aria-label="ticket split slider">
@@ -414,7 +419,7 @@
 
       <div>
         <div class="flex items-baseline justify-between mb-0.5">
-          <label for="in-house" class="text-sm font-medium">What the venue keeps off tickets</label>
+          <label for="in-house" class="text-sm font-medium">What the venue keeps off tickets</label><button type="button" class="info-btn" data-info="nut" aria-label="more about this">i</button>
           <span class="text-white font-semibold text-base">$<input id="chip-house" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="1,200" aria-label="house cut amount"></span>
         </div>
         <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; the venue takes this AND its guarantee off ticket money before your share.</p>
@@ -423,7 +428,7 @@
 
       <div class="mt-6 rounded-xl border border-gold/40 p-3" style="background:rgba(212,160,23,0.07)">
         <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-sold" class="text-base font-semibold text-white">Tickets you think you&rsquo;ll sell</label>
+          <label for="in-sold" class="text-base font-semibold text-white">Tickets you think you&rsquo;ll sell</label><button type="button" class="info-btn" data-info="sold" aria-label="more about this">i</button>
           <span class="text-right">
             <span class="font-display text-2xl font-bold text-gold" id="out-sold">150</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span><br>
             <span class="text-gray-500 text-[11px]">break-even at this price:&nbsp;</span><span id="out-be-fixed" class="text-gray-400 font-semibold text-sm">137</span>
@@ -470,7 +475,7 @@
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-fee" class="text-sm font-medium">GBE booking fee</label>
+          <label for="in-fee" class="text-sm font-medium">GBE booking fee</label><button type="button" class="info-btn" data-info="fee" aria-label="more about this">i</button>
           <span class="text-white font-semibold text-base">$<input id="chip-fee" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="booking fee"></span>
         </div>
         <input id="in-fee" type="range" min="0" max="2000" step="25" value="200" class="w-full" aria-label="booking fee slider">
@@ -478,7 +483,7 @@
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
-          <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label>
+          <label for="in-promo" class="text-sm font-medium">Promo &amp; ads you pay for</label><button type="button" class="info-btn" data-info="promo" aria-label="more about this">i</button>
           <span class="text-white font-semibold text-base">$<input id="chip-promo" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="500" aria-label="promo spend"></span>
         </div>
         <input id="in-promo" type="range" min="0" max="3000" step="25" value="500" class="w-full" aria-label="promo spend slider">
@@ -486,7 +491,7 @@
 
       <div>
         <div class="flex items-baseline justify-between mb-0.5">
-          <label for="in-misc" class="text-sm font-medium">Miscellaneous</label>
+          <label for="in-misc" class="text-sm font-medium">Miscellaneous</label><button type="button" class="info-btn" data-info="misc" aria-label="more about this">i</button>
           <span class="text-white font-semibold text-base">$<input id="chip-misc" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="200" aria-label="miscellaneous cost"></span>
         </div>
         <p class="text-[11px] text-gray-600 mb-1.5">Equipment, a DJ, a makeup artist &mdash; or some other cost you didn&rsquo;t expect. Travel is not included here.</p>
@@ -529,6 +534,17 @@
       <p id="coverage" class="text-xs mt-1 text-gray-400"></p>
     </section>
   </main>
+
+  <!-- ══ Info sheet: taps on the ⓘ buttons open plain-language teaching notes ══ -->
+  <div id="info-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center" style="background:rgba(0,0,0,0.6)">
+    <div class="w-full max-w-md bg-panel border border-edge rounded-t-2xl p-5" style="padding-bottom: calc(1.5rem + env(safe-area-inset-bottom))">
+      <div class="flex items-start justify-between gap-3 mb-2">
+        <h3 id="info-title" class="font-display text-base font-bold text-gold"></h3>
+        <button id="info-close" class="text-gray-400 text-2xl leading-none px-2" aria-label="close">&times;</button>
+      </div>
+      <p id="info-body" class="text-sm text-gray-200 leading-relaxed"></p>
+    </div>
+  </div>
 
   <!-- ══ Wiring: state, gate, render. Display values come ONLY from the math block. ══ -->
   <script>
@@ -727,6 +743,39 @@
         document.querySelectorAll('input[type=range]').forEach(paintRange);
         render();
       }
+
+      // ── Teaching notes: every control's ⓘ explains what it is and how
+      //    it moves the calculation, in the deal's own rules ──
+      var INFO = {
+        guarantee: { t: 'Band guarantee', b: 'The flat money the venue pays toward the band, win or lose. It pays your musicians and singers first, then your own rate — and your rate can never be more than what is left after them. Anything beyond the whole band is surplus that rides into your take-home. Remember: the venue earns this back out of ticket money before your split starts.' },
+        musicians: { t: 'Musicians', b: 'The players you hire and what each one costs. They are always paid in full, first, from the guarantee. Every player you add raises the band total — and can pull your own rate down if the guarantee runs tight.' },
+        singers: { t: 'Background singers', b: 'Your vocalists, paid in full from the guarantee right after the musicians, at their own rate.' },
+        artist: { t: 'Artist — you', b: 'Your own slot, paid last. The rate shown is what the guarantee can actually afford after the band — it lowers itself when money runs short and comes back when the guarantee allows. Whatever it pays you is guaranteed: even a losing show cannot touch it.' },
+        capacity: { t: 'Seats in the room', b: 'The room\u2019s capacity. It caps how many tickets can ever sell — which decides whether the venue can be paid back and whether break-even is even possible in this room.' },
+        price: { t: 'Ticket price', b: 'What one ticket costs. It drives every ticket number on this page: total revenue, how fast the venue is paid back, and how many tickets it takes for the show to break even. Often the strongest lever in the whole deal.' },
+        split: { t: 'Your share of each ticket', b: 'Your percentage of ticket money AFTER the venue has taken its house nut and earned the guarantee back. The rest of that later money is the venue\u2019s side of the split.' },
+        nut: { t: 'What the venue keeps off tickets', b: 'The house nut — the venue\u2019s own cost of opening the room for the night. It comes off ticket money first, before the guarantee is paid back and before your share starts.' },
+        sold: { t: 'Tickets you think you\u2019ll sell', b: 'Your honest sales estimate — the main lever you\u2019ll play with. The gray number beside it is the break-even at this price. The lines below tell you when the venue is made whole and when the show climbs out of the red.' },
+        fee: { t: 'GBE booking fee', b: 'GBE\u2019s fee for booking and producing the show — part of the show tool GBE puts to work each night, which has to come back out of the night\u2019s money.' },
+        promo: { t: 'Promo & ads', b: 'Money spent promoting the show. It comes out of your side of the night, so every ad dollar has to be earned back by ticket sales before it becomes take-home.' },
+        misc: { t: 'Miscellaneous', b: 'Equipment, a DJ, a makeup artist — or some other cost you didn\u2019t expect. It comes out of your side like the other costs. Travel is not covered in this tool; price it separately for out-of-town shows.' }
+      };
+      document.addEventListener('click', function (e) {
+        var b = e.target.closest('.info-btn');
+        if (b) {
+          e.preventDefault(); e.stopPropagation();
+          var d = INFO[b.getAttribute('data-info')];
+          if (d) {
+            $('info-title').textContent = d.t;
+            $('info-body').textContent = d.b;
+            $('info-modal').classList.remove('hidden');
+          }
+          return;
+        }
+        if (e.target.id === 'info-close' || e.target.id === 'info-modal') {
+          $('info-modal').classList.add('hidden');
+        }
+      });
 
       // ── The gate: the site's existing sign-in, two people allowed ──
       var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
