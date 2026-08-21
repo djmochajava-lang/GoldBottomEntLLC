@@ -155,6 +155,42 @@ test('green copy frames the number as hers alone, never as the pot', () => {
   assert(so.coach.includes('yours to take home'), so.coach);
 });
 
+console.log('\nBreak-even — where the show climbs out of the red, in tickets');
+test('defaults: breaks even at 32 tickets and the 90 estimate clears it', () => {
+  // showCost = 2400−2000+150+200 = 750; 750/0.8/30 = 31.25 → 32 tickets.
+  const r = M.estimate(DEFAULTS);
+  assert.strictEqual(r.breakEven, 32);
+  const s = M.summarize(r);
+  assert(s.breakEvenNote.includes('Breaks even at 32 tickets'), s.breakEvenNote);
+  assert(s.breakEvenNote.includes('your 90 estimate clears it'), s.breakEvenNote);
+  assert.strictEqual(s.breakEvenTone, 'ok');
+});
+test('break-even is exact: 32 tickets is out of the red, 31 is not', () => {
+  assert(M.estimate({ ...DEFAULTS, ticketsSold: 32 }).raw >= -1e-6);
+  assert(M.estimate({ ...DEFAULTS, ticketsSold: 31 }).raw < 0);
+});
+test('estimating below break-even reads red', () => {
+  const s = M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 20 }));
+  assert.strictEqual(s.breakEvenTone, 'red');
+  assert(s.breakEvenNote.includes('below that this show is in the red'), s.breakEvenNote);
+});
+test('a rich guarantee is out of the red before a ticket sells', () => {
+  const s = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2750 }));
+  assert(s.breakEvenNote.includes('before a single ticket sells'), s.breakEvenNote);
+  assert.strictEqual(s.breakEvenTone, 'ok');
+});
+test('a room too small to break even says so', () => {
+  const s = M.summarize(M.estimate({ ...DEFAULTS, capacity: 20, ticketsSold: 10 }));
+  assert(s.breakEvenNote.includes('takes 32 tickets'), s.breakEvenNote);
+  assert(s.breakEvenNote.includes('room holds 20'), s.breakEvenNote);
+  assert.strictEqual(s.breakEvenTone, 'red');
+});
+test('no ticket money at all: break-even is honestly unreachable', () => {
+  const s = M.summarize(M.estimate({ ...DEFAULTS, ticketPrice: 0 }));
+  assert(s.breakEvenNote.includes('can’t break even'), s.breakEvenNote);
+  assert.strictEqual(s.breakEvenTone, 'red');
+});
+
 console.log('\nHouse cut (the venue\'s nut, off ticket money before her split)');
 test('house cut comes off gross before the split', () => {
   // gross 90×$30 = 2700; house 500 → 2200; ×80% = 1760;
@@ -243,6 +279,15 @@ test('fuzz holds every invariant', () => {
     assert.strictEqual(s.feeState, expectFee, 'fee state' + ctx);
     if (s.feeState === 'partial') assert(s.feeNote.includes(M.fmtMoney(r.herFeePaid)), 'partial names paid amount' + ctx);
     if (s.feeState === 'forfeit' && r.herFee > 0) assert(s.feeNote.includes(M.fmtMoney(r.herFee)), 'forfeit names the fee' + ctx);
+    // 3c. Break-even is minimal and its note matches the state.
+    if (r.breakEven === 0) {
+      assert(M.estimate({ ...inp, ticketsSold: 0 }).raw >= -1e-6, 'be=0 means out of the red at zero sales' + ctx);
+    } else if (r.breakEven !== null) {
+      assert(M.estimate({ ...inp, ticketsSold: r.breakEven }).raw >= -1e-6, 'raw at break-even' + ctx);
+      assert(M.estimate({ ...inp, ticketsSold: r.breakEven - 1 }).raw < 1e-6, 'minimality' + ctx);
+    }
+    const expectTone = (r.breakEven === null || (r.breakEven > 0 && ((inp.capacity > 0 && r.breakEven > inp.capacity) || r.sold < r.breakEven))) ? 'red' : 'ok';
+    assert.strictEqual(s.breakEvenTone, expectTone, 'break-even tone' + ctx);
     // 4. Mood is a total ordering on raw vs her fee.
     const expect = r.raw < 0 ? 'loss' : (r.raw < r.herFee ? 'warn' : 'good');
     assert.strictEqual(r.mood, expect, 'mood' + ctx);

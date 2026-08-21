@@ -102,6 +102,15 @@
         var payout = Math.max(0, raw);
         var outOfPocket = raw < 0 ? -raw : 0;
 
+        // Break-even in tickets: the smallest sale count where the show is out
+        // of the red — ticket money has covered whatever the guarantee didn't
+        // (band shortfall + promo + booking fee), after the house cut.
+        var showCost = others - G + promo + fee;
+        var breakEven;
+        if (showCost <= 0) breakEven = 0;
+        else if (price > 0 && split > 0) breakEven = Math.ceil((showCost / split + house) / price - 1e-9);
+        else breakEven = null;
+
         // How many players the guarantee pays, in priority order: the
         // musicians she hires, then the singers, then her — always last.
         var covered = 0, left = G, i;
@@ -118,7 +127,8 @@
           herFee: herFee, herFeePaid: herFeePaid, guaranteeLeft: guaranteeLeft,
           ownerGap: ownerGap, ticketShare: ticketShare, others: others,
           players: players, covered: covered, mood: mood,
-          musicianRate: mRate, soldOut: cap > 0 && sold >= cap
+          musicianRate: mRate, soldOut: cap > 0 && sold >= cap,
+          breakEven: breakEven, capacity: cap, sold: sold
         };
       }
 
@@ -161,9 +171,25 @@
           feeState = 'forfeit';
           feeNote = 'The guarantee runs out before you — you forfeit your ' + fmtMoney(r.herFee) + ' fee.';
         }
+        // Where the show climbs out of the red, in tickets — and whether her
+        // current sales estimate clears that line.
+        var beNote, beTone;
+        if (r.breakEven === null) {
+          beNote = 'No ticket money at these settings — this show can’t break even.'; beTone = 'red';
+        } else if (r.breakEven === 0) {
+          beNote = 'Out of the red before a single ticket sells.'; beTone = 'ok';
+        } else if (r.capacity > 0 && r.breakEven > r.capacity) {
+          beNote = 'It takes ' + r.breakEven + ' tickets to break even — this room holds ' + r.capacity + '.'; beTone = 'red';
+        } else if (r.sold >= r.breakEven) {
+          beNote = 'Breaks even at ' + r.breakEven + ' tickets — your ' + r.sold + ' estimate clears it.'; beTone = 'ok';
+        } else {
+          beNote = 'Breaks even at ' + r.breakEven + ' tickets — below that this show is in the red. You’re estimating ' + r.sold + '.'; beTone = 'red';
+        }
         return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(r.others),
                  bandNote: bandNote, bandShort: bandShort,
-                 feeNote: feeNote, feeState: feeState, coverage: coverage, coach: coach };
+                 feeNote: feeNote, feeState: feeState,
+                 breakEvenNote: beNote, breakEvenTone: beTone,
+                 coverage: coverage, coach: coach };
       }
 
       var api = { estimate: estimate, summarize: summarize, fmtMoney: fmtMoney };
@@ -286,6 +312,7 @@
           <span class="text-white font-semibold text-base"><span id="out-sold">90</span> <span id="out-soldpct" class="text-gray-400 text-sm">(60%)</span></span>
         </div>
         <input id="in-sold" type="range" min="0" max="150" step="1" value="90" class="w-full" aria-label="tickets sold slider">
+        <p id="out-breakeven" class="text-xs mt-1.5 font-medium text-gray-500"></p>
       </div>
 
       <div class="mb-5">
@@ -378,6 +405,9 @@
         var feeEl = $('out-artistfee');
         feeEl.textContent = s.feeNote;
         feeEl.className = 'text-xs mt-1 mb-5 font-medium ' + (s.feeState === 'covered' ? 'text-gray-500' : 'text-warn');
+        var beEl = $('out-breakeven');
+        beEl.textContent = s.breakEvenNote;
+        beEl.className = 'text-xs mt-1.5 font-medium ' + (s.breakEvenTone === 'red' ? 'text-loss' : 'text-gray-500');
         $('coach').textContent = s.coach;
         $('coverage').textContent = s.coverage;
         var sum = $('summary');
