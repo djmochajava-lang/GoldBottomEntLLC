@@ -55,14 +55,18 @@ test('defaults: her estimated take-home is $1,410', () => {
   assert.strictEqual(M.summarize(r).payoutText, '$1,410');
   assert(near(r.payout, 1410), 'payout ' + r.payout);
 });
-test('defaults: guarantee covers 6 of her 9 players and is $400 short of the band', () => {
+test('defaults: guarantee covers 6 of her 9 players; the shortfall adds up', () => {
+  // full band pay 2700 vs guarantee 2000 → $700 short: $400 made up out of
+  // ticket money (the others' gap) + $300 the fee she forfeits.
   const r = M.estimate(DEFAULTS);
   const s = M.summarize(r);
   assert.strictEqual(r.players, 9);
   assert.strictEqual(r.covered, 6);
   assert(s.coverage.includes('covers 6 of your 9 players'));
   assert(s.bandShort === true);
-  assert(s.bandNote.includes('$400'));
+  assert(s.bandNote.includes('$700 short of this total'), s.bandNote);
+  assert(s.bandNote.includes('$400 gets made up out of ticket money'), s.bandNote);
+  assert(s.bandNote.includes('$300 is the fee you forfeit'), s.bandNote);
 });
 
 console.log('\nPriority rules (§5)');
@@ -132,20 +136,29 @@ test('sold-out green uses the sold-out sentence', () => {
   assert.strictEqual(r.mood, 'good');
   assert(M.summarize(r).coach.startsWith('Sold-out math'));
 });
-test('band shortfall is said out loud with its amount', () => {
+test('band shortfall names its parts and they sum to the total short', () => {
+  // G 1000 vs pay 2700 → $1,700 short = $1,400 ticket money + $300 forfeit
   const short = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 1000 }));
   assert(short.bandShort === true);
-  assert(short.bandNote.includes('$1,400'), short.bandNote);
-  assert(short.bandNote.includes('made up out of ticket money'), short.bandNote);
-  const ok = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2400 }));
+  assert(short.bandNote.includes('$1,700 short of this total'), short.bandNote);
+  assert(short.bandNote.includes('$1,400 gets made up out of ticket money'), short.bandNote);
+  assert(short.bandNote.includes('$300 is the fee you forfeit'), short.bandNote);
+  // partial-fee case: G 2500 → $200 short, all of it her forfeit
+  const partial = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2500 }));
+  assert(partial.bandNote.includes('$200 short of this total'), partial.bandNote);
+  assert(partial.bandNote.includes('$200 is the fee you forfeit'), partial.bandNote);
+  assert(!partial.bandNote.includes('ticket money'), partial.bandNote);
+  const ok = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2700 }));
   assert(ok.bandShort === false);
   assert(ok.bandNote.includes('covers the band in full'), ok.bandNote);
 });
-test('band collective take-home: $2,400 at defaults, moves with the lineup', () => {
-  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).bandText, '$2,400');
-  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, musicians: 6 })).bandText, '$2,700');
-  // ticket sales never move the band's number — the deal makes them whole
-  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 0 })).bandText, '$2,400');
+test('band total includes her slot so the visible column adds up: $2,700', () => {
+  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).bandText, '$2,700');
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, musicians: 6 })).bandText, '$3,000');
+  // ticket sales never move the band's number
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, ticketsSold: 0 })).bandText, '$2,700');
+  // her own rate moves it too — she is part of the total
+  assert.strictEqual(M.summarize(M.estimate({ ...DEFAULTS, artistRate: 400 })).bandText, '$2,800');
 });
 test('green copy frames the number as hers alone, never as the pot', () => {
   const g = M.summarize(M.estimate(DEFAULTS));
@@ -258,7 +271,7 @@ test('fuzz holds every invariant', () => {
 
     // 1. The screen's numbers ARE the math's numbers, formatted — nothing else.
     assert.strictEqual(s.payoutText, M.fmtMoney(r.payout), 'display drift' + ctx);
-    assert.strictEqual(s.bandText, M.fmtMoney(r.others), 'band display drift' + ctx);
+    assert.strictEqual(s.bandText, M.fmtMoney(r.others + r.herFee), 'band display drift' + ctx);
     assert(/^\$[\d,]+$/.test(s.payoutText), 'money format' + ctx);
     // 2. Floor at $0; the loss is reported, never hidden.
     assert(near(r.payout, Math.max(0, r.raw)), 'floor' + ctx);
@@ -271,9 +284,17 @@ test('fuzz holds every invariant', () => {
     assert(near(r.herFeePaid + r.guaranteeLeft - r.ownerGap, inp.guarantee - others), 'identity' + ctx);
     assert(near(r.ticketShare, Math.max(0, inp.ticketsSold * inp.ticketPrice - inp.houseCut) * inp.split), 'house cut' + ctx);
     assert(near(r.raw, inp.guarantee - others + r.ticketShare - inp.promo - inp.bookingFee), 'blend' + ctx);
-    // 3b. Band-shortfall and fee-status notes always match the waterfall.
-    assert.strictEqual(s.bandShort, r.ownerGap > 0, 'band short flag' + ctx);
-    if (s.bandShort) assert(s.bandNote.includes(M.fmtMoney(r.ownerGap)), 'shortfall names its amount' + ctx);
+    // 3b. Band-shortfall and fee-status notes always match the waterfall,
+    //     and the shortfall's parts sum to the whole.
+    const bandPay = others + r.herFee;
+    assert.strictEqual(s.bandShort, inp.guarantee < bandPay - 1e-9, 'band short flag' + ctx);
+    if (s.bandShort) {
+      assert(s.bandNote.includes(M.fmtMoney(bandPay - inp.guarantee)), 'shortfall names the total short' + ctx);
+      if (r.ownerGap > 0) assert(s.bandNote.includes(M.fmtMoney(r.ownerGap)), 'ticket-money part named' + ctx);
+      const feeMissing = r.herFee - r.herFeePaid;
+      if (feeMissing > 0) assert(s.bandNote.includes(M.fmtMoney(feeMissing)), 'forfeit part named' + ctx);
+      assert(near(r.ownerGap + (r.herFee - r.herFeePaid), bandPay - inp.guarantee) || inp.guarantee > bandPay, 'parts sum to the short' + ctx);
+    }
     const expectFee = r.herFee <= 0 ? 'covered'
       : (r.herFeePaid >= r.herFee ? 'covered' : (r.herFeePaid > 0 ? 'partial' : 'forfeit'));
     assert.strictEqual(s.feeState, expectFee, 'fee state' + ctx);

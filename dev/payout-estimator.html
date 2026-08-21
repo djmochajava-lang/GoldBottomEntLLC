@@ -128,7 +128,7 @@
           ownerGap: ownerGap, ticketShare: ticketShare, others: others,
           players: players, covered: covered, mood: mood,
           musicianRate: mRate, soldOut: cap > 0 && sold >= cap,
-          breakEven: breakEven, capacity: cap, sold: sold
+          breakEven: breakEven, capacity: cap, sold: sold, guarantee: G
         };
       }
 
@@ -148,14 +148,23 @@
             ? 'Sold-out math: the band and the costs are covered — this is yours to take home.'
             : 'The band and the costs are covered — this is yours to take home.';
         }
-        // The band's collective take-home: every player but her, and the deal
-        // rules always make them whole — so this never dips with ticket sales.
-        // When the guarantee falls short of the band, say so loudly and name
-        // the amount that gets made up out of ticket money.
-        var bandShort = r.ownerGap > 0;
-        var bandNote = bandShort
-          ? 'The guarantee is ' + fmtMoney(r.ownerGap) + ' short of the band — that gets made up out of ticket money.'
-          : 'The guarantee covers the band in full.';
+        // The band's total pay, HER SLOT INCLUDED — the artist line sits right
+        // above this number on screen, so the visible column must sum to it.
+        // When the guarantee falls short of that total, name the shortfall and
+        // its parts: the slice ticket money makes up, and the slice she forfeits.
+        // The parts always sum to the shortfall (same waterfall identity).
+        var bandPay = r.others + r.herFee;
+        var feeMissing = r.herFee - r.herFeePaid;
+        var bandShort = r.guarantee < bandPay - 1e-9;
+        var bandNote;
+        if (!bandShort) {
+          bandNote = 'The guarantee covers the band in full.';
+        } else {
+          var parts = [];
+          if (r.ownerGap > 0) parts.push(fmtMoney(r.ownerGap) + ' gets made up out of ticket money');
+          if (feeMissing > 0) parts.push(fmtMoney(feeMissing) + ' is the fee you forfeit');
+          bandNote = 'The guarantee is ' + fmtMoney(bandPay - r.guarantee) + ' short of this total — ' + parts.join(', and ') + '.';
+        }
         // Her fee's fate under the guarantee — covered, partly paid, or
         // forfeited — always visible, always with the amounts named.
         var feeState, feeNote;
@@ -185,7 +194,7 @@
         } else {
           beNote = 'Breaks even at ' + r.breakEven + ' tickets — below that this show is in the red. You’re estimating ' + r.sold + '.'; beTone = 'red';
         }
-        return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(r.others),
+        return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(bandPay),
                  bandNote: bandNote, bandShort: bandShort,
                  feeNote: feeNote, feeState: feeState,
                  breakEvenNote: beNote, breakEvenTone: beTone,
@@ -264,23 +273,25 @@
         <button data-rate="brate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
       </p>
 
-      <div class="flex items-baseline justify-between mt-5 border-t border-edge pt-3">
-        <p class="text-sm font-medium">What the band takes home together</p>
-        <p id="out-band" class="font-display text-xl font-bold text-gold">$1,375</p>
+      <div class="flex items-center justify-between gap-2 mt-4 border-t border-edge pt-3 mb-1">
+        <div class="min-w-0">
+          <p class="text-sm font-medium whitespace-nowrap">Artist &mdash; you</p>
+          <p class="text-[11px] text-gray-500 mt-0.5 whitespace-nowrap">paid last</p>
+        </div>
+        <p class="text-sm text-gray-400 flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          Rate:&nbsp;<span class="text-white font-semibold text-xl whitespace-nowrap">$<input id="chip-arate" class="num-chip !w-14 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="artist rate"></span>
+          <button data-rate="arate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
+          <button data-rate="arate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
+        </p>
+      </div>
+      <p id="out-artistfee" class="text-xs mt-1 font-medium text-gray-500"></p>
+
+      <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
+        <p class="text-sm font-medium min-w-0">What the band takes home together</p>
+        <p id="out-band" class="font-display text-xl font-bold text-gold whitespace-nowrap shrink-0">$2,700</p>
       </div>
       <p id="out-bandnote" class="text-xs mt-1.5 font-medium text-gray-500"></p>
-      <p class="text-[11px] text-gray-600 mt-1">Everyone but you &mdash; they&rsquo;re always paid in full.</p>
-
-      <div class="flex items-center justify-between mt-4 border-t border-edge pt-3 mb-1">
-        <p class="text-sm font-medium">Artist &mdash; you</p>
-        <p class="text-[11px] text-gray-500">every show &middot; paid last</p>
-      </div>
-      <p class="text-sm text-gray-400 flex items-center gap-1.5">
-        Rate:&nbsp;<span class="text-white font-semibold text-xl">$<input id="chip-arate" class="num-chip !w-16 !text-left text-xl font-semibold text-white" inputmode="numeric" value="300" aria-label="artist rate"></span>
-        <button data-rate="arate" data-d="-25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300 ml-1">&minus;</button>
-        <button data-rate="arate" data-d="25" class="rate-btn rate-adj bg-ink border border-edge rounded-lg text-gray-300">+</button>
-      </p>
-      <p id="out-artistfee" class="text-xs mt-1 font-medium text-gray-500"></p>
+      <p class="text-[11px] text-gray-600 mt-1">Musicians and singers are always paid in full.</p>
       <p id="out-you" class="text-xs text-gray-500 mt-3">
         You sing every show &mdash; you&rsquo;re player 9, paid last.
       </p>
