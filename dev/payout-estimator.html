@@ -427,7 +427,10 @@
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-sold" class="text-sm font-medium">Tickets you think you&rsquo;ll sell</label>
-          <span class="text-white font-semibold text-base"><span id="out-sold">75</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span></span>
+          <span class="text-right">
+            <span class="text-white font-semibold text-base"><span id="out-sold">75</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span></span><br>
+            <span class="text-gray-500 text-[11px]">break-even at this price:&nbsp;</span><span id="out-be-fixed" class="text-gray-400 font-semibold text-sm">148</span>
+          </span>
         </div>
         <input id="in-sold" type="range" min="0" max="150" step="1" value="75" class="w-full" aria-label="tickets sold slider">
         <p id="out-breakeven" class="text-xs mt-1.5 font-medium text-gray-500"></p>
@@ -556,6 +559,7 @@
         surFig.textContent = s.surplusText;
         surFig.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' +
           (s.surplusTone === 'neg' ? 'text-loss' : (s.surplusTone === 'pos' ? 'text-good' : 'text-gray-400'));
+        $('out-be-fixed').textContent = r.breakEven === null ? '—' : String(r.breakEven);
         var beEl = $('out-breakeven');
         beEl.textContent = s.breakEvenNote;
         beEl.className = 'text-xs mt-1.5 font-medium ' + (s.breakEvenTone === 'red' ? 'text-loss' : 'text-gray-500');
