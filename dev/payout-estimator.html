@@ -262,6 +262,10 @@
         // or does GBE absorb a loss while tickets add nothing for her?
         var gbeText = fmtSigned(r.flexible);
         var gbeTone = r.flexible < -1e-9 ? 'neg' : (r.flexible > 1e-9 ? 'pos' : 'zero');
+        // The verdict shows its own arithmetic: revenue side minus costs.
+        var gbeRev = r.ticketShare + r.guaranteeLeft - r.ownerGap;
+        var gbeRevTxt = gbeRev < 0 ? '−' + fmtMoney(-gbeRev) : fmtMoney(gbeRev);
+        var gbeFormula = gbeRevTxt + ' revenue − ' + fmtMoney(r.costsTotal) + ' costs =';
         var gbeNote = gbeTone === 'neg'
           ? 'The tool comes home ' + fmtMoney(r.outOfPocket) + ' short — GBE reinvests that before the next show; tickets added nothing for you this time.'
           : (gbeTone === 'pos'
@@ -271,7 +275,7 @@
                  bandNote: bandNote, bandShort: bandShort,
                  surplusText: surplusText, surplusTone: surplusTone,
                  feeNote: feeNote, feeState: feeState, lossText: lossText,
-                 gbeText: gbeText, gbeTone: gbeTone, gbeNote: gbeNote,
+                 gbeText: gbeText, gbeTone: gbeTone, gbeNote: gbeNote, gbeFormula: gbeFormula,
                  breakEvenNote: beNote, breakEvenTone: beTone,
                  venueNote: vNote, venueTone: vTone,
                  coverage: coverage, coach: coach };
@@ -499,6 +503,7 @@
         <p class="text-sm font-medium min-w-0">After GBE costs</p>
         <p id="out-gberesult" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-good">+$365</p>
       </div>
+      <p id="out-gbeformula" class="text-[11px] text-gray-500 mt-0.5">$1,265 revenue &minus; $900 costs =</p>
       <p id="out-gbenote" class="text-xs mt-1 font-medium text-gray-500"></p>
       <p class="text-[11px] text-gray-600 mt-1.5">You and GBE own this risk together &mdash; creative side and management side.</p>
     </section>
@@ -592,6 +597,7 @@
         gbeEl.textContent = s.gbeText;
         gbeEl.className = 'font-display text-xl font-bold whitespace-nowrap shrink-0 ' +
           (s.gbeTone === 'neg' ? 'text-loss' : (s.gbeTone === 'pos' ? 'text-good' : 'text-gray-400'));
+        $('out-gbeformula').textContent = s.gbeFormula;
         var gbeNoteEl = $('out-gbenote');
         gbeNoteEl.textContent = s.gbeNote;
         gbeNoteEl.className = 'text-xs mt-1 font-medium ' + (s.gbeTone === 'neg' ? 'text-loss' : 'text-gray-500');

@@ -315,6 +315,14 @@ test('defaults: the tool comes home whole with $365 to spare', () => {
   assert(s.gbeNote.includes('comes home whole'), s.gbeNote);
   assert(s.gbeNote.includes('rides to you'), s.gbeNote);
 });
+test('the verdict shows its own formula: revenue − costs =', () => {
+  // share 1,240 + surplus 25 = $1,265 revenue against $900 costs
+  const s = M.summarize(M.estimate(DEFAULTS));
+  assert.strictEqual(s.gbeFormula, '$1,265 revenue − $900 costs =');
+  // at $30 tickets: share 640 + 25 = $665 revenue → −$235 verdict
+  const s2 = M.summarize(M.estimate({ ...DEFAULTS, ticketPrice: 30 }));
+  assert.strictEqual(s2.gbeFormula, '$665 revenue − $900 costs =');
+});
 test('at $30 tickets the tool comes home $235 short and GBE reinvests', () => {
   const s = M.summarize(M.estimate({ ...DEFAULTS, ticketPrice: 30 }));
   assert.strictEqual(s.gbeText, '−$235');
@@ -403,6 +411,10 @@ test('fuzz holds every invariant', () => {
       assert.strictEqual(s.lossText, '', 'no phantom loss figure' + ctx);
     }
     assert.strictEqual(s.gbeText, M.fmtSigned(r.flexible), 'GBE verdict drift' + ctx);
+    const gbeRev = r.ticketShare + r.guaranteeLeft - r.ownerGap;
+    const gbeRevTxt = gbeRev < 0 ? '−' + M.fmtMoney(-gbeRev) : M.fmtMoney(gbeRev);
+    assert.strictEqual(s.gbeFormula, gbeRevTxt + ' revenue − ' + M.fmtMoney(r.costsTotal) + ' costs =', 'formula drift' + ctx);
+    assert(near(gbeRev - r.costsTotal, r.flexible), 'formula arithmetic holds' + ctx);
     const gt = r.flexible < -1e-9 ? 'neg' : (r.flexible > 1e-9 ? 'pos' : 'zero');
     assert.strictEqual(s.gbeTone, gt, 'GBE verdict tone' + ctx);
     if (gt === 'neg') assert(s.gbeNote.includes(M.fmtMoney(r.outOfPocket)), 'GBE loss named' + ctx);
