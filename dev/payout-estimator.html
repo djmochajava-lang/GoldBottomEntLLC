@@ -98,6 +98,10 @@
         var afterHouse    = Math.max(0, ticketGross - house);
         var ticketShare   = afterHouse * split;
 
+        // Owner rule: her FEE comes only from the guarantee — up to her set
+        // fee, shrinking to whatever is left after the members, zero if
+        // nothing is. Guarantee money beyond her fee is SURPLUS: it rides
+        // into her take-home too, and her costs come out of the whole.
         var raw    = herFeePaid + guaranteeLeft + ticketShare - promo - fee - ownerGap;
         var payout = Math.max(0, raw);
         var outOfPocket = raw < 0 ? -raw : 0;
@@ -194,9 +198,14 @@
         } else {
           beNote = 'Breaks even at ' + r.breakEven + ' tickets — below that this show is in the red. You’re estimating ' + r.sold + '.'; beTone = 'red';
         }
+        // Guarantee money beyond the full band: shown as surplus — it rides
+        // into her take-home, and her costs come out of the whole.
+        var leftNote = r.guaranteeLeft > 0
+          ? 'Guarantee surplus: ' + fmtMoney(r.guaranteeLeft) + ' — it rides into your take-home, minus your costs.'
+          : '';
         return { payoutText: fmtMoney(r.payout), bandText: fmtMoney(bandPay),
                  bandNote: bandNote, bandShort: bandShort,
-                 feeNote: feeNote, feeState: feeState,
+                 feeNote: feeNote, feeState: feeState, leftNote: leftNote,
                  breakEvenNote: beNote, breakEvenTone: beTone,
                  coverage: coverage, coach: coach };
       }
@@ -291,6 +300,7 @@
         <p id="out-band" class="font-display text-xl font-bold text-gold whitespace-nowrap shrink-0">$2,700</p>
       </div>
       <p id="out-bandnote" class="text-xs mt-1.5 font-medium text-gray-500"></p>
+      <p id="out-surplus" class="text-xs mt-1 font-medium text-gold hidden"></p>
       <p class="text-[11px] text-gray-600 mt-1">Musicians and singers are always paid in full.</p>
       <p id="out-you" class="text-xs text-gray-500 mt-3">
         You sing every show &mdash; you&rsquo;re player 9, paid last.
@@ -418,6 +428,9 @@
         var feeEl = $('out-artistfee');
         feeEl.textContent = s.feeNote;
         feeEl.className = 'text-xs mt-1 font-medium ' + (s.feeState === 'covered' ? 'text-gray-500' : 'text-loss');
+        var surEl = $('out-surplus');
+        surEl.textContent = s.leftNote;
+        surEl.classList.toggle('hidden', !s.leftNote);
         var beEl = $('out-breakeven');
         beEl.textContent = s.breakEvenNote;
         beEl.className = 'text-xs mt-1.5 font-medium ' + (s.breakEvenTone === 'red' ? 'text-loss' : 'text-gray-500');
