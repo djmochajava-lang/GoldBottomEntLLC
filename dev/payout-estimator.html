@@ -103,11 +103,14 @@
         var herFeePaid = herFee;                        // always affordable now
         var guaranteeLeft = Math.max(0, G - others - herFee);
         var ownerGap      = Math.max(0, others - G);
-        // The venue's house cut (the "nut") comes off ticket money FIRST;
-        // her split applies to what's left.
+        // Owner rule: the venue is paid back FIRST out of ticket money — the
+        // house nut PLUS the guarantee it fronted. Her split starts only on
+        // what's left after both. Nothing is earned from tickets until gross
+        // clears (nut + guarantee).
         var ticketGross   = sold * price;
-        var afterHouse    = Math.max(0, ticketGross - house);
-        var ticketShare   = afterHouse * split;
+        var venueOffTop   = house + G;
+        var afterVenue    = Math.max(0, ticketGross - venueOffTop);
+        var ticketShare   = afterVenue * split;
 
         // Owner rules: her FEE comes only from the guarantee — up to her set
         // fee, shrinking to whatever is left after the members, zero if
@@ -127,23 +130,17 @@
         var showCost = promo + fee + misc + ownerGap - guaranteeLeft;
         var breakEven;
         if (showCost <= 0) breakEven = 0;
-        else if (price > 0 && split > 0) breakEven = Math.ceil((showCost / split + house) / price - 1e-9);
+        else if (price > 0 && split > 0) breakEven = Math.ceil((showCost / split + venueOffTop) / price - 1e-9);
         else breakEven = null;
 
-        // The venue's side: the guarantee has to be covered by ticket money
-        // too. The venue collects the house cut plus its share of the rest;
-        // it has earned the guarantee back once that reaches G.
-        function venueTake(soldN) {
-          var gross = soldN * price;
-          return gross <= house ? gross : house + (1 - split) * (gross - house);
-        }
+        // The venue's side: ticket money pays it back first — the nut, then
+        // the guarantee it fronted. It is made whole once gross reaches
+        // (nut + guarantee).
         var venueBreakEven;
         if (G <= 0) venueBreakEven = 0;
         else if (price <= 0) venueBreakEven = null;
-        else if (G <= house) venueBreakEven = Math.ceil(G / price - 1e-9);
-        else if (split >= 1) venueBreakEven = null;
-        else venueBreakEven = Math.ceil((house + (G - house) / (1 - split)) / price - 1e-9);
-        var venueTakeAtCap = venueTake(cap);
+        else venueBreakEven = Math.ceil(venueOffTop / price - 1e-9);
+        var venueTakeAtCap = Math.min(G, Math.max(0, cap * price - house));
 
         // How many players the guarantee pays, in priority order: the
         // musicians she hires, then the singers, then her — always last.
@@ -167,7 +164,7 @@
           breakEven: breakEven, capacity: cap, sold: sold, guarantee: G,
           venueBreakEven: venueBreakEven, venueTakeAtCap: venueTakeAtCap,
           costsTotal: promo + fee + misc, ticketGross: ticketGross,
-          houseKept: ticketGross - afterHouse, ticketPrice: price, split: split
+          houseKept: ticketGross - afterVenue, ticketPrice: price, split: split
         };
       }
 
@@ -444,7 +441,7 @@
           <label for="in-house" class="text-sm font-medium">What the venue keeps off tickets</label>
           <span class="text-white font-semibold text-base">$<input id="chip-house" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="1,200" aria-label="house cut amount"></span>
         </div>
-        <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; taken off ticket money before your share.</p>
+        <p class="text-[11px] text-gray-600 mb-1.5">The house nut &mdash; the venue takes this AND its guarantee off ticket money before your share.</p>
         <input id="in-house" type="range" min="0" max="3000" step="25" value="1200" class="w-full" aria-label="house cut slider">
       </div>
 
@@ -464,8 +461,8 @@
         <p id="out-tkgross" class="font-semibold text-base text-white whitespace-nowrap shrink-0">$2,250</p>
       </div>
       <div class="flex items-baseline justify-between gap-3 mb-2">
-        <p class="text-sm font-medium min-w-0">The venue keeps</p>
-        <p id="out-tkkept" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$1,200</p>
+        <p class="text-sm font-medium min-w-0">The venue keeps first <span class="text-gray-500 text-xs">(nut + guarantee)</span></p>
+        <p id="out-tkkept" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$2,250</p>
       </div>
       <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
         <p class="text-sm font-medium min-w-0">Your share <span id="out-tkpct" class="text-gray-500">(80%)</span></p>
