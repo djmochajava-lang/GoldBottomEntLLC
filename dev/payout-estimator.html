@@ -385,28 +385,28 @@
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-capacity" class="text-sm font-medium">Seats in the room</label>
-          <span class="text-white font-semibold text-base"><input id="chip-capacity" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="150" aria-label="room capacity"></span>
+          <span class="text-white font-semibold text-base"><input id="chip-capacity" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="300" aria-label="room capacity"></span>
         </div>
-        <input id="in-capacity" type="range" min="0" max="1000" step="10" value="150" class="w-full" aria-label="room capacity slider">
+        <input id="in-capacity" type="range" min="0" max="1000" step="10" value="300" class="w-full" aria-label="room capacity slider">
       </div>
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-price" class="text-sm font-medium">Ticket price</label>
-          <span class="text-white font-semibold text-base">$<input id="chip-price" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="30" aria-label="ticket price"></span>
+          <span class="text-white font-semibold text-base">$<input id="chip-price" class="num-chip font-semibold text-base text-white" inputmode="numeric" value="35" aria-label="ticket price"></span>
         </div>
-        <input id="in-price" type="range" min="0" max="200" step="5" value="30" class="w-full" aria-label="ticket price slider">
+        <input id="in-price" type="range" min="0" max="200" step="5" value="35" class="w-full" aria-label="ticket price slider">
       </div>
 
       <div class="mb-5">
         <div class="flex items-baseline justify-between mb-1.5">
           <label for="in-sold" class="text-sm font-medium">Tickets you think you&rsquo;ll sell</label>
           <span class="text-right">
-            <span class="text-white font-semibold text-base"><span id="out-sold">75</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span></span><br>
-            <span class="text-gray-500 text-[11px]">break-even at this price:&nbsp;</span><span id="out-be-fixed" class="text-gray-400 font-semibold text-sm">160</span>
+            <span class="text-white font-semibold text-base"><span id="out-sold">150</span> <span id="out-soldpct" class="text-gray-400 text-sm">(50%)</span></span><br>
+            <span class="text-gray-500 text-[11px]">break-even at this price:&nbsp;</span><span id="out-be-fixed" class="text-gray-400 font-semibold text-sm">137</span>
           </span>
         </div>
-        <input id="in-sold" type="range" min="0" max="150" step="1" value="75" class="w-full" aria-label="tickets sold slider">
+        <input id="in-sold" type="range" min="0" max="300" step="1" value="150" class="w-full" aria-label="tickets sold slider">
         <p id="out-breakeven" class="text-xs mt-1.5 font-medium text-gray-500"></p>
         <p id="out-venue" class="text-xs mt-1 font-medium text-gray-500"></p>
       </div>
@@ -430,7 +430,7 @@
 
       <div class="flex items-baseline justify-between gap-3 mt-5 border-t border-edge pt-3">
         <p class="text-sm font-medium min-w-0">Total revenue</p>
-        <p id="out-revtotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$2,250</p>
+        <p id="out-revtotal" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$5,250</p>
       </div>
       <p class="text-[11px] text-gray-600 mt-1">All ticket money &mdash; before anyone&rsquo;s cut.</p>
     </section>
@@ -440,8 +440,8 @@
       <h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider mb-4">Ticket revenue</h2>
 
       <div class="flex items-baseline justify-between gap-3 mb-2">
-        <p class="text-sm font-medium min-w-0">Ticket sales &mdash; <span id="out-tksales">75 &times; $30</span></p>
-        <p id="out-tkgross" class="font-semibold text-base text-white whitespace-nowrap shrink-0">$2,250</p>
+        <p class="text-sm font-medium min-w-0">Ticket sales &mdash; <span id="out-tksales">150 &times; $35</span></p>
+        <p id="out-tkgross" class="font-semibold text-base text-white whitespace-nowrap shrink-0">$5,250</p>
       </div>
       <div class="flex items-baseline justify-between gap-3 mb-2">
         <p class="text-sm font-medium min-w-0">The house nut</p>
@@ -449,11 +449,11 @@
       </div>
       <div class="flex items-baseline justify-between gap-3 mb-2">
         <p class="text-sm font-medium min-w-0">Paying back the guarantee</p>
-        <p id="out-tkrecoup" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$1,050</p>
+        <p id="out-tkrecoup" class="font-semibold text-base text-gray-400 whitespace-nowrap shrink-0">&minus;$2,500</p>
       </div>
       <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
         <p class="text-sm font-medium min-w-0">Your share <span id="out-tkpct" class="text-gray-500">(80%)</span></p>
-        <p id="out-tkshare" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$840</p>
+        <p id="out-tkshare" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-gold">$1,240</p>
       </div>
       <p class="text-[11px] text-gray-600 mt-1">This rides into your take-home.</p>
     </section>
@@ -495,7 +495,7 @@
 
       <div class="flex items-baseline justify-between gap-3 mt-4 border-t border-edge pt-3">
         <p class="text-sm font-medium min-w-0">After GBE costs</p>
-        <p id="out-gberesult" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-loss">&minus;$875</p>
+        <p id="out-gberesult" class="font-display text-xl font-bold whitespace-nowrap shrink-0 text-good">+$365</p>
       </div>
       <p id="out-gbenote" class="text-xs mt-1 font-medium text-gray-500"></p>
       <p class="text-[11px] text-gray-600 mt-1.5">You and GBE own this risk together &mdash; creative side and management side.</p>
@@ -532,7 +532,7 @@
       var ALLOWED = ['artist', 'band_manager', 'admin'];
 
       var state = {
-        guarantee: 2500, capacity: 150, ticketPrice: 30, ticketsSold: 75,
+        guarantee: 2500, capacity: 300, ticketPrice: 35, ticketsSold: 150,
         split: 0.80, musicians: 6, musicianRate: 300, singers: 3,
         singerRate: 125, artistRate: 300, bookingFee: 200, promo: 500, misc: 200, houseCut: 1200
       };
