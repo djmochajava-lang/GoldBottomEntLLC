@@ -86,18 +86,25 @@ test('owner gap comes out of her ticket money', () => {
   const b = M.estimate({ ...DEFAULTS, guarantee: 2200 });
   assert(near(a.raw - b.raw, 200), 'a $200 shortfall costs her exactly $200');
 });
-test('rich guarantee: fee paid, surplus named, and it rides into her take-home', () => {
+test('rich guarantee: fee paid, surplus shows +$300 in gold and rides into her take-home', () => {
   const r = M.estimate({ ...DEFAULTS, guarantee: 3000 });
   assert(near(r.herFeePaid, 300));
   assert(near(r.guaranteeLeft, 300));
   const s = M.summarize(r);
-  assert(s.leftNote.includes('Guarantee surplus: $300'), s.leftNote);
-  assert(s.leftNote.includes('rides into your take-home'), s.leftNote);
+  assert.strictEqual(s.surplusText, '+$300');
+  assert.strictEqual(s.surplusTone, 'pos');
+  assert(s.bandNote.includes('the extra $300 rides into your take-home'), s.bandNote);
   // 300 fee + 300 surplus + 2160 tickets − 350 costs = 2410
   assert.strictEqual(s.payoutText, '$2,410');
 });
-test('no surplus line when the guarantee has nothing left', () => {
-  assert.strictEqual(M.summarize(M.estimate(DEFAULTS)).leftNote, '');
+test('surplus figure is signed: −$700 at defaults, $0 at exact cover', () => {
+  const short = M.summarize(M.estimate(DEFAULTS));
+  assert.strictEqual(short.surplusText, '−$700');
+  assert.strictEqual(short.surplusTone, 'neg');
+  const exact = M.summarize(M.estimate({ ...DEFAULTS, guarantee: 2700 }));
+  assert.strictEqual(exact.surplusText, '$0');
+  assert.strictEqual(exact.surplusTone, 'zero');
+  assert(exact.bandNote.includes('covers the band in full'), exact.bandNote);
 });
 
 console.log('\nHer fee under the guarantee — covered, partial, forfeited');
@@ -317,8 +324,10 @@ test('fuzz holds every invariant', () => {
     const expectFee = r.herFee <= 0 ? 'covered'
       : (r.herFeePaid >= r.herFee ? 'covered' : (r.herFeePaid > 0 ? 'partial' : 'forfeit'));
     assert.strictEqual(s.feeState, expectFee, 'fee state' + ctx);
-    if (r.guaranteeLeft > 0) assert(s.leftNote.includes(M.fmtMoney(r.guaranteeLeft)), 'surplus named' + ctx);
-    else assert.strictEqual(s.leftNote, '', 'no phantom surplus' + ctx);
+    assert.strictEqual(s.surplusText, M.fmtSigned(inp.guarantee - bandPay), 'surplus figure drift' + ctx);
+    const sv = inp.guarantee - bandPay;
+    assert.strictEqual(s.surplusTone, sv < -1e-9 ? 'neg' : (sv > 1e-9 ? 'pos' : 'zero'), 'surplus tone' + ctx);
+    if (s.surplusTone === 'pos') assert(s.bandNote.includes('rides into your take-home'), 'pos surplus explained' + ctx);
     if (s.feeState === 'partial') assert(s.feeNote.includes(M.fmtMoney(r.herFeePaid)), 'partial names paid amount' + ctx);
     if (s.feeState === 'forfeit' && r.herFee > 0) assert(s.feeNote.includes(M.fmtMoney(r.herFee)), 'forfeit names the fee' + ctx);
     // 3c. Break-even is minimal and its note matches the state.
