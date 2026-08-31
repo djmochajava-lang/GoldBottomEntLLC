@@ -3917,7 +3917,13 @@
     // A fresh baseline build (package/inputs may have changed) — reset the Review levers so
     // stale roster/discount selections can't desync from the just-priced baseline figure.
     _qState.roster = {}; _qState.added = {}; _qState.discount = null;
-    _qState.durationHours = ''; _qState.soundSystem = ''; _qState.repriceError = null;
+    // CEO sound-credit ruling 2026-08-31: soundSystem is NOT a stale lever — it
+    // arrives seeded from what the customer stated on the inquiry, and the fresh
+    // baseline must PRICE that statement, not wipe it back to the $750 default
+    // (this reset was exactly the drill's silent $350 over-charge).
+    _qState.durationHours = '';
+    _qState.soundSystem = _soundKeyFromStated(_qState.stated && _qState.stated.sound_system);
+    _qState.repriceError = null;
     // Staffing dials belong to a roster; a fresh baseline reloads the package's
     // standard roster from the server, so drop any stale dial/mute state.
     _qState.staffing = null; _qState.staffingOpen = false; _qState.versionOpen = false;
