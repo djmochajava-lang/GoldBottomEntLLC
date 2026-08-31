@@ -2695,6 +2695,7 @@
   var _QUOTE_SOUND_OPTIONS = [
     { key: '',                     label: 'Let GBE decide (default)' },
     { key: 'venue-system',         label: 'Venue provides the PA — our engineer only' },
+    { key: 'engineer-only',        label: 'Engineer only — venue system' },
     { key: 'engineer-with-system', label: 'We provide the engineer + full PA' }
   ];
 
@@ -2709,8 +2710,9 @@
     'not-sure': 'Not sure yet'
   };
   function _soundKeyFromStated(v) {
-    if (v === 'venue-provides' || v === 'venue-system') return 'venue-system';
-    if (v === 'we-need' || v === 'engineer-with-system') return 'engineer-with-system';
+    if (v === 'venue-provides' || v === 'venue_provides' || v === 'venue-system') return 'venue-system';
+    if (v === 'we-need' || v === 'we_need' || v === 'engineer-with-system') return 'engineer-with-system';
+    if (v === 'pa-only' || v === 'pa_only' || v === 'engineer-only') return 'engineer-only';
     return '';
   }
   // Customer-stated fields with a form_data fallback: the remote read-model carries
@@ -2912,8 +2914,10 @@
       // Sends the already-priced draft as-is — leaves them blank; they only drive a fresh Build.
       oneWayMiles: '',
       nights: '',
-      // Transparency & control (Review-screen levers). durationHours + soundSystem are
-      // generic-package levers; roster/added are the band-configuration deltas; discount
+      // Transparency & control (Review-screen levers). durationHours is a
+      // generic-package lever; soundSystem rides every package (CEO sound-credit
+      // ruling 2026-08-31 — bundled tiers price it 0 server-side);
+      // roster/added are the band-configuration deltas; discount
       // is the governed customer-price reduction. live = the last cloud-pricer RESPONSE
       // (7 keys incl. internal_cost/margin) held IN MEMORY ONLY for the render — never
       // written to any web storage (a security condition of exposing cost to the device).
@@ -3119,6 +3123,11 @@
     // sound decision is made (CEO item-3: inherit what the customer stated, show it).
     var _statedSound = _qState.stated && _qState.stated.sound_system;
     var _statedSoundLabel = _statedSound ? (_SOUND_STATED_LABELS[_statedSound] || _statedSound) : null;
+    // CEO sound-credit ruling 2026-08-31: the customer's choice creates the credit,
+    // not the equipment. Every non-bundled package (full-band included) carries the
+    // sound tier control, seeded from what the customer stated; the wedding/gala/
+    // tribute tiers bundle sound into the flat price — no separable choice, no
+    // credit, and no control that would imply one.
     if (generic) {
       h += '<label class="form-label" style="font-weight:600;margin-top:10px;">Performance duration (hours)</label>';
       h += '<input type="number" inputmode="decimal" data-qfield="durationHours" min="0" max="24" step="0.5" value="' + (_qState.durationHours !== '' && _qState.durationHours != null ? esc(String(_qState.durationHours)) : '') + '" placeholder="included: 2 hrs" class="form-input" style="width:100%;min-height:44px;margin-bottom:10px;">';
@@ -3130,7 +3139,7 @@
         h += '<p style="margin:6px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-volume-high" style="margin-right:4px;"></i>Customer stated: <strong>' + esc(_statedSoundLabel) + '</strong></p>';
       }
     } else if (_statedSoundLabel) {
-      h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-volume-high" style="margin-right:4px;"></i>Customer stated: <strong>' + esc(_statedSoundLabel) + '</strong> — sound is bundled into this package\'s price.</p>';
+      h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-volume-high" style="margin-right:4px;"></i>Customer stated: <strong>' + esc(_statedSoundLabel) + '</strong> — sound is included in this package\'s flat price; no separate sound charge either way.</p>';
     }
     h += '<label class="form-label" style="font-weight:600;margin-top:10px;">Deposit to secure (%)</label>';
     h += '<input type="number" inputmode="numeric" data-qfield="depositPercent" min="0" max="100" step="5" value="' + (_qState.depositPercent != null ? _qState.depositPercent : 50) + '" class="form-input" style="width:100%;min-height:44px;">';
@@ -3571,7 +3580,10 @@
       nights: (_qState.nights === '' || _qState.nights == null) ? undefined : Number(_qState.nights),
       depositPercent: _qState.depositPercent,
       durationHours: (generic && _qState.durationHours !== '' && _qState.durationHours != null) ? Number(_qState.durationHours) : undefined,
-      soundSystem: (generic && _qState.soundSystem) ? _qState.soundSystem : undefined,
+      // CEO sound-credit ruling 2026-08-31: soundSystem rides on EVERY package —
+      // withholding it made the pricer fall to the $750 default tier even when the
+      // customer stated the venue provides the PA. Bundled packages still price 0.
+      soundSystem: _qState.soundSystem || undefined,
       roster: roster.length ? roster : undefined
     };
     // STAFFING echo: slot identifiers + the dialed numbers, in the server's own
