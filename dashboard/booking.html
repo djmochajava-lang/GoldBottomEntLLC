@@ -2698,6 +2698,49 @@
     { key: 'engineer-with-system', label: 'We provide the engineer + full PA' }
   ];
 
+  // CEO item-3 GO (2026-08-31): the quote screen inherits what the customer stated,
+  // and shows it. The public form's soundSystem vocabulary differs from the pricer's
+  // levers — map what maps cleanly; the rest stays unseeded ('' = GBE decides) but
+  // the customer's own words are still shown so the BM prices with eyes open.
+  var _SOUND_STATED_LABELS = {
+    'venue-provides': 'Venue provides full PA',
+    'we-need': 'Needs PA + audio engineer',
+    'pa-only': 'Needs PA only (no engineer)',
+    'not-sure': 'Not sure yet'
+  };
+  function _soundKeyFromStated(v) {
+    if (v === 'venue-provides' || v === 'venue-system') return 'venue-system';
+    if (v === 'we-need' || v === 'engineer-with-system') return 'engineer-with-system';
+    return '';
+  }
+  // Customer-stated fields with a form_data fallback: the remote read-model carries
+  // them as projected columns, while the LAN rail hands us raw booking_inbox rows
+  // where they live only inside the form_data JSON blob. Same inheritance either way.
+  function _inqStated(inq) {
+    var out = {
+      sound_system: inq.sound_system || null,
+      package_pref: inq.package_pref || null,
+      event_type: inq.event_type || null,
+      event_date: inq.event_date || null,
+      guest_count: inq.guest_count || null,
+      budget_range: inq.budget_range || null
+    };
+    if (inq.form_data && (!out.sound_system || !out.package_pref || !out.event_type)) {
+      try {
+        var fd = (typeof inq.form_data === 'string') ? JSON.parse(inq.form_data) : inq.form_data;
+        if (fd && typeof fd === 'object') {
+          out.sound_system = out.sound_system || fd.soundSystem || fd.sound_system || null;
+          out.package_pref = out.package_pref || fd.performanceFormat || fd.packageKey || fd.package_pref || null;
+          out.event_type = out.event_type || fd.eventType || fd.event_type || null;
+          out.event_date = out.event_date || fd.eventDate || fd.event_date || null;
+          out.guest_count = out.guest_count || fd.guestCount || fd.guest_count || null;
+          out.budget_range = out.budget_range || fd.budgetRange || fd.budget_range || null;
+        }
+      } catch (_) { /* unreadable blob — projected columns only */ }
+    }
+    return out;
+  }
+
   // The three priced roster roles. Values are the server role identifiers; labels are the
   // customer-facing words. Absorb = drop the customer's price for that seat but keep paying
   // the player (their pay stays an internal cost, so margin falls). Remove = drop both.
@@ -2843,8 +2886,9 @@
   function openQuoteStepper(inq, opts) {
     opts = opts || {};
     var rd = opts.resumeDraft || null;
+    var stated = _inqStated(inq);
     _qState = {
-      inq: inq, step: 0,
+      inq: inq, step: 0, stated: stated,
       // PRE-FILL from the customer's own selections on a FRESH open (not just on
       // resume). packageKey/eventType/eventDate seed from the inquiry read-model
       // (package_pref/event_type/event_date) so the manager never re-picks what the
@@ -2852,16 +2896,16 @@
       // resume, seed selectors + deposit FROM the persisted draft so the Review figure
       // the manager already saw is exactly what Send re-prices/emails (depositPercent
       // must come from the draft, not a hardcoded 50, or a resumed non-50% draft diverges).
-      packageKey: rd ? (rd.package_key || null) : (_pkgKeyFromPref(inq.package_pref) || null),
+      packageKey: rd ? (rd.package_key || null) : (_pkgKeyFromPref(stated.package_pref) || null),
       // Pre-select the event type ONLY when it confidently maps to a known pricing type;
       // otherwise leave it unselected so the BM must choose (no silent "Wedding" default).
-      eventType: _normalizeEventType((rd && rd.event_type) || inq.event_type),
-      eventDate: (rd && rd.event_date) || (inq.event_date || ''),
+      eventType: _normalizeEventType((rd && rd.event_type) || stated.event_type),
+      eventDate: (rd && rd.event_date) || (stated.event_date || ''),
       // guest_count band drives the server price (quote-price `guestBand`); budget_range
       // is shown beside the total on Review with the mismatch signal. Both come from the
       // customer's own inquiry and are carried through fresh + resumed opens.
-      guestBand: inq.guest_count || '',
-      budgetRange: inq.budget_range || '',
+      guestBand: stated.guest_count || '',
+      budgetRange: stated.budget_range || '',
       depositPercent: (rd && rd.deposit_percent != null) ? Number(rd.deposit_percent) : 50,
       // D-54 travel/lodging estimate inputs. Blank = local show / no estimate (finalized in
       // contract). The read-model redacts these (server-only), so a resumed draft — which
@@ -2874,7 +2918,10 @@
       // (7 keys incl. internal_cost/margin) held IN MEMORY ONLY for the render — never
       // written to any web storage (a security condition of exposing cost to the device).
       durationHours: '',
-      soundSystem: '',
+      // Seed the sound lever from what the customer stated on a FRESH open (mapped
+      // to the pricer's vocabulary; unmappable answers stay '' but are shown).
+      // A resumed draft keeps its priced figure as-is — no retro-seed.
+      soundSystem: rd ? '' : _soundKeyFromStated(stated.sound_system),
       roster: {},          // { musician:'on-quote'|'removed', backgroundSinger:…, dj:… }
       added: {},           // { musician:N, backgroundSinger:N, dj:N } — extra seats to add
       discount: null,      // { amount, ownerOverride, reason } once applied
@@ -3068,6 +3115,10 @@
     h += '<div style="flex:1;"><label class="form-label" style="font-weight:600;">Overnight nights</label>' +
       '<input type="number" inputmode="numeric" data-qfield="nights" min="0" max="30" value="' + (_qState.nights !== '' && _qState.nights != null ? esc(String(_qState.nights)) : '') + '" placeholder="0" class="form-input" style="width:100%;min-height:44px;"></div>';
     h += '</div>';
+    // What the customer told us about sound on their inquiry — shown wherever the
+    // sound decision is made (CEO item-3: inherit what the customer stated, show it).
+    var _statedSound = _qState.stated && _qState.stated.sound_system;
+    var _statedSoundLabel = _statedSound ? (_SOUND_STATED_LABELS[_statedSound] || _statedSound) : null;
     if (generic) {
       h += '<label class="form-label" style="font-weight:600;margin-top:10px;">Performance duration (hours)</label>';
       h += '<input type="number" inputmode="decimal" data-qfield="durationHours" min="0" max="24" step="0.5" value="' + (_qState.durationHours !== '' && _qState.durationHours != null ? esc(String(_qState.durationHours)) : '') + '" placeholder="included: 2 hrs" class="form-input" style="width:100%;min-height:44px;margin-bottom:10px;">';
@@ -3075,6 +3126,11 @@
       h += '<select data-qfield="soundSystem" class="form-input" style="width:100%;min-height:44px;">';
       _QUOTE_SOUND_OPTIONS.forEach(function(o) { h += '<option value="' + o.key + '"' + (_qState.soundSystem === o.key ? ' selected' : '') + '>' + esc(o.label) + '</option>'; });
       h += '</select>';
+      if (_statedSoundLabel) {
+        h += '<p style="margin:6px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-volume-high" style="margin-right:4px;"></i>Customer stated: <strong>' + esc(_statedSoundLabel) + '</strong></p>';
+      }
+    } else if (_statedSoundLabel) {
+      h += '<p style="margin:10px 0 0;font-size:var(--text-xs);color:var(--color-text-muted);"><i class="fa-solid fa-volume-high" style="margin-right:4px;"></i>Customer stated: <strong>' + esc(_statedSoundLabel) + '</strong> — sound is bundled into this package\'s price.</p>';
     }
     h += '<label class="form-label" style="font-weight:600;margin-top:10px;">Deposit to secure (%)</label>';
     h += '<input type="number" inputmode="numeric" data-qfield="depositPercent" min="0" max="100" step="5" value="' + (_qState.depositPercent != null ? _qState.depositPercent : 50) + '" class="form-input" style="width:100%;min-height:44px;">';
