@@ -158,6 +158,16 @@
       }
       return { key: 'pending', label: 'Needs your review', reviewed: false };
     }
+    // Package-level status in plain words. Raw schema enum strings never reach the
+    // screen (UX 6): anything unrecognised falls back to a neutral label.
+    function pkgStatusPlain(s) {
+      var m = {
+        'draft': 'Draft', 'in_review': 'In review', 'in review': 'In review',
+        'review': 'In review', 'ready': 'Ready to send', 'approved': 'Approved',
+        'exported': 'Sent', 'sent': 'Sent', 'complete': 'Complete', 'completed': 'Complete'
+      };
+      return m[String(s == null ? '' : s).toLowerCase()] || 'In progress';
+    }
     function blockerPlain(reason) {
       switch (reason) {
         case 'pending': return 'is still waiting for the artist to review it';
@@ -246,6 +256,16 @@
               };
             });
         });
+    }
+
+    // BM/admin list: which packages may this manager open? RLS on press_packages
+    // already returns only the rows this signed-in user is allowed to read — the
+    // client just renders what comes back. Column-explicit; no internal integer id.
+    function loadPackageList() {
+      if (MOCK) return Promise.resolve(mockPackageList());
+      return pressApi().from('press_packages')
+        .select('pkg_token,title,status,brand')
+        .then(function (r) { if (r.error) throw r.error; return r.data || []; });
     }
 
     function approveArtifact(token, id) {
@@ -428,9 +448,23 @@
           var grid = card.querySelector('.grid');
           [{ v: light[0], lbl: 'On white', cls: 'swatch-white' }, { v: dark[0], lbl: 'On black', cls: 'swatch-black' }].forEach(function (o) {
             var cell = document.createElement('div');
-            cell.innerHTML = '<div class="' + o.cls + ' rounded-lg h-24 flex items-center justify-center text-[11px] text-gray-400 mb-1" data-logo="1">logo</div>' +
-              '<p class="text-[11px] text-gray-400 text-center">' + o.lbl + '</p>';
+            var frame = document.createElement('div');
+            frame.className = o.cls + ' rounded-lg h-24 flex items-center justify-center overflow-hidden mb-1 cursor-zoom-in';
+            var limg = document.createElement('img');
+            limg.alt = esc(o.v.label);
+            limg.className = 'max-h-20 w-auto max-w-full';
+            limg.setAttribute('data-logo', '1');
+            frame.appendChild(limg);
+            frame.addEventListener('click', function () {
+              if (limg.src) { $('zoom-img').src = limg.src; $('zoom').classList.remove('hidden'); }
+            });
+            cell.appendChild(frame);
+            var cap = document.createElement('p');
+            cap.className = 'text-[11px] text-gray-400 text-center';
+            cap.textContent = o.lbl;
+            cell.appendChild(cap);
             grid.appendChild(cell);
+            if (o.v.hasMedia || MOCK) loadPhoto(o.v, limg);
           });
           // Each variant keeps its own decision controls.
           pair.forEach(function (a) { card.appendChild(renderDecisionBlock(a, true)); });
@@ -485,6 +519,23 @@
           pc.className = 'text-[11px] text-gray-500 mt-1'; pc.textContent = 'Photo: ' + a.photoCredit;
           card.appendChild(pc);
         }
+      } else if (a.type === 'logo') {
+        // Same signed-URL image flow as a photo, but framed on the background the
+        // logo is meant for (white vs charcoal) so an on-white logo isn't invisible.
+        var onDark = isDark(a.label);
+        var frame = document.createElement('div');
+        frame.className = (onDark ? 'swatch-black' : 'swatch-white') +
+          ' rounded-lg mt-2 p-4 flex items-center justify-center overflow-hidden';
+        var logoImg = document.createElement('img');
+        logoImg.alt = esc(a.label);
+        logoImg.className = 'max-h-40 w-auto max-w-full cursor-zoom-in';
+        logoImg.setAttribute('data-logo', '1');
+        logoImg.addEventListener('click', function () {
+          if (logoImg.src) { $('zoom-img').src = logoImg.src; $('zoom').classList.remove('hidden'); }
+        });
+        frame.appendChild(logoImg);
+        card.appendChild(frame);
+        if (a.hasMedia || MOCK) loadPhoto(a, logoImg);
       } else if (a.type === 'copy') {
         var copy = document.createElement('p');
         copy.className = 'text-sm text-gray-200 leading-relaxed mt-2 whitespace-pre-wrap';
@@ -664,6 +715,48 @@
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // RENDER — band-manager package list (no ?pkg= token). Every row links to
+    // ?pkg=<token> on this same page; RLS already limited what we may see.
+    // ══════════════════════════════════════════════════════════════════════
+    function renderPackageList(list) {
+      $('gate').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      $('sticky').classList.add('hidden');     // no per-item progress in list mode
+      $('jump-next').classList.add('hidden');
+      $('brand-groups').classList.add('hidden');
+      $('pkg-title').textContent = 'Press Packages';
+      $('pkg-sub').textContent = (list && list.length) ? 'Choose a package to open.' : '';
+
+      var host = $('bm-view'); host.classList.remove('hidden'); host.innerHTML = '';
+
+      if (!list || !list.length) {
+        host.innerHTML = '<div class="mt-6 bg-panel border border-edge rounded-2xl p-6 text-center">' +
+          '<p class="text-sm text-gray-300">No press packages yet.</p>' +
+          '<p class="text-[12px] text-gray-500 mt-1">When one is ready for review, it will show up here.</p></div>';
+        return;
+      }
+
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-4 space-y-2';
+      list.forEach(function (p) {
+        var href = '?pkg=' + encodeURIComponent(p.pkg_token) + (MOCK ? '&mock=bm' : '');
+        var a = document.createElement('a');
+        a.href = href;
+        a.className = 'block bg-panel border border-edge rounded-2xl p-4 active:bg-ink/60';
+        a.innerHTML =
+          '<div class="flex items-center justify-between gap-3">' +
+            '<div class="min-w-0">' +
+              '<p class="text-sm font-semibold text-white truncate">' + esc(p.title || 'Untitled package') + '</p>' +
+              '<p class="text-[12px] text-gold truncate">' + brandName(p.brand) + '</p>' +
+            '</div>' +
+            '<span class="shrink-0 text-[11px] font-semibold text-gray-300">' + esc(pkgStatusPlain(p.status)) + '</span>' +
+          '</div>';
+        wrap.appendChild(a);
+      });
+      host.appendChild(wrap);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // BOOT
     // ══════════════════════════════════════════════════════════════════════
     function showApp(data) {
@@ -691,31 +784,54 @@
         });
     }
 
+    function noTokenArtistMsg() {
+      gateMsg('<p class="text-sm text-gray-400">Open the review link the band manager sent you — it includes the package it should show.</p>');
+    }
+
     function start() {
       var token = qp('pkg');
 
       if (MOCK) {
+        // BM with no token → the list; otherwise the single-package view.
+        if (!token && mockRole === 'bm') {
+          renderPackageList(mockPackageList());
+          $('sign-out').addEventListener('click', function () { location.reload(); });
+          return;
+        }
         var data = mockRole === 'bm' ? mockBm() : mockArtist();
         showApp(data);
         $('sign-out').addEventListener('click', function () { location.reload(); });
         return;
       }
-      if (!token) {
-        gateMsg('<p class="text-sm text-gray-400">Open the review link the band manager sent you — it includes the package it should show.</p>');
-        return;
-      }
 
       sb.auth.getSession().then(function (res) {
         var session = res && res.data ? res.data.session : null;
-        if (!session || !session.user) { showSignIn(token); return; }
+        if (!session || !session.user) {
+          // Auth gate stays intact. With a token, sign in to review it; without
+          // one, an unauthenticated visitor is treated as the artist default
+          // (a manager reaches this page already signed in, via the dashboard).
+          if (token) showSignIn(token); else noTokenArtistMsg();
+          return;
+        }
         sb.from('users').select('role, status').eq('id', session.user.id).maybeSingle()
           .then(function (q) {
             var row = q && q.data ? q.data : null;
             if (!row || (row.status && row.status !== 'approved')) { showDenied(); return; }
-            if (ALLOWED.indexOf(row.role) !== -1) loadForRole(row.role, token); else showDenied();
+            if (ALLOWED.indexOf(row.role) === -1) { showDenied(); return; }
+            if (token) { loadForRole(row.role, token); return; }
+            // No token: managers/admins get their list; artists keep the message.
+            if (BM_ROLES.indexOf(row.role) !== -1) {
+              loadPackageList()
+                .then(function (list) { renderPackageList(list); wireSignOut(); })
+                .catch(function () {
+                  gateMsg('<p class="text-sm text-gray-400">Your packages couldn’t be loaded right now. Please try again.</p>');
+                });
+            } else {
+              noTokenArtistMsg();
+            }
           })
           .catch(function () { showDenied(); });
-      }).catch(function () { showSignIn(token); });
+      }).catch(function () { if (token) showSignIn(token); else noTokenArtistMsg(); });
     }
 
     function showSignIn(token) {
@@ -749,17 +865,25 @@
     function mockArtist() {
       return {
         role: 'artist',
-        pkg: { token: 'demo', title: 'City Winery — Chicago', venue: 'City Winery Chicago', eventDate: 'Thu Nov 5, 2026', status: 'in review' },
+        pkg: { token: 'demo', title: 'Fall 2026 Press Package', venue: 'Partner venue', eventDate: 'Fall 2026', status: 'in review' },
         artifacts: [
-          { id: 'pa_1', type: 'photo', label: 'Hero portrait', placement: 'Event page hero', destinationVenue: 'City Winery Chicago', brand: 'phyllis-hyman-tribute', version: 1, state: 'pending', copyText: null, usageRights: 'Licensed for venue promotion', photoCredit: 'Jane Doe Photography', hasMedia: true, mockSrc: ph(700, 460, 'Hero portrait', '#161b22') },
+          { id: 'pa_1', type: 'photo', label: 'Hero portrait', placement: 'Event page hero', destinationVenue: null, brand: 'phyllis-hyman-tribute', version: 1, state: 'pending', copyText: null, usageRights: 'Licensed for venue promotion', photoCredit: 'Jane Doe Photography', hasMedia: true, mockSrc: ph(700, 460, 'Hero portrait', '#161b22') },
           { id: 'pa_2', type: 'photo', label: 'Band on stage', placement: 'Social', destinationVenue: null, brand: 'phyllis-hyman-tribute', version: 1, state: 'approved', usageRights: 'Cleared', photoCredit: 'GBE', hasMedia: true, mockSrc: ph(700, 460, 'Band on stage', '#12161c') },
-          { id: 'pa_3', type: 'copy', label: 'Show blurb', placement: 'Email', destinationVenue: 'City Winery Chicago', brand: 'phyllis-hyman-tribute', version: 2, state: 'pending', copyText: 'L.A. Young’s Phyllis Hyman Tribute brings the songbook of a soul legend to the City Winery stage — a full evening of the arrangements audiences remember.', priorReason: 'Please lead with the tribute, not the venue.', priorDate: 'Sep 9, 2026' },
-          { id: 'pa_4', type: 'logo', label: 'Primary lockup (on white)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true },
-          { id: 'pa_5', type: 'logo', label: 'Primary lockup (on black)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true },
+          { id: 'pa_3', type: 'copy', label: 'Show blurb', placement: 'Email', destinationVenue: null, brand: 'phyllis-hyman-tribute', version: 2, state: 'pending', copyText: 'L.A. Young’s Phyllis Hyman Tribute brings the songbook of a soul legend to the stage — a full evening of the arrangements audiences remember.', priorReason: 'Please lead with the tribute, not the venue.', priorDate: 'Sep 9, 2026' },
+          { id: 'pa_4', type: 'logo', label: 'Primary lockup (on white)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true, mockSrc: ph(360, 140, 'Soul Society™', 'transparent') },
+          { id: 'pa_5', type: 'logo', label: 'Primary lockup (on black)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true, mockSrc: ph(360, 140, 'Soul Society™', 'transparent') },
+          { id: 'pa_8', type: 'logo', label: 'Icon mark (on white)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true, mockSrc: ph(240, 200, 'GB', 'transparent') },
           { id: 'pa_6', type: 'audio', label: 'Live medley (2:30)', placement: 'Press listen', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true },
           { id: 'pa_7', type: 'video', label: 'Sizzle reel', placement: 'Event page', brand: 'soul-society', version: 1, state: 'approved', hasMedia: true }
         ]
       };
+    }
+    function mockPackageList() {
+      return [
+        { pkg_token: 'demo',  title: 'Fall 2026 Press Package',    status: 'in_review', brand: 'phyllis-hyman-tribute' },
+        { pkg_token: 'demo2', title: 'Winter Residency Press Kit', status: 'ready',     brand: 'soul-society' },
+        { pkg_token: 'demo3', title: 'Spring Tour Announcement',   status: 'draft',     brand: null }
+      ];
     }
     function mockBm() {
       var d = mockArtist(); d.role = 'bm';
