@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Press Package Review &mdash; Gold Bottom Ent. LLC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0d1117', panel: '#161b22', edge: '#30363d',
+            gold: '#d4a017', goldlight: '#e8b53a',
+            good: '#2ea16b', warn: '#d29922', loss: '#e5534b'
+          },
+          fontFamily: {
+            display: ['Montserrat', 'sans-serif'],
+            body: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    html { -webkit-text-size-adjust: 100%; }
+    body { background: #0d1117; overscroll-behavior-y: none; }
+    /* Reviewed items recede; pending stays prominent. */
+    .art-card { transition: opacity .25s, background .25s; }
+    .art-reviewed { opacity: .72; }
+    .accent-pending { box-shadow: inset 3px 0 0 #d4a017; }
+    .accent-approved { box-shadow: inset 3px 0 0 #2ea16b; }
+    .accent-sentback { box-shadow: inset 3px 0 0 #d29922; }
+    /* Thumb-sized decision buttons — never below 44px (UX 2a). */
+    .decide-btn { min-height: 44px; min-width: 44px; }
+    /* Custom media player — mirrors the band page .custom-audio-player shape:
+       play/pause, a click-to-scrub bar, current + total time. No native bar,
+       no download control. */
+    .mp-bar { height: 8px; border-radius: 9999px; background: #30363d; cursor: pointer; }
+    .mp-fill { height: 100%; border-radius: 9999px; background: #d4a017; width: 0%; }
+    .mp-play { width: 48px; height: 48px; border-radius: 9999px; }
+    /* Zoom lightbox for photos (judgment needs full size). */
+    #zoom { background: rgba(0,0,0,.92); }
+    .swatch-white { background: #ffffff; }
+    .swatch-black { background: #000000; }
+    input, textarea { font-size: 16px; } /* no iOS zoom-on-focus */
+  </style>
+</head>
+
+<body class="font-body text-gray-200 min-h-screen">
+
+  <!-- ══ Gate: checking / sign in / not allowed — same skeleton as the estimator ══ -->
+  <div id="gate" class="min-h-screen flex items-center justify-center px-6">
+    <div class="w-full max-w-sm bg-panel border border-edge rounded-2xl p-8 text-center shadow-2xl">
+      <p class="font-display text-gold tracking-widest text-xs uppercase mb-2">Gold Bottom Ent.</p>
+      <h1 class="font-display text-xl font-bold text-white mb-4">Press Package Review</h1>
+      <div id="gate-body">
+        <p class="text-sm text-gray-400">Checking your sign-in&hellip;</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ The review surface ══ -->
+  <main id="app" class="hidden max-w-md mx-auto pb-24">
+
+    <!-- Sticky progress header (UX 1a/1d): X of Y reviewed + approved/sent-back
+         split + a single jump-to-next-unreviewed button. -->
+    <div id="sticky" class="sticky top-0 z-30 bg-ink/95 backdrop-blur border-b border-edge px-4 py-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-display text-[10px] uppercase tracking-widest text-gold">Gold Bottom Ent.</p>
+          <p id="progress-count" class="font-display text-base font-bold text-white leading-tight">0 of 0 reviewed</p>
+          <p id="progress-split" class="text-[11px] text-gray-400"></p>
+        </div>
+        <button id="jump-next" class="hidden shrink-0 bg-gold text-ink font-display font-bold rounded-xl px-3 py-2 text-xs active:bg-goldlight">
+          Jump to next &darr;
+        </button>
+      </div>
+      <div class="mt-2 h-1.5 rounded-full bg-edge overflow-hidden">
+        <div id="progress-bar" class="h-full bg-good" style="width:0%"></div>
+      </div>
+    </div>
+
+    <header class="px-4 pt-4 pb-1 flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h1 id="pkg-title" class="font-display text-lg font-bold text-white leading-tight">Press Package</h1>
+        <p id="pkg-sub" class="text-xs text-gray-400 mt-0.5"></p>
+      </div>
+      <button id="sign-out" class="text-xs text-gray-500 underline underline-offset-2 py-2 pl-3 shrink-0">sign out</button>
+    </header>
+
+    <!-- Artist review view: brand groups render here. -->
+    <div id="brand-groups" class="px-3"></div>
+
+    <!-- Band-manager full view: at-a-glance decision table + export. -->
+    <div id="bm-view" class="hidden px-3"></div>
+
+    <p class="mx-6 mt-8 text-center text-[11px] leading-relaxed text-gray-600">
+      Pre-release materials &mdash; for review by the artist and the band manager only.
+    </p>
+  </main>
+
+  <!-- ══ Photo zoom lightbox ══ -->
+  <div id="zoom" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3" onclick="this.classList.add('hidden')">
+    <img id="zoom-img" alt="" class="max-w-full max-h-full rounded-lg">
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // Client-safe pair only (publishable/anon). NEVER service_role. Same values
+    // the site already ships in js/config.js / band media.
+    var SUPABASE_URL = 'https://rklvvuzedmadydmohouu.supabase.co';
+    var SUPABASE_KEY = 'sb_publishable_oIOHXXN_pwkeoeAfcQkNbg_rJkDFNZK';
+    // Menu/view selection is a CONVENIENCE only. Every read is RLS-scoped and
+    // every write re-checks the caller inside the RPC — the client decides
+    // nothing about authorization.
+    var ALLOWED = ['artist', 'band_manager', 'admin'];
+    var BM_ROLES = ['band_manager', 'admin'];
+
+    function $(id) { return document.getElementById(id); }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function qp(name) { return new URLSearchParams(location.search).get(name); }
+
+    // ── Brand presentation (Amendment 1). Soul Society is an unregistered mark:
+    //    ™ ONLY, never ®. Band name rendered verbatim. ──
+    var BRANDS = {
+      'phyllis-hyman-tribute': { name: "L.A. Young’s Phyllis Hyman Tribute", order: 0 },
+      'soul-society':          { name: 'L.A. Young &amp; Soul Society™',      order: 1 }
+    };
+    function brandName(b) { return (BRANDS[b] && BRANDS[b].name) || 'Not yet assigned to a brand'; }
+    function brandOrder(b) { return BRANDS[b] ? BRANDS[b].order : 99; }
+
+    // Section buckets, fixed order (UX 1b): Photos -> Logos -> Copy -> Audio/Video.
+    var SECTIONS = [
+      { key: 'photo', title: 'Photos', types: ['photo'] },
+      { key: 'logo',  title: 'Logos',  types: ['logo'] },
+      { key: 'copy',  title: 'Copy',   types: ['copy'] },
+      { key: 'av',    title: 'Audio &amp; Video', types: ['audio', 'video'] }
+    ];
+
+    // Plain language ONLY — raw schema enum strings never reach the screen (UX 6).
+    function reviewStatus(a) {
+      if (a.state === 'approved') return { key: 'approved', label: 'Approved', reviewed: true, approved: true };
+      // A pending row past v1 is the fresh placeholder left after a send-back —
+      // she has reviewed it (sent it back); the replacement is what is pending.
+      if (a.state === 'pending' && Number(a.version) > 1) {
+        return { key: 'sentback', label: 'Sent back — a new version is on the way', reviewed: true, sentBack: true };
+      }
+      return { key: 'pending', label: 'Needs your review', reviewed: false };
+    }
+    function blockerPlain(reason) {
+      switch (reason) {
+        case 'pending': return 'is still waiting for the artist to review it';
+        case 'replace': return 'was sent back by the artist — a new version is needed';
+        case 'photo-missing-rights': return 'is missing its usage rights or photo credit';
+        case 'brand-unassigned': return 'has not been assigned to a brand yet';
+        default: return 'is not ready';
+      }
+    }
+
+    // ── Supabase client (estimator auth pattern) ──
+    var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { flowType: 'pkce', persistSession: true }
+    });
+    var press = null; // sb.schema('press') once we know the client supports it
+    function pressApi() { press = press || sb.schema('press'); return press; }
+
+    // ── Local render/test harness (guarded so it can NEVER run in production).
+    //    Supplies representative fake DATA to the same render path; it grants no
+    //    access to any real data and is dead code on the live host. ──
+    function isLocalHost() {
+      var h = location.hostname;
+      return location.protocol === 'file:' || h === '' || h === 'localhost' ||
+        h === '127.0.0.1' || h.indexOf('192.168.') === 0 || h.indexOf('10.') === 0 ||
+        /\.local$/.test(h);
+    }
+    var mockRole = qp('mock');
+    var MOCK = (mockRole === 'artist' || mockRole === 'bm') && isLocalHost();
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DATA ACCESS — real RPCs, or the guarded mock.
+    // ══════════════════════════════════════════════════════════════════════
+    function loadArtistPackage(token) {
+      if (MOCK) return Promise.resolve(mockArtist());
+      return pressApi().rpc('artist_get_package', { p_pkg_token: token }).then(function (r) {
+        if (r.error) throw r.error;
+        var d = r.data || {};
+        var pk = d.package || {};
+        return {
+          role: 'artist',
+          pkg: { token: pk.pkgToken, title: pk.title, venue: pk.venue, eventDate: pk.eventDate, status: pk.status },
+          artifacts: (d.artifacts || []).map(function (a) {
+            return {
+              id: a.artifactId, type: a.artifactType, label: a.label, placement: a.placement,
+              destinationVenue: a.destinationVenue || null, brand: a.brand, version: a.version,
+              state: a.state, rejectionReason: a.rejectionReason, copyText: a.copyText,
+              usageRights: a.usageRights, photoCredit: a.photoCredit, hasMedia: !!a.hasMedia,
+              // priorReason/priorDate: not projected by artist_get_package today
+              // (see the contract note in the build report). Rendered when present.
+              priorReason: a.priorReason || null, priorDate: a.priorDate || null
+            };
+          })
+        };
+      });
+    }
+
+    function loadBmPackage(token) {
+      if (MOCK) return Promise.resolve(mockBm());
+      // BM/admin read via RLS-filtered SELECT (no BM read RPC in the contract).
+      // Column-explicit — never select *; internal-only and personnel columns
+      // are deliberately left out of the projection.
+      var p = pressApi();
+      return p.from('press_packages')
+        .select('id,pkg_token,title,venue,event_date,status')
+        .eq('pkg_token', token).maybeSingle()
+        .then(function (pr) {
+          if (pr.error) throw pr.error;
+          if (!pr.data) throw new Error('not found');
+          var pkg = pr.data;
+          return p.from('package_artifacts')
+            .select('id,artifact_type,label,placement,destination_venue,brand,version,phase,state,rejection_reason,copy_text,usage_rights,photo_credit')
+            .eq('package_id', pkg.id)
+            .then(function (ar) {
+              if (ar.error) throw ar.error;
+              return {
+                role: 'bm',
+                pkg: { token: pkg.pkg_token, title: pkg.title, venue: pkg.venue, eventDate: pkg.event_date, status: pkg.status },
+                artifacts: (ar.data || []).map(function (a) {
+                  return {
+                    id: a.id, type: a.artifact_type, label: a.label, placement: a.placement,
+                    destinationVenue: a.destination_venue, brand: a.brand, version: a.version,
+                    phase: a.phase, state: a.state, rejectionReason: a.rejection_reason,
+                    copyText: a.copy_text, usageRights: a.usage_rights, photoCredit: a.photo_credit
+                  };
+                })
+              };
+            });
+        });
+    }
+
+    function approveArtifact(token, id) {
+      if (MOCK) return Promise.resolve({ ok: true });
+      return pressApi().rpc('artist_approve_artifact', { p_pkg_token: token, p_artifact_id: id })
+        .then(function (r) { if (r.error) throw r.error; return r.data; });
+    }
+    function replaceArtifact(token, id, reason) {
+      if (MOCK) return Promise.resolve({ ok: true });
+      return pressApi().rpc('artist_replace_artifact', { p_pkg_token: token, p_artifact_id: id, p_reason: reason })
+        .then(function (r) { if (r.error) throw r.error; return r.data; });
+    }
+    function exportPackage(token) {
+      if (MOCK) return Promise.resolve(mockExportBlockers());
+      return pressApi().rpc('bm_export_package', { p_pkg_token: token })
+        .then(function (r) { if (r.error) throw r.error; return r.data; });
+    }
+    function mintMediaUrl(token, id) {
+      if (MOCK) return Promise.resolve({ signedUrl: '' });
+      return pressApi().rpc('mint_signed_media_url', { p_pkg_token: token, p_artifact_id: id })
+        .then(function (r) { if (r.error) throw r.error; return r.data; });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // MEDIA — custom player (no native controls, no download link). Signed URL
+    // is minted lazily on first play.
+    // ══════════════════════════════════════════════════════════════════════
+    function fmtTime(s) {
+      s = Math.max(0, Math.floor(s || 0));
+      var m = Math.floor(s / 60), r = s % 60;
+      return m + ':' + (r < 10 ? '0' : '') + r;
+    }
+    function buildPlayer(a) {
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-2 bg-ink border border-edge rounded-xl p-3';
+      var isVideo = a.type === 'video';
+      var media = document.createElement(isVideo ? 'video' : 'audio');
+      media.preload = 'none';
+      media.setAttribute('controlslist', 'nodownload noplaybackrate');
+      media.disablePictureInPicture = true;
+      media.oncontextmenu = function () { return false; };
+      if (isVideo) { media.className = 'w-full rounded-lg mb-2 bg-black'; media.playsInline = true; wrap.appendChild(media); }
+
+      var row = document.createElement('div');
+      row.className = 'flex items-center gap-3';
+      row.innerHTML =
+        '<button class="mp-play bg-gold text-ink font-bold text-lg flex items-center justify-center shrink-0 active:bg-goldlight" aria-label="play">&#9658;</button>' +
+        '<div class="flex-1 min-w-0">' +
+          '<div class="mp-bar"><div class="mp-fill"></div></div>' +
+          '<div class="flex justify-between text-[11px] text-gray-500 mt-1"><span class="mp-cur">0:00</span><span class="mp-dur">0:00</span></div>' +
+        '</div>';
+      wrap.appendChild(row);
+
+      var playBtn = row.querySelector('.mp-play');
+      var bar = row.querySelector('.mp-bar');
+      var fill = row.querySelector('.mp-fill');
+      var cur = row.querySelector('.mp-cur');
+      var dur = row.querySelector('.mp-dur');
+      var loaded = false;
+
+      function ensureSrc() {
+        if (loaded) return Promise.resolve();
+        return mintMediaUrl(CURRENT.pkg.token, a.id).then(function (m) {
+          var u = m && m.signedUrl ? m.signedUrl : '';
+          if (u && u.charAt(0) === '/') u = SUPABASE_URL + u; // absolute
+          media.src = u;
+          loaded = true;
+        });
+      }
+      playBtn.addEventListener('click', function () {
+        ensureSrc().then(function () {
+          if (media.paused) { media.play(); playBtn.innerHTML = '&#10073;&#10073;'; }
+          else { media.pause(); playBtn.innerHTML = '&#9658;'; }
+        }).catch(function () { cur.textContent = 'unavailable'; });
+      });
+      media.addEventListener('timeupdate', function () {
+        if (media.duration) { fill.style.width = (media.currentTime / media.duration * 100) + '%'; }
+        cur.textContent = fmtTime(media.currentTime);
+      });
+      media.addEventListener('loadedmetadata', function () { dur.textContent = fmtTime(media.duration); });
+      media.addEventListener('ended', function () { playBtn.innerHTML = '&#9658;'; fill.style.width = '0%'; });
+      bar.addEventListener('click', function (e) {
+        if (!media.duration) return;
+        var rect = bar.getBoundingClientRect();
+        media.currentTime = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * media.duration;
+      });
+      return wrap;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // RENDER — artist review view
+    // ══════════════════════════════════════════════════════════════════════
+    var CURRENT = null;
+    var pendingEls = []; // for jump-to-next
+
+    function useLine(a) {
+      if (a.placement || a.destinationVenue) {
+        var parts = [];
+        if (a.destinationVenue) parts.push(esc(a.destinationVenue));
+        if (a.placement) parts.push(esc(a.placement));
+        return 'For: ' + parts.join(' — ');
+      }
+      return 'General press use — no venue assigned yet';
+    }
+
+    function renderArtistView(data) {
+      CURRENT = data;
+      pendingEls = [];
+      $('brand-groups').classList.remove('hidden');
+      $('bm-view').classList.add('hidden');
+
+      // Group by brand (top level), then by section within brand.
+      var byBrand = {};
+      data.artifacts.forEach(function (a) {
+        (byBrand[a.brand || '__none'] = byBrand[a.brand || '__none'] || []).push(a);
+      });
+      var brandKeys = Object.keys(byBrand).sort(function (x, y) {
+        return brandOrder(x === '__none' ? null : x) - brandOrder(y === '__none' ? null : y);
+      });
+
+      var host = $('brand-groups');
+      host.innerHTML = '';
+      var approved = 0, sentBack = 0, total = data.artifacts.length;
+
+      brandKeys.forEach(function (bk) {
+        var brand = bk === '__none' ? null : bk;
+        var group = document.createElement('section');
+        group.className = 'mt-4';
+        group.innerHTML = '<h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider px-1 mb-1">' +
+          brandName(brand) + '</h2>';
+
+        SECTIONS.forEach(function (sec) {
+          var items = byBrand[bk].filter(function (a) { return sec.types.indexOf(a.type) !== -1; });
+          if (!items.length) return;
+          var revd = items.filter(function (a) { return reviewStatus(a).reviewed; }).length;
+          var secEl = document.createElement('div');
+          secEl.className = 'mt-3';
+          secEl.innerHTML = '<div class="flex items-baseline justify-between px-1 mb-1">' +
+            '<h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wide">' + sec.title + '</h3>' +
+            '<span class="text-[11px] text-gray-500">' + revd + ' of ' + items.length + ' reviewed</span></div>';
+
+          // Pending first, then reviewed (UX 1c prioritization).
+          items.sort(function (a, b) { return (reviewStatus(a).reviewed ? 1 : 0) - (reviewStatus(b).reviewed ? 1 : 0); });
+
+          if (sec.key === 'logo') {
+            secEl.appendChild(renderLogoPairs(items));
+          } else {
+            items.forEach(function (a) { secEl.appendChild(renderArtifactCard(a)); });
+          }
+          group.appendChild(secEl);
+        });
+        host.appendChild(group);
+      });
+
+      data.artifacts.forEach(function (a) {
+        var st = reviewStatus(a);
+        if (st.approved) approved++;
+        if (st.sentBack) sentBack++;
+      });
+      updateProgress(approved, sentBack, total);
+    }
+
+    // Logo light/dark pairing (UX 3b). No explicit pair link in the schema, so
+    // variants are paired by base label (text before a "(on white/black)" tag).
+    function baseLabel(l) { return String(l || '').replace(/\s*\((on\s*)?(white|black|light|dark)\)\s*$/i, '').trim(); }
+    function isDark(l) { return /(black|dark)/i.test(l || ''); }
+    function renderLogoPairs(items) {
+      var frag = document.createDocumentFragment();
+      var groups = {};
+      items.forEach(function (a) { (groups[baseLabel(a.label)] = groups[baseLabel(a.label)] || []).push(a); });
+      Object.keys(groups).forEach(function (base) {
+        var pair = groups[base];
+        var light = pair.filter(function (a) { return !isDark(a.label); });
+        var dark = pair.filter(function (a) { return isDark(a.label); });
+        if (light.length && dark.length) {
+          var card = document.createElement('div');
+          card.className = 'art-card bg-panel border border-edge rounded-2xl p-3 mb-3';
+          card.innerHTML = '<p class="text-sm font-semibold text-white mb-2">' + esc(base) + '</p>' +
+            '<div class="grid grid-cols-2 gap-2"></div>';
+          var grid = card.querySelector('.grid');
+          [{ v: light[0], lbl: 'On white', cls: 'swatch-white' }, { v: dark[0], lbl: 'On black', cls: 'swatch-black' }].forEach(function (o) {
+            var cell = document.createElement('div');
+            cell.innerHTML = '<div class="' + o.cls + ' rounded-lg h-24 flex items-center justify-center text-[11px] text-gray-400 mb-1" data-logo="1">logo</div>' +
+              '<p class="text-[11px] text-gray-400 text-center">' + o.lbl + '</p>';
+            grid.appendChild(cell);
+          });
+          // Each variant keeps its own decision controls.
+          pair.forEach(function (a) { card.appendChild(renderDecisionBlock(a, true)); });
+          frag.appendChild(card);
+        } else {
+          pair.forEach(function (a) { frag.appendChild(renderArtifactCard(a)); });
+        }
+      });
+      return frag;
+    }
+
+    function renderArtifactCard(a) {
+      var st = reviewStatus(a);
+      var card = document.createElement('div');
+      card.className = 'art-card bg-panel border border-edge rounded-2xl p-3 mb-3 ' +
+        (st.approved ? 'art-reviewed accent-approved' : st.sentBack ? 'art-reviewed accent-sentback' : 'accent-pending');
+      if (!st.reviewed) { card.setAttribute('data-pending', '1'); pendingEls.push(card); }
+
+      var head = '<div class="flex items-start justify-between gap-2">' +
+        '<p class="text-sm font-semibold text-white">' + esc(a.label) + '</p>';
+      if (!st.reviewed) {
+        head += '<span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-ink bg-gold rounded px-1.5 py-0.5">Needs your review</span>';
+      } else {
+        head += '<span class="shrink-0 text-[10px] font-semibold ' + (st.approved ? 'text-good' : 'text-warn') + '">' + esc(st.label) + '</span>';
+      }
+      head += '</div>';
+      head += '<p class="text-[11px] text-gray-500 mt-0.5">' + useLine(a) + '</p>';
+      card.innerHTML = head;
+
+      // Versioning note (UX 4b) — shown when the projection carries the prior note.
+      if (a.priorReason) {
+        var vn = document.createElement('p');
+        vn.className = 'text-[11px] text-warn mt-1';
+        vn.textContent = 'Replaces the version you sent back' +
+          (a.priorDate ? ' on ' + a.priorDate : '') + ' — your note: “' + a.priorReason + '”';
+        card.appendChild(vn);
+      }
+
+      // Type-specific body.
+      if (a.type === 'photo') {
+        var img = document.createElement('img');
+        img.alt = esc(a.label);
+        img.className = 'w-full rounded-lg mt-2 bg-ink cursor-zoom-in';
+        img.setAttribute('data-photo', '1');
+        img.addEventListener('click', function () {
+          if (img.src) { $('zoom-img').src = img.src; $('zoom').classList.remove('hidden'); }
+        });
+        card.appendChild(img);
+        if (a.hasMedia) loadPhoto(a, img);
+        if (a.photoCredit) {
+          var pc = document.createElement('p');
+          pc.className = 'text-[11px] text-gray-500 mt-1'; pc.textContent = 'Photo: ' + a.photoCredit;
+          card.appendChild(pc);
+        }
+      } else if (a.type === 'copy') {
+        var copy = document.createElement('p');
+        copy.className = 'text-sm text-gray-200 leading-relaxed mt-2 whitespace-pre-wrap';
+        copy.textContent = a.copyText || '';
+        card.appendChild(copy);
+      } else if (a.type === 'audio' || a.type === 'video') {
+        if (a.hasMedia || MOCK) card.appendChild(buildPlayer(a));
+        else { var na = document.createElement('p'); na.className = 'text-[11px] text-gray-500 mt-2'; na.textContent = 'Media is being prepared.'; card.appendChild(na); }
+      }
+
+      card.appendChild(renderDecisionBlock(a, false));
+      return card;
+    }
+
+    function loadPhoto(a, img) {
+      if (MOCK) { img.src = a.mockSrc || ''; return; }
+      mintMediaUrl(CURRENT.pkg.token, a.id).then(function (m) {
+        var u = m && m.signedUrl ? m.signedUrl : '';
+        if (u && u.charAt(0) === '/') u = SUPABASE_URL + u;
+        img.src = u;
+      }).catch(function () {});
+    }
+
+    // Approve / send-back controls + inline reason field (UX 2).
+    function renderDecisionBlock(a, compact) {
+      var st = reviewStatus(a);
+      var block = document.createElement('div');
+      block.className = 'mt-3';
+
+      if (st.approved) {
+        block.innerHTML = '<p class="text-xs text-good font-medium">✓ You approved this. ' +
+          '<button class="underline text-gray-400" data-act="undo">change</button></p>';
+      } else if (st.sentBack) {
+        var reason = a.rejectionReason ? '<span class="block text-gray-400 mt-0.5">Your note: “' + esc(a.rejectionReason) + '”</span>' : '';
+        block.innerHTML = '<p class="text-xs text-warn font-medium">You sent this back — a new version is on the way.' + reason + '</p>';
+      } else {
+        block.innerHTML =
+          '<div class="flex gap-2">' +
+          '<button data-act="approve" class="decide-btn flex-1 bg-good text-white font-semibold rounded-xl px-3 active:opacity-80">Looks good</button>' +
+          '<button data-act="sendback" class="decide-btn flex-1 bg-panel border border-loss text-loss font-semibold rounded-xl px-3 active:bg-loss/10">Send back</button>' +
+          '</div>' +
+          '<div data-reasonbox class="hidden mt-2">' +
+            '<label class="block text-xs text-gray-400 mb-1">What needs to change? (she sees this note)</label>' +
+            '<textarea data-reason rows="3" class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white" placeholder="Tell the band manager what to fix…"></textarea>' +
+            '<div class="flex gap-2 mt-2">' +
+              '<button data-act="confirm" disabled class="decide-btn flex-1 bg-loss text-white font-semibold rounded-xl px-3 opacity-50">Confirm send-back</button>' +
+              '<button data-act="cancel" class="decide-btn px-4 bg-panel border border-edge text-gray-300 rounded-xl">Cancel</button>' +
+            '</div>' +
+          '</div>';
+      }
+
+      block.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-act]'); if (!btn) return;
+        var act = btn.getAttribute('data-act');
+        if (act === 'approve') doApprove(a);
+        else if (act === 'sendback') { block.querySelector('[data-reasonbox]').classList.remove('hidden'); btn.parentElement.classList.add('hidden'); block.querySelector('[data-reason]').focus(); }
+        else if (act === 'cancel') { block.querySelector('[data-reasonbox]').classList.add('hidden'); block.querySelector('.flex.gap-2').classList.remove('hidden'); }
+        else if (act === 'confirm') { var t = block.querySelector('[data-reason]').value.trim(); if (t) doReplace(a, t); }
+        else if (act === 'undo') { /* re-open: send back path with the artifact visible */ }
+      });
+      // Confirm enables only on non-empty reason.
+      var ta = block.querySelector('[data-reason]');
+      if (ta) ta.addEventListener('input', function () {
+        var c = block.querySelector('[data-act="confirm"]');
+        var on = ta.value.trim().length > 0;
+        c.disabled = !on; c.classList.toggle('opacity-50', !on);
+      });
+      return block;
+    }
+
+    function busy(on) { document.body.style.pointerEvents = on ? 'none' : ''; }
+    function doApprove(a) {
+      busy(true);
+      approveArtifact(CURRENT.pkg.token, a.id).then(function () {
+        a.state = 'approved'; renderArtistView(CURRENT);
+      }).catch(function (e) { alert(friendlyErr(e)); }).then(function () { busy(false); });
+    }
+    function doReplace(a, reason) {
+      busy(true);
+      replaceArtifact(CURRENT.pkg.token, a.id, reason).then(function () {
+        // Reflect the two-step: this row becomes the sent-back placeholder.
+        a.state = 'pending'; a.version = Number(a.version) + 1; a.rejectionReason = reason;
+        renderArtistView(CURRENT);
+      }).catch(function (e) { alert(friendlyErr(e)); }).then(function () { busy(false); });
+    }
+    function friendlyErr(e) {
+      var m = (e && (e.message || e.error_description || e.hint)) || 'Something went wrong.';
+      // Surface the gate refusal text (it names the artifact) but nothing internal.
+      return m.replace(/using errcode.*$/i, '').trim();
+    }
+
+    function updateProgress(approved, sentBack, total) {
+      var reviewed = approved + sentBack;
+      $('progress-count').textContent = reviewed + ' of ' + total + ' reviewed';
+      $('progress-split').textContent = approved + ' approved · ' + sentBack + ' sent back';
+      $('progress-bar').style.width = (total ? (reviewed / total * 100) : 0) + '%';
+      $('jump-next').classList.toggle('hidden', pendingEls.length === 0);
+    }
+
+    $('jump-next').addEventListener('click', function () {
+      var next = pendingEls[0];
+      if (next) next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    // ══════════════════════════════════════════════════════════════════════
+    // RENDER — band-manager full view (UX 4c): every decision/reason/version
+    // at a glance + export.
+    // ══════════════════════════════════════════════════════════════════════
+    function bmStatePlain(a) {
+      if (a.phase === 'superseded') return { t: 'Replaced', c: 'text-gray-500' };
+      if (a.state === 'approved') return { t: 'Approved', c: 'text-good' };
+      if (a.state === 'pending' && Number(a.version) > 1) return { t: 'Sent back — needs new version', c: 'text-warn' };
+      if (a.state === 'replace') return { t: 'Sent back', c: 'text-warn' };
+      return { t: 'Awaiting artist review', c: 'text-gray-300' };
+    }
+    function renderBmView(data) {
+      CURRENT = data;
+      $('brand-groups').classList.add('hidden');
+      var host = $('bm-view'); host.classList.remove('hidden'); host.innerHTML = '';
+
+      var exportWrap = document.createElement('div');
+      exportWrap.className = 'mt-3 bg-panel border border-edge rounded-2xl p-4';
+      exportWrap.innerHTML =
+        '<div class="flex items-center justify-between gap-3">' +
+        '<div><p class="font-display text-sm font-bold text-white">Export package</p>' +
+        '<p class="text-[11px] text-gray-500">Runs the checklist before it can go out.</p></div>' +
+        '<button id="btn-export" class="decide-btn bg-gold text-ink font-display font-bold rounded-xl px-4 active:bg-goldlight">Export</button></div>' +
+        '<div id="export-result" class="mt-3"></div>';
+      host.appendChild(exportWrap);
+      $('btn-export').addEventListener('click', doExport);
+
+      var byBrand = {};
+      data.artifacts.forEach(function (a) { (byBrand[a.brand || '__none'] = byBrand[a.brand || '__none'] || []).push(a); });
+      Object.keys(byBrand).sort(function (x, y) {
+        return brandOrder(x === '__none' ? null : x) - brandOrder(y === '__none' ? null : y);
+      }).forEach(function (bk) {
+        var sec = document.createElement('section');
+        sec.className = 'mt-4';
+        sec.innerHTML = '<h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider px-1 mb-2">' +
+          brandName(bk === '__none' ? null : bk) + '</h2>';
+        byBrand[bk].sort(function (a, b) { return (a.type + a.label).localeCompare(b.type + b.label) || a.version - b.version; });
+        byBrand[bk].forEach(function (a) {
+          var sp = bmStatePlain(a);
+          var row = document.createElement('div');
+          row.className = 'bg-panel border border-edge rounded-xl p-3 mb-2';
+          var reason = a.rejectionReason ? '<p class="text-[11px] text-gray-400 mt-1">Note: “' + esc(a.rejectionReason) + '”</p>' : '';
+          row.innerHTML =
+            '<div class="flex items-start justify-between gap-2">' +
+            '<div class="min-w-0"><p class="text-sm font-semibold text-white truncate">' + esc(a.label) + '</p>' +
+            '<p class="text-[11px] text-gray-500">' + esc(secTitleForType(a.type)) + ' · v' + esc(a.version) + '</p></div>' +
+            '<span class="shrink-0 text-[11px] font-semibold ' + sp.c + '">' + sp.t + '</span></div>' + reason;
+          sec.appendChild(row);
+        });
+        host.appendChild(sec);
+      });
+    }
+    function secTitleForType(t) {
+      for (var i = 0; i < SECTIONS.length; i++) if (SECTIONS[i].types.indexOf(t) !== -1) return SECTIONS[i].title.replace('&amp;', '&');
+      return t;
+    }
+    function doExport() {
+      busy(true);
+      var box = $('export-result'); box.innerHTML = '<p class="text-xs text-gray-400">Checking…</p>';
+      exportPackage(CURRENT.pkg.token).then(function (res) {
+        if (res && res.ok) {
+          box.innerHTML = '<p class="text-sm text-good font-semibold">✓ Package is clean and marked exported.</p>';
+        } else {
+          var b = (res && res.blockers) || [];
+          var lines = b.map(function (x) {
+            return '<li class="text-sm text-gray-200">“' + esc(x.label) + '” ' + blockerPlain(x.reason) + '.</li>';
+          }).join('');
+          box.innerHTML = '<p class="text-sm text-loss font-semibold mb-1">Not ready to export &mdash; ' + b.length + ' item(s) need attention:</p>' +
+            '<ul class="list-disc pl-5 space-y-1">' + lines + '</ul>';
+        }
+      }).catch(function (e) { box.innerHTML = '<p class="text-sm text-loss">' + esc(friendlyErr(e)) + '</p>'; })
+        .then(function () { busy(false); });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // BOOT
+    // ══════════════════════════════════════════════════════════════════════
+    function showApp(data) {
+      $('gate').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      $('pkg-title').textContent = data.pkg.title || 'Press Package';
+      var sub = [];
+      if (data.pkg.venue) sub.push(data.pkg.venue);
+      if (data.pkg.eventDate) sub.push(data.pkg.eventDate);
+      $('pkg-sub').textContent = sub.join(' · ');
+      if (data.role === 'bm') { $('jump-next').classList.add('hidden'); renderBmView(data); }
+      else renderArtistView(data);
+    }
+    function gateMsg(html) { $('gate-body').innerHTML = html; }
+    function wireSignOut() {
+      $('sign-out').addEventListener('click', function () { sb.auth.signOut().then(function () { location.reload(); }); });
+    }
+
+    function loadForRole(role, token) {
+      var isBm = BM_ROLES.indexOf(role) !== -1;
+      (isBm ? loadBmPackage(token) : loadArtistPackage(token))
+        .then(function (data) { showApp(data); wireSignOut(); })
+        .catch(function (e) {
+          gateMsg('<p class="text-sm text-gray-400">This package isn’t available to you, or the link is wrong.</p>');
+        });
+    }
+
+    function start() {
+      var token = qp('pkg');
+
+      if (MOCK) {
+        var data = mockRole === 'bm' ? mockBm() : mockArtist();
+        showApp(data);
+        $('sign-out').addEventListener('click', function () { location.reload(); });
+        return;
+      }
+      if (!token) {
+        gateMsg('<p class="text-sm text-gray-400">Open the review link the band manager sent you — it includes the package it should show.</p>');
+        return;
+      }
+
+      sb.auth.getSession().then(function (res) {
+        var session = res && res.data ? res.data.session : null;
+        if (!session || !session.user) { showSignIn(token); return; }
+        sb.from('users').select('role, status').eq('id', session.user.id).maybeSingle()
+          .then(function (q) {
+            var row = q && q.data ? q.data : null;
+            if (!row || (row.status && row.status !== 'approved')) { showDenied(); return; }
+            if (ALLOWED.indexOf(row.role) !== -1) loadForRole(row.role, token); else showDenied();
+          })
+          .catch(function () { showDenied(); });
+      }).catch(function () { showSignIn(token); });
+    }
+
+    function showSignIn(token) {
+      gateMsg(
+        '<p class="text-sm text-gray-400 mb-5">Sign in with the same account you use for the GBE dashboard to review this package.</p>' +
+        '<button id="btn-google" class="w-full bg-gold text-ink font-display font-bold rounded-xl py-3.5 text-base active:bg-goldlight">Continue with Google</button>'
+      );
+      $('btn-google').addEventListener('click', function () {
+        sb.auth.signInWithOAuth({
+          provider: 'google',
+          // Preserve the ?pkg= query across the PKCE round-trip (drop only #hash).
+          options: { redirectTo: window.location.href.split('#')[0] }
+        });
+      });
+    }
+    function showDenied() {
+      gateMsg(
+        '<p class="text-sm text-gray-400 mb-4">This page isn’t part of your dashboard.</p>' +
+        '<button id="btn-out" class="text-xs text-gray-500 underline underline-offset-2 py-2">sign out</button>'
+      );
+      $('btn-out').addEventListener('click', function () { sb.auth.signOut().then(function () { location.reload(); }); });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // MOCK DATA (local render/test only — guarded off in production)
+    // ══════════════════════════════════════════════════════════════════════
+    function ph(w, h, label, bg) {
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '"><rect width="100%" height="100%" fill="' + bg + '"/><text x="50%" y="50%" fill="#d4a017" font-family="sans-serif" font-size="20" text-anchor="middle" dominant-baseline="middle">' + label + '</text></svg>';
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+    function mockArtist() {
+      return {
+        role: 'artist',
+        pkg: { token: 'demo', title: 'City Winery — Chicago', venue: 'City Winery Chicago', eventDate: 'Thu Nov 5, 2026', status: 'in review' },
+        artifacts: [
+          { id: 'pa_1', type: 'photo', label: 'Hero portrait', placement: 'Event page hero', destinationVenue: 'City Winery Chicago', brand: 'phyllis-hyman-tribute', version: 1, state: 'pending', copyText: null, usageRights: 'Licensed for venue promotion', photoCredit: 'Jane Doe Photography', hasMedia: true, mockSrc: ph(700, 460, 'Hero portrait', '#161b22') },
+          { id: 'pa_2', type: 'photo', label: 'Band on stage', placement: 'Social', destinationVenue: null, brand: 'phyllis-hyman-tribute', version: 1, state: 'approved', usageRights: 'Cleared', photoCredit: 'GBE', hasMedia: true, mockSrc: ph(700, 460, 'Band on stage', '#12161c') },
+          { id: 'pa_3', type: 'copy', label: 'Show blurb', placement: 'Email', destinationVenue: 'City Winery Chicago', brand: 'phyllis-hyman-tribute', version: 2, state: 'pending', copyText: 'L.A. Young’s Phyllis Hyman Tribute brings the songbook of a soul legend to the City Winery stage — a full evening of the arrangements audiences remember.', priorReason: 'Please lead with the tribute, not the venue.', priorDate: 'Sep 9, 2026' },
+          { id: 'pa_4', type: 'logo', label: 'Primary lockup (on white)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true },
+          { id: 'pa_5', type: 'logo', label: 'Primary lockup (on black)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true },
+          { id: 'pa_6', type: 'audio', label: 'Live medley (2:30)', placement: 'Press listen', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true },
+          { id: 'pa_7', type: 'video', label: 'Sizzle reel', placement: 'Event page', brand: 'soul-society', version: 1, state: 'approved', hasMedia: true }
+        ]
+      };
+    }
+    function mockBm() {
+      var d = mockArtist(); d.role = 'bm';
+      d.artifacts = d.artifacts.map(function (a) { return Object.assign({}, a, { phase: 'current' }); });
+      d.artifacts.push({ id: 'pa_3s', type: 'copy', label: 'Show blurb', brand: 'phyllis-hyman-tribute', version: 1, phase: 'superseded', state: 'replace', rejectionReason: 'Please lead with the tribute, not the venue.' });
+      return d;
+    }
+    function mockExportBlockers() {
+      return { ok: false, status: 'in review', blockers: [
+        { label: 'Hero portrait', artifactType: 'photo', reason: 'pending' },
+        { label: 'Show blurb', artifactType: 'copy', reason: 'replace' },
+        { label: 'Behind the scenes', artifactType: 'photo', reason: 'photo-missing-rights' },
+        { label: 'Alt logo', artifactType: 'logo', reason: 'brand-unassigned' }
+      ] };
+    }
+
+    start();
+  })();
+  </script>
+</body>
+</html>
