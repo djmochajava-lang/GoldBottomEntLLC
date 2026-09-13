@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- Public but unlisted: a shared kit link must never be indexed. -->
+  <meta name="robots" content="noindex, nofollow">
+  <title>Press Kit &mdash; Gold Bottom Ent. LLC</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0d1117', panel: '#161b22', edge: '#30363d',
+            gold: '#d4a017', goldlight: '#e8b53a',
+            good: '#2ea16b', warn: '#d29922', loss: '#e5534b'
+          },
+          fontFamily: {
+            display: ['Montserrat', 'sans-serif'],
+            body: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    html { -webkit-text-size-adjust: 100%; }
+    body { background: #0d1117; overscroll-behavior-y: none; }
+    .mp-bar { height: 8px; border-radius: 9999px; background: #30363d; cursor: pointer; }
+    .mp-fill { height: 100%; border-radius: 9999px; background: #d4a017; width: 0%; }
+    .mp-play { width: 48px; height: 48px; border-radius: 9999px; }
+    #zoom { background: rgba(0,0,0,.92); }
+    .swatch-white { background: #ffffff; }
+    .swatch-black { background: #000000; }
+  </style>
+</head>
+
+<body class="font-body text-gray-200 min-h-screen">
+
+  <!-- ══ State screen: loading / unavailable ══ -->
+  <div id="state" class="min-h-screen flex items-center justify-center px-6">
+    <div class="w-full max-w-sm bg-panel border border-edge rounded-2xl p-8 text-center shadow-2xl">
+      <p class="font-display text-gold tracking-widest text-xs uppercase mb-2">Gold Bottom Ent.</p>
+      <h1 class="font-display text-xl font-bold text-white mb-4">Press Kit</h1>
+      <div id="state-body"><p class="text-sm text-gray-400">Loading&hellip;</p></div>
+    </div>
+  </div>
+
+  <!-- ══ The kit ══ -->
+  <main id="kit" class="hidden max-w-md mx-auto pb-24">
+    <header class="px-4 pt-6 pb-2">
+      <p class="font-display text-[10px] uppercase tracking-widest text-gold">Gold Bottom Ent.</p>
+      <h1 id="kit-title" class="font-display text-xl font-bold text-white leading-tight mt-1">Press Kit</h1>
+    </header>
+
+    <!-- Download-all -->
+    <div class="px-4 mt-2">
+      <button id="dl-all" class="w-full bg-gold text-ink font-display font-bold rounded-2xl px-4 py-3 text-sm active:bg-goldlight">
+        Download all (ZIP)
+      </button>
+      <p id="dl-all-status" class="text-[11px] text-gray-500 mt-1 text-center"></p>
+    </div>
+
+    <div id="groups" class="px-3 mt-2"></div>
+
+    <p class="mx-6 mt-8 text-center text-[11px] leading-relaxed text-gray-600">
+      Provided by Gold Bottom Ent. LLC for press &amp; booking use.
+    </p>
+  </main>
+
+  <!-- ══ Photo zoom lightbox ══ -->
+  <div id="zoom" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3" onclick="this.classList.add('hidden')">
+    <img id="zoom-img" alt="" class="max-w-full max-h-full rounded-lg">
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // Client-safe pair only (publishable/anon). NEVER service_role.
+    var SUPABASE_URL = 'https://rklvvuzedmadydmohouu.supabase.co';
+    var SUPABASE_KEY = 'sb_publishable_oIOHXXN_pwkeoeAfcQkNbg_rJkDFNZK';
+    var FN_BASE = 'https://rklvvuzedmadydmohouu.functions.supabase.co';
+
+    function $(id) { return document.getElementById(id); }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function qp(name) { return new URLSearchParams(location.search).get(name); }
+
+    // Brand presentation. SOUL SOCIETY is an unregistered (intent-to-use) mark:
+    // ™ ONLY, never ®. Band name rendered verbatim.
+    var BRANDS = {
+      'phyllis-hyman-tribute': { name: "L.A. Young’s Phyllis Hyman Tribute", order: 0 },
+      'soul-society':          { name: 'L.A. Young &amp; Soul Society™',      order: 1 }
+    };
+    function brandName(b) { return (BRANDS[b] && BRANDS[b].name) || ''; }
+    function brandOrder(b) { return BRANDS[b] ? BRANDS[b].order : 99; }
+
+    // Section order: Photos -> Logos -> Copy -> Documents -> Audio/Video.
+    // Venue-neutral: NO venue or date is shown anywhere on this page.
+    var SECTIONS = [
+      { key: 'photo', title: 'Photos', types: ['photo'] },
+      { key: 'logo',  title: 'Logos',  types: ['logo'] },
+      { key: 'copy',  title: 'Copy',   types: ['copy'] },
+      { key: 'doc',   title: 'Documents', types: ['document'] },
+      { key: 'av',    title: 'Audio &amp; Video', types: ['audio', 'video'] }
+    ];
+
+    var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+    var press = null;
+    function pressApi() { press = press || sb.schema('press'); return press; }
+
+    // ── Local render/test harness (guarded; dead code on the live host). ──
+    function isLocalHost() {
+      var h = location.hostname;
+      return location.protocol === 'file:' || h === '' || h === 'localhost' ||
+        h === '127.0.0.1' || h.indexOf('192.168.') === 0 || h.indexOf('10.') === 0 || /\.local$/.test(h);
+    }
+    var MOCK = qp('mock') === '1' && isLocalHost();
+
+    var SHARE = qp('share');
+    var CURRENT = null;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // DATA — anon share_get_kit + share-authorized press-sign.
+    // ══════════════════════════════════════════════════════════════════════
+    // share_get_kit(p_share_token) -> { package:{ title, brand }, artifacts:[ ... ] }
+    // Returns ONLY approved + current-phase artifacts. No internal ids, no
+    // personnel, no PII. Revoked/expired/invalid tokens return nothing (or error)
+    // — both are treated as "link unavailable" with no enumeration oracle.
+    function loadKit(token) {
+      if (MOCK) return Promise.resolve(mockKit());
+      return pressApi().rpc('share_get_kit', { p_share_token: token }).then(function (r) {
+        if (r.error) throw r.error;
+        var d = r.data || {};
+        var pk = d.package || {};
+        var arts = d.artifacts || [];
+        if (!pk.title && !arts.length) throw new Error('unavailable');
+        return {
+          title: pk.title || 'Press Kit', brand: pk.brand || null,
+          artifacts: arts.map(function (a) {
+            return {
+              id: a.artifactId || a.id, type: a.artifactType || a.artifact_type, label: a.label,
+              placement: a.placement || null, brand: a.brand || pk.brand || null,
+              copyText: a.copyText || a.copy_text || null,
+              contentType: a.contentType || a.content_type || null,
+              photoCredit: a.photoCredit || a.photo_credit || null,
+              hasMedia: a.hasMedia != null ? !!a.hasMedia : (a.has_media != null ? !!a.has_media : true)
+            };
+          })
+        };
+      });
+    }
+    // press-sign, share-authorized: POST { shareToken, artifactId } -> { signedUrl }
+    function signMedia(artifactId) {
+      if (MOCK) return Promise.resolve({ signedUrl: '' });
+      return fetch(FN_BASE + '/press-sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        body: JSON.stringify({ shareToken: SHARE, artifactId: artifactId })
+      }).then(function (res) { if (!res.ok) throw new Error('sign failed'); return res.json(); });
+    }
+    // press-deliver, share-authorized: POST { shareToken } -> ZIP blob.
+    function deliverZip() {
+      return fetch(FN_BASE + '/press-deliver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        body: JSON.stringify({ shareToken: SHARE })
+      }).then(function (res) { if (!res.ok) throw new Error('download failed'); return res.blob(); });
+    }
+
+    function signedAbs(m) {
+      var u = m && m.signedUrl ? m.signedUrl : '';
+      if (u && u.charAt(0) === '/') u = SUPABASE_URL + u;
+      return u;
+    }
+    function triggerBlobDownload(blob, name) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }
+    function safeName(label, ext) {
+      var base = String(label || 'file').replace(/[^a-z0-9\-_. ]/gi, '').trim().replace(/\s+/g, '-') || 'file';
+      return base + (ext ? ('.' + ext) : '');
+    }
+    function extFor(a) {
+      if (a.type === 'document') return 'pdf';
+      if (a.type === 'copy') return 'txt';
+      if (a.type === 'audio') return 'mp3';
+      if (a.type === 'video') return 'mp4';
+      return '';
+    }
+    // Per-file download: fetch the signed URL as a blob then save with a clean
+    // name. Copy is saved as .txt from the text we already hold.
+    function downloadOne(a, statusEl) {
+      if (a.type === 'copy') {
+        triggerBlobDownload(new Blob([a.copyText || ''], { type: 'text/plain' }), safeName(a.label, 'txt'));
+        return;
+      }
+      if (statusEl) statusEl.textContent = 'Preparing…';
+      if (MOCK) { if (statusEl) statusEl.textContent = 'Render-test mode.'; return; }
+      signMedia(a.id).then(function (m) {
+        var u = signedAbs(m); if (!u) throw new Error('unavailable');
+        return fetch(u).then(function (r) { return r.blob(); }).then(function (blob) {
+          var ext = extFor(a) || (m.ext || '');
+          triggerBlobDownload(blob, safeName(a.label, ext));
+          if (statusEl) statusEl.textContent = '';
+        });
+      }).catch(function () { if (statusEl) statusEl.textContent = 'Couldn’t download right now.'; });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // MEDIA player (custom; play/pause/scrub/times; signed URL lazy on play).
+    // ══════════════════════════════════════════════════════════════════════
+    function fmtTime(s) { s = Math.max(0, Math.floor(s || 0)); var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+    function buildPlayer(a) {
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-2 bg-ink border border-edge rounded-xl p-3';
+      var isVideo = a.type === 'video';
+      var media = document.createElement(isVideo ? 'video' : 'audio');
+      media.preload = 'none';
+      if (isVideo) { media.className = 'w-full rounded-lg mb-2 bg-black'; media.playsInline = true; media.setAttribute('controlslist', 'nodownload'); wrap.appendChild(media); }
+      var row = document.createElement('div');
+      row.className = 'flex items-center gap-3';
+      row.innerHTML =
+        '<button class="mp-play bg-gold text-ink font-bold text-lg flex items-center justify-center shrink-0 active:bg-goldlight" aria-label="play">&#9658;</button>' +
+        '<div class="flex-1 min-w-0"><div class="mp-bar"><div class="mp-fill"></div></div>' +
+          '<div class="flex justify-between text-[11px] text-gray-500 mt-1"><span class="mp-cur">0:00</span><span class="mp-dur">0:00</span></div></div>';
+      wrap.appendChild(row);
+      var playBtn = row.querySelector('.mp-play'), bar = row.querySelector('.mp-bar'),
+          fill = row.querySelector('.mp-fill'), cur = row.querySelector('.mp-cur'), dur = row.querySelector('.mp-dur');
+      var loaded = false;
+      function ensureSrc() {
+        if (loaded) return Promise.resolve();
+        return signMedia(a.id).then(function (m) { media.src = signedAbs(m); loaded = true; });
+      }
+      playBtn.addEventListener('click', function () {
+        ensureSrc().then(function () {
+          if (media.paused) { media.play(); playBtn.innerHTML = '&#10073;&#10073;'; }
+          else { media.pause(); playBtn.innerHTML = '&#9658;'; }
+        }).catch(function () { cur.textContent = 'unavailable'; });
+      });
+      media.addEventListener('timeupdate', function () { if (media.duration) fill.style.width = (media.currentTime / media.duration * 100) + '%'; cur.textContent = fmtTime(media.currentTime); });
+      media.addEventListener('loadedmetadata', function () { dur.textContent = fmtTime(media.duration); });
+      media.addEventListener('ended', function () { playBtn.innerHTML = '&#9658;'; fill.style.width = '0%'; });
+      bar.addEventListener('click', function (e) {
+        if (!media.duration) return;
+        var rect = bar.getBoundingClientRect();
+        media.currentTime = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * media.duration;
+      });
+      return wrap;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // RENDER
+    // ══════════════════════════════════════════════════════════════════════
+    function loadPhoto(a, img) {
+      if (MOCK) { img.src = a.mockSrc || ''; return; }
+      signMedia(a.id).then(function (m) { var u = signedAbs(m); if (u) img.src = u; }).catch(function () {});
+    }
+    function loadDoc(a, frame, openLink) {
+      if (MOCK) { if (a.mockSrc) { frame.src = a.mockSrc; if (openLink) openLink.href = a.mockSrc; } return; }
+      signMedia(a.id).then(function (m) {
+        var u = signedAbs(m); if (!u) return;
+        frame.src = u + '#toolbar=0&navpanes=0';
+        if (openLink) openLink.href = u;
+      }).catch(function () {});
+    }
+    function isDark(l) { return /(black|dark)/i.test(l || ''); }
+
+    function dlButton(a) {
+      var row = document.createElement('div');
+      row.className = 'mt-2 flex items-center gap-2';
+      row.innerHTML = '<button class="text-[11px] bg-panel border border-edge text-gray-200 rounded-lg px-3 py-1.5 active:bg-ink">Download</button>' +
+        '<span data-dlstatus class="text-[11px] text-gray-500"></span>';
+      var status = row.querySelector('[data-dlstatus]');
+      row.querySelector('button').addEventListener('click', function () { downloadOne(a, status); });
+      return row;
+    }
+
+    function renderCard(a) {
+      var card = document.createElement('div');
+      card.className = 'bg-panel border border-edge rounded-2xl p-3 mb-3';
+      var head = '<p class="text-sm font-semibold text-white">' + esc(a.label) + '</p>';
+      if (a.placement) head += '<p class="text-[11px] text-gray-500 mt-0.5">' + esc(a.placement) + '</p>';
+      card.innerHTML = head;
+
+      if (a.type === 'photo') {
+        var img = document.createElement('img');
+        img.alt = esc(a.label); img.className = 'w-full rounded-lg mt-2 bg-ink cursor-zoom-in';
+        img.addEventListener('click', function () { if (img.src) { $('zoom-img').src = img.src; $('zoom').classList.remove('hidden'); } });
+        card.appendChild(img);
+        if (a.hasMedia || MOCK) loadPhoto(a, img);
+        if (a.photoCredit) { var pc = document.createElement('p'); pc.className = 'text-[11px] text-gray-500 mt-1'; pc.textContent = 'Photo: ' + a.photoCredit; card.appendChild(pc); }
+        card.appendChild(dlButton(a));
+      } else if (a.type === 'logo') {
+        var onDark = isDark(a.label);
+        var frame = document.createElement('div');
+        frame.className = (onDark ? 'swatch-black' : 'swatch-white') + ' rounded-lg mt-2 p-4 flex items-center justify-center overflow-hidden';
+        var logoImg = document.createElement('img');
+        logoImg.alt = esc(a.label); logoImg.className = 'max-h-40 w-auto max-w-full cursor-zoom-in';
+        logoImg.addEventListener('click', function () { if (logoImg.src) { $('zoom-img').src = logoImg.src; $('zoom').classList.remove('hidden'); } });
+        frame.appendChild(logoImg); card.appendChild(frame);
+        if (a.hasMedia || MOCK) loadPhoto(a, logoImg);
+        card.appendChild(dlButton(a));
+      } else if (a.type === 'copy') {
+        var copy = document.createElement('p');
+        copy.className = 'text-sm text-gray-200 leading-relaxed mt-2 whitespace-pre-wrap';
+        copy.textContent = a.copyText || '';
+        card.appendChild(copy);
+        card.appendChild(dlButton(a));
+      } else if (a.type === 'document') {
+        var docWrap = document.createElement('div'); docWrap.className = 'mt-2';
+        var dframe = document.createElement('iframe');
+        dframe.className = 'w-full rounded-lg bg-white border border-edge'; dframe.style.height = '420px';
+        dframe.setAttribute('title', esc(a.label));
+        docWrap.appendChild(dframe);
+        var openRow = document.createElement('p');
+        openRow.className = 'text-[11px] text-gray-500 mt-1';
+        openRow.innerHTML = 'PDF preview &mdash; <a data-docopen target="_blank" rel="noopener" class="underline text-gold">open full screen</a>';
+        docWrap.appendChild(openRow);
+        card.appendChild(docWrap);
+        if (a.hasMedia || MOCK) loadDoc(a, dframe, openRow.querySelector('[data-docopen]'));
+        card.appendChild(dlButton(a));
+      } else if (a.type === 'audio' || a.type === 'video') {
+        if (a.hasMedia || MOCK) card.appendChild(buildPlayer(a));
+        card.appendChild(dlButton(a));
+      }
+      return card;
+    }
+
+    function renderLogoPairs(items, host) {
+      // Pair on-white / on-black by base label; otherwise render singly.
+      function base(l) { return String(l || '').replace(/\s*\((on\s*)?(white|black|light|dark)\)\s*$/i, '').trim(); }
+      var groups = {};
+      items.forEach(function (a) { (groups[base(a.label)] = groups[base(a.label)] || []).push(a); });
+      Object.keys(groups).forEach(function (b) {
+        var pair = groups[b];
+        var light = pair.filter(function (a) { return !isDark(a.label); });
+        var dark = pair.filter(function (a) { return isDark(a.label); });
+        if (light.length && dark.length) {
+          var card = document.createElement('div');
+          card.className = 'bg-panel border border-edge rounded-2xl p-3 mb-3';
+          card.innerHTML = '<p class="text-sm font-semibold text-white mb-2">' + esc(b) + '</p><div class="grid grid-cols-2 gap-2"></div>';
+          var grid = card.querySelector('.grid');
+          [{ v: light[0], lbl: 'On white', cls: 'swatch-white' }, { v: dark[0], lbl: 'On black', cls: 'swatch-black' }].forEach(function (o) {
+            var cell = document.createElement('div');
+            var frame = document.createElement('div');
+            frame.className = o.cls + ' rounded-lg h-24 flex items-center justify-center overflow-hidden mb-1 cursor-zoom-in';
+            var limg = document.createElement('img'); limg.alt = esc(o.v.label); limg.className = 'max-h-20 w-auto max-w-full';
+            frame.appendChild(limg);
+            frame.addEventListener('click', function () { if (limg.src) { $('zoom-img').src = limg.src; $('zoom').classList.remove('hidden'); } });
+            cell.appendChild(frame);
+            var cap = document.createElement('p'); cap.className = 'text-[11px] text-gray-400 text-center'; cap.textContent = o.lbl; cell.appendChild(cap);
+            grid.appendChild(cell);
+            if (o.v.hasMedia || MOCK) loadPhoto(o.v, limg);
+          });
+          pair.forEach(function (a) { card.appendChild(dlButton(a)); });
+          host.appendChild(card);
+        } else {
+          pair.forEach(function (a) { host.appendChild(renderCard(a)); });
+        }
+      });
+    }
+
+    function render(data) {
+      CURRENT = data;
+      $('state').classList.add('hidden');
+      $('kit').classList.remove('hidden');
+      $('kit-title').textContent = data.title || 'Press Kit';
+
+      var byBrand = {};
+      data.artifacts.forEach(function (a) { (byBrand[a.brand || '__none'] = byBrand[a.brand || '__none'] || []).push(a); });
+      var brandKeys = Object.keys(byBrand).sort(function (x, y) {
+        return brandOrder(x === '__none' ? null : x) - brandOrder(y === '__none' ? null : y);
+      });
+
+      var host = $('groups'); host.innerHTML = '';
+      brandKeys.forEach(function (bk) {
+        var brand = bk === '__none' ? null : bk;
+        var group = document.createElement('section');
+        group.className = 'mt-4';
+        var bn = brandName(brand);
+        if (bn) group.innerHTML = '<h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider px-1 mb-1">' + bn + '</h2>';
+        SECTIONS.forEach(function (sec) {
+          var items = byBrand[bk].filter(function (a) { return sec.types.indexOf(a.type) !== -1; });
+          if (!items.length) return;
+          var secEl = document.createElement('div');
+          secEl.className = 'mt-3';
+          secEl.innerHTML = '<h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wide px-1 mb-1">' + sec.title + '</h3>';
+          if (sec.key === 'logo') renderLogoPairs(items, secEl);
+          else items.forEach(function (a) { secEl.appendChild(renderCard(a)); });
+          group.appendChild(secEl);
+        });
+        host.appendChild(group);
+      });
+
+      $('dl-all').addEventListener('click', function () {
+        var s = $('dl-all-status'); s.textContent = 'Preparing ZIP…';
+        if (MOCK) { s.textContent = 'Render-test mode — ZIP would download here.'; return; }
+        deliverZip().then(function (blob) { triggerBlobDownload(blob, 'press-kit.zip'); s.textContent = ''; })
+          .catch(function () { s.textContent = 'Couldn’t prepare the ZIP right now.'; });
+      });
+    }
+
+    function stateMsg(html) { $('state-body').innerHTML = html; }
+    function unavailable() {
+      stateMsg('<p class="text-sm text-gray-400">This press-kit link is no longer available. It may have expired or been turned off. Please ask your Gold Bottom Ent. contact for a fresh link.</p>');
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // BOOT
+    // ══════════════════════════════════════════════════════════════════════
+    function start() {
+      if (!SHARE && !MOCK) { unavailable(); return; }
+      loadKit(SHARE).then(render).catch(function () { unavailable(); });
+    }
+
+    // ── MOCK (render/test only) ──
+    function ph(w, h, label, bg) {
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '"><rect width="100%" height="100%" fill="' + bg + '"/><text x="50%" y="50%" fill="#d4a017" font-family="sans-serif" font-size="20" text-anchor="middle" dominant-baseline="middle">' + label + '</text></svg>';
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+    function mockDocSrc() {
+      var html = '<!doctype html><html><body style="margin:0;font-family:Georgia,serif;color:#111;background:#fff;padding:28px">' +
+        '<h1 style="font-size:20px;margin:0 0 6px">L.A. Young — One-Sheet</h1>' +
+        '<p style="font-size:12px;color:#555;margin:0 0 14px">Press &amp; Booking</p>' +
+        '<p style="font-size:13px;line-height:1.6">Render-test placeholder standing in for the branded PDF the delivery pipeline produces.</p></body></html>';
+      return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+    }
+    function mockKit() {
+      return {
+        title: 'L.A. Young’s Phyllis Hyman Tribute — Press Kit',
+        brand: 'phyllis-hyman-tribute',
+        artifacts: [
+          { id: 'pa_1', type: 'photo', label: 'Hero portrait', placement: 'Event-page hero', brand: 'phyllis-hyman-tribute', photoCredit: 'Jane Doe Photography', hasMedia: true, mockSrc: ph(700, 460, 'Hero portrait', '#161b22') },
+          { id: 'pa_9', type: 'document', label: 'One-sheet (PDF)', placement: 'Press bio', brand: 'phyllis-hyman-tribute', contentType: 'application/pdf', hasMedia: true, mockSrc: mockDocSrc() },
+          { id: 'pa_3', type: 'copy', label: 'Short bio', placement: 'Press bio', brand: 'phyllis-hyman-tribute', copyText: 'L.A. Young brings the songbook of a soul legend to the stage — a full evening of the arrangements audiences remember.' },
+          { id: 'pa_4', type: 'logo', label: 'Primary lockup (on white)', brand: 'soul-society', hasMedia: true, mockSrc: ph(360, 140, 'Soul Society', '#eee') },
+          { id: 'pa_5', type: 'logo', label: 'Primary lockup (on black)', brand: 'soul-society', hasMedia: true, mockSrc: ph(360, 140, 'Soul Society', '#000') },
+          { id: 'pa_6', type: 'audio', label: 'Live medley (2:30)', placement: 'Press listen', brand: 'soul-society', hasMedia: true }
+        ]
+      };
+    }
+
+    start();
+  })();
+  </script>
+</body>
+</html>

@@ -117,6 +117,11 @@
     // the site already ships in js/config.js / band media.
     var SUPABASE_URL = 'https://rklvvuzedmadydmohouu.supabase.co';
     var SUPABASE_KEY = 'sb_publishable_oIOHXXN_pwkeoeAfcQkNbg_rJkDFNZK';
+    // Edge-function host (phase 2). The three press edge functions run
+    // service_role SERVER-SIDE and re-check auth.uid()/role or the share token
+    // before doing anything — the client holds only the publishable key + the
+    // signed-in user's JWT (never service_role). Same host as encrypt-pii.
+    var FN_BASE = 'https://rklvvuzedmadydmohouu.functions.supabase.co';
     // Menu/view selection is a CONVENIENCE only. Every read is RLS-scoped and
     // every write re-checks the caller inside the RPC — the client decides
     // nothing about authorization.
@@ -140,11 +145,14 @@
     function brandName(b) { return (BRANDS[b] && BRANDS[b].name) || 'Not yet assigned to a brand'; }
     function brandOrder(b) { return BRANDS[b] ? BRANDS[b].order : 99; }
 
-    // Section buckets, fixed order (UX 1b): Photos -> Logos -> Copy -> Audio/Video.
+    // Section buckets, fixed order (UX 1b): Photos -> Logos -> Copy -> Documents
+    // -> Audio/Video. `document` (phase 2, plan §A/§B) is always a PDF, viewed
+    // in-browser via a native <iframe> of the short-lived signed URL.
     var SECTIONS = [
       { key: 'photo', title: 'Photos', types: ['photo'] },
       { key: 'logo',  title: 'Logos',  types: ['logo'] },
       { key: 'copy',  title: 'Copy',   types: ['copy'] },
+      { key: 'doc',   title: 'Documents', types: ['document'] },
       { key: 'av',    title: 'Audio &amp; Video', types: ['audio', 'video'] }
     ];
 
@@ -185,6 +193,30 @@
     var press = null; // sb.schema('press') once we know the client supports it
     function pressApi() { press = press || sb.schema('press'); return press; }
 
+    // Current signed-in user's Supabase JWT — sent to the edge functions so they
+    // can re-derive auth.uid() server-side. Falls back to null (edge fn then
+    // denies); we never let the client assert identity.
+    function accessToken() {
+      return sb.auth.getSession().then(function (r) {
+        return (r && r.data && r.data.session && r.data.session.access_token) || null;
+      }).catch(function () { return null; });
+    }
+    // Standard headers for an authenticated edge-function call. Bearer is the
+    // USER JWT (not service_role); apikey is the publishable key.
+    function fnHeaders(jwt, json) {
+      var h = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + (jwt || SUPABASE_KEY) };
+      if (json) h['Content-Type'] = 'application/json';
+      return h;
+    }
+    // Accept filter for the "upload new version" picker, by artifact type.
+    function acceptFor(t) {
+      if (t === 'photo' || t === 'logo') return 'image/*';
+      if (t === 'document') return 'application/pdf';
+      if (t === 'audio') return 'audio/*';
+      if (t === 'video') return 'video/*';
+      return '';
+    }
+
     // ── Local render/test harness (guarded so it can NEVER run in production).
     //    Supplies representative fake DATA to the same render path; it grants no
     //    access to any real data and is dead code on the live host. ──
@@ -214,6 +246,7 @@
               id: a.artifactId, type: a.artifactType, label: a.label, placement: a.placement,
               destinationVenue: a.destinationVenue || null, brand: a.brand, version: a.version,
               state: a.state, rejectionReason: a.rejectionReason, copyText: a.copyText,
+              contentType: a.contentType || a.content_type || null,
               usageRights: a.usageRights, photoCredit: a.photoCredit, hasMedia: !!a.hasMedia,
               // priorReason/priorDate: not projected by artist_get_package today
               // (see the contract note in the build report). Rendered when present.
@@ -226,36 +259,38 @@
 
     function loadBmPackage(token) {
       if (MOCK) return Promise.resolve(mockBm());
-      // BM/admin read via RLS-filtered SELECT (no BM read RPC in the contract).
-      // Column-explicit — never select *; internal-only and personnel columns
-      // are deliberately left out of the projection.
-      var p = pressApi();
-      return p.from('press_packages')
-        .select('id,pkg_token,title,venue,event_date,status')
-        .eq('pkg_token', token).maybeSingle()
-        .then(function (pr) {
-          if (pr.error) throw pr.error;
-          if (!pr.data) throw new Error('not found');
-          var pkg = pr.data;
-          return p.from('package_artifacts')
-            .select('id,artifact_type,label,placement,destination_venue,brand,version,phase,state,rejection_reason,copy_text,usage_rights,photo_credit')
-            .eq('package_id', pkg.id)
-            .then(function (ar) {
-              if (ar.error) throw ar.error;
-              return {
-                role: 'bm',
-                pkg: { token: pkg.pkg_token, title: pkg.title, venue: pkg.venue, eventDate: pkg.event_date, status: pkg.status },
-                artifacts: (ar.data || []).map(function (a) {
-                  return {
-                    id: a.id, type: a.artifact_type, label: a.label, placement: a.placement,
-                    destinationVenue: a.destination_venue, brand: a.brand, version: a.version,
-                    phase: a.phase, state: a.state, rejectionReason: a.rejection_reason,
-                    copyText: a.copy_text, usageRights: a.usage_rights, photoCredit: a.photo_credit
-                  };
-                })
-              };
-            });
-        });
+      // Phase 2: BM/admin read goes through the SECURITY DEFINER bm_get_package
+      // RPC (re-checks BM/admin role + status='approved' inside the function),
+      // replacing the phase-1 direct table SELECT. Projection is column-explicit
+      // server-side; internal integer ids / personnel columns are never returned.
+      // Mapping is defensive (camelCase or snake_case) so it survives the
+      // contract being finalised at deploy.
+      return pressApi().rpc('bm_get_package', { p_pkg_token: token }).then(function (r) {
+        if (r.error) throw r.error;
+        var d = r.data || {};
+        var pk = d.package || {};
+        return {
+          role: 'bm',
+          pkg: {
+            token: pk.pkgToken || pk.pkg_token || token, title: pk.title,
+            venue: pk.venue || null, eventDate: pk.eventDate || pk.event_date || null,
+            status: pk.status, kind: pk.kind || pk.packageKind || pk.package_kind || null
+          },
+          artifacts: (d.artifacts || []).map(function (a) {
+            return {
+              id: a.artifactId || a.id, type: a.artifactType || a.artifact_type, label: a.label,
+              placement: a.placement, destinationVenue: a.destinationVenue || a.destination_venue || null,
+              brand: a.brand, version: a.version, phase: a.phase, state: a.state,
+              rejectionReason: a.rejectionReason || a.rejection_reason,
+              copyText: a.copyText || a.copy_text,
+              contentType: a.contentType || a.content_type || null,
+              usageRights: a.usageRights || a.usage_rights,
+              photoCredit: a.photoCredit || a.photo_credit,
+              hasMedia: a.hasMedia != null ? !!a.hasMedia : (a.has_media != null ? !!a.has_media : true)
+            };
+          })
+        };
+      });
     }
 
     // BM/admin list: which packages may this manager open? RLS on press_packages
@@ -283,10 +318,119 @@
       return pressApi().rpc('bm_export_package', { p_pkg_token: token })
         .then(function (r) { if (r.error) throw r.error; return r.data; });
     }
+    // Phase 2 (plan §F): media URLs are minted by the `press-sign` EDGE FUNCTION
+    // (service_role, server-side) which re-checks that the caller owns/approves
+    // the package before Storage.createSignedUrl (TTL <=300s). This REPLACES the
+    // retired mint_signed_media_url SQL-HMAC RPC. Contract:
+    //   POST {FN_BASE}/press-sign  Bearer <user JWT>
+    //   body { pkgToken, artifactId }  ->  { signedUrl }
     function mintMediaUrl(token, id) {
       if (MOCK) return Promise.resolve({ signedUrl: '' });
-      return pressApi().rpc('mint_signed_media_url', { p_pkg_token: token, p_artifact_id: id })
-        .then(function (r) { if (r.error) throw r.error; return r.data; });
+      return accessToken().then(function (jwt) {
+        return fetch(FN_BASE + '/press-sign', {
+          method: 'POST', headers: fnHeaders(jwt, true),
+          body: JSON.stringify({ pkgToken: token, artifactId: id })
+        });
+      }).then(function (res) {
+        if (!res.ok) throw new Error('sign failed');
+        return res.json();
+      });
+    }
+
+    // ── Phase 2 BM authoring RPCs (all SECURITY DEFINER, re-check BM/admin
+    //    role+status inside the function; artist_uid resolved server-side). ──
+    // bm_create_package(p_title, p_brand, p_kind) -> { pkgToken }
+    function createPackage(title, brand) {
+      if (MOCK) return Promise.resolve({ pkgToken: 'demo-new' });
+      return pressApi().rpc('bm_create_package', { p_title: title, p_brand: brand, p_kind: 'venue_neutral' })
+        .then(function (r) { if (r.error) throw r.error; return r.data || {}; });
+    }
+    // bm_add_artifact_to_kit — creates the artifact METADATA row (venue-neutral;
+    // the RPC refuses booking kinds). The binary is attached afterward via
+    // press-upload. Chosen shape (documented for reconciliation):
+    //   bm_add_artifact_to_kit(p_pkg_token, p_artifact_type, p_label, p_brand,
+    //                          p_placement, p_copy_text, p_content_type) -> { artifactId }
+    function addArtifact(token, meta) {
+      if (MOCK) return Promise.resolve({ artifactId: 'pa_new_' + Date.now() });
+      return pressApi().rpc('bm_add_artifact_to_kit', {
+        p_pkg_token: token,
+        p_artifact_type: meta.type,
+        p_label: meta.label,
+        p_brand: meta.brand,
+        p_placement: meta.placement || null,
+        p_copy_text: meta.copyText || null,
+        p_content_type: meta.contentType || null
+      }).then(function (r) { if (r.error) throw r.error; return r.data || {}; });
+    }
+    // bm_create_share(p_pkg_token, p_label, p_expires_days) -> { shareToken, label, expiresAt }
+    function createShare(token, label, days) {
+      if (MOCK) return Promise.resolve({ shareToken: 'shr_' + Date.now(), label: label || null, expiresAt: null });
+      return pressApi().rpc('bm_create_share', { p_pkg_token: token, p_label: label || null, p_expires_days: days || 30 })
+        .then(function (r) { if (r.error) throw r.error; return r.data || {}; });
+    }
+    // bm_list_shares(p_pkg_token) -> [ { shareToken, label, expiresAt, revokedAt } ]
+    function listShares(token) {
+      if (MOCK) return Promise.resolve(mockShares());
+      return pressApi().rpc('bm_list_shares', { p_pkg_token: token })
+        .then(function (r) { if (r.error) throw r.error; return (r.data || []).map(function (s) {
+          return {
+            shareToken: s.shareToken || s.share_token, label: s.label,
+            expiresAt: s.expiresAt || s.expires_at || null,
+            revokedAt: s.revokedAt || s.revoked_at || null
+          };
+        }); });
+    }
+    // bm_revoke_share(p_share_token) -> { ok }
+    function revokeShare(shareToken) {
+      if (MOCK) return Promise.resolve({ ok: true });
+      return pressApi().rpc('bm_revoke_share', { p_share_token: shareToken })
+        .then(function (r) { if (r.error) throw r.error; return r.data || {}; });
+    }
+
+    // press-upload EDGE FUNCTION — writes the object to Storage then calls
+    // bm_new_version. File path: multipart/form-data (never JSON base64, keeps
+    // phone memory low). Copy path: JSON. Contract (documented):
+    //   POST {FN_BASE}/press-upload  Bearer <user JWT>
+    //   file:  FormData{ pkg_token, artifact_id, intent:'new_version', file }
+    //   copy:  JSON   { pkg_token, artifact_id, intent:'new_version', copy_text }
+    //   -> { ok, artifact }
+    function uploadFileVersion(token, artifactId, file) {
+      if (MOCK) return Promise.resolve({ ok: true });
+      return accessToken().then(function (jwt) {
+        var fd = new FormData();
+        fd.append('pkg_token', token);
+        fd.append('artifact_id', artifactId);
+        fd.append('intent', 'new_version');
+        fd.append('file', file);
+        // NOTE: no Content-Type header — the browser sets the multipart boundary.
+        return fetch(FN_BASE + '/press-upload', { method: 'POST', headers: fnHeaders(jwt, false), body: fd });
+      }).then(function (res) { if (!res.ok) throw new Error('upload failed'); return res.json(); });
+    }
+    function uploadCopyVersion(token, artifactId, copyText) {
+      if (MOCK) return Promise.resolve({ ok: true });
+      return accessToken().then(function (jwt) {
+        return fetch(FN_BASE + '/press-upload', {
+          method: 'POST', headers: fnHeaders(jwt, true),
+          body: JSON.stringify({ pkg_token: token, artifact_id: artifactId, intent: 'new_version', copy_text: copyText })
+        });
+      }).then(function (res) { if (!res.ok) throw new Error('save failed'); return res.json(); });
+    }
+
+    // press-deliver EDGE FUNCTION — "Download all" ZIP (copy rendered to branded
+    // PDF server-side). BM path authorises by JWT+pkgToken; venue path (press-kit
+    // page) authorises by share token, anon. Returns a ZIP blob.
+    function deliverZip(opts) {
+      return accessToken().then(function (jwt) {
+        return fetch(FN_BASE + '/press-deliver', {
+          method: 'POST', headers: fnHeaders(jwt, true),
+          body: JSON.stringify({ pkgToken: opts.pkgToken })
+        });
+      }).then(function (res) { if (!res.ok) throw new Error('download failed'); return res.blob(); });
+    }
+    // Shareable venue URL for a share token: same /dev/ folder, press-kit.html.
+    function venueShareUrl(shareToken) {
+      var base = location.origin + location.pathname.replace(/press-package\.html.*$/, 'press-kit.html');
+      return base + '?share=' + encodeURIComponent(shareToken);
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -541,6 +685,23 @@
         copy.className = 'text-sm text-gray-200 leading-relaxed mt-2 whitespace-pre-wrap';
         copy.textContent = a.copyText || '';
         card.appendChild(copy);
+      } else if (a.type === 'document') {
+        // In-browser PDF view (plan §B) via a native <iframe> of the short-lived
+        // signed URL — viewable, no explicit download control — plus an "open
+        // full screen" fallback link.
+        var docWrap = document.createElement('div');
+        docWrap.className = 'mt-2';
+        var frame = document.createElement('iframe');
+        frame.className = 'w-full rounded-lg bg-white border border-edge';
+        frame.style.height = '420px';
+        frame.setAttribute('title', esc(a.label));
+        docWrap.appendChild(frame);
+        var openRow = document.createElement('p');
+        openRow.className = 'text-[11px] text-gray-500 mt-1';
+        openRow.innerHTML = 'PDF preview &mdash; <a data-docopen target="_blank" rel="noopener" class="underline text-gold">open full screen</a>';
+        docWrap.appendChild(openRow);
+        card.appendChild(docWrap);
+        if (a.hasMedia || MOCK) loadDoc(a, frame, openRow.querySelector('[data-docopen]'));
       } else if (a.type === 'audio' || a.type === 'video') {
         if (a.hasMedia || MOCK) card.appendChild(buildPlayer(a));
         else { var na = document.createElement('p'); na.className = 'text-[11px] text-gray-500 mt-2'; na.textContent = 'Media is being prepared.'; card.appendChild(na); }
@@ -548,13 +709,101 @@
 
       if (!readOnly) {
         card.appendChild(renderDecisionBlock(a, false));
-      } else if (a.rejectionReason) {
-        var rn = document.createElement('p');
-        rn.className = 'text-[11px] text-warn mt-2';
-        rn.textContent = 'Sent back — note: “' + a.rejectionReason + '”';
-        card.appendChild(rn);
+      } else {
+        if (a.rejectionReason) {
+          var rn = document.createElement('p');
+          rn.className = 'text-[11px] text-warn mt-2';
+          rn.textContent = 'Sent back — note: “' + a.rejectionReason + '”';
+          card.appendChild(rn);
+        }
+        // BM/admin "Upload new version" — only on the current version of an
+        // artifact, never a superseded row. Authorization is re-checked inside
+        // press-upload; this control is convenience-only.
+        if (CURRENT && CURRENT.role === 'bm' && a.phase !== 'superseded') {
+          card.appendChild(renderUploadControl(a));
+        }
       }
       return card;
+    }
+
+    // Load a signed PDF URL into the document iframe + the open-fallback link.
+    function loadDoc(a, frame, openLink) {
+      if (MOCK) {
+        if (a.mockSrc) { frame.src = a.mockSrc; if (openLink) openLink.href = a.mockSrc; }
+        return;
+      }
+      mintMediaUrl(CURRENT.pkg.token, a.id).then(function (m) {
+        var u = m && m.signedUrl ? m.signedUrl : '';
+        if (u && u.charAt(0) === '/') u = SUPABASE_URL + u;
+        if (u) {
+          // #toolbar=0 asks the native viewer to hide its download/print chrome
+          // (view-only intent; not a security control — the edge fn is).
+          frame.src = u + '#toolbar=0&navpanes=0';
+          if (openLink) openLink.href = u;
+        }
+      }).catch(function () {});
+    }
+
+    // BM/admin "Upload new version" control (plan §D). File types open a native
+    // picker → press-upload (multipart). Copy artifacts edit inline → press-upload
+    // (JSON copy_text). On success the BM view reloads to show the new version.
+    function renderUploadControl(a) {
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-3 border-t border-edge pt-3';
+      if (a.type === 'copy') {
+        wrap.innerHTML =
+          '<button data-act="edit" class="decide-btn w-full bg-panel border border-gold text-gold font-semibold rounded-xl px-3 text-sm">Upload new version (edit copy)</button>' +
+          '<div data-box class="hidden mt-2">' +
+            '<textarea data-copy rows="4" class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white"></textarea>' +
+            '<div class="flex gap-2 mt-2">' +
+              '<button data-act="save" class="decide-btn flex-1 bg-gold text-ink font-semibold rounded-xl px-3 text-sm">Save new version</button>' +
+              '<button data-act="cancel" class="decide-btn px-4 bg-panel border border-edge text-gray-300 rounded-xl text-sm">Cancel</button>' +
+            '</div>' +
+          '</div>' +
+          '<p data-status class="text-[11px] text-gray-500 mt-1"></p>';
+      } else {
+        wrap.innerHTML =
+          '<label class="block cursor-pointer">' +
+            '<span class="decide-btn flex items-center justify-center bg-panel border border-gold text-gold font-semibold rounded-xl px-3 text-sm">Upload new version</span>' +
+            '<input data-file type="file" class="hidden" accept="' + acceptFor(a.type) + '">' +
+          '</label>' +
+          '<p data-status class="text-[11px] text-gray-500 mt-1"></p>';
+      }
+      var status = wrap.querySelector('[data-status]');
+      var fileInput = wrap.querySelector('[data-file]');
+      if (fileInput) {
+        fileInput.addEventListener('change', function () {
+          var f = fileInput.files && fileInput.files[0]; if (!f) return;
+          status.textContent = 'Uploading “' + f.name + '”…';
+          uploadFileVersion(CURRENT.pkg.token, a.id, f)
+            .then(function () { status.textContent = 'Uploaded — refreshing…'; reloadBm(); })
+            .catch(function (e) { status.textContent = friendlyErr(e); });
+        });
+      }
+      wrap.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-act]'); if (!btn) return;
+        var act = btn.getAttribute('data-act');
+        var box = wrap.querySelector('[data-box]');
+        if (act === 'edit') { box.classList.remove('hidden'); wrap.querySelector('[data-copy]').value = a.copyText || ''; btn.classList.add('hidden'); }
+        else if (act === 'cancel') { box.classList.add('hidden'); wrap.querySelector('[data-act="edit"]').classList.remove('hidden'); }
+        else if (act === 'save') {
+          var t = wrap.querySelector('[data-copy]').value.trim(); if (!t) return;
+          status.textContent = 'Saving…';
+          uploadCopyVersion(CURRENT.pkg.token, a.id, t)
+            .then(function () { status.textContent = 'Saved — refreshing…'; reloadBm(); })
+            .catch(function (er) { status.textContent = friendlyErr(er); });
+        }
+      });
+      return wrap;
+    }
+
+    // Re-fetch and re-render the BM view after an authoring action.
+    function reloadBm() {
+      busy(true);
+      loadBmPackage(CURRENT.pkg.token)
+        .then(function (data) { renderBmView(data); })
+        .catch(function (e) { alert(friendlyErr(e)); })
+        .then(function () { busy(false); });
     }
 
     function loadPhoto(a, img) {
@@ -674,6 +923,15 @@
       host.appendChild(exportWrap);
       $('btn-export').addEventListener('click', doExport);
 
+      // Add-artifact panel (venue-neutral kits only; the RPC refuses booking
+      // kinds). Lets the BM grow the kit from the phone.
+      host.appendChild(renderAddArtifactPanel(data));
+
+      // Share / deliver panel (plan §C). Create a 30-day venue link, list/revoke
+      // existing shares, and "Download all (ZIP)". bm_create_share refuses on a
+      // package that is not export-clean — the server owns that gate.
+      host.appendChild(renderSharePanel(data));
+
       var byBrand = {};
       data.artifacts.forEach(function (a) { (byBrand[a.brand || '__none'] = byBrand[a.brand || '__none'] || []).push(a); });
       Object.keys(byBrand).sort(function (x, y) {
@@ -710,6 +968,192 @@
         .then(function () { busy(false); });
     }
 
+    // ── Add-artifact panel (BM/admin, venue-neutral kit) ──
+    function renderAddArtifactPanel(data) {
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-3 bg-panel border border-edge rounded-2xl p-4';
+      var brandOpts = Object.keys(BRANDS).map(function (b) {
+        return '<option value="' + b + '">' + BRANDS[b].name + '</option>';
+      }).join('');
+      wrap.innerHTML =
+        '<button data-act="toggle" class="w-full flex items-center justify-between gap-3">' +
+          '<span class="font-display text-sm font-bold text-white">Add an artifact</span>' +
+          '<span class="text-gold text-lg leading-none">+</span>' +
+        '</button>' +
+        '<div data-form class="hidden mt-3 space-y-2">' +
+          '<div><label class="block text-[11px] text-gray-400 mb-1">Type</label>' +
+            '<select data-type class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white">' +
+              '<option value="photo">Photo</option><option value="logo">Logo</option>' +
+              '<option value="copy">Copy</option><option value="document">Document (PDF)</option>' +
+              '<option value="audio">Audio</option><option value="video">Video</option>' +
+            '</select></div>' +
+          '<div><label class="block text-[11px] text-gray-400 mb-1">Brand</label>' +
+            '<select data-brand class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white">' + brandOpts + '</select></div>' +
+          '<div><label class="block text-[11px] text-gray-400 mb-1">Label</label>' +
+            '<input data-label class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white" placeholder="e.g. Hero portrait"></div>' +
+          '<div><label class="block text-[11px] text-gray-400 mb-1">Placement (type, not a venue)</label>' +
+            '<input data-placement class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white" placeholder="e.g. Event-page hero"></div>' +
+          '<div data-copywrap class="hidden"><label class="block text-[11px] text-gray-400 mb-1">Copy text</label>' +
+            '<textarea data-copytext rows="4" class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white"></textarea></div>' +
+          '<div data-filewrap><label class="block text-[11px] text-gray-400 mb-1">File</label>' +
+            '<input data-file type="file" class="w-full text-sm text-gray-300"></div>' +
+          '<button data-act="create" class="decide-btn w-full bg-gold text-ink font-display font-bold rounded-xl px-3 text-sm">Add to kit</button>' +
+          '<p data-status class="text-[11px] text-gray-500"></p>' +
+        '</div>';
+
+      var form = wrap.querySelector('[data-form]');
+      var typeSel = wrap.querySelector('[data-type]');
+      var copywrap = wrap.querySelector('[data-copywrap]');
+      var filewrap = wrap.querySelector('[data-filewrap]');
+      var fileInput = wrap.querySelector('[data-file]');
+      var status = wrap.querySelector('[data-status]');
+
+      function syncType() {
+        var t = typeSel.value;
+        var isCopy = t === 'copy';
+        copywrap.classList.toggle('hidden', !isCopy);
+        filewrap.classList.toggle('hidden', isCopy);
+        if (fileInput) fileInput.setAttribute('accept', acceptFor(t));
+      }
+      typeSel.addEventListener('change', syncType); syncType();
+
+      wrap.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-act]'); if (!btn) return;
+        var act = btn.getAttribute('data-act');
+        if (act === 'toggle') { form.classList.toggle('hidden'); return; }
+        if (act === 'create') {
+          var type = typeSel.value;
+          var label = wrap.querySelector('[data-label]').value.trim();
+          if (!label) { status.textContent = 'Give the artifact a label first.'; return; }
+          var meta = {
+            type: type, label: label,
+            brand: wrap.querySelector('[data-brand]').value,
+            placement: wrap.querySelector('[data-placement]').value.trim() || null,
+            copyText: type === 'copy' ? wrap.querySelector('[data-copytext]').value.trim() : null,
+            contentType: type === 'document' ? 'application/pdf' : null
+          };
+          if (type === 'copy' && !meta.copyText) { status.textContent = 'Enter the copy text.'; return; }
+          var file = (type !== 'copy' && fileInput.files && fileInput.files[0]) || null;
+          if (type !== 'copy' && !file) { status.textContent = 'Choose a file to upload.'; return; }
+          status.textContent = 'Adding…';
+          busy(true);
+          addArtifact(CURRENT.pkg.token, meta).then(function (res) {
+            var newId = res.artifactId || res.artifact_id;
+            if (file && newId) {
+              status.textContent = 'Uploading file…';
+              return uploadFileVersion(CURRENT.pkg.token, newId, file);
+            }
+          }).then(function () {
+            status.textContent = 'Added — refreshing…'; busy(false); reloadBm();
+          }).catch(function (err) { busy(false); status.textContent = friendlyErr(err); });
+        }
+      });
+      return wrap;
+    }
+
+    // ── Share / deliver panel (BM/admin) ──
+    function renderSharePanel(data) {
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-3 bg-panel border border-edge rounded-2xl p-4';
+      wrap.innerHTML =
+        '<div class="flex items-center justify-between gap-3">' +
+          '<div><p class="font-display text-sm font-bold text-white">Share with a venue</p>' +
+          '<p class="text-[11px] text-gray-500">Creates a no-login link (30 days). Works once the kit is export-clean.</p></div>' +
+          '<button data-act="new" class="decide-btn bg-gold text-ink font-display font-bold rounded-xl px-4 text-sm active:bg-goldlight">New link</button>' +
+        '</div>' +
+        '<div data-newlink class="mt-2"></div>' +
+        '<div class="mt-3">' +
+          '<button data-act="zip" class="decide-btn w-full bg-panel border border-edge text-gray-200 font-semibold rounded-xl px-3 text-sm">Download all (ZIP)</button>' +
+          '<p data-zipstatus class="text-[11px] text-gray-500 mt-1"></p>' +
+        '</div>' +
+        '<div data-shares class="mt-3 space-y-2"><p class="text-[11px] text-gray-500">Loading existing links…</p></div>';
+
+      var newBox = wrap.querySelector('[data-newlink]');
+      var sharesBox = wrap.querySelector('[data-shares]');
+      var zipStatus = wrap.querySelector('[data-zipstatus]');
+
+      function copyText(text, btn) {
+        function done() { var o = btn.textContent; btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = o; }, 1500); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, function () {});
+        } else {
+          var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+          ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} document.body.removeChild(ta);
+        }
+      }
+      function shareRow(s) {
+        var url = venueShareUrl(s.shareToken);
+        var revoked = !!s.revokedAt;
+        var row = document.createElement('div');
+        row.className = 'bg-ink border border-edge rounded-xl p-3';
+        row.innerHTML =
+          '<div class="flex items-center justify-between gap-2">' +
+            '<p class="text-xs font-semibold ' + (revoked ? 'text-gray-500 line-through' : 'text-white') + ' truncate">' +
+              esc(s.label || 'Venue link') + '</p>' +
+            (revoked ? '<span class="text-[10px] text-gray-500">revoked</span>'
+                     : '<button data-revoke class="text-[11px] text-loss underline shrink-0">revoke</button>') +
+          '</div>' +
+          (revoked ? '' :
+            '<div class="mt-1 flex items-center gap-2">' +
+              '<input readonly value="' + esc(url) + '" class="flex-1 min-w-0 bg-panel border border-edge rounded-lg p-1.5 text-[11px] text-gray-300">' +
+              '<button data-copy class="text-[11px] bg-gold text-ink font-semibold rounded-lg px-2 py-1 shrink-0">Copy</button>' +
+            '</div>') +
+          (s.expiresAt && !revoked ? '<p class="text-[10px] text-gray-500 mt-1">Expires ' + esc(String(s.expiresAt).slice(0, 10)) + '</p>' : '');
+        var copyBtn = row.querySelector('[data-copy]');
+        if (copyBtn) copyBtn.addEventListener('click', function () { copyText(url, copyBtn); });
+        var revBtn = row.querySelector('[data-revoke]');
+        if (revBtn) revBtn.addEventListener('click', function () {
+          revBtn.textContent = 'revoking…';
+          revokeShare(s.shareToken).then(refreshShares).catch(function (e) { revBtn.textContent = friendlyErr(e); });
+        });
+        return row;
+      }
+      function refreshShares() {
+        listShares(CURRENT.pkg.token).then(function (list) {
+          sharesBox.innerHTML = '';
+          if (!list.length) { sharesBox.innerHTML = '<p class="text-[11px] text-gray-500">No links yet.</p>'; return; }
+          list.forEach(function (s) { sharesBox.appendChild(shareRow(s)); });
+        }).catch(function () { sharesBox.innerHTML = '<p class="text-[11px] text-gray-500">Links couldn’t be loaded.</p>'; });
+      }
+
+      wrap.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-act]'); if (!btn) return;
+        var act = btn.getAttribute('data-act');
+        if (act === 'new') {
+          newBox.innerHTML = '<p class="text-[11px] text-gray-500">Creating…</p>';
+          createShare(CURRENT.pkg.token, null, 30).then(function (s) {
+            var token = s.shareToken || s.share_token;
+            var url = venueShareUrl(token);
+            newBox.innerHTML =
+              '<div class="bg-ink border border-good rounded-xl p-3">' +
+                '<p class="text-xs text-good font-semibold mb-1">New venue link ready</p>' +
+                '<div class="flex items-center gap-2">' +
+                  '<input readonly value="' + esc(url) + '" class="flex-1 min-w-0 bg-panel border border-edge rounded-lg p-1.5 text-[11px] text-gray-300">' +
+                  '<button data-copynew class="text-[11px] bg-gold text-ink font-semibold rounded-lg px-2 py-1 shrink-0">Copy</button>' +
+                '</div></div>';
+            newBox.querySelector('[data-copynew]').addEventListener('click', function () { copyText(url, this); });
+            refreshShares();
+          }).catch(function (err) { newBox.innerHTML = '<p class="text-xs text-loss">' + esc(friendlyErr(err)) + '</p>'; });
+        } else if (act === 'zip') {
+          zipStatus.textContent = 'Preparing ZIP…';
+          if (MOCK) { zipStatus.textContent = 'Render-test mode — ZIP would download here.'; return; }
+          deliverZip({ pkgToken: CURRENT.pkg.token }).then(function (blob) {
+            triggerBlobDownload(blob, 'press-kit.zip'); zipStatus.textContent = 'Downloaded.';
+          }).catch(function (err) { zipStatus.textContent = friendlyErr(err); });
+        }
+      });
+      refreshShares();
+      return wrap;
+    }
+
+    // Save a Blob to the device as a file (used by "Download all").
+    function triggerBlobDownload(blob, name) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      document.body.removeChild(a); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // RENDER — band-manager package list (no ?pkg= token). Every row links to
     // ?pkg=<token> on this same page; RLS already limited what we may see.
@@ -725,10 +1169,19 @@
 
       var host = $('bm-view'); host.classList.remove('hidden'); host.innerHTML = '';
 
+      // "+ New kit" — BM/admin create a new venue-neutral press kit (plan §E).
+      var newBtn = document.createElement('button');
+      newBtn.className = 'mt-4 w-full bg-gold text-ink font-display font-bold rounded-2xl px-4 py-3 text-sm active:bg-goldlight';
+      newBtn.textContent = '+ New kit';
+      newBtn.addEventListener('click', renderCreateKit);
+      host.appendChild(newBtn);
+
       if (!list || !list.length) {
-        host.innerHTML = '<div class="mt-6 bg-panel border border-edge rounded-2xl p-6 text-center">' +
-          '<p class="text-sm text-gray-300">No press packages yet.</p>' +
-          '<p class="text-[12px] text-gray-500 mt-1">When one is ready for review, it will show up here.</p></div>';
+        var empty = document.createElement('div');
+        empty.className = 'mt-4 bg-panel border border-edge rounded-2xl p-6 text-center';
+        empty.innerHTML = '<p class="text-sm text-gray-300">No press packages yet.</p>' +
+          '<p class="text-[12px] text-gray-500 mt-1">Tap “New kit” above to create one.</p>';
+        host.appendChild(empty);
         return;
       }
 
@@ -750,6 +1203,55 @@
         wrap.appendChild(a);
       });
       host.appendChild(wrap);
+    }
+
+    // BM/admin: create a new venue-neutral kit (title + brand; artist resolved
+    // server-side). On success we navigate to ?pkg=<token> so the BM lands in
+    // the package view and can add artifacts there.
+    function renderCreateKit() {
+      $('sticky').classList.add('hidden');
+      $('brand-groups').classList.add('hidden');
+      $('pkg-title').textContent = 'New press kit';
+      $('pkg-sub').textContent = 'Venue-neutral — no venue or date on the kit.';
+      var host = $('bm-view'); host.classList.remove('hidden'); host.innerHTML = '';
+      var brandOpts = Object.keys(BRANDS).map(function (b) {
+        return '<option value="' + b + '">' + BRANDS[b].name + '</option>';
+      }).join('');
+      var card = document.createElement('div');
+      card.className = 'mt-4 bg-panel border border-edge rounded-2xl p-4 space-y-3';
+      card.innerHTML =
+        '<div><label class="block text-[11px] text-gray-400 mb-1">Kit title</label>' +
+          '<input data-title class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white" placeholder="e.g. L.A. Young’s Phyllis Hyman Tribute — Press Kit"></div>' +
+        '<div><label class="block text-[11px] text-gray-400 mb-1">Brand</label>' +
+          '<select data-brand class="w-full bg-ink border border-edge rounded-lg p-2 text-sm text-white">' + brandOpts + '</select></div>' +
+        '<div class="flex gap-2">' +
+          '<button data-act="create" class="decide-btn flex-1 bg-gold text-ink font-display font-bold rounded-xl px-3 text-sm">Create kit</button>' +
+          '<button data-act="back" class="decide-btn px-4 bg-panel border border-edge text-gray-300 rounded-xl text-sm">Cancel</button>' +
+        '</div>' +
+        '<p data-status class="text-[11px] text-gray-500"></p>';
+      host.appendChild(card);
+      var status = card.querySelector('[data-status]');
+      card.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-act]'); if (!btn) return;
+        var act = btn.getAttribute('data-act');
+        if (act === 'back') {
+          if (MOCK) { renderPackageList(mockPackageList()); }
+          else { loadPackageList().then(renderPackageList).catch(function () {}); }
+          return;
+        }
+        if (act === 'create') {
+          var title = card.querySelector('[data-title]').value.trim();
+          var brand = card.querySelector('[data-brand]').value;
+          if (!title) { status.textContent = 'Give the kit a title first.'; return; }
+          status.textContent = 'Creating…'; busy(true);
+          createPackage(title, brand).then(function (res) {
+            var token = res.pkgToken || res.pkg_token;
+            busy(false);
+            if (MOCK) { status.textContent = 'Render-test mode — created kit ' + token + '.'; return; }
+            location.href = '?pkg=' + encodeURIComponent(token);
+          }).catch(function (err) { busy(false); status.textContent = friendlyErr(err); });
+        }
+      });
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -869,10 +1371,26 @@
           { id: 'pa_4', type: 'logo', label: 'Primary lockup (on white)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true, mockSrc: ph(360, 140, 'Soul Society™', 'transparent') },
           { id: 'pa_5', type: 'logo', label: 'Primary lockup (on black)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true, mockSrc: ph(360, 140, 'Soul Society™', 'transparent') },
           { id: 'pa_8', type: 'logo', label: 'Icon mark (on white)', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true, mockSrc: ph(240, 200, 'GB', 'transparent') },
+          { id: 'pa_9', type: 'document', label: 'One-sheet (PDF)', placement: 'Press bio', brand: 'phyllis-hyman-tribute', version: 1, state: 'pending', contentType: 'application/pdf', hasMedia: true, mockSrc: mockDocSrc() },
           { id: 'pa_6', type: 'audio', label: 'Live medley (2:30)', placement: 'Press listen', brand: 'soul-society', version: 1, state: 'pending', hasMedia: true },
           { id: 'pa_7', type: 'video', label: 'Sizzle reel', placement: 'Event page', brand: 'soul-society', version: 1, state: 'approved', hasMedia: true }
         ]
       };
+    }
+    // A render-only stand-in for the signed PDF (real ones come from press-sign).
+    function mockDocSrc() {
+      var html = '<!doctype html><html><body style="margin:0;font-family:Georgia,serif;color:#111;background:#fff;padding:28px">' +
+        '<h1 style="font-size:20px;margin:0 0 6px">L.A. Young — One-Sheet</h1>' +
+        '<p style="font-size:12px;color:#555;margin:0 0 14px">Press &amp; Booking</p>' +
+        '<p style="font-size:13px;line-height:1.6">A soul vocalist bringing a full evening of remembered arrangements to the stage. This is a render-test placeholder standing in for the branded PDF the delivery pipeline produces.</p>' +
+        '</body></html>';
+      return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+    }
+    function mockShares() {
+      return [
+        { shareToken: 'shr_abc123', label: 'Venue link', expiresAt: '2026-10-13', revokedAt: null },
+        { shareToken: 'shr_old999', label: 'Older link', expiresAt: '2026-09-20', revokedAt: '2026-09-12' }
+      ];
     }
     function mockPackageList() {
       return [
