@@ -264,7 +264,7 @@
     function loadPackageList() {
       if (MOCK) return Promise.resolve(mockPackageList());
       return pressApi().from('press_packages')
-        .select('pkg_token,title,status,brand')
+        .select('pkg_token,title,status')
         .then(function (r) { if (r.error) throw r.error; return r.data || []; });
     }
 
@@ -747,7 +747,7 @@
           '<div class="flex items-center justify-between gap-3">' +
             '<div class="min-w-0">' +
               '<p class="text-sm font-semibold text-white truncate">' + esc(p.title || 'Untitled package') + '</p>' +
-              '<p class="text-[12px] text-gold truncate">' + brandName(p.brand) + '</p>' +
+              '<p class="text-[12px] text-gold truncate">Press kit</p>' +
             '</div>' +
             '<span class="shrink-0 text-[11px] font-semibold text-gray-300">' + esc(pkgStatusPlain(p.status)) + '</span>' +
           '</div>';
