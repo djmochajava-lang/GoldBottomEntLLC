@@ -476,7 +476,7 @@
       return frag;
     }
 
-    function renderArtifactCard(a) {
+    function renderArtifactCard(a, readOnly) {
       var st = reviewStatus(a);
       var card = document.createElement('div');
       card.className = 'art-card bg-panel border border-edge rounded-2xl p-3 mb-3 ' +
@@ -486,7 +486,7 @@
       var head = '<div class="flex items-start justify-between gap-2">' +
         '<p class="text-sm font-semibold text-white">' + esc(a.label) + '</p>';
       if (!st.reviewed) {
-        head += '<span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-ink bg-gold rounded px-1.5 py-0.5">Needs your review</span>';
+        head += '<span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-ink bg-gold rounded px-1.5 py-0.5">' + (readOnly ? 'Awaiting artist' : 'Needs your review') + '</span>';
       } else {
         head += '<span class="shrink-0 text-[10px] font-semibold ' + (st.approved ? 'text-good' : 'text-warn') + '">' + esc(st.label) + '</span>';
       }
@@ -546,7 +546,14 @@
         else { var na = document.createElement('p'); na.className = 'text-[11px] text-gray-500 mt-2'; na.textContent = 'Media is being prepared.'; card.appendChild(na); }
       }
 
-      card.appendChild(renderDecisionBlock(a, false));
+      if (!readOnly) {
+        card.appendChild(renderDecisionBlock(a, false));
+      } else if (a.rejectionReason) {
+        var rn = document.createElement('p');
+        rn.className = 'text-[11px] text-warn mt-2';
+        rn.textContent = 'Sent back — note: “' + a.rejectionReason + '”';
+        card.appendChild(rn);
+      }
       return card;
     }
 
@@ -677,18 +684,7 @@
         sec.innerHTML = '<h2 class="font-display text-sm font-bold text-gold uppercase tracking-wider px-1 mb-2">' +
           brandName(bk === '__none' ? null : bk) + '</h2>';
         byBrand[bk].sort(function (a, b) { return (a.type + a.label).localeCompare(b.type + b.label) || a.version - b.version; });
-        byBrand[bk].forEach(function (a) {
-          var sp = bmStatePlain(a);
-          var row = document.createElement('div');
-          row.className = 'bg-panel border border-edge rounded-xl p-3 mb-2';
-          var reason = a.rejectionReason ? '<p class="text-[11px] text-gray-400 mt-1">Note: “' + esc(a.rejectionReason) + '”</p>' : '';
-          row.innerHTML =
-            '<div class="flex items-start justify-between gap-2">' +
-            '<div class="min-w-0"><p class="text-sm font-semibold text-white truncate">' + esc(a.label) + '</p>' +
-            '<p class="text-[11px] text-gray-500">' + esc(secTitleForType(a.type)) + ' · v' + esc(a.version) + '</p></div>' +
-            '<span class="shrink-0 text-[11px] font-semibold ' + sp.c + '">' + sp.t + '</span></div>' + reason;
-          sec.appendChild(row);
-        });
+        byBrand[bk].forEach(function (a) { sec.appendChild(renderArtifactCard(a, true)); });
         host.appendChild(sec);
       });
     }
