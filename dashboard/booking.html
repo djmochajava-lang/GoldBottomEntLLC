@@ -251,8 +251,81 @@
     return d.toLocaleDateString();
   }
 
-  function pill(bg, color, text) {
-    return '<span style="display:inline-block;padding:2px 8px;border-radius:var(--radius-full);font-size:0.72rem;font-weight:600;background:' + bg + ';color:' + color + ';">' + text + '</span>';
+  /** Attribute-context escape: esc() covers text nodes (&, <, >) but not quotes; a title="" needs both. */
+  function escAttr(str) {
+    return esc(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function pill(bg, color, text, opts) {
+    opts = opts || {};
+    return '<span' + (opts.title ? ' title="' + escAttr(opts.title) + '"' : '') +
+      ' style="display:inline-block;padding:2px 8px;border-radius:var(--radius-full);font-size:0.72rem;font-weight:600;background:' + bg + ';color:' + color + ';' + (opts.style || '') + '">' + text + '</span>';
+  }
+
+  /* ---- Reply signal + legible priority ----
+     Field-presence-driven on BOTH data paths: the LAN API (/booking-inbox, /booking-inbox/:id → replies[])
+     and the Supabase booking_inquiry_readmodel on the phone (priority_reason, reply_count, latest_reply_at).
+     A row without the fields (older cache rows, before the cloud migration) renders exactly as before:
+     plain pill, no badge, no section. Everything server-supplied goes through esc(). */
+
+  /** "P1 · Customer replied" when a reason is present, else the bare priority. Uniform for any reason string. */
+  function priorityLabel(r) {
+    var p = (r && r.priority) || 'P3';
+    var reason = (r && r.priority_reason != null) ? String(r.priority_reason).trim() : '';
+    return reason ? esc(p + ' \u00b7 ' + reason) : esc(p);
+  }
+
+  /** Count of replies attached to an inquiry (0 when the field is absent). */
+  function replyCountOf(r) {
+    var n = parseInt(r && r.reply_count, 10);
+    return (isNaN(n) || n < 0) ? 0 : n;
+  }
+
+  /**
+   * Detail "Replies (N)" card — styled like the buyer-counter card (orange-left-border family, purple accent),
+   * placed above the summary card. Rows (LAN detail: replies[] newest-first from the API) show sender,
+   * time, excerpt ≤250 chars — all escaped text. On the phone the read-model carries the count + latest
+   * time only (never a reply body), so the card shows those. Zero replies ⇒ returns '' (no section).
+   */
+  function renderRepliesCard(r) {
+    var rows = Array.isArray(r.replies) ? r.replies : null;
+    var n = rows ? rows.length : replyCountOf(r);
+    if (!n) return '';
+    var latest = (rows && rows[0] && rows[0].received_at) || r.latest_reply_at || null;
+    var html = '<div id="inq-replies-card" data-testid="inq-replies-card" ' +
+      'style="margin-bottom:var(--space-md);padding:var(--space-md);border-radius:var(--radius-md);' +
+      'background:rgba(188,140,255,0.08);border:1px solid rgba(188,140,255,0.35);">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:var(--space-xs);">' +
+      '<i class="fa-solid fa-reply" style="color:#bc8cff;"></i>' +
+      '<strong style="font-size:var(--text-base);">Replies (' + n + ')</strong></div>';
+    if (latest) {
+      html += '<div style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-sm);">' +
+        pill('rgba(188,140,255,0.15)', '#bc8cff', 'Latest ' + esc(timeAgo(latest))) +
+        pill('rgba(139,148,158,0.15)', '#8b949e', esc(new Date(latest).toLocaleString())) + '</div>';
+    }
+    if (rows) {
+      rows.forEach(function(rp) {
+        var who = (rp.from_name && String(rp.from_name).trim()) || rp.from_addr || 'Unknown sender';
+        var when = rp.received_at ? new Date(rp.received_at).toLocaleString() : '';
+        var excerpt = String(rp.excerpt || '').slice(0, 250);
+        html += '<div class="inq-reply-row" style="padding:var(--space-sm) var(--space-md);background:var(--color-bg);border-left:3px solid #bc8cff;' +
+          'border-radius:var(--radius-sm);margin-bottom:var(--space-xs);">';
+        html += '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:var(--text-sm);">' +
+          '<strong style="word-break:break-word;">' + esc(who) + '</strong>' +
+          '<span style="color:var(--color-text-muted);font-size:0.75rem;white-space:nowrap;">' + esc(when) + '</span></div>';
+        if (excerpt) {
+          html += '<div style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.55;margin-top:4px;word-break:break-word;">' + esc(excerpt) + '</div>';
+        }
+        html += '</div>';
+      });
+    } else {
+      // Phone path: signal only. The message itself is already in the booking mailbox on this phone.
+      html += '<div style="font-size:var(--text-sm);color:var(--color-text-muted);line-height:1.5;">' +
+        (n === 1 ? 'The customer replied on this inquiry.' : 'The customer replied ' + n + ' times on this inquiry.') +
+        ' The message is in the booking mailbox.</div>';
+    }
+    html += '</div>';
+    return html;
   }
 
   function hexToRGB(hex) {
@@ -537,7 +610,10 @@
     try {
       var rawRows;
       if (isLocal) {
-        var data = await Utils.apiFetch('/booking-inbox?limit=200');
+        // LAN API: the page's own apiFetch() — API base URL + Bearer + parsed
+        // JSON, same helper the Pipeline tab uses for /bookings. (Utils.apiFetch resolves to a
+        // Promise<Response> on a bare path, so this branch had always rendered empty on the LAN.)
+        var data = await apiFetch('/booking-inbox?limit=200');
         rawRows = data.data || [];
       } else {
         // Remote path — authenticated Supabase read of the manager-only inquiry read-model
@@ -661,7 +737,12 @@
         html += '<div class="pipeline-card card inquiry-card" data-id="' + r.id + '" style="margin-bottom:var(--space-sm);padding:var(--space-sm);border-left:3px solid ' + stage.color + ';cursor:pointer;' + (isUnread ? 'font-weight:600;' : '') + '">';
         html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;">';
         html += '<strong style="font-size:0.85rem;line-height:1.3;">' + esc(senderDisplay) + (isStarred ? ' <i class="fa-solid fa-star" style="color:#d4a017;font-size:0.7rem;"></i>' : '') + '</strong>';
-        html += pill(pp.bg, pp.color, r.priority || 'P3');
+        // "P1 · Customer replied" — priority + reason when the row carries one. The pill is
+        // width-capped with an ellipsis so a long reason cannot break the card; the full text is in title.
+        html += pill(pp.bg, pp.color, priorityLabel(r), {
+          style: 'max-width:58%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;',
+          title: (r.priority || 'P3') + (r.priority_reason ? ' \u00b7 ' + r.priority_reason : '')
+        });
         html += '</div>';
         if (r.subject) {
           html += '<div style="font-size:0.8rem;color:var(--color-text);margin-top:4px;font-weight:500;">' + esc(r.subject) + '</div>';
@@ -679,6 +760,14 @@
           html += r.responded_at
             ? '<span style="font-size:0.68rem;color:#3fb950;"><i class="fa-solid fa-check"></i> Responded</span>'
             : '<span style="font-size:0.68rem;color:#f08800;"><i class="fa-solid fa-clock"></i> Awaiting</span>';
+        }
+        // Reply badge: ONE badge in the existing status row when the
+        // inquiry has attached replies — icon + "Replied" + relative time of the latest one. Absent
+        // field / zero ⇒ no badge. The whole card is the tap target (opens the detail).
+        var rc = replyCountOf(r);
+        if (rc > 0) {
+          html += '<span data-testid="inq-reply-badge" style="font-size:0.68rem;color:#bc8cff;white-space:nowrap;" title="' + rc + (rc === 1 ? ' reply' : ' replies') + '">' +
+            '<i class="fa-solid fa-reply"></i> Replied' + (r.latest_reply_at ? ' \u00b7 ' + esc(timeAgo(r.latest_reply_at)) : '') + '</span>';
         }
         html += '</span>';
         html += '</div>';
@@ -698,7 +787,7 @@
     try {
       var r;
       if (isLocal) {
-        r = await Utils.apiFetch('/booking-inbox/' + id);
+        r = await apiFetch('/booking-inbox/' + encodeURIComponent(id));   // LAN detail carries replies[]
       } else {
         r = inquiriesData.find(function(x) { return String(x.id) === String(id); });
         if (!r) { if (typeof Toast !== 'undefined') Toast.error('Detail not available'); return; }
@@ -714,7 +803,7 @@
       html += '<div style="display:flex;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-md);">';
       html += pill('rgba(' + hexToRGB(clsColor) + ',0.15)', clsColor, classLabel[r.classification] || r.classification);
       var pp = priorityPill[r.priority] || priorityPill.P3;
-      html += pill(pp.bg, pp.color, r.priority || 'P3');
+      html += pill(pp.bg, pp.color, priorityLabel(r));   // "P1 · Customer replied" — full reason on the detail
       if (r.is_read) html += pill('rgba(139,148,158,0.15)', '#8b949e', 'Read');
       else html += pill('rgba(88,166,255,0.15)', '#58a6ff', 'Unread');
       if (r.is_starred) html += pill('rgba(212,160,23,0.15)', '#d4a017', '★ Starred');
@@ -724,6 +813,10 @@
           : pill('rgba(240,136,0,0.15)', '#f08800', 'Awaiting Response');
       }
       html += '</div>';
+
+      // ── Replies (N): above the
+      //    summary card; newest first; sender / time / excerpt as escaped text; zero replies ⇒ nothing.
+      html += renderRepliesCard(r);
 
       // ── The request SUMMARY CARD, at the very top of the detail (SEE precedes ACT)
       //    — above the Create-a-Quote CTA, before the free-text body. Field-presence-
