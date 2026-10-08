@@ -1305,3 +1305,869 @@
 
 })();
 </script>
+
+<script>
+/* Band payment info (owner only).
+   The card, its styles and the Quick Actions tile are built here, and only after the
+   server confirms the signed-in person is the owner. Anyone else gets nothing.
+   Full payment handles live in this closure only: never in browser storage, the
+   address bar, data attributes, labels, titles or the console. Every server string
+   is written with textContent. Rows start hidden; one row can be shown at a time, and
+   it hides again after 20 seconds without a touch in the card, or as soon as the page
+   is hidden. Everything is forgotten on page hide, sign-out, role switch, leaving this
+   page, or 10 minutes after the read. */
+(function () {
+  'use strict';
+  if (window.__bmPayCleanup) { try { window.__bmPayCleanup(); } catch (e) {} }
+
+  var page = document.getElementById('dash-manager');
+  var sb = (typeof Auth !== 'undefined' && Auth.getSupabase) ? Auth.getSupabase() : null;
+  var cfg = (typeof SiteConfig !== 'undefined' && SiteConfig.integrations) ? SiteConfig.integrations.supabase : null;
+  if (!page || !page.parentNode || !sb || !sb.auth || !sb.auth.mfa || !cfg || !cfg.url || !cfg.anonKey) return;
+
+  var FN_URL = cfg.url.replace(/\/$/, '') + '/functions/v1/read-payment-roster';
+  var IDLE_MS = 20000;
+  var CAP_MS = 10 * 60 * 1000;
+  var ISSUER = 'Gold Bottom';
+  var METHOD = { zelle: 'Zelle', cashapp: 'Cash App', venmo: 'Venmo', paypal: 'PayPal', check: 'Check', direct_deposit: 'Direct deposit' };
+  var STATES = ['ok', 'not_set', 'needs_resave', 'unreadable', 'on_file_office'];
+  var MSG = {
+    down: 'Can’t load payment info right now.',
+    limit: 'You’ve opened payment info a lot in the last hour. Try again in a few minutes.',
+    session: 'Your session ended. Sign in again to see payment info.',
+    sessionSetup: 'Your session ended. Sign in again to continue.',
+    rowFail: 'Couldn’t show this one. Try again.',
+    hiddenAgain: 'Hidden again for your safety. Tap Show.',
+    wrong: 'That code didn’t work. Codes change every 30 seconds. Try the new one.',
+    wrongSetup: 'That code didn’t match. Wait for the next one and try again. If it keeps failing, check your phone’s clock is set to automatic.',
+    rate: 'Too many tries. Wait a few minutes and try again.',
+    net: 'Couldn’t check the code. Try again.',
+    startFail: 'Couldn’t start setup. Try again.',
+    done: 'Done. Your payment info is locked behind your code.',
+    lost: 'Lost your code app? Ask your Gold Bottom assistant to reset your code lock. Payment info stays locked until you set up a new one here.',
+    pressHold: 'Press and hold to copy.'
+  };
+
+  var CSS = [
+    '.bmpay{background:var(--color-bg-secondary);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-lg);margin-top:var(--space-lg);min-width:0;scroll-margin-top:calc(var(--topbar-height,60px) + 16px);}',
+    '.bmpay .bmpay-title{display:flex;align-items:center;gap:8px;margin:0 0 4px;outline:none;}',
+    '.bmpay .bmpay-title i{color:var(--color-gold);}',
+    '.bmpay-sub{margin:0;color:var(--color-text-muted);font-size:var(--text-sm);}',
+    '.bmpay-sum{margin:var(--space-sm) 0 0;font-weight:700;font-size:var(--text-base);color:var(--color-text);}',
+    '.bmpay-sum:empty{display:none;}',
+    '.bmpay-body{margin-top:var(--space-md);}',
+    '.bmpay-btn{min-height:44px;min-width:44px;padding:10px 16px;border-radius:var(--radius-md);border:1px solid var(--color-border-light);background:var(--color-bg-tertiary);color:var(--color-text);font-family:inherit;font-size:var(--text-base);font-weight:600;line-height:1.2;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center;-webkit-tap-highlight-color:transparent;}',
+    '.bmpay-btn--primary{background:var(--color-gold);border-color:var(--color-gold);color:#000;}',
+    '.bmpay-btn--block{display:flex;width:100%;}',
+    '.bmpay-btn--quiet{background:transparent;border-color:transparent;color:var(--color-text-secondary);margin-top:var(--space-sm);}',
+    '.bmpay-btn[disabled]{opacity:.6;cursor:default;}',
+    '.bmpay-btn:focus-visible,.bmpay-code:focus-visible{outline:2px solid var(--color-gold-light);outline-offset:2px;}',
+    '.bmpay-status{display:flex;align-items:flex-start;gap:8px;margin:0 0 var(--space-md);font-weight:600;color:var(--color-text);line-height:1.4;}',
+    '.bmpay-status i{margin-top:3px;color:var(--color-gold);}',
+    '.bmpay-status--err i{color:var(--color-danger);}',
+    '.bmpay-lead{margin:0 0 var(--space-md);color:var(--color-text);line-height:1.5;}',
+    '.bmpay-muted{margin:var(--space-md) 0 0;color:var(--color-text-muted);font-size:var(--text-sm);line-height:1.5;}',
+    '.bmpay-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--space-sm);}',
+    '.bmpay-row{padding:12px;border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);min-width:0;}',
+    '.bmpay-top{display:flex;align-items:center;gap:8px;min-width:0;}',
+    '.bmpay-main{flex:1 1 auto;min-width:0;}',
+    '.bmpay-row.is-open{border-color:var(--color-gold);}',
+    '.bmpay-who{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0;}',
+    '.bmpay-name{font-weight:700;color:var(--color-text);overflow-wrap:anywhere;}',
+    '.bmpay-inst{font-size:var(--text-sm);color:var(--color-text-muted);overflow-wrap:anywhere;}',
+    '.bmpay-pay{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;min-width:0;}',
+    '.bmpay-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--radius-full);border:1px solid var(--color-border-light);background:var(--color-bg-elevated);font-size:var(--text-sm);font-weight:600;color:var(--color-text);white-space:nowrap;}',
+    '.bmpay-mask{min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--text-sm);color:var(--color-text-secondary);letter-spacing:.04em;white-space:nowrap;}',
+    '.bmpay-show{flex:0 0 auto;padding:10px 14px;gap:6px;}',
+    '.bmpay-row.is-open .bmpay-mask,.bmpay-row.is-open .bmpay-show{display:none;}',
+    '.bmpay-flag{display:inline-flex;align-items:flex-start;gap:6px;font-size:var(--text-sm);font-weight:600;line-height:1.4;}',
+    '.bmpay-flag i{margin-top:2px;}',
+    '.bmpay-flag--warn{color:var(--color-warning);}',
+    '.bmpay-flag--info{color:var(--color-text-secondary);}',
+    '.bmpay-reveal{margin-top:10px;}',
+    '.bmpay-reveal:empty{display:none;}',
+    '.bmpay-handle{font-size:1.125rem;line-height:1.45;color:var(--color-text);white-space:pre-line;overflow-wrap:anywhere;word-break:break-word;padding:10px 12px;border-radius:var(--radius-md);background:var(--color-bg);border:1px solid var(--color-border);-webkit-user-select:text;user-select:text;}',
+    '.bmpay-confirm{margin:8px 0 0;font-size:var(--text-sm);color:var(--color-text-secondary);overflow-wrap:anywhere;}',
+    '.bmpay-actions{display:flex;gap:8px;margin-top:10px;scroll-margin-top:calc(var(--topbar-height,60px) + 16px);scroll-margin-bottom:calc(84px + env(safe-area-inset-bottom,0px));}',
+    '.bmpay-actions .bmpay-btn{flex:1 1 0;}',
+    '.bmpay-msg{margin:6px 0 0;font-size:var(--text-sm);color:var(--color-text-secondary);overflow-wrap:anywhere;}',
+    '.bmpay-msg:empty{display:none;}',
+    '.bmpay-msg--ok{color:var(--color-success);}',
+    '.bmpay-msg--err{color:var(--color-danger);}',
+    '.bmpay-label{display:block;font-weight:600;color:var(--color-text);margin-bottom:4px;}',
+    '.bmpay-help{margin:0 0 8px;font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.5;}',
+    '.bmpay-coderow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;}',
+    '.bmpay-code{flex:1 1 140px;min-width:0;max-width:220px;min-height:48px;padding:8px 12px;border-radius:var(--radius-md);border:1px solid var(--color-border-light);background:var(--color-bg);color:var(--color-text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.375rem;letter-spacing:.25em;}',
+    '.bmpay-coderow .bmpay-btn{flex:0 0 auto;}',
+    '.bmpay-steps{margin:0;padding-left:1.4rem;list-style:decimal outside;display:flex;flex-direction:column;gap:var(--space-lg);}',
+    '.bmpay-steps>li{display:list-item;padding-left:4px;}',
+    '.bmpay-steps>li::marker{color:var(--color-gold);font-weight:700;}',
+    '.bmpay-label.bmpay-step-t{margin:0 0 4px;}',
+    '.bmpay-step-t{margin:0 0 4px;font-weight:700;color:var(--color-text);}',
+    '.bmpay-step-d{margin:8px 0;font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.5;}',
+    '.bmpay-key{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.0625rem;letter-spacing:.08em;word-spacing:.3em;line-height:1.6;color:var(--color-text);overflow-wrap:anywhere;padding:10px 12px;margin-bottom:8px;border-radius:var(--radius-md);background:var(--color-bg);border:1px solid var(--color-border);-webkit-user-select:text;user-select:text;}',
+    '.bmpay-note{margin:0 0 var(--space-md);padding:10px 12px;border-radius:var(--radius-md);border:1px solid rgba(210,153,34,.35);background:var(--color-warning-muted);color:var(--color-text);font-size:var(--text-sm);line-height:1.5;}',
+    '.bmpay-skel{height:76px;border-radius:var(--radius-md);margin-bottom:var(--space-sm);}',
+    '.bmpay-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}'
+  ].join('');
+
+  var alive = true, mounted = false;
+  var card = null, head = null, sum = null, body = null, tile = null, observer = null, authSub = null;
+  var view = '';
+  var rows = [];          /* what the page shows: name, instrument, method, state, hidden partial */
+  var held = [];          /* full handles, by row position, memory only */
+  var heldAt = 0, capTimer = null, idleTimer = null;
+  var openIdx = -1;
+  var factorId = null;
+  var setup = null;       /* code-lock setup in progress: { id, key, uri } */
+  var launchAt = 0;
+  var busy = false, pending = null, pendingName = null, justSetUp = false;
+  var codeSeq = 0;
+
+  /* ── small DOM helpers (no markup strings anywhere in this card) ── */
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function icon(name) {
+    var i = document.createElement('i');
+    i.className = 'fa-solid ' + name;
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+  }
+  function button(label, cls, iconName) {
+    var b = el('button', 'bmpay-btn' + (cls ? ' ' + cls : ''));
+    b.type = 'button';
+    if (iconName) b.appendChild(icon(iconName));
+    b.appendChild(el('span', null, label));
+    return b;
+  }
+  function setBtnBusy(b, label) {
+    b.disabled = true;
+    var s = b.querySelector('span');
+    if (s) s.textContent = label;
+  }
+  function setMsg(p, text, kind) {
+    if (!p) return;
+    p.textContent = text || '';
+    p.className = 'bmpay-msg' + (kind ? ' bmpay-msg--' + kind : '');
+  }
+  function msgLine(text, kind) {
+    var p = el('p', 'bmpay-msg');
+    p.setAttribute('aria-live', 'polite');
+    setMsg(p, text, kind);
+    return p;
+  }
+  function statusLine(iconName, text, err) {
+    var p = el('p', 'bmpay-status' + (err ? ' bmpay-status--err' : ''));
+    p.appendChild(icon(iconName));
+    p.appendChild(el('span', null, text));
+    return p;
+  }
+  function flag(iconName, text, kind) {
+    var s = el('span', 'bmpay-flag bmpay-flag--' + kind);
+    s.appendChild(icon(iconName));
+    s.appendChild(el('span', null, text));
+    return s;
+  }
+  function str(v, max) { return (typeof v === 'string' && v.trim()) ? v.trim().slice(0, max) : ''; }
+  function isMounted() { return !!(card && card.isConnected); }
+  function clearSelectionInCard() {
+    try {
+      var s = window.getSelection();
+      if (!s || !s.rangeCount) return;
+      var a = s.anchorNode;
+      if (!a || !a.isConnected || (card && card.contains(a))) s.removeAllRanges();
+    } catch (e) {}
+  }
+  function rowEl(i) { return body ? body.querySelector('.bmpay-row[data-i="' + i + '"]') : null; }
+  function rowMsgAt(i, text, kind) { var li = rowEl(i); if (li) setMsg(li.querySelector('.bmpay-msg'), text, kind); }
+  function possessive(r) { return r.name ? r.name + '’s' : 'this player’s'; }
+  function what(r) {
+    if (r.method === 'check') return 'check address';
+    return (r.method ? METHOD[r.method] + ' ' : 'payment ') + 'handle';
+  }
+  function maskOf(h) {
+    var t = h.replace(/\s+/g, '');
+    return '••••' + (t.length >= 7 ? ' ' + t.slice(-3) : '');
+  }
+
+  /* ── server call: the person's own session, nothing cached, never via the offline cache ── */
+  function call(action) {
+    return Promise.resolve().then(function () { return sb.auth.getSession(); }).then(function (res) {
+      var s = res && res.data && res.data.session;
+      if (!s || !s.access_token) return { status: 401, body: null };
+      var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 15000) : null;
+      function done(out) { if (timer) clearTimeout(timer); return out; }
+      return fetch(FN_URL, {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + s.access_token, 'apikey': cfg.anonKey },
+        body: JSON.stringify({ action: action }),
+        signal: ctrl ? ctrl.signal : undefined
+      }).then(function (r) {
+        if (r.status === 204) return done({ status: 204, body: null });
+        return r.json().then(function (b) { return done({ status: r.status, body: b }); },
+                             function () { return done({ status: r.status, body: null }); });
+      }, function () { return done({ status: 0, body: null }); });
+    }).catch(function () { return { status: 0, body: null }; });
+  }
+
+  /* ── code lock (authenticator app) ── */
+  function authErrKind(e) {
+    if (!e) return 'network';
+    var st = (typeof e.status === 'number') ? e.status : 0;
+    var code = String(e.code || '');
+    var name = String(e.name || '');
+    if (st === 429 || /rate_limit/.test(code)) return 'rate';
+    if (name === 'AuthSessionMissingError' || st === 401 || /session_not_found|session_expired|bad_jwt|no_authorization/.test(code)) return 'session';
+    if (/mfa_verification_failed|mfa_challenge_expired|mfa_verification_rejected/.test(code) || st === 422 || st === 400) return 'wrong';
+    return 'network';
+  }
+  function aal() {
+    return Promise.resolve().then(function () {
+      return Promise.all([sb.auth.mfa.getAuthenticatorAssuranceLevel(), sb.auth.mfa.listFactors()]);
+    }).then(function (res) {
+      var a = res[0] || {}, f = res[1] || {};
+      var err = a.error || f.error;
+      if (err) return { error: authErrKind(err) === 'session' ? 'session' : 'network' };
+      var level = a.data ? a.data.currentLevel : null;
+      if (!level) return { error: 'session' };
+      var all = (f.data && f.data.all) || [];
+      var verified = all.filter(function (x) { return x && x.factor_type === 'totp' && x.status === 'verified'; });
+      var stale = all.filter(function (x) { return x && x.factor_type === 'totp' && x.status !== 'verified'; })
+                     .map(function (x) { return x.id; });
+      factorId = verified.length ? verified[0].id : null;
+      return { level: level, hasFactor: !!factorId, stale: stale };
+    }).catch(function () { return { error: 'network' }; });
+  }
+  function verifyCode(fid, code) {
+    return Promise.resolve().then(function () {
+      return sb.auth.mfa.challenge({ factorId: fid });
+    }).then(function (c) {
+      if (!c || c.error || !c.data || !c.data.id) return { error: (c && c.error) || {} };
+      return sb.auth.mfa.verify({ factorId: fid, challengeId: c.data.id, code: code }).then(function (v) {
+        return (v && !v.error) ? { ok: true } : { error: (v && v.error) || {} };
+      });
+    }).catch(function (e) { return { error: e || {} }; });
+  }
+  function wipeSetup() {
+    if (setup) { setup.key = null; setup.uri = null; setup.id = null; }
+    setup = null;
+  }
+
+  /* One 6-digit field, shared by the unlock step and the setup step. */
+  function codeField(btnLabel, helper, onSubmit, labelText, labelClass) {
+    var id = 'bmpay-code-' + (++codeSeq);
+    var wrap = el('div', 'bmpay-codewrap');
+    var lab = el('label', 'bmpay-label' + (labelClass ? ' ' + labelClass : ''), labelText || 'Enter your 6-digit code');
+    lab.htmlFor = id;
+    wrap.appendChild(lab);
+    if (helper) wrap.appendChild(el('p', 'bmpay-help', helper));
+    var inp = el('input', 'bmpay-code');
+    inp.id = id;
+    inp.type = 'text';
+    inp.maxLength = 6;
+    inp.spellcheck = false;
+    inp.setAttribute('inputmode', 'numeric');
+    inp.setAttribute('pattern', '[0-9]*');
+    inp.setAttribute('autocomplete', 'one-time-code');
+    inp.setAttribute('autocapitalize', 'off');
+    inp.setAttribute('autocorrect', 'off');
+    inp.setAttribute('enterkeyhint', 'done');
+    var go = button(btnLabel, 'bmpay-btn--primary', 'fa-unlock');
+    var row = el('div', 'bmpay-coderow');
+    row.appendChild(inp);
+    row.appendChild(go);
+    wrap.appendChild(row);
+    var msg = msgLine('');
+    wrap.appendChild(msg);
+    var working = false;
+    function digits(v) { return String(v || '').replace(/\D+/g, '').slice(0, 6); }
+    function submit() {
+      if (working) return;
+      var c = digits(inp.value);
+      if (c.length !== 6) { setMsg(msg, 'Enter all 6 digits.', 'err'); try { inp.focus(); } catch (e) {} return; }
+      onSubmit(c);
+    }
+    inp.addEventListener('input', function () {
+      var d = digits(inp.value);
+      if (inp.value !== d) inp.value = d;
+      if (d.length === 6) submit();
+    });
+    inp.addEventListener('paste', function (e) {
+      var t = '';
+      try { t = (e.clipboardData || window.clipboardData).getData('text') || ''; } catch (x) {}
+      if (!t) return;
+      e.preventDefault();
+      inp.value = digits(t);
+      if (inp.value.length === 6) submit();
+    });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    go.addEventListener('click', submit);
+    return {
+      wrap: wrap,
+      input: inp,
+      busy: function () {
+        working = true; go.disabled = true; inp.readOnly = true;
+        go.lastChild.textContent = 'Checking…';
+        setMsg(msg, '', '');
+      },
+      fail: function (text) {
+        working = false; go.disabled = false; inp.readOnly = false;
+        go.lastChild.textContent = btnLabel;
+        inp.value = '';
+        setMsg(msg, text, 'err');
+        try { inp.focus(); } catch (x) {}
+      }
+    };
+  }
+
+  /* ── views ── */
+  function setView(v) {
+    clearSelectionInCard();
+    if (v !== 'setup' && setup) wipeSetup();
+    if (openIdx !== -1) { openIdx = -1; clearTimeout(idleTimer); idleTimer = null; }
+    view = v;
+    body.textContent = '';
+    if (v !== 'roster') sum.textContent = '';
+  }
+  function renderChecking() {
+    setView('checking');
+    var s = el('div', 'bm-skel bmpay-skel');
+    s.style.height = '44px';
+    body.appendChild(s);
+  }
+  function renderLocked() {
+    setView('locked');
+    body.appendChild(statusLine('fa-lock', 'Locked'));
+    var b = button('Show payment info', 'bmpay-btn--primary bmpay-btn--block', 'fa-eye');
+    b.addEventListener('click', function () {
+      if (busy) return;
+      setBtnBusy(b, 'Opening…');
+      startRead(null);
+    });
+    body.appendChild(b);
+    body.appendChild(el('p', 'bmpay-muted', MSG.lost));
+  }
+  function renderSetupIntro(note) {
+    setView('setup-intro');
+    body.appendChild(el('p', 'bmpay-lead', 'Lock your payment info. One-time setup, about 3 minutes.'));
+    var b = button('Set up code lock', 'bmpay-btn--primary bmpay-btn--block', 'fa-shield-halved');
+    b.addEventListener('click', function () { startSetup(b); });
+    body.appendChild(b);
+    if (note) body.appendChild(msgLine(note, 'err'));
+  }
+  function renderSetupSteps(restarted) {
+    setView('setup');
+    if (restarted) body.appendChild(el('p', 'bmpay-note', 'Delete any old Gold Bottom entry in your authenticator, then add this new one.'));
+    var ol = el('ol', 'bmpay-steps');
+
+    var s1 = el('li');
+    s1.appendChild(el('p', 'bmpay-step-t', 'Install an authenticator app'));
+    s1.appendChild(el('p', 'bmpay-step-d', 'Google Authenticator, or the Passwords app already on your iPhone. Pick one that backs up (Google account sync or iCloud).'));
+    ol.appendChild(s1);
+
+    var s2 = el('li');
+    s2.appendChild(el('p', 'bmpay-step-t', 'Add Gold Bottom to it'));
+    var add = button('Add to authenticator', 'bmpay-btn--primary bmpay-btn--block', 'fa-plus');
+    add.addEventListener('click', function () {
+      if (!setup || !setup.uri) return;
+      launchAt = Date.now();
+      try { window.location.href = setup.uri; } catch (e) {}
+    });
+    s2.appendChild(add);
+    s2.appendChild(el('p', 'bmpay-step-d', 'Or copy the setup key and paste it into the app:'));
+    var keyBox = el('div', 'bmpay-key', setup.key.replace(/(.{4})/g, '$1 ').trim());
+    s2.appendChild(keyBox);
+    var keyMsg = msgLine('');
+    var copyKey = button('Copy setup key', 'bmpay-btn--block', 'fa-copy');
+    copyKey.addEventListener('click', function () {
+      if (!setup || !setup.key) return;
+      copyText(setup.key, keyBox, function (ok) {
+        if (!alive || view !== 'setup') return;
+        setMsg(keyMsg, ok ? 'Copied. Paste it into your authenticator.' : MSG.pressHold, ok ? 'ok' : '');
+      });
+    });
+    s2.appendChild(copyKey);
+    s2.appendChild(keyMsg);
+    s2.appendChild(el('p', 'bmpay-step-d', 'Keep the setup key in your password manager too.'));
+    ol.appendChild(s2);
+
+    var s3 = el('li');
+    var f = codeField('Finish setup', 'Find Gold Bottom in your authenticator app.', function (code) {
+      if (!setup || !setup.id) return;
+      f.busy();
+      verifyCode(setup.id, code).then(function (r) {
+        if (!alive) return;
+        if (r.ok) { wipeSetup(); justSetUp = true; pending = null; doRead(); return; }
+        var k = authErrKind(r.error);
+        if (k === 'session') { renderSession(MSG.sessionSetup); return; }
+        f.fail(k === 'wrong' ? MSG.wrongSetup : k === 'rate' ? MSG.rate : MSG.net);
+      });
+    }, 'Type the 6 digits your app shows now', 'bmpay-step-t');
+    s3.appendChild(f.wrap);
+    ol.appendChild(s3);
+    body.appendChild(ol);
+
+    var cancel = button('Cancel setup', 'bmpay-btn--quiet bmpay-btn--block');
+    cancel.addEventListener('click', function () {
+      var id = setup && setup.id;
+      wipeSetup();
+      renderSetupIntro();
+      if (id) { try { sb.auth.mfa.unenroll({ factorId: id }).catch(function () {}); } catch (e) {} }
+    });
+    body.appendChild(cancel);
+  }
+  function renderStepUp() {
+    setView('stepup');
+    body.appendChild(statusLine('fa-lock', 'Locked'));
+    var f = codeField('Unlock', 'Open your authenticator app, find Gold Bottom, and type the 6 digits.', function (code) {
+      f.busy();
+      (factorId ? Promise.resolve(factorId) : aal().then(function () { return factorId; })).then(function (fid) {
+        if (!fid) return { noFactor: true };
+        return verifyCode(fid, code);
+      }).then(function (r) {
+        if (!alive || view !== 'stepup') return;
+        if (r.noFactor) { renderSetupIntro(); return; }
+        if (r.ok) { doRead(); return; }
+        var k = authErrKind(r.error);
+        if (k === 'session') { renderSession(MSG.session); return; }
+        f.fail(k === 'wrong' ? MSG.wrong : k === 'rate' ? MSG.rate : MSG.net);
+      });
+    });
+    body.appendChild(f.wrap);
+    body.appendChild(el('p', 'bmpay-muted', 'For safety we ask for a code once every 12 hours.'));
+    var notNow = button('Not now', 'bmpay-btn--quiet bmpay-btn--block');
+    notNow.addEventListener('click', function () { pending = null; renderLocked(); });
+    body.appendChild(notNow);
+    body.appendChild(el('p', 'bmpay-muted', MSG.lost));
+    try { f.input.focus({ preventScroll: true }); } catch (e) {}
+  }
+  function renderLoading() {
+    setView('loading');
+    if (justSetUp) body.appendChild(msgLine(MSG.done, 'ok'));
+    var wrap = el('div');
+    wrap.setAttribute('aria-busy', 'true');
+    wrap.appendChild(el('p', 'bmpay-sr', 'Loading payment info'));
+    for (var k = 0; k < 4; k++) wrap.appendChild(el('div', 'bm-skel bmpay-skel'));
+    body.appendChild(wrap);
+  }
+  function renderProblem(text) {
+    setView('problem');
+    body.appendChild(statusLine('fa-circle-exclamation', text, true));
+    var b = button('Try again', 'bmpay-btn--block', 'fa-rotate-right');
+    b.addEventListener('click', function () {
+      if (busy) return;
+      setBtnBusy(b, 'Trying…');
+      startRead(null);
+    });
+    body.appendChild(b);
+  }
+  function renderSession(text) {
+    clearHeld();
+    rows = [];
+    setView('session');
+    body.appendChild(statusLine('fa-circle-exclamation', text, true));
+    var b = button('Sign in again', 'bmpay-btn--primary bmpay-btn--block', 'fa-right-to-bracket');
+    b.addEventListener('click', function () {
+      try { if (typeof Auth !== 'undefined' && Auth.showLoginModal) Auth.showLoginModal(); } catch (e) {}
+    });
+    body.appendChild(b);
+  }
+  function renderEmpty() {
+    view = 'empty';
+    sum.textContent = '';
+    body.appendChild(el('p', 'bmpay-lead', 'No band members on your roster yet. Invite players to your Band Page and their payment info will show up here.'));
+    var inv = document.getElementById('mgr-invite-btn');
+    if (inv) {
+      var b = button('Invite to Band Page', 'bmpay-btn--block', 'fa-user-plus');
+      b.addEventListener('click', function () { inv.click(); });
+      body.appendChild(b);
+    }
+  }
+  function renderRoster() {
+    setView('roster');
+    var total = rows.length;
+    if (!total) { renderEmpty(); return; }
+    var ready = rows.filter(function (r) { return r.state === 'ok' || r.state === 'on_file_office'; }).length;
+    sum.textContent = (ready === total) ? ('All ' + total + ' ready') : (ready + ' of ' + total + ' ready');
+    if (justSetUp) { body.appendChild(msgLine(MSG.done, 'ok')); justSetUp = false; }
+    var ul = el('ul', 'bmpay-list');
+    rows.forEach(function (r, i) { ul.appendChild(buildRow(r, i)); });
+    body.appendChild(ul);
+  }
+  function buildRow(r, i) {
+    var li = el('li', 'bmpay-row');
+    li.setAttribute('data-i', String(i));
+    var top = el('div', 'bmpay-top');
+    var main = el('div', 'bmpay-main');
+    var who = el('div', 'bmpay-who');
+    who.appendChild(el('span', 'bmpay-name', r.name || 'Name not set'));
+    if (r.instrument) who.appendChild(el('span', 'bmpay-inst', r.instrument));
+    main.appendChild(who);
+    top.appendChild(main);
+
+    var pay = el('div', 'bmpay-pay');
+    var label = r.method ? METHOD[r.method] : '';
+    if (r.state === 'ok') {
+      pay.appendChild(el('span', 'bmpay-pill', label || 'Payment'));
+      pay.appendChild(el('span', 'bmpay-mask', r.mask));
+      var show = button('Show', 'bmpay-show', 'fa-eye');
+      show.setAttribute('aria-label', 'Show ' + possessive(r) + ' ' + what(r));
+      show.addEventListener('click', function () { reveal(i); });
+      top.appendChild(show);
+    } else if (r.state === 'on_file_office') {
+      if (label) pay.appendChild(el('span', 'bmpay-pill', label));
+      pay.appendChild(flag('fa-building-columns', 'On file at the office', 'info'));
+    } else if (r.state === 'needs_resave') {
+      if (label) pay.appendChild(el('span', 'bmpay-pill', label));
+      pay.appendChild(flag('fa-rotate', 'Needs to be entered again on their Band Page', 'warn'));
+    } else if (r.state === 'unreadable') {
+      if (label) pay.appendChild(el('span', 'bmpay-pill', label));
+      pay.appendChild(flag('fa-triangle-exclamation', 'Can’t be read. Needs to be entered again on their Band Page', 'warn'));
+    } else {
+      pay.appendChild(flag('fa-circle-exclamation', 'Not set yet', 'warn'));
+    }
+    main.appendChild(pay);
+    li.appendChild(top);
+    li.appendChild(el('div', 'bmpay-reveal'));
+    li.appendChild(msgLine(''));
+    return li;
+  }
+
+  /* ── reading the roster ── */
+  function setData(list) {
+    clearHeld();
+    rows = [];
+    held = [];
+    for (var i = 0; i < list.length; i++) {
+      var x = list[i] || {};
+      var method = (typeof x.method === 'string' && Object.prototype.hasOwnProperty.call(METHOD, x.method)) ? x.method : null;
+      var state = (typeof x.state === 'string' && STATES.indexOf(x.state) !== -1) ? x.state : 'unreadable';
+      var h = (state === 'ok' && typeof x.handle === 'string' && x.handle) ? x.handle : null;
+      if (method === 'direct_deposit') { h = null; if (state === 'ok') state = 'on_file_office'; }
+      if (state === 'ok' && !h) state = 'unreadable';
+      rows.push({ name: str(x.display_name, 80), instrument: str(x.instrument, 60), method: method, state: state, mask: h ? maskOf(h) : '' });
+      held.push(h);
+      x.handle = null;
+    }
+    heldAt = Date.now();
+    clearTimeout(capTimer);
+    capTimer = setTimeout(clearHeld, CAP_MS);
+  }
+  function clearHeld() {
+    if (openIdx !== -1) hideRow(openIdx, 'safety');
+    for (var i = 0; i < held.length; i++) held[i] = null;
+    held = [];
+    heldAt = 0;
+    clearTimeout(capTimer);
+    capTimer = null;
+  }
+  function readProblem(status) {
+    var text = (status === 429) ? MSG.limit : null;
+    if (view === 'roster' && pending != null) {
+      rowMsgAt(pending, text || MSG.rowFail, 'err');
+      pending = null;
+      return;
+    }
+    renderProblem(text || MSG.down);
+  }
+  function startRead(i) {
+    if (!alive || busy) return;
+    pending = (typeof i === 'number') ? i : null;
+    pendingName = (pending != null && rows[pending]) ? rows[pending].name : null;
+    busy = true;
+    if (view === 'roster' && pending != null) rowMsgAt(pending, 'Opening…', '');
+    aal().then(function (info) {
+      if (!alive) return;
+      busy = false;
+      if (info.error === 'session') { renderSession(MSG.session); return; }
+      if (info.error) { readProblem(0); return; }
+      if (!info.hasFactor) { renderSetupIntro(); return; }
+      if (info.level !== 'aal2') { renderStepUp(); return; }
+      doRead();
+    });
+  }
+  function doRead() {
+    busy = true;
+    if (view !== 'roster') renderLoading();
+    call('read').then(function (r) {
+      if (!alive) return;
+      busy = false;
+      if (r.status === 200 && Array.isArray(r.body)) {
+        setData(r.body);
+        r.body = null;
+        renderRoster();
+        afterRead();
+        return;
+      }
+      if (r.status === 401 && r.body && r.body.step_up === true) { renderStepUp(); return; }
+      if (r.status === 401) { renderSession(MSG.session); return; }
+      if (r.status === 403) { destroy(); return; }
+      readProblem(r.status);
+    });
+  }
+  function afterRead() {
+    if (pending == null) return;
+    var i = pending;
+    pending = null;
+    var r = rows[i];
+    if (r && r.state === 'ok' && r.name === pendingName) reveal(i);
+  }
+
+  /* ── show / copy / hide one row ── */
+  function reveal(i) {
+    if (!alive || busy) return;
+    var r = rows[i];
+    if (!r || r.state !== 'ok') return;
+    if (heldAt && Date.now() - heldAt > CAP_MS) clearHeld();
+    var v = held[i];
+    if (typeof v !== 'string' || !v) { startRead(i); return; }
+    if (openIdx !== -1 && openIdx !== i) hideRow(openIdx, '');
+    var li = rowEl(i);
+    if (!li) return;
+    var panel = li.querySelector('.bmpay-reveal');
+    var msg = li.querySelector('.bmpay-msg');
+    setMsg(msg, '', '');
+    panel.textContent = '';
+    var h = el('div', 'bmpay-handle', v);
+    panel.appendChild(h);
+    panel.appendChild(el('p', 'bmpay-confirm', r.name ? 'Confirm the app shows ' + r.name : 'Confirm the name in the app before you send.'));
+    var acts = el('div', 'bmpay-actions');
+    var cp = button('Copy', 'bmpay-btn--primary', 'fa-copy');
+    cp.setAttribute('aria-label', 'Copy ' + possessive(r) + ' ' + what(r));
+    cp.addEventListener('click', function () { copyRow(i, h, msg); });
+    var hd = button('Hide', '', 'fa-eye-slash');
+    hd.setAttribute('aria-label', 'Hide ' + possessive(r) + ' ' + what(r));
+    hd.addEventListener('click', function () {
+      hideRow(i, '');
+      var s = li.querySelector('.bmpay-show');
+      try { if (s) s.focus({ preventScroll: true }); } catch (e) {}
+    });
+    acts.appendChild(cp);
+    acts.appendChild(hd);
+    panel.appendChild(acts);
+    li.classList.add('is-open');
+    openIdx = i;
+    armIdle();
+    try { acts.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    try { cp.focus({ preventScroll: true }); } catch (e) {}
+  }
+  function hideRow(i, reason) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+    if (openIdx === i) openIdx = -1;
+    clearSelectionInCard();
+    var li = rowEl(i);
+    if (!li) return;
+    var panel = li.querySelector('.bmpay-reveal');
+    if (panel) panel.textContent = '';
+    li.classList.remove('is-open');
+    setMsg(li.querySelector('.bmpay-msg'), reason === 'safety' ? MSG.hiddenAgain : '', '');
+  }
+  function armIdle() {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+    if (openIdx === -1) return;
+    idleTimer = setTimeout(function () { if (openIdx !== -1) hideRow(openIdx, 'safety'); }, IDLE_MS);
+  }
+  function copyRow(i, node, msg) {
+    var v = held[i];
+    if (typeof v !== 'string' || !v || openIdx !== i) { hideRow(i, ''); return; }
+    var r = rows[i];
+    copyText(v, node, function (ok) {
+      if (!alive || openIdx !== i) return;
+      if (ok) setMsg(msg, (r.method && r.method !== 'check') ? 'Copied. Paste it into ' + METHOD[r.method] + '.' : 'Copied.', 'ok');
+      else setMsg(msg, MSG.pressHold, '');
+    });
+    armIdle();
+  }
+  /* Write straight away inside the tap (a fresh gesture, which iOS Safari requires).
+     If that is refused, select the text so a long press offers Copy. */
+  function copyText(text, node, done) {
+    var p = null;
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') p = navigator.clipboard.writeText(text);
+    } catch (e) { p = null; }
+    if (p && typeof p.then === 'function') {
+      p.then(function () { done(true); }, function () { done(selectCopy(node)); });
+      return;
+    }
+    done(selectCopy(node));
+  }
+  function selectCopy(node) {
+    var ok = false;
+    try {
+      if (!node || !node.isConnected) return false;
+      var range = document.createRange();
+      range.selectNodeContents(node);
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(range);
+      ok = !!(document.execCommand && document.execCommand('copy'));
+      if (ok) s.removeAllRanges();
+    } catch (e) { ok = false; }
+    return ok;
+  }
+
+  /* ── setting up the code lock ── */
+  function startSetup(b) {
+    if (busy) return;
+    busy = true;
+    if (b) setBtnBusy(b, 'Starting…');
+    aal().then(function (info) {
+      if (!alive) return null;
+      if (info.error === 'session') { busy = false; renderSession(MSG.sessionSetup); return null; }
+      if (info.error) { busy = false; renderSetupIntro(MSG.startFail); return null; }
+      if (info.hasFactor) { busy = false; renderStepUp(); return null; }
+      var restarted = info.stale.length > 0;
+      return Promise.all(info.stale.map(function (fid) {
+        return Promise.resolve().then(function () { return sb.auth.mfa.unenroll({ factorId: fid }); }).catch(function () { return null; });
+      })).then(function () {
+        return sb.auth.mfa.enroll({ factorType: 'totp', issuer: ISSUER });
+      }).then(function (res) {
+        if (!alive) return;
+        busy = false;
+        var t = res && res.data && res.data.totp;
+        var key = (t && typeof t.secret === 'string') ? t.secret.replace(/[^A-Za-z2-7]/g, '').toUpperCase() : '';
+        if (t) { t.secret = null; t.uri = null; t.qr_code = null; }
+        if (!res || res.error || !res.data || !res.data.id || key.length < 16) {
+          if (res && res.error && authErrKind(res.error) === 'session') { renderSession(MSG.sessionSetup); return; }
+          renderSetupIntro(MSG.startFail);
+          return;
+        }
+        var params = [['secret', key], ['issuer', ISSUER], ['algorithm', 'SHA1'], ['digits', '6'], ['period', '30']];
+        setup = {
+          id: res.data.id,
+          key: key,
+          uri: 'otpauth://totp/' + encodeURIComponent(ISSUER) + '?' +
+               params.map(function (p) { return p[0] + '=' + encodeURIComponent(p[1]); }).join('&')
+        };
+        params = null;
+        key = null;
+        renderSetupSteps(restarted);
+      });
+    }).catch(function () {
+      if (!alive) return;
+      busy = false;
+      renderSetupIntro(MSG.startFail);
+    });
+  }
+
+  /* ── mount, Quick Actions tile, teardown ── */
+  function addTile() {
+    var grid = document.getElementById('bm-qa-grid');
+    if (!grid) return;
+    tile = el('button', 'quick-action-btn glass-card');
+    tile.type = 'button';
+    tile.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-xs);min-height:44px;width:100%;padding:var(--space-md);border-radius:var(--radius-md);background:var(--color-bg-tertiary);border:1px solid var(--color-border);color:var(--color-text-secondary);text-align:center;font-family:inherit;font-size:var(--text-sm);cursor:pointer;';
+    var ic = icon('fa-hand-holding-dollar');
+    ic.style.cssText = 'font-size:var(--text-lg);color:var(--color-gold);';
+    tile.appendChild(ic);
+    tile.appendChild(el('span', null, 'Pay the band'));
+    tile.addEventListener('click', function () {
+      if (!isMounted()) return;
+      var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      try { card.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' }); } catch (e) { card.scrollIntoView(); }
+      try { head.focus({ preventScroll: true }); } catch (e) {}
+    });
+    grid.appendChild(tile);
+  }
+  function onTouch() { if (openIdx !== -1) armIdle(); }
+  function mount() {
+    card = el('section', 'card bmpay');
+    card.setAttribute('aria-labelledby', 'bmpay-title');
+    card.appendChild(el('style', null, CSS));
+    head = el('h3', 'bmpay-title');
+    head.id = 'bmpay-title';
+    head.tabIndex = -1;
+    head.appendChild(icon('fa-lock'));
+    head.appendChild(el('span', null, 'Band payment info'));
+    card.appendChild(head);
+    card.appendChild(el('p', 'bmpay-sub', 'Only you can see this.'));
+    sum = el('p', 'bmpay-sum');
+    sum.setAttribute('aria-live', 'polite');
+    card.appendChild(sum);
+    body = el('div', 'bmpay-body');
+    card.appendChild(body);
+    var anchor = document.getElementById('bm-pending-agreements');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(card, anchor);
+    else page.appendChild(card);
+    mounted = true;
+    addTile();
+    ['pointerdown', 'touchstart', 'keydown', 'focusin'].forEach(function (t) {
+      card.addEventListener(t, onTouch, { passive: true });
+    });
+    renderChecking();
+    aal().then(function (info) {
+      if (!alive) return;
+      if (info.error === 'session') { renderSession(MSG.session); return; }
+      if (!info.error && !info.hasFactor) { renderSetupIntro(); return; }
+      renderLocked();
+    });
+  }
+  function destroy() {
+    if (!alive) return;
+    alive = false;
+    clearTimeout(idleTimer);
+    clearTimeout(capTimer);
+    for (var i = 0; i < held.length; i++) held[i] = null;
+    held = [];
+    rows = [];
+    heldAt = 0;
+    openIdx = -1;
+    wipeSetup();
+    clearSelectionInCard();
+    if (card && card.parentNode) card.parentNode.removeChild(card);
+    if (tile && tile.parentNode) tile.parentNode.removeChild(tile);
+    card = head = sum = body = tile = null;
+    document.removeEventListener('visibilitychange', onVis);
+    window.removeEventListener('pagehide', onPageHide);
+    document.removeEventListener('gbe:role-switched', destroy);
+    if (observer) { try { observer.disconnect(); } catch (e) {} observer = null; }
+    if (authSub) { try { authSub.unsubscribe(); } catch (e) {} authSub = null; }
+    if (window.__bmPayCleanup === destroy) window.__bmPayCleanup = null;
+  }
+  function onVis() {
+    if (!alive) return;
+    if (mounted && !isMounted()) { destroy(); return; }
+    if (document.visibilityState === 'hidden') {
+      if (openIdx !== -1) hideRow(openIdx, 'safety');
+    } else if (heldAt && Date.now() - heldAt > CAP_MS) {
+      clearHeld();
+    }
+  }
+  function onPageHide() {
+    if (!alive) return;
+    clearHeld();
+    /* Opening the authenticator from "Add to authenticator" can count as leaving the
+       page on some browsers; keep the setup on screen for that one moment only. */
+    if (setup && Date.now() - launchAt > 3000) renderSetupIntro();
+  }
+
+  document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('pagehide', onPageHide);
+  document.addEventListener('gbe:role-switched', destroy);
+  try {
+    observer = new MutationObserver(function () { if (!page.isConnected) destroy(); });
+    observer.observe(page.parentNode, { childList: true });
+  } catch (e) {}
+  try {
+    var sub = sb.auth.onAuthStateChange(function (evt) { if (evt === 'SIGNED_OUT') destroy(); });
+    authSub = sub && sub.data && sub.data.subscription;
+  } catch (e) {}
+  window.__bmPayCleanup = destroy;
+
+  call('probe').then(function (r) {
+    if (!alive) return;
+    if (r.status !== 204 || !page.isConnected) { destroy(); return; }
+    mount();
+  });
+})();
+</script>
